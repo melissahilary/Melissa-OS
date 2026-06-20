@@ -8,6 +8,7 @@ import {
 } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import MoonIcon from './shared/MoonIcon'
+import Horoscope from './Horoscope'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -38,6 +39,8 @@ export default function Today({ cycleConfig, setCycleConfig }) {
 
   return (
     <div>
+      <Horoscope />
+
       {/* Header */}
       <header className="mb-7">
         <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Daily Schedule</Cursive>
