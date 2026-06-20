@@ -7,7 +7,7 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 const PAGE_STATUS = ['Planned', 'Building', 'Live', 'Parked']
 
 export default function DesigningApp() {
-  const [data, setData] = useLocalStorage('mos:glow', {
+  const [data, setData] = useLocalStorage('mos:app', {
     pages: [],
     terminal: [],
     deadEnds: [],
