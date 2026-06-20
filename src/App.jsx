@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import {
   UtensilsCrossed, Activity, Heart, Briefcase, Code2, Home, Building2, Users,
-  ChevronLeft, Sparkles,
+  ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
@@ -41,6 +41,15 @@ const PILLAR_COMPONENTS = {
   parents: Parents,
 }
 
+// Category sub-navigation shown when inside a section.
+const SUBNAV = {
+  menu: [
+    { id: 'planner', label: 'Planner' },
+    { id: 'grocery', label: 'Grocery List' },
+    { id: 'recipes', label: 'Recipes' },
+  ],
+}
+
 const CursiveTitle = ({ className = '', onClick }) => (
   <button
     type="button"
@@ -56,6 +65,8 @@ const CursiveTitle = ({ className = '', onClick }) => (
 export default function App() {
   const [active, setActive] = useLocalStorage('mos:active', 'today')
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'overview')
+  const [menuSub, setMenuSub] = useLocalStorage('mos:menu:subpage', 'planner')
+  const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
   const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
   const [cycleConfig, setCycleConfig] = useLocalStorage('mos:settings:cycle', {
     lastPeriodStart: '',
@@ -63,6 +74,7 @@ export default function App() {
   })
 
   const today = new Date()
+  // eslint-disable-next-line no-unused-vars
   const todayPhase = useMemo(
     () => phaseFor(today, cycleConfig.lastPeriodStart, cycleConfig.cycleLength),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,56 +86,144 @@ export default function App() {
   const isPillar = !isToday && !isDream
 
   const goToday = () => setActive('today')
-
   const ActivePillar = isPillar ? PILLAR_COMPONENTS[active] : null
+  const activePillarMeta = PILLARS.find((p) => p.id === active)
 
   return (
     <div className="min-h-screen bg-cream text-stone-900">
       <div className="mx-auto flex max-w-[1400px] flex-col lg:flex-row">
         {/* ── Sidebar ─────────────────────────────────────────── */}
-        <aside className="lg:sticky lg:top-0 lg:h-screen lg:w-[320px] lg:shrink-0 lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-stone-200 px-7 py-8">
-          {isToday && (
-            <SidebarToday
-              today={today}
-              location={location}
-              setLocation={setLocation}
+        <aside
+          className={`lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-stone-200 py-8 transition-all ${
+            collapsed ? 'lg:w-[76px] px-3' : 'lg:w-[320px] px-7'
+          }`}
+        >
+          {collapsed ? (
+            <CollapsedRail
+              setCollapsed={setCollapsed}
               setActive={setActive}
               setDreamPage={setDreamPage}
               pillars={PILLARS}
               active={active}
             />
-          )}
+          ) : (
+            <>
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={() => setCollapsed(true)}
+                  className="text-stone-400 hover:text-stone-900"
+                  title="Collapse sidebar"
+                >
+                  <PanelLeftClose size={18} />
+                </button>
+              </div>
 
-          {isDream && (
-            <SidebarDream
-              goToday={goToday}
-              dreamPage={dreamPage}
-              setDreamPage={setDreamPage}
-            />
-          )}
+              {isToday && (
+                <SidebarToday
+                  today={today}
+                  location={location}
+                  setLocation={setLocation}
+                  setActive={setActive}
+                  setDreamPage={setDreamPage}
+                  pillars={PILLARS}
+                />
+              )}
 
-          {isPillar && (
-            <div className="space-y-6">
-              <CursiveTitle className="text-3xl text-stone-900" onClick={goToday} />
-            </div>
+              {isDream && (
+                <SidebarDream goToday={goToday} dreamPage={dreamPage} setDreamPage={setDreamPage} />
+              )}
+
+              {isPillar && (
+                <div className="space-y-6">
+                  <CursiveTitle className="text-3xl text-stone-900" onClick={goToday} />
+                  {SUBNAV[active] && (
+                    <nav className="space-y-1 border-t border-stone-200 pt-5">
+                      <p className="kicker text-stone-400 mb-2">{activePillarMeta?.label}</p>
+                      {SUBNAV[active].map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setMenuSub(s.id)}
+                          className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
+                            menuSub === s.id ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
+                          }`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </nav>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </aside>
 
         {/* ── Main content ────────────────────────────────────── */}
         <main className="flex-1 overflow-x-hidden px-6 py-8 md:px-10 lg:px-12">
           <div className="mx-auto max-w-5xl">
-            {isToday && (
-              <Today cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
+            {isToday && <Today cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />}
+            {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
+            {isPillar && ActivePillar && (
+              <ActivePillar cycleConfig={cycleConfig} subPage={active === 'menu' ? menuSub : undefined} />
             )}
-            {isDream && (
-              <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />
-            )}
-            {isPillar && ActivePillar && <ActivePillar cycleConfig={cycleConfig} />}
             <Footer />
           </div>
         </main>
       </div>
     </div>
+  )
+}
+
+// ── Collapsed icon rail ─────────────────────────────────────────────
+function CollapsedRail({ setCollapsed, setActive, setDreamPage, pillars, active }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button onClick={() => setCollapsed(false)} className="mb-4 text-stone-400 hover:text-stone-900" title="Expand sidebar">
+        <PanelLeftOpen size={18} />
+      </button>
+
+      <RailButton icon={CalendarDays} label="Today" active={active === 'today'} onClick={() => setActive('today')} />
+      <RailButton
+        icon={Sparkles}
+        label="Dream World"
+        active={active === 'dream'}
+        onClick={() => {
+          setActive('dream')
+          setDreamPage('overview')
+        }}
+      />
+
+      <div className="my-2 h-px w-6 bg-stone-200" />
+
+      {pillars.map((p) => {
+        const ready = p.ready !== false
+        return (
+          <RailButton
+            key={p.id}
+            icon={p.icon}
+            label={p.label}
+            active={active === p.id}
+            disabled={!ready}
+            onClick={() => ready && setActive(p.id)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function RailButton({ icon: Icon, label, active, disabled, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      className={`flex h-10 w-10 items-center justify-center transition-colors ${
+        active ? 'bg-stone-900 text-cream' : disabled ? 'text-stone-300' : 'text-stone-600 hover:bg-stone-100'
+      }`}
+    >
+      <Icon size={18} />
+    </button>
   )
 }
 
@@ -143,7 +243,6 @@ function SidebarToday({ today, location, setLocation, setActive, setDreamPage, p
         className="w-full bg-transparent border-b border-stone-200 pb-1 text-sm text-stone-600 outline-none focus:border-stone-900 transition-colors"
       />
 
-      {/* Dream World card */}
       <button
         type="button"
         onClick={() => {
@@ -174,9 +273,7 @@ function SidebarToday({ today, location, setLocation, setActive, setDreamPage, p
                 disabled={!ready}
                 onClick={() => ready && setActive(p.id)}
                 className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
-                  ready
-                    ? 'text-stone-700 hover:bg-stone-100'
-                    : 'cursor-not-allowed text-stone-300'
+                  ready ? 'text-stone-700 hover:bg-stone-100' : 'cursor-not-allowed text-stone-300'
                 }`}
               >
                 <Icon size={16} className="shrink-0" />

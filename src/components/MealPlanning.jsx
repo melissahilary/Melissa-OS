@@ -1,15 +1,18 @@
 import React, { useMemo, useState } from 'react'
-import { Plus, X, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
+import { Plus, X, ChevronLeft, ChevronRight, Pencil, GripVertical } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import {
-  phaseFor, freqCode, PHASE_FOODS, PHASES, INTENTION_FREQ, toLiters,
+  phaseFor, PHASE_FOODS, PHASES, INTENTION_FREQ, toLiters,
 } from '../lib/cycle'
 import {
   dateKey, weekDays, weekRangeLabel, addDays, isSameDay, DOW,
 } from '../lib/date'
+import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import SectionTitle from './shared/SectionTitle'
 import FreqPicker from './shared/FreqPicker'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
+import ScopePrompt from './shared/ScopePrompt'
+import Recipes from './Recipes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -23,7 +26,7 @@ const SLOTS = [
   { id: 'bed', label: 'Before bed', supps: true, tint: '#F0EBE2' },
 ]
 
-export default function MealPlanning({ cycleConfig }) {
+export default function MealPlanning({ cycleConfig, subPage = 'planner' }) {
   const [anchor, setAnchor] = useState(new Date())
   const days = useMemo(() => weekDays(anchor), [anchor])
   const today = new Date()
@@ -31,8 +34,9 @@ export default function MealPlanning({ cycleConfig }) {
   const [weekPlan, setWeekPlan] = useLocalStorage('mos:menu:weekplan', {})
   const [hydration, setHydration] = useLocalStorage('mos:menu:hydration', {})
 
-  // Universal notes popup state.
-  const [popup, setPopup] = useState(null) // { variant, itemName, initial, onSave }
+  // Universal notes popup + recurrence scope prompt state.
+  const [popup, setPopup] = useState(null)
+  const [scope, setScope] = useState(null) // { ctx, op, action }
 
   // History for autocomplete — every food / supp name ever entered.
   const history = useMemo(() => {
@@ -52,13 +56,40 @@ export default function MealPlanning({ cycleConfig }) {
     return p ? `${p.name} · Day ${p.cycleDay}` : ''
   }
 
-  // ── mutate a slot's list (foods | supps) ──
+  // ── mutate a single slot's list ──
   const mutateSlot = (key, slotId, listKey, fn) => {
     setWeekPlan((prev) => {
       const day = prev[key] || {}
       const slot = day[slotId] || { foods: [], supps: [] }
-      const nextList = fn(slot[listKey] || [])
-      return { ...prev, [key]: { ...day, [slotId]: { ...slot, [listKey]: nextList } } }
+      return { ...prev, [key]: { ...day, [slotId]: { ...slot, [listKey]: fn(slot[listKey] || []) } } }
+    })
+  }
+
+  // ── apply a remove/update across dates per recurrence scope ──
+  const applyScoped = (scopeChoice, ctx, op) => {
+    const { key, slotId, listKey, item } = ctx
+    setWeekPlan((prev) => {
+      const next = {}
+      Object.keys(prev).forEach((dk) => {
+        const day = prev[dk]
+        const inScope =
+          scopeChoice === 'all' ||
+          (scopeChoice === 'following' && dk >= key) ||
+          (scopeChoice === 'one' && dk === key)
+        if (!inScope || !day[slotId]) {
+          next[dk] = day
+          return
+        }
+        const slot = day[slotId]
+        const list = slot[listKey] || []
+        const matches = (it) => (scopeChoice === 'one' ? it.id === item.id : it.name === item.name)
+        const newList =
+          op.type === 'remove'
+            ? list.filter((it) => !matches(it))
+            : list.map((it) => (matches(it) ? { ...it, ...op.patch } : it))
+        next[dk] = { ...day, [slotId]: { ...slot, [listKey]: newList } }
+      })
+      return next
     })
   }
 
@@ -67,13 +98,39 @@ export default function MealPlanning({ cycleConfig }) {
     if (!trimmed) return
     mutateSlot(key, slotId, listKey, (list) => [
       ...list,
-      { id: uid(), name: trimmed, freq: 'daily', days: null, notes: {} },
+      { id: uid(), name: trimmed, freq: 'daily', days: null, phases: [], notes: {} },
     ])
   }
-  const removeItem = (key, slotId, listKey, id) =>
-    mutateSlot(key, slotId, listKey, (list) => list.filter((i) => i.id !== id))
-  const updateItem = (key, slotId, listKey, id, patch) =>
-    mutateSlot(key, slotId, listKey, (list) => list.map((i) => (i.id === id ? { ...i, ...patch } : i)))
+
+  // Remove — prompt for scope when the item recurs.
+  const removeItem = (key, slotId, listKey, item) => {
+    if (item.freq && item.freq !== 'once') {
+      setScope({ ctx: { key, slotId, listKey, item }, op: { type: 'remove' }, action: 'remove' })
+    } else {
+      mutateSlot(key, slotId, listKey, (list) => list.filter((i) => i.id !== item.id))
+    }
+  }
+
+  // Frequency / day / phase change — prompt for scope when the item recurs.
+  const changeItem = (key, slotId, listKey, item, patch) => {
+    if (item.freq && item.freq !== 'once') {
+      setScope({ ctx: { key, slotId, listKey, item }, op: { type: 'update', patch }, action: 'change' })
+    } else {
+      mutateSlot(key, slotId, listKey, (list) => list.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))
+    }
+  }
+
+  // Notes change is always "this event only".
+  const setItemNotes = (key, slotId, listKey, id, notes) =>
+    mutateSlot(key, slotId, listKey, (list) => list.map((i) => (i.id === id ? { ...i, notes } : i)))
+
+  const reorderItem = (key, slotId, listKey, from, to) =>
+    mutateSlot(key, slotId, listKey, (list) => {
+      const copy = [...list]
+      const [moved] = copy.splice(from, 1)
+      copy.splice(to, 0, moved)
+      return copy
+    })
 
   // ── hydration ──
   const setHydrationEntry = (key, slotId, patch) => {
@@ -88,7 +145,7 @@ export default function MealPlanning({ cycleConfig }) {
     return Object.values(day).reduce((sum, e) => sum + toLiters(e.amount, e.unit), 0)
   }
 
-  // ── notes popup openers ──
+  // ── popup openers ──
   const openItemNotes = (key, slotId, listKey, item) => {
     setPopup({
       variant: listKey === 'supps' ? 'supplement' : 'food',
@@ -96,7 +153,7 @@ export default function MealPlanning({ cycleConfig }) {
       initial: item.notes,
       cyclePhaseLabel: phaseLabelFor(days.find((d) => dateKey(d) === key) || today),
       onSave: (notes) => {
-        updateItem(key, slotId, listKey, item.id, { notes })
+        setItemNotes(key, slotId, listKey, item.id, notes)
         setPopup(null)
       },
     })
@@ -138,41 +195,48 @@ export default function MealPlanning({ cycleConfig }) {
     <div>
       <SectionTitle kicker="01 · Daily Journal" title="Meal Planning." />
 
-      <Intentions />
+      {subPage === 'grocery' && <GroceryList onOpenNotes={setPopup} />}
+      {subPage === 'recipes' && <Recipes />}
 
-      {/* ── Section B: Weekly Meal Plan ── */}
-      <section className="mb-14">
-        <PhaseBanner anchor={anchor} setAnchor={setAnchor} weekPhase={weekPhase} />
+      {subPage === 'planner' && (
+        <>
+          {/* ── Weekly Meal Plan ── */}
+          <section className="mb-14">
+            <PhaseBanner anchor={anchor} setAnchor={setAnchor} weekPhase={weekPhase} />
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
-          {days.map((d) => {
-            const key = dateKey(d)
-            const isTod = isSameDay(d, today)
-            const phase = phaseFor(d, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
-            return (
-              <DayCard
-                key={key}
-                date={d}
-                dateKeyStr={key}
-                isToday={isTod}
-                phase={phase}
-                liters={dayLiters(key)}
-                plan={weekPlan[key] || {}}
-                hydration={hydration[key] || {}}
-                history={history}
-                onAdd={addItem}
-                onRemove={removeItem}
-                onUpdate={updateItem}
-                onSetHydration={setHydrationEntry}
-                onOpenItemNotes={openItemNotes}
-                onOpenDrinkNotes={openDrinkNotes}
-              />
-            )
-          })}
-        </div>
-      </section>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+              {days.map((d) => {
+                const key = dateKey(d)
+                const isTod = isSameDay(d, today)
+                const phase = phaseFor(d, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
+                return (
+                  <DayCard
+                    key={key}
+                    date={d}
+                    dateKeyStr={key}
+                    isToday={isTod}
+                    phase={phase}
+                    liters={dayLiters(key)}
+                    plan={weekPlan[key] || {}}
+                    hydration={hydration[key] || {}}
+                    history={history}
+                    onAdd={addItem}
+                    onRemove={removeItem}
+                    onChange={changeItem}
+                    onReorder={reorderItem}
+                    onSetHydration={setHydrationEntry}
+                    onOpenItemNotes={openItemNotes}
+                    onOpenDrinkNotes={openDrinkNotes}
+                  />
+                )
+              })}
+            </div>
+          </section>
 
-      <GroceryList onOpenNotes={setPopup} />
+          {/* Intentions live at the bottom of the planner. */}
+          <Intentions />
+        </>
+      )}
 
       {popup && (
         <NotesPopup
@@ -185,6 +249,17 @@ export default function MealPlanning({ cycleConfig }) {
           onSave={popup.onSave}
         />
       )}
+
+      <ScopePrompt
+        open={!!scope}
+        itemName={scope ? scope.ctx.item.name : ''}
+        action={scope ? scope.action : 'change'}
+        onClose={() => setScope(null)}
+        onChoose={(choice) => {
+          applyScoped(choice, scope.ctx, scope.op)
+          setScope(null)
+        }}
+      />
     </div>
   )
 }
@@ -193,7 +268,6 @@ export default function MealPlanning({ cycleConfig }) {
 function PhaseBanner({ anchor, setAnchor, weekPhase }) {
   return (
     <div className="mb-6 overflow-hidden">
-      {/* Week navigation */}
       <div className="flex items-center justify-between bg-stone-900 px-5 py-3 text-cream">
         <button onClick={() => setAnchor(addDays(anchor, -7))} className="text-stone-400 hover:text-cream">
           <ChevronLeft size={18} />
@@ -204,7 +278,6 @@ function PhaseBanner({ anchor, setAnchor, weekPhase }) {
         </button>
       </div>
 
-      {/* Phase strip */}
       {weekPhase ? (
         <div className="px-5 py-5" style={{ backgroundColor: weekPhase.phase.color, color: weekPhase.phase.ink }}>
           <div className="flex items-end justify-between gap-4">
@@ -222,9 +295,7 @@ function PhaseBanner({ anchor, setAnchor, weekPhase }) {
 
           <div className="mt-4 border-t pt-4" style={{ borderColor: 'rgba(0,0,0,0.3)' }}>
             <p className="kicker opacity-80 mb-2">Prioritize this phase</p>
-            <p className="text-sm leading-relaxed opacity-95">
-              {PHASE_FOODS[weekPhase.phase.id].join(', ')}.
-            </p>
+            <p className="text-sm leading-relaxed opacity-95">{PHASE_FOODS[weekPhase.phase.id].join(', ')}.</p>
           </div>
         </div>
       ) : (
@@ -239,11 +310,10 @@ function PhaseBanner({ anchor, setAnchor, weekPhase }) {
 // ── Day card ────────────────────────────────────────────────────────
 function DayCard({
   date, dateKeyStr, isToday, phase, liters, plan, hydration, history,
-  onAdd, onRemove, onUpdate, onSetHydration, onOpenItemNotes, onOpenDrinkNotes,
+  onAdd, onRemove, onChange, onReorder, onSetHydration, onOpenItemNotes, onOpenDrinkNotes,
 }) {
   return (
     <div className={`border border-stone-200 ${isToday ? 'ring-1 ring-inset ring-stone-900' : ''}`}>
-      {/* Header */}
       <div className={`px-3 py-2.5 ${isToday ? 'bg-stone-900 text-cream' : 'bg-white/50 text-stone-900'}`}>
         <div className="flex items-start justify-between">
           <div>
@@ -267,7 +337,6 @@ function DayCard({
         </div>
       </div>
 
-      {/* Slots */}
       <div>
         {SLOTS.map((slot) => (
           <MealSlot
@@ -280,7 +349,8 @@ function DayCard({
             history={history}
             onAdd={onAdd}
             onRemove={onRemove}
-            onUpdate={onUpdate}
+            onChange={onChange}
+            onReorder={onReorder}
             onSetHydration={onSetHydration}
             onOpenItemNotes={onOpenItemNotes}
             onOpenDrinkNotes={onOpenDrinkNotes}
@@ -294,7 +364,7 @@ function DayCard({
 // ── Meal slot ───────────────────────────────────────────────────────
 function MealSlot({
   slot, dateKeyStr, foods, supps, hydra, history,
-  onAdd, onRemove, onUpdate, onSetHydration, onOpenItemNotes, onOpenDrinkNotes,
+  onAdd, onRemove, onChange, onReorder, onSetHydration, onOpenItemNotes, onOpenDrinkNotes,
 }) {
   return (
     <div className="border-t border-stone-200 px-3 py-2.5" style={{ backgroundColor: slot.tint }}>
@@ -302,7 +372,6 @@ function MealSlot({
         <p className="kicker text-stone-500">{slot.label}</p>
         <div className="flex items-center gap-1.5">
           {foods.length > 0 && <span className="text-[10px] text-stone-400">{foods.length}</span>}
-          {/* Hydration mini-input */}
           <div className="flex items-center gap-0.5">
             <input
               type="number"
@@ -331,20 +400,17 @@ function MealSlot({
         </div>
       </div>
 
-      {/* Food bubbles */}
-      <div className="mt-1.5 flex flex-wrap gap-1">
-        {foods.map((item) => (
-          <Bubble
-            key={item.id}
-            item={item}
-            kind="food"
-            onClick={() => onOpenItemNotes(dateKeyStr, slot.id, 'foods', item)}
-            onFreq={(freq, days) => onUpdate(dateKeyStr, slot.id, 'foods', item.id, { freq, days })}
-            onRemove={() => onRemove(dateKeyStr, slot.id, 'foods', item.id)}
-          />
-        ))}
-      </div>
-
+      <BubbleList
+        items={foods}
+        kind="food"
+        dateKeyStr={dateKeyStr}
+        slotId={slot.id}
+        listKey="foods"
+        onRemove={onRemove}
+        onChange={onChange}
+        onReorder={onReorder}
+        onOpenItemNotes={onOpenItemNotes}
+      />
       <ItemInput
         placeholder="+"
         suggestions={history.foods}
@@ -352,22 +418,20 @@ function MealSlot({
         onCommit={(name) => onAdd(dateKeyStr, slot.id, 'foods', name)}
       />
 
-      {/* Supplements */}
       {slot.supps && (
         <div className="mt-2 border-t border-stone-300/60 pt-2">
           <p className="kicker text-stone-500 mb-1.5">Supplements</p>
-          <div className="flex flex-wrap gap-1">
-            {supps.map((item) => (
-              <Bubble
-                key={item.id}
-                item={item}
-                kind="supp"
-                onClick={() => onOpenItemNotes(dateKeyStr, slot.id, 'supps', item)}
-                onFreq={(freq, days) => onUpdate(dateKeyStr, slot.id, 'supps', item.id, { freq, days })}
-                onRemove={() => onRemove(dateKeyStr, slot.id, 'supps', item.id)}
-              />
-            ))}
-          </div>
+          <BubbleList
+            items={supps}
+            kind="supp"
+            dateKeyStr={dateKeyStr}
+            slotId={slot.id}
+            listKey="supps"
+            onRemove={onRemove}
+            onChange={onChange}
+            onReorder={onReorder}
+            onOpenItemNotes={onOpenItemNotes}
+          />
           <ItemInput
             placeholder="+"
             suggestions={history.supps}
@@ -380,17 +444,73 @@ function MealSlot({
   )
 }
 
-// ── Bubble (food = outlined square pill, supp = solid round pill) ────
+// ── Draggable bubble list (reorder within a slot) ───────────────────
+function BubbleList({ items, kind, dateKeyStr, slotId, listKey, onRemove, onChange, onReorder, onOpenItemNotes }) {
+  const [dragIdx, setDragIdx] = useState(null)
+  const [overIdx, setOverIdx] = useState(null)
+
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {items.map((item, idx) => (
+        <span
+          key={item.id}
+          draggable
+          onDragStart={() => setDragIdx(idx)}
+          onDragOver={(e) => {
+            e.preventDefault()
+            if (overIdx !== idx) setOverIdx(idx)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            if (dragIdx !== null && dragIdx !== idx) {
+              onReorder(dateKeyStr, slotId, listKey, dragIdx, idx)
+            }
+            setDragIdx(null)
+            setOverIdx(null)
+          }}
+          onDragEnd={() => {
+            setDragIdx(null)
+            setOverIdx(null)
+          }}
+          className={overIdx === idx && dragIdx !== null && dragIdx !== idx ? 'ring-1 ring-stone-900' : ''}
+        >
+          <Bubble
+            item={item}
+            kind={kind}
+            onClick={() => onOpenItemNotes(dateKeyStr, slotId, listKey, item)}
+            onFreq={(freq, days, phases) => onChange(dateKeyStr, slotId, listKey, item, { freq, days, phases })}
+            onRemove={() => onRemove(dateKeyStr, slotId, listKey, item)}
+          />
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ── Bubble ──────────────────────────────────────────────────────────
+function PhaseDots({ phases }) {
+  if (!phases || !phases.length) return null
+  return (
+    <span className="flex items-center gap-0.5">
+      {phases.map((id) => (
+        <span key={id} className="inline-block h-1.5 w-1.5" style={{ backgroundColor: PHASES[id]?.color }} />
+      ))}
+    </span>
+  )
+}
+
 function Bubble({ item, kind, onClick, onFreq, onRemove }) {
   const noted = hasNotes(item.notes)
   if (kind === 'supp') {
     return (
-      <span className="group inline-flex items-center gap-1 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] text-cream">
+      <span className="group inline-flex cursor-grab items-center gap-1 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] text-cream active:cursor-grabbing">
+        <GripVertical size={9} className="text-stone-500" />
         <button onClick={onClick} className="flex items-center gap-1">
           {noted && <Pencil size={9} className="text-sand" />}
           {item.name}
         </button>
-        <FreqPicker value={item.freq} days={item.days} onChange={onFreq} dark />
+        <PhaseDots phases={item.phases} />
+        <FreqPicker value={item.freq} days={item.days} phases={item.phases} onChange={onFreq} dark />
         <button onClick={onRemove} className="text-stone-400 hover:text-cream">
           <X size={10} />
         </button>
@@ -398,12 +518,14 @@ function Bubble({ item, kind, onClick, onFreq, onRemove }) {
     )
   }
   return (
-    <span className="group inline-flex items-center gap-1 border border-stone-900 bg-cream px-2 py-0.5 text-[11px] text-stone-900">
+    <span className="group inline-flex cursor-grab items-center gap-1 border border-stone-900 bg-cream px-2 py-0.5 text-[11px] text-stone-900 active:cursor-grabbing">
+      <GripVertical size={9} className="text-stone-400" />
       <button onClick={onClick} className="flex items-center gap-1">
         {noted && <Pencil size={9} className="text-stone-900" />}
         {item.name}
       </button>
-      <FreqPicker value={item.freq} days={item.days} onChange={onFreq} />
+      <PhaseDots phases={item.phases} />
+      <FreqPicker value={item.freq} days={item.days} phases={item.phases} onChange={onFreq} />
       <button onClick={onRemove} className="text-stone-400 hover:text-stone-900">
         <X size={10} />
       </button>
@@ -435,11 +557,8 @@ function ItemInput({ placeholder, suggestions, existing, onCommit }) {
         value={draft}
         onChange={(e) => {
           const v = e.target.value
-          if (v.endsWith(',')) {
-            commit(v.slice(0, -1))
-          } else {
-            setDraft(v)
-          }
+          if (v.endsWith(',')) commit(v.slice(0, -1))
+          else setDraft(v)
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') commit(draft)
@@ -466,7 +585,7 @@ function ItemInput({ placeholder, suggestions, existing, onCommit }) {
   )
 }
 
-// ── Section A: Intentions ───────────────────────────────────────────
+// ── Intentions ──────────────────────────────────────────────────────
 function Intentions() {
   const [items, setItems] = useLocalStorage('mos:menu:incorporations', [])
   const [draft, setDraft] = useState({ name: '', category: 'food', freq: 'daily' })
@@ -486,7 +605,7 @@ function Intentions() {
   ]
 
   return (
-    <section className="mb-14">
+    <section className="mb-14 border-t border-stone-200 pt-10">
       <header className="mb-5 flex items-end justify-between">
         <div>
           <p className="kicker text-stone-400 mb-2">The intentions</p>
@@ -495,7 +614,6 @@ function Intentions() {
         <span className="text-sm text-stone-400">{items.length} on the list</span>
       </header>
 
-      {/* Add row */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <input
           value={draft.name}
@@ -566,18 +684,27 @@ function Intentions() {
   )
 }
 
-// ── Section C: Grocery list ─────────────────────────────────────────
+// ── Grocery list (date field + auto-categorized) ────────────────────
 function GroceryList({ onOpenNotes }) {
   const [items, setItems] = useLocalStorage('mos:menu:groceries', [])
-  const [draft, setDraft] = useState({ name: '', qty: '', store: '' })
+  const [draft, setDraft] = useState({ name: '', qty: '', store: '', date: '' })
 
   const add = () => {
     if (!draft.name.trim()) return
     setItems((prev) => [
       ...prev,
-      { id: uid(), name: draft.name.trim(), qty: draft.qty.trim(), store: draft.store.trim(), done: false, notes: {} },
+      {
+        id: uid(),
+        name: draft.name.trim(),
+        qty: draft.qty.trim(),
+        store: draft.store.trim(),
+        date: draft.date,
+        category: categorize(draft.name),
+        done: false,
+        notes: {},
+      },
     ])
-    setDraft({ name: '', qty: '', store: '' })
+    setDraft({ name: '', qty: '', store: '', date: '' })
   }
   const toggle = (id) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done: !i.done } : i)))
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
@@ -600,27 +727,33 @@ function GroceryList({ onOpenNotes }) {
         </div>
       </header>
 
-      <div className="mb-5 flex flex-wrap items-center gap-2">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
         <input
           value={draft.name}
           onChange={(e) => setDraft({ ...draft, name: e.target.value })}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Item"
-          className="min-w-[180px] flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+          className="min-w-[160px] flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
         <input
           value={draft.qty}
           onChange={(e) => setDraft({ ...draft, qty: e.target.value })}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Qty"
-          className="w-20 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+          className="w-16 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
         <input
           value={draft.store}
           onChange={(e) => setDraft({ ...draft, store: e.target.value })}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Store"
-          className="w-32 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+          className="w-28 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+        />
+        <input
+          type="date"
+          value={draft.date}
+          onChange={(e) => setDraft({ ...draft, date: e.target.value })}
+          className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
         <button onClick={add} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700">
           <Plus size={16} />
@@ -630,42 +763,54 @@ function GroceryList({ onOpenNotes }) {
       {items.length === 0 ? (
         <p className="font-serif italic text-lg text-stone-400">Fridge is good. List is empty.</p>
       ) : (
-        <div className="divide-y divide-stone-100">
-          {items.map((item) => (
-            <div key={item.id} className="group flex items-center gap-3 py-2.5">
-              <button
-                onClick={() => toggle(item.id)}
-                className={`h-4 w-4 shrink-0 border ${item.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-              />
-              <button
-                onClick={() =>
-                  onOpenNotes({
-                    variant: 'grocery',
-                    itemName: item.name,
-                    initial: item.notes,
-                    onSave: (notes) => {
-                      update(item.id, { notes })
-                      onOpenNotes(null)
-                    },
-                  })
-                }
-                className={`flex flex-1 items-center gap-1.5 text-left text-sm ${
-                  item.done ? 'text-stone-400 line-through' : 'text-stone-800'
-                }`}
-              >
-                {hasNotes(item.notes) && <Pencil size={11} className="text-stone-500" />}
-                {item.name}
-              </button>
-              {item.qty && <span className="text-sm text-stone-500 tabular-nums">{item.qty}</span>}
-              {item.store && <span className="kicker text-stone-400">{item.store}</span>}
-              <button
-                onClick={() => remove(item.id)}
-                className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
+        <div className="space-y-6">
+          {GROCERY_CATEGORIES.map((cat) => {
+            const list = items.filter((i) => (i.category || categorize(i.name)) === cat)
+            if (!list.length) return null
+            return (
+              <div key={cat}>
+                <h3 className="kicker text-stone-400 mb-2 border-b border-stone-100 pb-1.5">{cat}</h3>
+                <div className="divide-y divide-stone-100">
+                  {list.map((item) => (
+                    <div key={item.id} className="group flex items-center gap-3 py-2.5">
+                      <button
+                        onClick={() => toggle(item.id)}
+                        className={`h-4 w-4 shrink-0 border ${item.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
+                      />
+                      <button
+                        onClick={() =>
+                          onOpenNotes({
+                            variant: 'grocery',
+                            itemName: item.name,
+                            initial: item.notes,
+                            onSave: (notes) => {
+                              update(item.id, { notes })
+                              onOpenNotes(null)
+                            },
+                          })
+                        }
+                        className={`flex flex-1 items-center gap-1.5 text-left text-sm ${
+                          item.done ? 'text-stone-400 line-through' : 'text-stone-800'
+                        }`}
+                      >
+                        {hasNotes(item.notes) && <Pencil size={11} className="text-stone-500" />}
+                        {item.name}
+                      </button>
+                      {item.date && <span className="text-xs text-stone-400 tabular-nums">{item.date.slice(5)}</span>}
+                      {item.qty && <span className="text-sm text-stone-500 tabular-nums">{item.qty}</span>}
+                      {item.store && <span className="kicker text-stone-400">{item.store}</span>}
+                      <button
+                        onClick={() => remove(item.id)}
+                        className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </section>

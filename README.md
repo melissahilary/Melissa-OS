@@ -20,12 +20,24 @@ npm run build    # outputs dist/
 npm run preview  # preview the production build
 ```
 
-## Deploy to Netlify
+## Deploy to Cloudflare Pages
 
-Run `npm run build`, then drag the generated `dist/` folder onto the existing
-Netlify site's **Deploys** tab (not netlify.com/drop, which creates a new URL).
-`netlify.toml` already includes the SPA redirect. Data lives in localStorage tied
-to the deployed domain, so it survives every redeploy.
+The repo is wired for Cloudflare Pages. `wrangler.toml` sets the build output to
+`dist/`, and `public/_redirects` provides the SPA fallback (`/* /index.html 200`)
+so deep links resolve.
+
+**Git-connected (recommended):** create a Pages project pointed at this repo with
+build command `npm run build` and output directory `dist`. Every push redeploys.
+
+**Direct upload via Wrangler:**
+
+```bash
+npm run build
+npx wrangler pages deploy dist --project-name melissa-os
+```
+
+Data lives in `localStorage` tied to the deployed domain, so it survives every
+redeploy. Use a stable custom domain to keep the same data across deploys.
 
 ## Architecture
 
