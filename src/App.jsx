@@ -18,6 +18,7 @@ import Household from './components/Household'
 import Housing from './components/Housing'
 import Parents from './components/Parents'
 import DreamWorld, { DREAM_PAGES } from './components/DreamWorld'
+import StoragePanel, { StorageDot } from './components/shared/StoragePanel'
 
 const PILLARS = [
   { id: 'menu', label: 'Meal Planning', icon: UtensilsCrossed },
@@ -154,6 +155,10 @@ export default function App() {
                   )}
                 </div>
               )}
+
+              <div className="mt-10 border-t border-stone-200 pt-6">
+                <StoragePanel />
+              </div>
             </>
           )}
         </aside>
@@ -178,9 +183,10 @@ export default function App() {
 function CollapsedRail({ setCollapsed, setActive, setDreamPage, pillars, active }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <button onClick={() => setCollapsed(false)} className="mb-4 text-stone-400 hover:text-stone-900" title="Expand sidebar">
+      <button onClick={() => setCollapsed(false)} className="mb-1 text-stone-400 hover:text-stone-900" title="Expand sidebar">
         <PanelLeftOpen size={18} />
       </button>
+      <div className="mb-3"><StorageDot /></div>
 
       <RailButton icon={CalendarDays} label="Today" active={active === 'today'} onClick={() => setActive('today')} />
       <RailButton
