@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import * as store from '../lib/fileStore'
+import * as store from '../lib/dataStore'
 
 /**
- * useLocalStorage — persistent state backed by the file store.
+ * useLocalStorage — persistent state backed by Supabase.
  *
- * The name is kept for compatibility, but data now lives in your owned folder
- * (JSON + Markdown) when connected, with localStorage as a cache/fallback.
- * Returns [value, setValue, isLoaded]. setValue accepts a value or updater fn.
- * Cross-component sync happens through the store's subscription bus, so when the
- * folder loads or another component writes, every reader updates live.
+ * The name is kept for compatibility, but data now lives in Postgres, scoped to
+ * the signed-in user. Returns [value, setValue, isLoaded]; setValue accepts a
+ * value or an updater fn. Cross-component sync happens through the store's
+ * subscription bus, so when data loads or another component writes, every reader
+ * updates live.
  */
 export function useLocalStorage(key, initial) {
   const initialRef = useRef(initial)
