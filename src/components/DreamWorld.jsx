@@ -11,6 +11,7 @@ export const DREAM_PAGES = [
   { id: 'goals', label: 'Goals' },
   { id: 'week', label: 'Dream Week' },
   { id: 'calendar', label: 'Dream Calendar' },
+  { id: 'outings', label: 'Dream Outings' },
   { id: 'skincare', label: 'Skincare' },
   { id: 'wardrobe', label: 'Wardrobe' },
   { id: 'devices', label: 'Devices' },
@@ -31,6 +32,7 @@ export default function DreamWorld({ page, cycleConfig }) {
       {page === 'goals' && <ListPage storageKey="mos:dream:goals" title="Goals." kicker="What I'm building toward" placeholder="A goal worth the climb" checkable />}
       {page === 'week' && <DreamWeek />}
       {page === 'calendar' && <DreamCalendar />}
+      {page === 'outings' && <ListPage storageKey="mos:dream:outings" title="Dream Outings." kicker="Places, trips, experiences" placeholder="A restaurant, trip, or experience to do" checkable />}
       {page === 'skincare' && <ListPage storageKey="mos:dream:skincare" title="Skincare." kicker="The ritual" placeholder="A step in the routine" checkable />}
       {page === 'wardrobe' && <ListPage storageKey="mos:dream:wardrobe" title="Wardrobe." kicker="The closet" placeholder="A piece to acquire" checkable />}
       {page === 'devices' && <ListPage storageKey="mos:dream:devices" title="Devices." kicker="The kit" placeholder="A device on the wishlist" checkable />}
