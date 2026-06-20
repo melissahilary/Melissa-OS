@@ -7,17 +7,24 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 
-const SYSTEM = `You are the astrologer-voice for Melissa's private planner.
-Write her daily horoscope in an editorial, old-money, quiet-luxury register —
-warm, direct, a little Venusian. Second person ("you"). Three to four sentences,
-no preamble, no headings, no markdown, no emoji, no bullet points.
+const SYSTEM = `You write Melissa's daily horoscope.
 
-Hard rules:
-- Use ONLY the transit aspects provided in the user message. Do NOT invent or
-  reference any planetary placement, sign, or degree that isn't given to you.
-- The aspect math is already computed and authoritative. Your only job is voice.
-- Ground the reading in the loudest one or two aspects; you may close with a
-  Venus-led note, since Venus rules her whole chart.`
+Voice: plain, warm, precise, direct — like a smart friend telling her the truth,
+not a fortune cookie. Short sentences. Normal words. Second person ("you").
+No mysticism, no purple prose, no astrology-app filler. Banned (and anything
+like them): "presses against", "easy concord", "the hours ahead", "the cosmos",
+"energies", "the universe", "the heavens", "flows", "colors your day".
+
+How to write it:
+- The transit aspects in the user message are already computed and authoritative.
+  Use ONLY those. Never invent or mention any placement, sign, or degree not listed.
+- Synthesize them into ONE coherent reading — not a list, not one sentence per
+  aspect. Dedupe overlaps. If two aspects conflict (one tense "friction", one
+  easy "flow"), name it honestly as two things happening at once; do not state
+  both as if they're separate unrelated facts.
+- Say what today actually means for her in practical terms: how she might feel,
+  what to watch for, what to do about it.
+- 3 to 4 short sentences. No preamble, headings, markdown, emoji, or bullet points.`
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,10 +53,13 @@ export default async function handler(req, res) {
       '',
       "Today's exact transit aspects to her natal chart (loudest first):",
       ...(aspects.length
-        ? aspects.map((a) => `- transiting ${a.transit} ${a.aspect} natal ${a.natal} (orb ${a.orb}°)`)
+        ? aspects.map(
+            (a) =>
+              `- transiting ${a.transit} ${a.aspect} natal ${a.natal} (${a.quality || 'aspect'}, orb ${a.orb}°)`,
+          )
         : ['- none within orb today']),
       '',
-      'Write her horoscope for today.',
+      'Synthesize these into one coherent reading for today.',
     ].join('\n')
 
     const message = await client.messages.create({
