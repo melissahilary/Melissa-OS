@@ -22,8 +22,9 @@ No "Glow Protocol" branding anywhere — this is a personal planner.
 
 ## Branches & deploy
 - Develop on `claude/friendly-albattani-4dzpko`; `main` is production.
-- Keep them in sync: commit on the feature branch, then `git merge --ff-only`
-  into `main` and push both.
+- Push to `main` ONLY (one deployment per change). Commit on the feature branch
+  locally, `git merge --ff-only` into `main`, and push `main` alone — do not push
+  the feature branch (it spawns a redundant preview deploy).
 - Vercel Git integration auto-deploys `main`.
   - Project: `melissa-os`, framework Vite. Live: https://melissa-os.vercel.app
   - Vercel team "Glow Protocol": `team_OuXAEo7YnHHcXjqEE70tFgmr` (team label only,
