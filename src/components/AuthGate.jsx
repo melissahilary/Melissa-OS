@@ -75,7 +75,6 @@ function Login() {
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
           <Cursive className="text-5xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
-          <p className="kicker text-stone-400 mt-4">A private planner, kept with care.</p>
         </div>
 
         {sent ? (
