@@ -342,7 +342,20 @@ function SidebarDream({ goToday, dreamPage, setDreamPage }) {
           <NavButton key={id} id={id} draggable={false} />
         ))}
         {reorderIds.map((id) => (
-          <NavButton key={id} id={id} draggable />
+          <React.Fragment key={id}>
+            <NavButton id={id} draggable />
+            {id === 'haircare' && (
+              <button
+                type="button"
+                onClick={() => setDreamPage('haircare-recipes')}
+                className={`block w-full py-2 pl-9 pr-3 text-left text-sm transition-colors ${
+                  dreamPage === 'haircare-recipes' ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
+                }`}
+              >
+                Recipes
+              </button>
+            )}
+          </React.Fragment>
         ))}
       </nav>
     </div>
