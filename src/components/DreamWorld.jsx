@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { DOW_LONG, monthGrid, dateKey, isSameDay, MONTHS, DOW, moonPhaseIndex } from '../lib/date'
+import { DOW_LONG, monthGrid, dateKey, parseKey, isSameDay, MONTHS, DOW, moonPhaseIndex } from '../lib/date'
 import MoonIcon from './shared/MoonIcon'
+import InlineText from './shared/InlineText'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
+// Full set of Manifestations subsections (Overview removed).
 export const DREAM_PAGES = [
-  { id: 'overview', label: 'Overview' },
   { id: 'goals', label: 'Goals' },
   { id: 'week', label: 'Dream Week' },
   { id: 'calendar', label: 'Dream Calendar' },
@@ -20,46 +21,32 @@ export const DREAM_PAGES = [
   { id: 'haircare', label: 'Dream Haircare' },
 ]
 
-const Cursive = ({ children, className = '' }) => (
-  <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>{children}</span>
-)
+// Fixed (non-reorderable) pages, shown first and in this order.
+export const DREAM_FIXED = ['goals', 'week', 'calendar']
+// Draggable-to-reorder pages, default order.
+export const DREAM_REORDER = ['outings', 'skincare', 'wardrobe', 'devices', 'home', 'investments', 'haircare']
+
+const CATEGORIES = [
+  { id: 'personal', label: 'Personal', color: '#B8849A' },
+  { id: 'work', label: 'Work', color: '#5A6B7B' },
+  { id: 'wellness', label: 'Wellness', color: '#7B8B5F' },
+  { id: 'social', label: 'Social', color: '#C4A882' },
+]
+const FREQS = ['once', 'daily', 'weekly', 'monthly', 'yearly']
 
 export default function DreamWorld({ page, cycleConfig }) {
   return (
     <div>
-      <header className="mb-8">
-        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Dream World</Cursive>
-      </header>
-      {page === 'overview' && <Overview />}
-      {page === 'goals' && <ListPage storageKey="mos:dream:goals" title="Goals." kicker="What I'm building toward" placeholder="A goal worth the climb" checkable />}
+      {page === 'goals' && <ListPage storageKey="mos:dream:goals" placeholder="A goal worth the climb" checkable />}
       {page === 'week' && <DreamWeek />}
       {page === 'calendar' && <DreamCalendar />}
-      {page === 'outings' && <ListPage storageKey="mos:dream:outings" title="Dream Outings." kicker="Places, trips, experiences" placeholder="A restaurant, trip, or experience to do" checkable />}
-      {page === 'skincare' && <ListPage storageKey="mos:dream:skincare" title="Dream Skincare." kicker="The ritual" placeholder="A step in the routine" checkable />}
-      {page === 'wardrobe' && <ListPage storageKey="mos:dream:wardrobe" title="Dream Wardrobe." kicker="The closet" placeholder="A piece to acquire" checkable />}
-      {page === 'devices' && <ListPage storageKey="mos:dream:devices" title="Dream Cars." kicker="The garage" placeholder="A car on the wishlist" checkable />}
-      {page === 'home' && <ListPage storageKey="mos:dream:home" title="Dream Home." kicker="The space" placeholder="Something for the home" checkable />}
-      {page === 'investments' && <ListPage storageKey="mos:dream:investments" title="Dream Investments & Assets." kicker="What I'm building" placeholder="An asset or investment to acquire" checkable />}
-      {page === 'haircare' && <ListPage storageKey="mos:dream:haircare" title="Dream Haircare." kicker="The ritual" placeholder="A product or step for hair" checkable />}
-    </div>
-  )
-}
-
-function Overview() {
-  const [commitments, setCommitments] = useLocalStorage('mos:dream:commitments', [])
-  return (
-    <div className="space-y-10">
-      <p className="max-w-2xl font-serif italic text-2xl text-stone-600 leading-snug">
-        Lifestyle design, moodboard, asset planning, habit tracker, and more.
-      </p>
-      <ListBody
-        title="Commitments."
-        kicker="What I'm holding to"
-        placeholder="A standard I keep"
-        items={commitments}
-        setItems={setCommitments}
-        checkable
-      />
+      {page === 'outings' && <ListPage storageKey="mos:dream:outings" placeholder="A restaurant, trip, or experience to do" checkable />}
+      {page === 'skincare' && <ListPage storageKey="mos:dream:skincare" placeholder="A step in the routine" checkable />}
+      {page === 'wardrobe' && <ListPage storageKey="mos:dream:wardrobe" placeholder="A piece to acquire" checkable />}
+      {page === 'devices' && <ListPage storageKey="mos:dream:devices" placeholder="A car on the wishlist" checkable />}
+      {page === 'home' && <ListPage storageKey="mos:dream:home" placeholder="Something for the home" checkable />}
+      {page === 'investments' && <ListPage storageKey="mos:dream:investments" placeholder="An asset or investment to acquire" checkable />}
+      {page === 'haircare' && <ListPage storageKey="mos:dream:haircare" placeholder="A product or step for hair" checkable />}
     </div>
   )
 }
@@ -70,22 +57,22 @@ function DreamWeek() {
     if (!text.trim()) return
     setWeek((w) => ({ ...w, [day]: [...(w[day] || []), { id: uid(), text: text.trim() }] }))
   }
+  const edit = (day, id, text) =>
+    setWeek((w) => ({ ...w, [day]: (w[day] || []).map((x) => (x.id === id ? { ...x, text } : x)) }))
   const remove = (day, id) => setWeek((w) => ({ ...w, [day]: (w[day] || []).filter((x) => x.id !== id) }))
 
   return (
     <section>
-      <p className="kicker text-stone-400 mb-2">The ideal rhythm</p>
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Dream Week.</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {DOW_LONG.map((day) => (
-          <DayCol key={day} day={day} items={week[day] || []} onAdd={(t) => add(day, t)} onRemove={(id) => remove(day, id)} />
+          <DayCol key={day} day={day} items={week[day] || []} onAdd={(t) => add(day, t)} onEdit={(id, t) => edit(day, id, t)} onRemove={(id) => remove(day, id)} />
         ))}
       </div>
     </section>
   )
 }
 
-function DayCol({ day, items, onAdd, onRemove }) {
+function DayCol({ day, items, onAdd, onEdit, onRemove }) {
   const [draft, setDraft] = useState('')
   const commit = () => {
     onAdd(draft)
@@ -97,7 +84,7 @@ function DayCol({ day, items, onAdd, onRemove }) {
       <div className="space-y-1">
         {items.map((it) => (
           <div key={it.id} className="group flex items-center gap-2">
-            <span className="flex-1 text-sm text-stone-700">{it.text}</span>
+            <InlineText value={it.text} onChange={(t) => onEdit(it.id, t)} className="flex-1 text-sm text-stone-700 bg-transparent outline-none" />
             <button onClick={() => onRemove(it.id)} className="hidden text-stone-300 hover:text-stone-700 group-hover:block"><X size={13} /></button>
           </div>
         ))}
@@ -113,21 +100,66 @@ function DayCol({ day, items, onAdd, onRemove }) {
   )
 }
 
+// Normalize an event from old ({id,text}) or new shape.
+const normEvent = (ev) => ({
+  id: ev.id,
+  title: ev.title != null ? ev.title : ev.text || '',
+  time: ev.time || '',
+  frequency: ev.frequency || 'once',
+  description: ev.description || '',
+  attendees: ev.attendees || '',
+  category: ev.category || 'personal',
+  done: !!ev.done,
+})
+
+const timeOf = (ev) => ev.time || ''
+const partOfDay = (ev) => {
+  const t = ev.time
+  if (!t) return 'morning'
+  const h = parseInt(t.slice(0, 2), 10)
+  if (h < 12) return 'morning'
+  if (h < 18) return 'afternoon'
+  return 'evening'
+}
+const byTime = (a, b) => {
+  const ta = timeOf(a), tb = timeOf(b)
+  if (!ta && !tb) return 0
+  if (!ta) return -1
+  if (!tb) return 1
+  return ta.localeCompare(tb)
+}
+
 function DreamCalendar() {
   const [events, setEvents] = useLocalStorage('mos:dream:events', {})
   const today = new Date()
+  const [view, setView] = useState('month')
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-  const [adding, setAdding] = useState(null)
-  const [draft, setDraft] = useState('')
-  const cells = monthGrid(calMonth)
+  const [anchor, setAnchor] = useState(dateKey(today))
+  const [detail, setDetail] = useState(null) // { key, id }
 
-  const add = (key) => {
-    if (!draft.trim()) return
-    setEvents((p) => ({ ...p, [key]: [...(p[key] || []), { id: uid(), text: draft.trim() }] }))
-    setDraft('')
-    setAdding(null)
+  const dayEvents = (key) => (events[key] || []).map(normEvent)
+
+  const addEvent = (key) => {
+    const ev = { id: uid(), title: '', time: '', frequency: 'once', description: '', attendees: '', category: 'personal', done: false }
+    setEvents((p) => ({ ...p, [key]: [...(p[key] || []), ev] }))
+    setDetail({ key, id: ev.id })
   }
-  const remove = (key, id) => setEvents((p) => ({ ...p, [key]: (p[key] || []).filter((e) => e.id !== id) }))
+  const updateEvent = (key, id, patch) =>
+    setEvents((p) => ({ ...p, [key]: (p[key] || []).map((e) => (e.id === id ? { ...normEvent(e), ...patch } : e)) }))
+  const removeEvent = (key, id) => {
+    setEvents((p) => ({ ...p, [key]: (p[key] || []).filter((e) => e.id !== id) }))
+    setDetail(null)
+  }
+  const toggleDone = (key, id) =>
+    setEvents((p) => ({ ...p, [key]: (p[key] || []).map((e) => (e.id === id ? { ...normEvent(e), done: !normEvent(e).done } : e)) }))
+
+  const cells = monthGrid(calMonth)
+  const anchorDate = parseKey(anchor)
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = parseKey(anchor)
+    d.setDate(d.getDate() - d.getDay() + i)
+    return d
+  })
 
   // Moon strip across the visible week containing today.
   const moonWeek = Array.from({ length: 7 }, (_, i) => {
@@ -136,11 +168,15 @@ function DreamCalendar() {
     return d
   })
 
+  const catColor = (id) => CATEGORIES.find((c) => c.id === id)?.color
+  const shiftAnchor = (days) => {
+    const d = parseKey(anchor)
+    d.setDate(d.getDate() + days)
+    setAnchor(dateKey(d))
+  }
+
   return (
     <section>
-      <p className="kicker text-stone-400 mb-2">The month ahead</p>
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-5">Dream Calendar.</h2>
-
       {/* Moon phase strip */}
       <div className="mb-6 flex flex-wrap items-center gap-4 border-y border-stone-200 py-3">
         {moonWeek.map((d) => (
@@ -151,67 +187,243 @@ function DreamCalendar() {
         ))}
       </div>
 
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-serif text-2xl text-stone-900">{MONTHS[calMonth.getMonth()]} {calMonth.getFullYear()}</h3>
-        <div className="flex gap-2">
-          <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="text-sm text-stone-500 hover:text-stone-900">Prev</button>
-          <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="text-sm text-stone-500 hover:text-stone-900">Next</button>
-        </div>
+      {/* View toggle */}
+      <div className="mb-4 flex gap-1">
+        {['month', 'week', 'day'].map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`px-3 py-1.5 text-sm capitalize transition-colors ${view === v ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
+          >
+            {v}
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-7 border-l border-t border-stone-200">
-        {DOW.map((d) => (
-          <div key={d} className="border-b border-r border-stone-200 px-2 py-1.5 text-center kicker text-stone-400">{d[0]}</div>
-        ))}
-        {cells.map((cell) => {
-          const key = dateKey(cell)
-          const inMonth = cell.getMonth() === calMonth.getMonth()
-          const isTod = isSameDay(cell, today)
-          const dayEvents = events[key] || []
-          return (
-            <div key={key} className={`group relative min-h-[70px] border-b border-r border-stone-200 px-1.5 py-1 ${inMonth ? '' : 'bg-stone-50'}`}>
-              <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'}`}>{cell.getDate()}</span>
-              <div className="mt-0.5 space-y-0.5">
-                {dayEvents.map((ev) => (
-                  <div key={ev.id} className="group/ev flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-mauve" />
-                    <span className="truncate text-[10px] text-stone-600">{ev.text}</span>
-                    <button onClick={() => remove(key, ev.id)} className="ml-auto hidden text-stone-300 hover:text-stone-700 group-hover/ev:block"><X size={10} /></button>
+      {view === 'month' && (
+        <>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-serif text-2xl text-stone-900">{MONTHS[calMonth.getMonth()]} {calMonth.getFullYear()}</h3>
+            <div className="flex gap-2">
+              <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="text-sm text-stone-500 hover:text-stone-900">Prev</button>
+              <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="text-sm text-stone-500 hover:text-stone-900">Next</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 border-l border-t border-stone-200">
+            {DOW.map((d) => (
+              <div key={d} className="border-b border-r border-stone-200 px-2 py-1.5 text-center kicker text-stone-400">{d[0]}</div>
+            ))}
+            {cells.map((cell) => {
+              const key = dateKey(cell)
+              const inMonth = cell.getMonth() === calMonth.getMonth()
+              const isTod = isSameDay(cell, today)
+              const evs = dayEvents(key)
+              return (
+                <div key={key} className={`group relative min-h-[70px] border-b border-r border-stone-200 px-1.5 py-1 ${inMonth ? '' : 'bg-stone-50'}`}>
+                  <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'}`}>{cell.getDate()}</span>
+                  <div className="mt-0.5 space-y-0.5">
+                    {evs.map((ev) => (
+                      <button key={ev.id} onClick={() => setDetail({ key, id: ev.id })} className="flex w-full items-center gap-1 text-left">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: catColor(ev.category) }} />
+                        <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>{ev.title || 'Untitled'}</span>
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-              {adding === key ? (
-                <input
-                  autoFocus
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') add(key)
-                    if (e.key === 'Escape') setAdding(null)
-                  }}
-                  placeholder="Event"
-                  className="mt-1 w-full bg-white border border-stone-300 px-1 py-0.5 text-[10px] outline-none"
-                />
+                  <button onClick={() => addEvent(key)} className="absolute right-1 top-1 hidden text-stone-300 hover:text-stone-900 group-hover:block"><Plus size={13} /></button>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {view === 'week' && (
+        <>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-serif text-2xl text-stone-900">Week of {MONTHS[weekDays[0].getMonth()]} {weekDays[0].getDate()}</h3>
+            <div className="flex gap-2">
+              <button onClick={() => shiftAnchor(-7)} className="text-sm text-stone-500 hover:text-stone-900">Prev</button>
+              <button onClick={() => setAnchor(dateKey(today))} className="text-sm text-stone-500 hover:text-stone-900">Today</button>
+              <button onClick={() => shiftAnchor(7)} className="text-sm text-stone-500 hover:text-stone-900">Next</button>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-7">
+            {weekDays.map((d) => {
+              const key = dateKey(d)
+              const isTod = isSameDay(d, today)
+              const evs = dayEvents(key).sort(byTime)
+              return (
+                <div key={key} className="group border-t border-stone-300 pt-2">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className={`kicker ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</p>
+                    <button onClick={() => addEvent(key)} className="hidden text-stone-300 hover:text-stone-900 group-hover:block"><Plus size={13} /></button>
+                  </div>
+                  <div className="space-y-1">
+                    {evs.map((ev) => (
+                      <button key={ev.id} onClick={() => setDetail({ key, id: ev.id })} className="flex w-full items-center gap-1.5 text-left">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: catColor(ev.category) }} />
+                        {ev.time && <span className="text-[10px] text-stone-400">{ev.time}</span>}
+                        <span className={`truncate text-xs ${ev.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{ev.title || 'Untitled'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {view === 'day' && (
+        <DayView
+          anchor={anchor}
+          anchorDate={anchorDate}
+          today={today}
+          events={dayEvents(anchor)}
+          catColor={catColor}
+          onShift={shiftAnchor}
+          onToday={() => setAnchor(dateKey(today))}
+          onAdd={() => addEvent(anchor)}
+          onToggle={(id) => toggleDone(anchor, id)}
+          onOpen={(id) => setDetail({ key: anchor, id })}
+        />
+      )}
+
+      {detail && (() => {
+        const ev = dayEvents(detail.key).find((e) => e.id === detail.id)
+        if (!ev) return null
+        return (
+          <EventDetail
+            ev={ev}
+            dateLabel={detail.key}
+            onChange={(patch) => updateEvent(detail.key, detail.id, patch)}
+            onDelete={() => removeEvent(detail.key, detail.id)}
+            onClose={() => setDetail(null)}
+          />
+        )
+      })()}
+    </section>
+  )
+}
+
+function DayView({ anchor, anchorDate, today, events, catColor, onShift, onToday, onAdd, onToggle, onOpen }) {
+  const groups = [
+    { id: 'morning', label: 'Morning' },
+    { id: 'afternoon', label: 'Afternoon' },
+    { id: 'evening', label: 'Evening' },
+  ]
+  const sorted = [...events].sort(byTime)
+  const isTod = isSameDay(anchorDate, today)
+  return (
+    <>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-serif text-2xl text-stone-900">
+          {DOW[anchorDate.getDay()]}, {MONTHS[anchorDate.getMonth()]} {anchorDate.getDate()}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button onClick={() => onShift(-1)} className="text-sm text-stone-500 hover:text-stone-900">Prev</button>
+          <button onClick={onToday} className="text-sm text-stone-500 hover:text-stone-900">Today</button>
+          <button onClick={() => onShift(1)} className="text-sm text-stone-500 hover:text-stone-900">Next</button>
+          <button onClick={onAdd} className="bg-stone-900 px-2 py-1 text-cream hover:bg-stone-700"><Plus size={15} /></button>
+        </div>
+      </div>
+      <div className="space-y-7">
+        {groups.map((g) => {
+          const evs = sorted.filter((e) => partOfDay(e) === g.id)
+          return (
+            <div key={g.id} className="border-t border-stone-300 pt-3">
+              <p className="kicker text-stone-500 mb-3">{g.label}</p>
+              {evs.length === 0 ? (
+                <p className="text-sm text-stone-300">Nothing yet.</p>
               ) : (
-                <button onClick={() => { setAdding(key); setDraft('') }} className="absolute right-1 top-1 hidden text-stone-300 hover:text-stone-900 group-hover:block"><Plus size={13} /></button>
+                <div className="space-y-2">
+                  {evs.map((ev) => (
+                    <div key={ev.id} className="group flex items-center gap-3">
+                      <button
+                        onClick={() => onToggle(ev.id)}
+                        className={`h-4 w-4 shrink-0 border ${ev.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
+                      />
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: catColor(ev.category) }} />
+                      {ev.time && <span className="text-xs text-stone-400 w-12 shrink-0">{ev.time}</span>}
+                      <button onClick={() => onOpen(ev.id)} className={`flex-1 text-left text-sm ${ev.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
+                        {ev.title || 'Untitled'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )
         })}
       </div>
-    </section>
+    </>
   )
 }
 
-// Generic list page used by goals / skincare / wardrobe / devices / home.
-function ListPage({ storageKey, title, kicker, placeholder, checkable }) {
-  const [items, setItems] = useLocalStorage(storageKey, [])
+function EventDetail({ ev, dateLabel, onChange, onDelete, onClose }) {
   return (
-    <ListBody title={title} kicker={kicker} placeholder={placeholder} items={items} setItems={setItems} checkable={checkable} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-cream border border-stone-300 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between">
+          <span className="kicker text-stone-400">{dateLabel}</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
+
+        <input
+          value={ev.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          placeholder="Title"
+          className="mb-4 w-full bg-transparent border-b border-stone-300 pb-1.5 font-serif text-2xl text-stone-900 outline-none focus:border-stone-900"
+        />
+
+        <div className="space-y-3 text-sm">
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Time</span>
+            <input type="time" value={ev.time} onChange={(e) => onChange({ time: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
+          </label>
+
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Frequency</span>
+            <select value={ev.frequency} onChange={(e) => onChange({ frequency: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 capitalize outline-none focus:border-stone-900">
+              {FREQS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Description</span>
+            <textarea value={ev.description} onChange={(e) => onChange({ description: e.target.value })} rows={2} className="w-full bg-transparent border border-stone-300 px-2 py-1 outline-none focus:border-stone-900" />
+          </label>
+
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Attendees</span>
+            <input value={ev.attendees} onChange={(e) => onChange({ attendees: e.target.value })} placeholder="Comma separated" className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
+          </label>
+
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Category</span>
+            <select value={ev.category} onChange={(e) => onChange({ category: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900">
+              {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between">
+          <button onClick={onDelete} className="text-sm text-stone-500 hover:text-stone-900">Delete</button>
+          <button onClick={onClose} className="bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Save</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
-function ListBody({ title, kicker, placeholder, items, setItems, checkable }) {
+// Generic list page used by goals / outings / skincare / wardrobe / cars / home / etc.
+function ListPage({ storageKey, placeholder, checkable }) {
+  const [items, setItems] = useLocalStorage(storageKey, [])
+  return <ListBody placeholder={placeholder} items={items} setItems={setItems} checkable={checkable} />
+}
+
+function ListBody({ placeholder, items, setItems, checkable }) {
   const [draft, setDraft] = useState('')
   const add = () => {
     if (!draft.trim()) return
@@ -219,12 +431,11 @@ function ListBody({ title, kicker, placeholder, items, setItems, checkable }) {
     setDraft('')
   }
   const toggle = (id) => setItems((prev) => prev.map((x) => (x.id === id ? { ...x, done: !x.done } : x)))
+  const editText = (id, text) => setItems((prev) => prev.map((x) => (x.id === id ? { ...x, text } : x)))
   const remove = (id) => setItems((prev) => prev.filter((x) => x.id !== id))
 
   return (
     <section>
-      {kicker && <p className="kicker text-stone-400 mb-2">{kicker}</p>}
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-5">{title}</h2>
       <div className="mb-4 flex items-center gap-2">
         <input
           value={draft}
@@ -241,7 +452,11 @@ function ListBody({ title, kicker, placeholder, items, setItems, checkable }) {
             {checkable && (
               <button onClick={() => toggle(it.id)} className={`h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`} />
             )}
-            <span className={`flex-1 text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{it.text}</span>
+            <InlineText
+              value={it.text}
+              onChange={(t) => editText(it.id, t)}
+              className={`flex-1 text-sm bg-transparent outline-none ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}
+            />
             <button onClick={() => remove(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={14} /></button>
           </div>
         ))}

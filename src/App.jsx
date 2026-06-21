@@ -17,7 +17,7 @@ import DesigningApp from './components/DesigningApp'
 import Household from './components/Household'
 import Housing from './components/Housing'
 import Parents from './components/Parents'
-import DreamWorld, { DREAM_PAGES } from './components/DreamWorld'
+import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
@@ -65,7 +65,7 @@ const CursiveTitle = ({ className = '', onClick }) => (
 
 export default function App() {
   const [active, setActive] = useLocalStorage('mos:active', 'today')
-  const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'overview')
+  const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
   const [menuSub, setMenuSub] = useLocalStorage('mos:menu:subpage', 'planner')
   const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
   const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
@@ -187,11 +187,11 @@ function CollapsedRail({ setCollapsed, setActive, setDreamPage, pillars, active 
       <RailButton icon={CalendarDays} label="Today" active={active === 'today'} onClick={() => setActive('today')} />
       <RailButton
         icon={Sparkles}
-        label="Dream World"
+        label="Manifestations"
         active={active === 'dream'}
         onClick={() => {
           setActive('dream')
-          setDreamPage('overview')
+          setDreamPage('goals')
         }}
       />
 
@@ -249,17 +249,14 @@ function SidebarToday({ today, location, setLocation, setActive, setDreamPage, p
         type="button"
         onClick={() => {
           setActive('dream')
-          setDreamPage('overview')
+          setDreamPage('goals')
         }}
         className="group block w-full overflow-hidden rounded-sm border border-stone-300 bg-stone-900 px-5 py-5 text-left text-cream transition-colors hover:bg-stone-800"
       >
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-sand" />
-          <span className="font-serif italic text-2xl leading-none">Dream World</span>
+          <span className="font-serif italic text-2xl leading-none">Manifestations</span>
         </div>
-        <p className="mt-2 text-xs leading-snug text-stone-300">
-          Lifestyle design, moodboard, asset planning, habit tracker, and more!
-        </p>
       </button>
 
       <div>
@@ -290,8 +287,44 @@ function SidebarToday({ today, location, setLocation, setActive, setDreamPage, p
   )
 }
 
-// ── Sidebar: Dream World focused mode ──────────────────────────────
+// ── Sidebar: Manifestations focused mode ───────────────────────────
 function SidebarDream({ goToday, dreamPage, setDreamPage }) {
+  const [order, setOrder] = useLocalStorage('mos:dream:order', DREAM_REORDER)
+  const [dragId, setDragId] = React.useState(null)
+
+  // Reconcile saved order with the canonical reorderable set (handles added/removed pages).
+  const reorderIds = [
+    ...order.filter((id) => DREAM_REORDER.includes(id)),
+    ...DREAM_REORDER.filter((id) => !order.includes(id)),
+  ]
+  const labelOf = (id) => DREAM_PAGES.find((p) => p.id === id)?.label || id
+
+  const onDrop = (targetId) => {
+    if (!dragId || dragId === targetId) return
+    const next = reorderIds.filter((id) => id !== dragId)
+    const at = next.indexOf(targetId)
+    next.splice(at, 0, dragId)
+    setOrder(next)
+    setDragId(null)
+  }
+
+  const NavButton = ({ id, draggable }) => (
+    <button
+      type="button"
+      draggable={draggable}
+      onDragStart={draggable ? () => setDragId(id) : undefined}
+      onDragOver={draggable ? (e) => e.preventDefault() : undefined}
+      onDrop={draggable ? () => onDrop(id) : undefined}
+      onDragEnd={draggable ? () => setDragId(null) : undefined}
+      onClick={() => setDreamPage(id)}
+      className={`block w-full px-3 py-2.5 text-left text-sm transition-colors ${
+        dreamPage === id ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
+      } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === id ? 'opacity-40' : ''}`}
+    >
+      {labelOf(id)}
+    </button>
+  )
+
   return (
     <div className="space-y-6">
       <button
@@ -305,25 +338,16 @@ function SidebarDream({ goToday, dreamPage, setDreamPage }) {
       <div className="overflow-hidden rounded-sm border border-stone-300 bg-stone-900 px-5 py-5 text-cream">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-sand" />
-          <span className="font-serif italic text-2xl leading-none">Dream World</span>
+          <span className="font-serif italic text-2xl leading-none">Manifestations</span>
         </div>
-        <p className="mt-2 text-xs leading-snug text-stone-300">
-          Lifestyle design, moodboard, asset planning, habit tracker, and more!
-        </p>
       </div>
 
       <nav className="space-y-1">
-        {DREAM_PAGES.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setDreamPage(p.id)}
-            className={`block w-full px-3 py-2.5 text-left text-sm transition-colors ${
-              dreamPage === p.id ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
-            }`}
-          >
-            {p.label}
-          </button>
+        {DREAM_FIXED.map((id) => (
+          <NavButton key={id} id={id} draggable={false} />
+        ))}
+        {reorderIds.map((id) => (
+          <NavButton key={id} id={id} draggable />
         ))}
       </nav>
     </div>

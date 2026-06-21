@@ -7,6 +7,7 @@ import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import FreqPicker from './shared/FreqPicker'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
 import ScopePrompt from './shared/ScopePrompt'
+import InlineText from './shared/InlineText'
 import Recipes from './Recipes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -600,23 +601,30 @@ function GroceryList({ onOpenNotes }) {
                         backgroundColor: STATUS_BG[item.status] || 'transparent',
                       }}
                     >
-                      <button
-                        onClick={() =>
-                          onOpenNotes({
-                            variant: 'grocery',
-                            itemName: item.name,
-                            initial: item.notes,
-                            onSave: (notes) => {
-                              update(item.id, { notes })
-                              onOpenNotes(null)
-                            },
-                          })
-                        }
-                        className="flex flex-1 items-center gap-1.5 text-left text-sm text-stone-800"
-                      >
-                        {hasNotes(item.notes) && <Pencil size={11} className="text-stone-500" />}
-                        {item.name}
-                      </button>
+                      <div className="flex flex-1 items-center gap-1.5">
+                        <button
+                          onClick={() =>
+                            onOpenNotes({
+                              variant: 'grocery',
+                              itemName: item.name,
+                              initial: item.notes,
+                              onSave: (notes) => {
+                                update(item.id, { notes })
+                                onOpenNotes(null)
+                              },
+                            })
+                          }
+                          className={`shrink-0 ${hasNotes(item.notes) ? 'text-stone-500' : 'text-stone-300 opacity-0 group-hover:opacity-100'}`}
+                          title="Notes"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <InlineText
+                          value={item.name}
+                          onChange={(name) => update(item.id, { name })}
+                          className="text-sm text-stone-800 bg-transparent outline-none"
+                        />
+                      </div>
                       <select
                         value={item.status || ''}
                         onChange={(e) => update(item.id, { status: e.target.value })}

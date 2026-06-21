@@ -9,6 +9,7 @@ import {
 import { holidayFor } from '../lib/holidays'
 import MoonIcon from './shared/MoonIcon'
 import Horoscope from './Horoscope'
+import InlineText from './shared/InlineText'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -314,24 +315,45 @@ function DreamDay({ dateKeyStr }) {
 
 function DreamBlock({ label, items, onChange }) {
   const [draft, setDraft] = useState('')
+  const [dragId, setDragId] = useState(null)
   const add = () => {
     if (!draft.trim()) return
     onChange([...items, { id: uid(), text: draft.trim(), done: false }])
     setDraft('')
+  }
+  const editText = (id, text) => onChange(items.map((x) => (x.id === id ? { ...x, text } : x)))
+  const onDrop = (targetId) => {
+    if (!dragId || dragId === targetId) return
+    const next = items.filter((x) => x.id !== dragId)
+    const dragged = items.find((x) => x.id === dragId)
+    const at = next.findIndex((x) => x.id === targetId)
+    next.splice(at, 0, dragged)
+    onChange(next)
+    setDragId(null)
   }
   return (
     <div className="border-t border-stone-300 pt-3">
       <p className="kicker text-stone-500 mb-3">{label}</p>
       <div className="space-y-1.5">
         {items.map((it) => (
-          <div key={it.id} className="group flex items-start gap-2">
+          <div
+            key={it.id}
+            draggable
+            onDragStart={() => setDragId(it.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => onDrop(it.id)}
+            onDragEnd={() => setDragId(null)}
+            className={`group flex items-start gap-2 ${dragId === it.id ? 'opacity-40' : ''}`}
+          >
             <button
               onClick={() => onChange(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))}
               className={`mt-0.5 h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
             />
-            <span className={`flex-1 text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
-              {it.text}
-            </span>
+            <InlineText
+              value={it.text}
+              onChange={(t) => editText(it.id, t)}
+              className={`flex-1 text-sm bg-transparent outline-none ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}
+            />
             <button
               onClick={() => onChange(items.filter((x) => x.id !== it.id))}
               className="hidden text-stone-300 hover:text-stone-700 group-hover:block"
@@ -409,6 +431,8 @@ function BrainDump({ dateKeyStr }) {
   }
   const remove = (id) =>
     setAll((prev) => ({ ...prev, [dateKeyStr]: (prev[dateKeyStr] || []).filter((x) => x.id !== id) }))
+  const editText = (id, text) =>
+    setAll((prev) => ({ ...prev, [dateKeyStr]: (prev[dateKeyStr] || []).map((x) => (x.id === id ? { ...x, text } : x)) }))
 
   return (
     <section className="mb-6 bg-stone-900 text-stone-50 px-7 py-8 md:px-10 md:py-10">
@@ -422,7 +446,7 @@ function BrainDump({ dateKeyStr }) {
           {items.map((it) => (
             <div key={it.id} className="group flex items-start gap-3 border-b border-stone-700 pb-2">
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-stone-500" />
-              <span className="flex-1 text-sm text-stone-200">{it.text}</span>
+              <InlineText value={it.text} onChange={(t) => editText(it.id, t)} className="flex-1 text-sm text-stone-200 bg-transparent outline-none" />
               <button
                 onClick={() => remove(it.id)}
                 className="hidden text-stone-500 hover:text-stone-200 group-hover:block"
