@@ -500,11 +500,16 @@ function ItemInput({ placeholder, suggestions, existing, onCommit }) {
   )
 }
 
-// Muted status tones for the item left border (palette-matched).
+// Muted status tones: a soft full-row tint + a stronger left border.
 const STATUS_BORDER = {
   'need to buy': '#C4959A',
   'running low': '#C4A882',
   'in stock': '#8A9E8A',
+}
+const STATUS_BG = {
+  'need to buy': '#F9EDEE',
+  'running low': '#FAF5EE',
+  'in stock': '#EFF4EF',
 }
 
 // ── Grocery list (auto-categorized) ─────────────────────────────────
@@ -599,7 +604,10 @@ function GroceryList({ onOpenNotes }) {
                     <div
                       key={item.id}
                       className="group flex items-center gap-3 py-2.5 pl-3"
-                      style={{ borderLeft: `3px solid ${STATUS_BORDER[item.status] || 'transparent'}` }}
+                      style={{
+                        borderLeft: `3px solid ${STATUS_BORDER[item.status] || 'transparent'}`,
+                        backgroundColor: STATUS_BG[item.status] || 'transparent',
+                      }}
                     >
                       <button
                         onClick={() => toggle(item.id)}
