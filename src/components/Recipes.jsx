@@ -59,10 +59,10 @@ export default function Recipes() {
         </button>
       </div>
 
-      {/* Filter bar */}
-      <div className="mb-8 space-y-3">
-        <FilterRow label="Meal time" options={MEAL_TIMES.map((m) => ({ id: m, label: m }))} active={mealFilter} onPick={setMealFilter} />
-        <FilterRow label="Cycle phase" options={PHASE_TAGS} active={phaseFilter} onPick={setPhaseFilter} phaseColors />
+      {/* Filter bar — meal time left, cycle phase right, full width */}
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-x-8 gap-y-2 border-y border-stone-100 py-3">
+        <TagFilter options={MEAL_TIMES.map((m) => ({ id: m, label: m }))} active={mealFilter} onPick={setMealFilter} />
+        <TagFilter options={PHASE_TAGS} active={phaseFilter} onPick={setPhaseFilter} phaseColors />
       </div>
 
       {recipes.length === 0 ? (
@@ -90,25 +90,21 @@ export default function Recipes() {
   )
 }
 
-function FilterRow({ label, options, active, onPick, phaseColors }) {
+// Editorial filter tags — plain tracked-caps text, soft underline when active.
+function TagFilter({ options, active, onPick, phaseColors }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="kicker text-stone-400 w-24 shrink-0">{label}</span>
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
       {options.map((o) => {
         const on = active === o.id
-        const color = phaseColors ? PHASES[o.id]?.color : null
+        const underline = phaseColors ? PHASES[o.id]?.color : '#a8a29e'
         return (
           <button
             key={o.id}
             onClick={() => onPick(on ? null : o.id)}
-            className="px-2.5 py-1 text-xs border transition-colors"
-            style={
-              on
-                ? color
-                  ? { backgroundColor: color, color: PHASES[o.id]?.ink, borderColor: color }
-                  : { backgroundColor: '#1c1917', color: '#fafaf7', borderColor: '#1c1917' }
-                : { borderColor: '#e7e5e4', color: '#57534e' }
-            }
+            className={`text-[11px] uppercase tracking-[0.18em] transition-colors ${
+              on ? 'text-stone-900 font-medium' : 'text-stone-400 hover:text-stone-700'
+            }`}
+            style={on ? { textDecoration: 'underline', textUnderlineOffset: '5px', textDecorationColor: underline } : undefined}
           >
             {o.label}
           </button>

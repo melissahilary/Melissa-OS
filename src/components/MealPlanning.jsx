@@ -534,22 +534,13 @@ function GroceryList({ onOpenNotes }) {
     ])
     setDraft({ name: '', status: '', qty: '', store: '' })
   }
-  const toggle = (id) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done: !i.done } : i)))
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
-  const clearDone = () => setItems((prev) => prev.filter((i) => !i.done))
   const update = (id, patch) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))
-
-  const anyDone = items.some((i) => i.done)
 
   return (
     <section className="mb-10">
-      <header className="mb-4 flex items-center justify-end gap-4">
+      <header className="mb-4 flex items-center justify-end">
         <span className="text-sm text-stone-400">{items.length} on the list</span>
-        {anyDone && (
-          <button onClick={clearDone} className="text-xs text-stone-500 hover:text-stone-900">
-            Clear done →
-          </button>
-        )}
       </header>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -610,10 +601,6 @@ function GroceryList({ onOpenNotes }) {
                       }}
                     >
                       <button
-                        onClick={() => toggle(item.id)}
-                        className={`h-4 w-4 shrink-0 border ${item.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-                      />
-                      <button
                         onClick={() =>
                           onOpenNotes({
                             variant: 'grocery',
@@ -625,9 +612,7 @@ function GroceryList({ onOpenNotes }) {
                             },
                           })
                         }
-                        className={`flex flex-1 items-center gap-1.5 text-left text-sm ${
-                          item.done ? 'text-stone-400 line-through' : 'text-stone-800'
-                        }`}
+                        className="flex flex-1 items-center gap-1.5 text-left text-sm text-stone-800"
                       >
                         {hasNotes(item.notes) && <Pencil size={11} className="text-stone-500" />}
                         {item.name}
