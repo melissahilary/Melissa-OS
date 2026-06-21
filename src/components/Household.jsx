@@ -30,9 +30,11 @@ export default function Household() {
       <SectionTitle kicker="06 · Running the house" title="Household." />
 
       <section>
-        <header className="mb-4 flex items-end justify-between">
-          <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900">Shopping · restock</h2>
+        <div className="mb-2 flex justify-end">
           <span className="text-sm text-stone-500">Outstanding: ${outstanding.toFixed(0)}</span>
+        </div>
+        <header className="mb-4">
+          <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900">Shopping · restock</h2>
         </header>
 
         <div className="mb-5 flex flex-wrap items-center gap-2">

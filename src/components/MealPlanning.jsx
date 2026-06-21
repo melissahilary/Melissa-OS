@@ -13,7 +13,7 @@ import Recipes from './Recipes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-const SLOTS = [
+export const SLOTS = [
   { id: 'empty', label: 'Empty stomach', supps: true },
   { id: 'breakfast', label: 'Breakfast', supps: true },
   { id: 'snack1', label: 'Snack', supps: false },

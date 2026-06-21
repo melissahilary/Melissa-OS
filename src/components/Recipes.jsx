@@ -75,14 +75,16 @@ export default function Recipes({ config = MEAL_RECIPES_CONFIG }) {
 
   return (
     <section className="mb-10">
-      <div className="mb-6 flex items-center justify-end gap-4">
+      <div className="mb-2 flex justify-end">
+        <span className="text-sm text-stone-400">{recipes.length} on file</span>
+      </div>
+      <div className="mb-6 flex justify-end">
         <button
           onClick={() => setEditing(blankRecipe(config))}
           className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700"
         >
           <Plus size={15} /> New recipe
         </button>
-        <span className="text-sm text-stone-400">{recipes.length} on file</span>
       </div>
 
       {/* Filter bar — facet A left, facet B right, full width */}

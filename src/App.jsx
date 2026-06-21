@@ -51,6 +51,8 @@ const SUBNAV = {
   ],
   workout: [
     { id: 'schedule', label: 'Schedule' },
+    { id: 'protocols', label: 'Protocols' },
+    { id: 'practices', label: 'Practices' },
     { id: 'cycle', label: 'Cycle' },
   ],
 }
@@ -106,15 +108,17 @@ export default function App() {
             />
           ) : (
             <>
-              <div className="mb-6 flex justify-end">
-                <button
-                  onClick={() => setCollapsed(true)}
-                  className="text-stone-400 hover:text-stone-900"
-                  title="Collapse sidebar"
-                >
-                  <PanelLeftClose size={18} />
-                </button>
-              </div>
+              {isToday && (
+                <div className="mb-6 flex justify-end">
+                  <button
+                    onClick={() => setCollapsed(true)}
+                    className="text-stone-400 hover:text-stone-900"
+                    title="Collapse sidebar"
+                  >
+                    <PanelLeftClose size={18} />
+                  </button>
+                </div>
+              )}
 
               {isToday && (
                 <SidebarToday setActive={setActive} setDreamPage={setDreamPage} pillars={PILLARS} />
@@ -230,7 +234,6 @@ function SidebarToday({ setActive, setDreamPage, pillars }) {
   return (
     <div className="space-y-7">
       <div>
-        <h2 className="font-serif font-bold text-2xl text-stone-900 mb-3">Daily Schedule</h2>
         <p className="kicker text-stone-400 mb-3">What I'm focused on.</p>
         <nav className="space-y-1">
           <button
