@@ -4,7 +4,6 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseFor, PHASE_FOODS, PHASES } from '../lib/cycle'
 import { dateKey, weekDays, addDays, isSameDay, DOW, DOW_LONG, MONTHS } from '../lib/date'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
-import SectionTitle from './shared/SectionTitle'
 import FreqPicker from './shared/FreqPicker'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
 import ScopePrompt from './shared/ScopePrompt'
@@ -150,8 +149,6 @@ export default function MealPlanning({ cycleConfig, subPage = 'planner' }) {
 
   return (
     <div>
-      <SectionTitle kicker="01 · Daily Journal" title="Meal Planning." />
-
       {subPage === 'grocery' && <GroceryList onOpenNotes={setPopup} />}
       {subPage === 'recipes' && <Recipes />}
 
