@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
-import { longDate, dateKey } from './lib/date'
+import { dateKey } from './lib/date'
 
 import Footer from './components/shared/Footer'
 import Today from './components/Today'
@@ -234,7 +234,6 @@ function SidebarToday({ today, location, setLocation, setActive, setDreamPage, p
   return (
     <div className="space-y-7">
       <div>
-        <p className="kicker text-stone-400 mb-2">{longDate(today)}</p>
         <CursiveTitle className="text-[2.6rem] text-stone-900" onClick={null} />
       </div>
 
@@ -245,21 +244,22 @@ function SidebarToday({ today, location, setLocation, setActive, setDreamPage, p
         className="w-full bg-transparent border-b border-stone-200 pb-1 text-sm text-stone-600 outline-none focus:border-stone-900 transition-colors"
       />
 
-      <button
-        type="button"
-        onClick={() => {
-          setActive('dream')
-          setDreamPage('goals')
-        }}
-        className="group block w-full overflow-hidden rounded-sm border border-stone-300 bg-stone-900 px-5 py-5 text-left text-cream transition-colors hover:bg-stone-800"
-      >
-        <div className="flex items-center gap-2">
-          <Sparkles size={15} className="text-sand" />
-          <span className="font-serif italic text-2xl leading-none">Manifestations</span>
-        </div>
-      </button>
+      <nav className="space-y-1">
+        <button
+          type="button"
+          onClick={() => {
+            setActive('dream')
+            setDreamPage('goals')
+          }}
+          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-100 transition-colors"
+        >
+          <Sparkles size={16} className="shrink-0" />
+          <span>Manifestations</span>
+        </button>
+      </nav>
 
       <div>
+        <h2 className="font-serif font-bold text-2xl text-stone-900 mb-3">Daily Schedule</h2>
         <p className="kicker text-stone-400 mb-3">What I'm focused on.</p>
         <nav className="space-y-1">
           {pillars.map((p) => {
@@ -335,12 +335,7 @@ function SidebarDream({ goToday, dreamPage, setDreamPage }) {
         <ChevronLeft size={16} /> Back to Today
       </button>
 
-      <div className="overflow-hidden rounded-sm border border-stone-300 bg-stone-900 px-5 py-5 text-cream">
-        <div className="flex items-center gap-2">
-          <Sparkles size={15} className="text-sand" />
-          <span className="font-serif italic text-2xl leading-none">Manifestations</span>
-        </div>
-      </div>
+      <h2 className="font-serif italic text-2xl leading-none text-stone-900">Manifestations</h2>
 
       <nav className="space-y-1">
         {DREAM_FIXED.map((id) => (

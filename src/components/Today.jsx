@@ -13,12 +13,32 @@ import InlineText from './shared/InlineText'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-const EVENT_CATEGORIES = [
-  { id: 'personal', label: 'Personal', color: '#B8849A' },
-  { id: 'work', label: 'Work', color: '#5A6B7B' },
-  { id: 'wellness', label: 'Wellness', color: '#7B8B5F' },
-  { id: 'social', label: 'Social', color: '#C4A882' },
+const PARTS = [
+  { id: 'morning', label: 'Morning' },
+  { id: 'afternoon', label: 'Afternoon' },
+  { id: 'evening', label: 'Evening' },
 ]
+const FREQS = ['once', 'daily', 'weekly', 'monthly', 'yearly']
+
+// Normalize a stored event (old shape was { id, text, category }).
+const normEvent = (ev) => ({
+  id: ev.id,
+  title: ev.title != null ? ev.title : ev.text || '',
+  time: ev.time || '',
+  part: ev.part || 'morning',
+  description: ev.description || '',
+  attendees: ev.attendees || '',
+  frequency: ev.frequency || 'once',
+  done: !!ev.done,
+})
+
+const byTime = (a, b) => {
+  const ta = a.time || '', tb = b.time || ''
+  if (!ta && !tb) return 0
+  if (!ta) return -1
+  if (!tb) return 1
+  return ta.localeCompare(tb)
+}
 
 const Cursive = ({ children, className = '' }) => (
   <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>
@@ -38,8 +58,58 @@ export default function Today({ cycleConfig, setCycleConfig }) {
   )
   const moonIdx = moonPhaseIndex(selected)
 
+  const [events, setEvents] = useLocalStorage('mos:today:events', {})
+  const [detail, setDetail] = useState(null) // { key, id }
+
+  const dayEvents = (k) => (events[k] || []).map(normEvent)
+
+  const addEvent = (k) => {
+    const ev = {
+      id: uid(), title: '', time: '', part: 'morning',
+      description: '', attendees: '', frequency: 'once', done: false,
+    }
+    setEvents((p) => ({ ...p, [k]: [...(p[k] || []), ev] }))
+    setDetail({ key: k, id: ev.id })
+  }
+
+  const updateEvent = (k, id, patch) => {
+    setEvents((prev) => {
+      const list = (prev[k] || []).map(normEvent)
+      const idx = list.findIndex((e) => e.id === id)
+      if (idx < 0) return prev
+      const merged = { ...list[idx], ...patch }
+      const newKey = patch.date && patch.date !== k ? patch.date : k
+      delete merged.date
+      if (newKey === k) {
+        const nl = [...list]
+        nl[idx] = merged
+        return { ...prev, [k]: nl }
+      }
+      const fromList = list.filter((e) => e.id !== id)
+      const toList = [...(prev[newKey] || []).map(normEvent), merged]
+      return { ...prev, [k]: fromList, [newKey]: toList }
+    })
+    if (patch.date && patch.date !== k) setDetail({ key: patch.date, id })
+  }
+
+  const removeEvent = (k, id) => {
+    setEvents((p) => ({ ...p, [k]: (p[k] || []).filter((e) => e.id !== id) }))
+    setDetail(null)
+  }
+
+  const toggleDone = (k, id) =>
+    setEvents((p) => ({
+      ...p,
+      [k]: (p[k] || []).map((e) => (e.id === id ? { ...normEvent(e), done: !normEvent(e).done } : e)),
+    }))
+
   return (
     <div>
+      {/* Page title — centered at the very top, above the horoscope */}
+      <div className="mb-8 text-center">
+        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
+      </div>
+
       <Horoscope />
 
       {/* Header */}
@@ -105,35 +175,39 @@ export default function Today({ cycleConfig, setCycleConfig }) {
         setSelectedKey={setSelectedKey}
         today={today}
         cycleConfig={cycleConfig}
+        eventsFor={dayEvents}
+        onAdd={addEvent}
+        onOpen={(k, id) => setDetail({ key: k, id })}
       />
 
-      <DreamDay dateKeyStr={selectedKey} />
+      <DreamDay
+        events={dayEvents(selectedKey)}
+        onToggle={(id) => toggleDone(selectedKey, id)}
+        onOpen={(id) => setDetail({ key: selectedKey, id })}
+      />
       <TopPriorities dateKeyStr={selectedKey} />
       <BrainDump dateKeyStr={selectedKey} />
+
+      {detail && (() => {
+        const ev = dayEvents(detail.key).find((e) => e.id === detail.id)
+        if (!ev) return null
+        return (
+          <EventDetail
+            ev={ev}
+            dateKeyStr={detail.key}
+            onChange={(patch) => updateEvent(detail.key, detail.id, patch)}
+            onDelete={() => removeEvent(detail.key, detail.id)}
+            onClose={() => setDetail(null)}
+          />
+        )
+      })()}
     </div>
   )
 }
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig }) {
-  const [events, setEvents] = useLocalStorage('mos:today:events', {})
-  const [adding, setAdding] = useState(null) // dateKey being added to
-  const [draft, setDraft] = useState({ text: '', category: 'personal' })
+function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, onAdd, onOpen }) {
   const cells = monthGrid(calMonth)
-
-  const addEvent = (key) => {
-    if (!draft.text.trim()) return
-    setEvents((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] || []), { id: uid(), text: draft.text.trim(), category: draft.category }],
-    }))
-    setDraft({ text: '', category: 'personal' })
-    setAdding(null)
-  }
-
-  const removeEvent = (key, id) => {
-    setEvents((prev) => ({ ...prev, [key]: (prev[key] || []).filter((e) => e.id !== id) }))
-  }
 
   return (
     <section className="mb-12">
@@ -175,7 +249,7 @@ function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, c
           const isSel = key === selectedKey
           const isTod = isSameDay(cell, today)
           const holiday = holidayFor(cell)
-          const dayEvents = events[key] || []
+          const dayEvents = eventsFor(key)
           const phase = phaseFor(cell, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
           return (
             <div
@@ -206,170 +280,133 @@ function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, c
               )}
 
               <div className="mt-0.5 space-y-0.5">
-                {dayEvents.slice(0, 2).map((ev) => {
-                  const cat = EVENT_CATEGORIES.find((c) => c.id === ev.category)
-                  return (
-                    <div key={ev.id} className="group/ev flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: cat?.color }} />
-                      <span className="truncate text-[10px] text-stone-600">{ev.text}</span>
-                      <button
-                        onClick={() => removeEvent(key, ev.id)}
-                        className="ml-auto hidden text-stone-300 hover:text-stone-700 group-hover/ev:block"
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  )
-                })}
+                {dayEvents.slice(0, 2).map((ev) => (
+                  <button key={ev.id} onClick={() => onOpen(key, ev.id)} className="flex w-full items-center gap-1 text-left">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
+                    <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
+                      {ev.title || 'Untitled'}
+                    </span>
+                  </button>
+                ))}
                 {dayEvents.length > 2 && (
                   <p className="text-[9px] text-stone-400">+{dayEvents.length - 2} more</p>
                 )}
               </div>
 
-              {adding === key ? (
-                <div className="mt-1 space-y-1">
-                  <input
-                    autoFocus
-                    value={draft.text}
-                    onChange={(e) => setDraft({ ...draft, text: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') addEvent(key)
-                      if (e.key === 'Escape') setAdding(null)
-                    }}
-                    placeholder="Event"
-                    className="w-full bg-white border border-stone-300 px-1 py-0.5 text-[10px] outline-none"
-                  />
-                  <select
-                    value={draft.category}
-                    onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-                    className="w-full bg-white border border-stone-300 px-1 py-0.5 text-[10px] outline-none"
-                  >
-                    {EVENT_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </select>
-                </div>
+              <button
+                onClick={() => onAdd(key)}
+                className="absolute right-1 top-1 hidden text-stone-300 hover:text-stone-900 group-hover:block"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+// ── My dream day — a view of the day's calendar events by part ───────
+function DreamDay({ events, onToggle, onOpen }) {
+  return (
+    <section className="mb-14">
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">My dream day.</h2>
+      <div className="grid gap-6 md:grid-cols-3">
+        {PARTS.map((part) => {
+          const items = events.filter((e) => e.part === part.id).sort(byTime)
+          return (
+            <div key={part.id} className="border-t border-stone-300 pt-3">
+              <p className="kicker text-stone-500 mb-3">{part.label}</p>
+              {items.length === 0 ? (
+                <p className="text-sm text-stone-300">Nothing scheduled.</p>
               ) : (
-                <button
-                  onClick={() => {
-                    setAdding(key)
-                    setDraft({ text: '', category: 'personal' })
-                  }}
-                  className="absolute right-1 top-1 hidden text-stone-300 hover:text-stone-900 group-hover:block"
-                >
-                  <Plus size={13} />
-                </button>
+                <div className="space-y-1.5">
+                  {items.map((it) => (
+                    <div key={it.id} className="group flex items-start gap-2">
+                      <button
+                        onClick={() => onToggle(it.id)}
+                        className={`mt-0.5 h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
+                      />
+                      {it.time && <span className="mt-0.5 text-xs text-stone-400 w-12 shrink-0">{it.time}</span>}
+                      <button
+                        onClick={() => onOpen(it.id)}
+                        className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}
+                      >
+                        {it.title || 'Untitled'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )
         })}
       </div>
-
-      {/* Legend */}
-      <div className="mt-3 flex flex-wrap gap-4">
-        {EVENT_CATEGORIES.map((c) => (
-          <span key={c.id} className="flex items-center gap-1.5 text-xs text-stone-500">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
-            {c.label}
-          </span>
-        ))}
-      </div>
     </section>
   )
 }
 
-// ── My dream day ────────────────────────────────────────────────────
-const DREAM_BLOCKS = [
-  { id: 'morning', label: 'Morning' },
-  { id: 'afternoon', label: 'Afternoon' },
-  { id: 'evening', label: 'Evening' },
-]
-
-function DreamDay({ dateKeyStr }) {
-  const [all, setAll] = useLocalStorage('mos:today:dream-v2', {})
-  const data = all[dateKeyStr] || { morning: [], afternoon: [], evening: [] }
-
-  const update = (blockId, items) => {
-    setAll((prev) => ({ ...prev, [dateKeyStr]: { ...(prev[dateKeyStr] || {}), [blockId]: items } }))
-  }
-
+// ── Event detail editor ─────────────────────────────────────────────
+function EventDetail({ ev, dateKeyStr, onChange, onDelete, onClose }) {
   return (
-    <section className="mb-14">
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">My dream day.</h2>
-      <div className="grid gap-6 md:grid-cols-3">
-        {DREAM_BLOCKS.map((block) => {
-          const items = data[block.id] || []
-          return (
-            <DreamBlock
-              key={block.id}
-              label={block.label}
-              items={items}
-              onChange={(next) => update(block.id, next)}
-            />
-          )
-        })}
-      </div>
-    </section>
-  )
-}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-cream border border-stone-300 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between">
+          <span className="kicker text-stone-400">Event</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
 
-function DreamBlock({ label, items, onChange }) {
-  const [draft, setDraft] = useState('')
-  const [dragId, setDragId] = useState(null)
-  const add = () => {
-    if (!draft.trim()) return
-    onChange([...items, { id: uid(), text: draft.trim(), done: false }])
-    setDraft('')
-  }
-  const editText = (id, text) => onChange(items.map((x) => (x.id === id ? { ...x, text } : x)))
-  const onDrop = (targetId) => {
-    if (!dragId || dragId === targetId) return
-    const next = items.filter((x) => x.id !== dragId)
-    const dragged = items.find((x) => x.id === dragId)
-    const at = next.findIndex((x) => x.id === targetId)
-    next.splice(at, 0, dragged)
-    onChange(next)
-    setDragId(null)
-  }
-  return (
-    <div className="border-t border-stone-300 pt-3">
-      <p className="kicker text-stone-500 mb-3">{label}</p>
-      <div className="space-y-1.5">
-        {items.map((it) => (
-          <div
-            key={it.id}
-            draggable
-            onDragStart={() => setDragId(it.id)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => onDrop(it.id)}
-            onDragEnd={() => setDragId(null)}
-            className={`group flex items-start gap-2 ${dragId === it.id ? 'opacity-40' : ''}`}
-          >
-            <button
-              onClick={() => onChange(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))}
-              className={`mt-0.5 h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-            />
-            <InlineText
-              value={it.text}
-              onChange={(t) => editText(it.id, t)}
-              className={`flex-1 text-sm bg-transparent outline-none ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}
-            />
-            <button
-              onClick={() => onChange(items.filter((x) => x.id !== it.id))}
-              className="hidden text-stone-300 hover:text-stone-700 group-hover:block"
-            >
-              <X size={13} />
-            </button>
+        <input
+          value={ev.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          placeholder="Title"
+          className="mb-4 w-full bg-transparent border-b border-stone-300 pb-1.5 font-serif text-2xl text-stone-900 outline-none focus:border-stone-900"
+        />
+
+        <div className="space-y-3 text-sm">
+          <div className="flex gap-3">
+            <label className="block flex-1">
+              <span className="kicker text-stone-400 mb-1 block">Date</span>
+              <input type="date" value={dateKeyStr} onChange={(e) => onChange({ date: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
+            </label>
+            <label className="block flex-1">
+              <span className="kicker text-stone-400 mb-1 block">Time</span>
+              <input type="time" value={ev.time} onChange={(e) => onChange({ time: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
+            </label>
           </div>
-        ))}
+
+          <div className="flex gap-3">
+            <label className="block flex-1">
+              <span className="kicker text-stone-400 mb-1 block">Part of day</span>
+              <select value={ev.part} onChange={(e) => onChange({ part: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900">
+                {PARTS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </label>
+            <label className="block flex-1">
+              <span className="kicker text-stone-400 mb-1 block">Frequency</span>
+              <select value={ev.frequency} onChange={(e) => onChange({ frequency: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 capitalize outline-none focus:border-stone-900">
+                {FREQS.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Description</span>
+            <textarea value={ev.description} onChange={(e) => onChange({ description: e.target.value })} rows={2} className="w-full bg-transparent border border-stone-300 px-2 py-1 outline-none focus:border-stone-900" />
+          </label>
+
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Attendees</span>
+            <input value={ev.attendees} onChange={(e) => onChange({ attendees: e.target.value })} placeholder="Comma separated" className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
+          </label>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between">
+          <button onClick={onDelete} className="text-sm text-stone-500 hover:text-stone-900">Delete</button>
+          <button onClick={onClose} className="bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Save</button>
+        </div>
       </div>
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && add()}
-        placeholder="Add to this part of the day"
-        className="mt-2 w-full bg-transparent border-b border-stone-200 pb-1 text-sm outline-none focus:border-stone-900"
-      />
     </div>
   )
 }

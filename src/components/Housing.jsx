@@ -74,10 +74,10 @@ export default function Housing() {
         <div className="mb-5 flex items-end justify-between">
           <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900">What we're considering.</h2>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-stone-400">{properties.length} on the list</span>
             <button onClick={addProperty} className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
               <Plus size={15} /> Add
             </button>
+            <span className="text-sm text-stone-400">{properties.length} on the list</span>
           </div>
         </div>
 

@@ -49,14 +49,14 @@ export default function Recipes() {
 
   return (
     <section className="mb-10">
-      <div className="mb-6 flex items-center justify-between">
-        <span className="text-sm text-stone-400">{recipes.length} on file</span>
+      <div className="mb-6 flex items-center justify-end gap-4">
         <button
           onClick={() => setEditing(blankRecipe())}
           className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700"
         >
           <Plus size={15} /> New recipe
         </button>
+        <span className="text-sm text-stone-400">{recipes.length} on file</span>
       </div>
 
       {/* Filter bar — meal time left, cycle phase right, full width */}

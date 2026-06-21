@@ -66,7 +66,7 @@ export default function Horoscope() {
     <section className="mb-10 border border-stone-200 bg-white/40 px-6 py-5">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles size={14} className="text-sand" />
-        <p className="kicker text-stone-400">Today's sky · {longDate(today)}</p>
+        <p className="kicker text-stone-400">Today's Horoscope · {longDate(today)}</p>
       </div>
 
       {text ? (

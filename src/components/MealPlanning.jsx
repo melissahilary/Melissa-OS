@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react'
-import { Plus, X, ChevronLeft, ChevronRight, Pencil, GripVertical } from 'lucide-react'
+import { Plus, X, Pencil, GripVertical } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseFor, PHASE_FOODS, PHASES } from '../lib/cycle'
-import { dateKey, weekDays, addDays, isSameDay, DOW, DOW_LONG, MONTHS } from '../lib/date'
+import { dateKey } from '../lib/date'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import FreqPicker from './shared/FreqPicker'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
 import ScopePrompt from './shared/ScopePrompt'
 import InlineText from './shared/InlineText'
+import { DayNav, DayHeader } from './shared/DayNav'
 import Recipes from './Recipes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -206,74 +207,6 @@ export default function MealPlanning({ cycleConfig, subPage = 'planner' }) {
           setScope(null)
         }}
       />
-    </div>
-  )
-}
-
-// ── Day navigation: arrows + a week of day initials ─────────────────
-function DayNav({ selected, setSelected, today }) {
-  const days = weekDays(selected)
-  return (
-    <div className="mb-10 flex items-center justify-center gap-5">
-      <button
-        onClick={() => setSelected(addDays(selected, -1))}
-        className="text-stone-400 hover:text-stone-900"
-        aria-label="Previous day"
-      >
-        <ChevronLeft size={20} />
-      </button>
-      <div className="flex items-center gap-1.5">
-        {days.map((d) => {
-          const sel = isSameDay(d, selected)
-          const isTod = isSameDay(d, today)
-          return (
-            <button
-              key={dateKey(d)}
-              onClick={() => setSelected(d)}
-              className="flex flex-col items-center gap-1"
-              aria-label={DOW_LONG[d.getDay()]}
-            >
-              <span
-                className={`flex h-9 w-9 items-center justify-center rounded-full text-sm transition-colors ${
-                  sel ? 'bg-stone-900 text-cream' : 'text-stone-400 hover:text-stone-900'
-                }`}
-              >
-                {DOW[d.getDay()][0]}
-              </span>
-              <span className={`h-1 w-1 rounded-full ${isTod ? 'bg-sand' : 'bg-transparent'}`} />
-            </button>
-          )
-        })}
-      </div>
-      <button
-        onClick={() => setSelected(addDays(selected, 1))}
-        className="text-stone-400 hover:text-stone-900"
-        aria-label="Next day"
-      >
-        <ChevronRight size={20} />
-      </button>
-    </div>
-  )
-}
-
-function DayHeader({ date, phase }) {
-  return (
-    <div className="mb-8 flex items-end justify-between gap-4">
-      <div>
-        <p className="kicker text-stone-400 mb-1">{DOW_LONG[date.getDay()]}</p>
-        <h2 className="font-serif italic text-4xl md:text-5xl leading-none text-stone-900">
-          {MONTHS[date.getMonth()]} {date.getDate()}
-        </h2>
-      </div>
-      {phase && (
-        <span
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs"
-          style={{ backgroundColor: phase.color, color: phase.ink }}
-        >
-          <span className="font-medium">{phase.name}</span>
-          <span className="opacity-70">· Day {phase.cycleDay}</span>
-        </span>
-      )}
     </div>
   )
 }
@@ -514,9 +447,19 @@ const STATUS_BG = {
 }
 
 // ── Grocery list (auto-categorized) ─────────────────────────────────
+const FRIDGE_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'in stock', label: 'In Stock' },
+  { id: 'running low', label: 'Running Low' },
+  { id: 'need to buy', label: 'Need to Buy' },
+]
+
 function GroceryList({ onOpenNotes }) {
   const [items, setItems] = useLocalStorage('mos:menu:groceries', [])
   const [draft, setDraft] = useState({ name: '', status: '', qty: '', store: '' })
+  const [filter, setFilter] = useState('all')
+
+  const visible = filter === 'all' ? items : items.filter((i) => i.status === filter)
 
   const add = () => {
     if (!draft.name.trim()) return
@@ -581,12 +524,33 @@ function GroceryList({ onOpenNotes }) {
         </button>
       </div>
 
-      {items.length === 0 ? (
-        <p className="font-serif italic text-lg text-stone-400">Fridge is good. List is empty.</p>
+      {/* Status filter — plain tracked-caps text, soft underline when active */}
+      <div className="mb-8 flex flex-wrap items-center gap-x-5 gap-y-1 border-y border-stone-100 py-3">
+        {FRIDGE_FILTERS.map((f) => {
+          const on = filter === f.id
+          return (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`text-[11px] uppercase tracking-[0.18em] transition-colors ${
+                on ? 'text-stone-900 font-medium' : 'text-stone-400 hover:text-stone-700'
+              }`}
+              style={on ? { textDecoration: 'underline', textUnderlineOffset: '5px', textDecorationColor: '#a8a29e' } : undefined}
+            >
+              {f.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {visible.length === 0 ? (
+        <p className="font-serif italic text-lg text-stone-400">
+          {items.length === 0 ? 'Fridge is good. List is empty.' : 'Nothing matches that filter.'}
+        </p>
       ) : (
         <div className="space-y-6">
           {GROCERY_CATEGORIES.map((cat) => {
-            const list = items.filter((i) => categorize(i.name) === cat)
+            const list = visible.filter((i) => categorize(i.name) === cat)
             if (!list.length) return null
             return (
               <div key={cat}>

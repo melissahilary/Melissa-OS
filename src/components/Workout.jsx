@@ -1,13 +1,21 @@
 import React, { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { DOW_LONG } from '../lib/date'
+import { phaseFor } from '../lib/cycle'
+import { dateKey } from '../lib/date'
 import SectionTitle from './shared/SectionTitle'
+import { DayNav, DayHeader } from './shared/DayNav'
+import InlineText from './shared/InlineText'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const STEP_GOAL = 10000
 
-export default function Workout() {
+export default function Workout({ cycleConfig = {} }) {
+  const today = new Date()
+  const [selected, setSelected] = useState(new Date())
+  const key = dateKey(selected)
+  const phase = phaseFor(selected, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
+
   const [data, setData] = useLocalStorage('mos:workout', {
     steps: 0,
     schedule: {},
@@ -17,15 +25,24 @@ export default function Workout() {
   const setSteps = (v) => setData((d) => ({ ...d, steps: Number(v) || 0 }))
   const pct = Math.min(100, (data.steps / STEP_GOAL) * 100)
 
-  const addToDay = (day, text) => {
+  const daySessions = (data.schedule && data.schedule[key]) || []
+  const addSession = (text) => {
     if (!text.trim()) return
     setData((d) => ({
       ...d,
-      schedule: { ...d.schedule, [day]: [...(d.schedule[day] || []), { id: uid(), text: text.trim() }] },
+      schedule: { ...d.schedule, [key]: [...((d.schedule && d.schedule[key]) || []), { id: uid(), text: text.trim() }] },
     }))
   }
-  const removeFromDay = (day, id) =>
-    setData((d) => ({ ...d, schedule: { ...d.schedule, [day]: (d.schedule[day] || []).filter((x) => x.id !== id) } }))
+  const editSession = (id, text) =>
+    setData((d) => ({
+      ...d,
+      schedule: { ...d.schedule, [key]: ((d.schedule && d.schedule[key]) || []).map((x) => (x.id === id ? { ...x, text } : x)) },
+    }))
+  const removeSession = (id) =>
+    setData((d) => ({
+      ...d,
+      schedule: { ...d.schedule, [key]: ((d.schedule && d.schedule[key]) || []).filter((x) => x.id !== id) },
+    }))
 
   const addHabit = (text) => {
     if (!text.trim()) return
@@ -38,6 +55,32 @@ export default function Workout() {
   return (
     <div>
       <SectionTitle kicker="02 · The body" title="Health & Fitness." />
+
+      {/* Daily schedule — identical layout/style to the Meal Planning page */}
+      <DayNav selected={selected} setSelected={setSelected} today={today} />
+      <DayHeader date={selected} phase={phase} />
+
+      <section className="mb-12 border-t border-stone-200 pt-7">
+        <h3 className="kicker text-stone-500 mb-4">The day's sessions</h3>
+        <div className="space-y-1.5">
+          {daySessions.map((it) => (
+            <div key={it.id} className="group flex items-center gap-2">
+              <InlineText
+                value={it.text}
+                onChange={(t) => editSession(it.id, t)}
+                className="flex-1 text-sm text-stone-700 bg-transparent outline-none"
+              />
+              <button
+                onClick={() => removeSession(it.id)}
+                className="hidden text-stone-300 hover:text-stone-700 group-hover:block"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <SessionInput onAdd={addSession} />
+      </section>
 
       {/* Step goal */}
       <section className="mb-12">
@@ -59,22 +102,6 @@ export default function Workout() {
         />
       </section>
 
-      {/* Weekly schedule */}
-      <section className="mb-12">
-        <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900 mb-5">The weekly schedule.</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {DOW_LONG.map((day) => (
-            <DayColumn
-              key={day}
-              day={day}
-              items={data.schedule[day] || []}
-              onAdd={(t) => addToDay(day, t)}
-              onRemove={(id) => removeFromDay(day, id)}
-            />
-          ))}
-        </div>
-      </section>
-
       {/* Habits */}
       <section>
         <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900 mb-4">Habits & routines.</h2>
@@ -86,9 +113,11 @@ export default function Workout() {
                 onClick={() => toggleHabit(h.id)}
                 className={`h-4 w-4 shrink-0 border ${h.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
               />
-              <span className={`flex-1 text-sm ${h.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
-                {h.text}
-              </span>
+              <InlineText
+                value={h.text}
+                onChange={(t) => setData((d) => ({ ...d, habits: d.habits.map((x) => (x.id === h.id ? { ...x, text: t } : x)) }))}
+                className={`flex-1 text-sm bg-transparent outline-none ${h.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}
+              />
               <button
                 onClick={() => removeHabit(h.id)}
                 className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"
@@ -103,36 +132,20 @@ export default function Workout() {
   )
 }
 
-function DayColumn({ day, items, onAdd, onRemove }) {
+function SessionInput({ onAdd }) {
   const [draft, setDraft] = useState('')
   const commit = () => {
     onAdd(draft)
     setDraft('')
   }
   return (
-    <div className="border-t border-stone-300 pt-3">
-      <p className="kicker text-stone-500 mb-2">{day}</p>
-      <div className="space-y-1">
-        {items.map((it) => (
-          <div key={it.id} className="group flex items-center gap-2">
-            <span className="flex-1 text-sm text-stone-700">{it.text}</span>
-            <button
-              onClick={() => onRemove(it.id)}
-              className="hidden text-stone-300 hover:text-stone-700 group-hover:block"
-            >
-              <X size={13} />
-            </button>
-          </div>
-        ))}
-      </div>
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && commit()}
-        placeholder="Add a session"
-        className="mt-1.5 w-full bg-transparent border-b border-stone-200 pb-1 text-sm outline-none focus:border-stone-900"
-      />
-    </div>
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && commit()}
+      placeholder="Add a session"
+      className="mt-3 w-full bg-transparent border-b border-stone-200 pb-1 text-sm outline-none focus:border-stone-900"
+    />
   )
 }
 
