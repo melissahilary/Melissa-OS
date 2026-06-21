@@ -765,7 +765,7 @@ function GroceryList({ onOpenNotes }) {
       ) : (
         <div className="space-y-6">
           {GROCERY_CATEGORIES.map((cat) => {
-            const list = items.filter((i) => (i.category || categorize(i.name)) === cat)
+            const list = items.filter((i) => categorize(i.name) === cat)
             if (!list.length) return null
             return (
               <div key={cat}>

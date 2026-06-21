@@ -1,7 +1,24 @@
 // Auto-categorize a grocery item by name into editorial grocery sections.
-// Keyword-matched; falls back to "Other".
+// Every item lands in exactly one named category — no catch-all. Anything that
+// doesn't match a named category falls into Pantry.
 
+// Display order (used to render the sections).
+export const GROCERY_CATEGORIES = [
+  'Proteins', 'Dairy', 'Produce', 'Grains', 'Pantry', 'Supplements', 'Household',
+]
+
+// Match rules, checked in priority order. Supplements first so terms like
+// "greens powder" or "fish oil" don't get caught by Produce/Pantry.
 const RULES = [
+  {
+    category: 'Supplements',
+    words: [
+      'supplement', 'vitamin', 'multivitamin', 'prenatal', 'magnesium', 'omega', 'fish oil',
+      'cod liver oil', 'collagen', 'probiotic', 'creatine', 'electrolyte', 'melatonin',
+      'ashwagandha', 'biotin', 'glutathione', 'nmn', 'peptide', 'greens powder', 'protein powder',
+      'zinc', 'b12', 'd3', 'capsule', 'tablet',
+    ],
+  },
   {
     category: 'Proteins',
     words: [
@@ -37,26 +54,18 @@ const RULES = [
     ],
   },
   {
-    category: 'Pantry',
-    words: [
-      'oil', 'olive', 'salt', 'pepper', 'cinnamon', 'turmeric', 'cardamom', 'cacao', 'chocolate',
-      'honey', 'vinegar', 'miso', 'broth', 'stock', 'sauce', 'spice', 'seed', 'nut', 'almond',
-      'walnut', 'pistachio', 'cashew', 'pumpkin seed', 'sunflower', 'sesame', 'flax', 'tea', 'coffee',
-      'sugar', 'syrup', 'sauerkraut', 'kimchi', 'nut butter', 'tahini',
-    ],
-  },
-  {
-    category: 'Frozen',
-    words: ['frozen', 'ice cream', 'popsicle'],
-  },
-  {
     category: 'Household',
     words: ['paper', 'towel', 'soap', 'detergent', 'cleaner', 'sponge', 'foil', 'bag', 'wrap', 'trash'],
   },
-]
-
-export const GROCERY_CATEGORIES = [
-  'Proteins', 'Dairy', 'Produce', 'Grains', 'Pantry', 'Frozen', 'Household', 'Other',
+  {
+    category: 'Pantry',
+    words: [
+      'oil', 'olive', 'salt', 'cinnamon', 'turmeric', 'cardamom', 'cacao', 'chocolate',
+      'honey', 'vinegar', 'miso', 'broth', 'stock', 'sauce', 'spice', 'seed', 'nut', 'almond',
+      'walnut', 'pistachio', 'cashew', 'sunflower', 'sesame', 'flax', 'tea', 'coffee',
+      'sugar', 'syrup', 'sauerkraut', 'kimchi', 'tahini',
+    ],
+  },
 ]
 
 export function categorize(name) {
@@ -64,5 +73,5 @@ export function categorize(name) {
   for (const rule of RULES) {
     if (rule.words.some((w) => n.includes(w))) return rule.category
   }
-  return 'Other'
+  return 'Pantry' // named default — never a catch-all bucket
 }
