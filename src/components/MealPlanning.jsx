@@ -500,7 +500,14 @@ function ItemInput({ placeholder, suggestions, existing, onCommit }) {
   )
 }
 
-// ── Grocery list (date field + auto-categorized) ────────────────────
+// Muted status tones for the item left border (palette-matched).
+const STATUS_BORDER = {
+  'need to buy': '#C4959A',
+  'running low': '#C4A882',
+  'in stock': '#8A9E8A',
+}
+
+// ── Grocery list (auto-categorized) ─────────────────────────────────
 function GroceryList({ onOpenNotes }) {
   const [items, setItems] = useLocalStorage('mos:menu:groceries', [])
   const [draft, setDraft] = useState({ name: '', status: '', qty: '', store: '' })
@@ -556,6 +563,7 @@ function GroceryList({ onOpenNotes }) {
           <option value="">status</option>
           <option value="need to buy">need to buy</option>
           <option value="running low">running low</option>
+          <option value="in stock">in stock</option>
         </select>
         <input
           value={draft.qty}
@@ -588,7 +596,11 @@ function GroceryList({ onOpenNotes }) {
                 <h3 className="kicker text-stone-400 mb-2 border-b border-stone-100 pb-1.5">{cat}</h3>
                 <div className="divide-y divide-stone-100">
                   {list.map((item) => (
-                    <div key={item.id} className="group flex items-center gap-3 py-2.5">
+                    <div
+                      key={item.id}
+                      className="group flex items-center gap-3 py-2.5 pl-3"
+                      style={{ borderLeft: `3px solid ${STATUS_BORDER[item.status] || 'transparent'}` }}
+                    >
                       <button
                         onClick={() => toggle(item.id)}
                         className={`h-4 w-4 shrink-0 border ${item.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
@@ -620,6 +632,7 @@ function GroceryList({ onOpenNotes }) {
                         <option value="">status</option>
                         <option value="need to buy">need to buy</option>
                         <option value="running low">running low</option>
+                        <option value="in stock">in stock</option>
                       </select>
                       {item.qty && <span className="text-sm text-stone-500 tabular-nums">{item.qty}</span>}
                       {item.store && <span className="kicker text-stone-400">{item.store}</span>}
