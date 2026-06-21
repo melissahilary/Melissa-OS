@@ -96,7 +96,6 @@ function Login() {
           </div>
         ) : (
           <form onSubmit={submit} className="rounded-2xl bg-white/60 px-6 py-8" style={cardGlow}>
-            <p className="kicker text-stone-400 mb-5">Sign in</p>
             <input
               type="email"
               value={email}
