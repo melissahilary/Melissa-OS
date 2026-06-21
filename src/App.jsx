@@ -18,7 +18,7 @@ import Household from './components/Household'
 import Housing from './components/Housing'
 import Parents from './components/Parents'
 import DreamWorld, { DREAM_PAGES } from './components/DreamWorld'
-import AccountPanel, { AccountDot } from './components/shared/AccountPanel'
+import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
   { id: 'menu', label: 'Meal Planning', icon: UtensilsCrossed },
@@ -45,7 +45,7 @@ const PILLAR_COMPONENTS = {
 // Category sub-navigation shown when inside a section.
 const SUBNAV = {
   menu: [
-    { id: 'planner', label: 'Planner' },
+    { id: 'planner', label: 'Schedule' },
     { id: 'grocery', label: 'Grocery List' },
     { id: 'recipes', label: 'Recipes' },
   ],
@@ -56,7 +56,7 @@ const CursiveTitle = ({ className = '', onClick }) => (
     type="button"
     onClick={onClick}
     disabled={!onClick}
-    className={`block text-left leading-none ${onClick ? 'cursor-pointer' : 'cursor-default'} ${className}`}
+    className={`block w-full text-center leading-none ${onClick ? 'cursor-pointer' : 'cursor-default'} ${className}`}
     style={{ fontFamily: "'Pinyon Script', cursive" }}
   >
     Melissa's Digital Planner
@@ -155,10 +155,6 @@ export default function App() {
                   )}
                 </div>
               )}
-
-              <div className="mt-10 border-t border-stone-200 pt-6">
-                <AccountPanel />
-              </div>
             </>
           )}
         </aside>
