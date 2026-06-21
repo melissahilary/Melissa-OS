@@ -46,7 +46,7 @@ const PILLAR_COMPONENTS = {
 const SUBNAV = {
   menu: [
     { id: 'planner', label: 'Schedule' },
-    { id: 'grocery', label: 'Grocery List' },
+    { id: 'grocery', label: "What's In My Fridge" },
     { id: 'recipes', label: 'Recipes' },
   ],
 }

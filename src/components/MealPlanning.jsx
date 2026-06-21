@@ -503,7 +503,7 @@ function ItemInput({ placeholder, suggestions, existing, onCommit }) {
 // ── Grocery list (date field + auto-categorized) ────────────────────
 function GroceryList({ onOpenNotes }) {
   const [items, setItems] = useLocalStorage('mos:menu:groceries', [])
-  const [draft, setDraft] = useState({ name: '', qty: '', store: '', date: '' })
+  const [draft, setDraft] = useState({ name: '', status: '', qty: '', store: '' })
 
   const add = () => {
     if (!draft.name.trim()) return
@@ -512,15 +512,15 @@ function GroceryList({ onOpenNotes }) {
       {
         id: uid(),
         name: draft.name.trim(),
+        status: draft.status,
         qty: draft.qty.trim(),
         store: draft.store.trim(),
-        date: draft.date,
         category: categorize(draft.name),
         done: false,
         notes: {},
       },
     ])
-    setDraft({ name: '', qty: '', store: '', date: '' })
+    setDraft({ name: '', status: '', qty: '', store: '' })
   }
   const toggle = (id) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done: !i.done } : i)))
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
@@ -548,6 +548,15 @@ function GroceryList({ onOpenNotes }) {
           placeholder="Item"
           className="min-w-[160px] flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
+        <select
+          value={draft.status}
+          onChange={(e) => setDraft({ ...draft, status: e.target.value })}
+          className="border-b border-stone-300 bg-transparent pb-1.5 text-sm text-stone-600 outline-none"
+        >
+          <option value="">status</option>
+          <option value="need to buy">need to buy</option>
+          <option value="running low">running low</option>
+        </select>
         <input
           value={draft.qty}
           onChange={(e) => setDraft({ ...draft, qty: e.target.value })}
@@ -561,12 +570,6 @@ function GroceryList({ onOpenNotes }) {
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Store"
           className="w-28 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
-        />
-        <input
-          type="date"
-          value={draft.date}
-          onChange={(e) => setDraft({ ...draft, date: e.target.value })}
-          className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
         <button onClick={add} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700">
           <Plus size={16} />
@@ -609,7 +612,15 @@ function GroceryList({ onOpenNotes }) {
                         {hasNotes(item.notes) && <Pencil size={11} className="text-stone-500" />}
                         {item.name}
                       </button>
-                      {item.date && <span className="text-xs text-stone-400 tabular-nums">{item.date.slice(5)}</span>}
+                      <select
+                        value={item.status || ''}
+                        onChange={(e) => update(item.id, { status: e.target.value })}
+                        className="bg-transparent text-xs text-stone-500 outline-none"
+                      >
+                        <option value="">status</option>
+                        <option value="need to buy">need to buy</option>
+                        <option value="running low">running low</option>
+                      </select>
                       {item.qty && <span className="text-sm text-stone-500 tabular-nums">{item.qty}</span>}
                       {item.store && <span className="kicker text-stone-400">{item.store}</span>}
                       <button
