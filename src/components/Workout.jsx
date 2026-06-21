@@ -10,11 +10,12 @@ import InlineText from './shared/InlineText'
 const uid = () => Math.random().toString(36).slice(2, 10)
 const STEP_GOAL = 10000
 
-export default function Workout({ cycleConfig = {} }) {
+export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, subPage = 'schedule' }) {
   const today = new Date()
   const [selected, setSelected] = useState(new Date())
   const key = dateKey(selected)
   const phase = phaseFor(selected, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
+  const todayPhase = phaseFor(today, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
 
   const [data, setData] = useLocalStorage('mos:workout', {
     steps: 0,
@@ -56,6 +57,47 @@ export default function Workout({ cycleConfig = {} }) {
     <div>
       <SectionTitle kicker="02 · The body" title="Health & Fitness." />
 
+      {subPage === 'cycle' && (
+        <section className="border-t border-stone-200 pt-7">
+          <h3 className="kicker text-stone-500 mb-4">Cycle tracking</h3>
+          <div className="flex flex-wrap items-end gap-6">
+            <div>
+              <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
+              <input
+                type="date"
+                value={cycleConfig.lastPeriodStart || ''}
+                onChange={(e) => setCycleConfig({ ...cycleConfig, lastPeriodStart: e.target.value })}
+                className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
+              />
+            </div>
+            <div>
+              <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
+              <input
+                type="number"
+                min="20"
+                max="45"
+                value={cycleConfig.cycleLength || 28}
+                onChange={(e) => setCycleConfig({ ...cycleConfig, cycleLength: Number(e.target.value) })}
+                className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
+              />
+            </div>
+          </div>
+          {todayPhase ? (
+            <div
+              className="mt-6 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs"
+              style={{ backgroundColor: todayPhase.color, color: todayPhase.ink }}
+            >
+              <span className="font-medium">{todayPhase.name}</span>
+              <span className="opacity-70">· Day {todayPhase.cycleDay}</span>
+            </div>
+          ) : (
+            <p className="mt-6 text-sm text-stone-400">Set your last period to see your current phase.</p>
+          )}
+        </section>
+      )}
+
+      {subPage !== 'cycle' && (
+        <>
       {/* Daily schedule — identical layout/style to the Meal Planning page */}
       <DayNav selected={selected} setSelected={setSelected} today={today} />
       <DayHeader date={selected} phase={phase} />
@@ -128,6 +170,8 @@ export default function Workout({ cycleConfig = {} }) {
           ))}
         </div>
       </section>
+        </>
+      )}
     </div>
   )
 }

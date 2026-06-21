@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { dateKey, longDate } from '../lib/date'
+import { dateKey } from '../lib/date'
 import { computeTransits, PLANET_GLYPH } from '../lib/astrology/transits'
 import { templateNarrative, aspectSummary } from '../lib/astrology/narrative'
 
@@ -66,7 +66,7 @@ export default function Horoscope() {
     <section className="mb-10 border border-stone-200 bg-white/40 px-6 py-5">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles size={14} className="text-sand" />
-        <p className="kicker text-stone-400">Today's Horoscope · {longDate(today)}</p>
+        <p className="kicker text-stone-400">Today's Horoscope</p>
       </div>
 
       {text ? (

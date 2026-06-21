@@ -1,15 +1,28 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Plus, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseFor } from '../lib/cycle'
 import {
-  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
-  moonPhaseIndex, MOON_NAMES,
+  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW, DOW_LONG,
 } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
-import MoonIcon from './shared/MoonIcon'
 import Horoscope from './Horoscope'
 import InlineText from './shared/InlineText'
+
+// Live UV index via Open-Meteo (no key, CORS-friendly). Returns a rounded
+// number, or null if the location can't be resolved / the request fails.
+async function fetchUv(place) {
+  const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1`)
+  const gj = await g.json()
+  const loc = gj && gj.results && gj.results[0]
+  if (!loc) return null
+  const f = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=uv_index_max&timezone=auto`,
+  )
+  const fj = await f.json()
+  const v = fj && fj.daily && fj.daily.uv_index_max && fj.daily.uv_index_max[0]
+  return v != null ? Math.round(v) : null
+}
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -46,17 +59,76 @@ const Cursive = ({ children, className = '' }) => (
   </span>
 )
 
-export default function Today({ cycleConfig, setCycleConfig }) {
+// ── Info strip — day/phase · date · UV · location, one elegant row ───
+function InfoStrip({ today, phase, location, setLocation }) {
+  const dayPhase = `${DOW_LONG[today.getDay()]}${phase ? ` · ${phase.name} Day ${phase.cycleDay}` : ''}`
+  const dateStr = `${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`
+  const Dot = () => <span className="text-stone-300">·</span>
+  return (
+    <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
+      <span>{dayPhase}</span>
+      <Dot />
+      <span>{dateStr}</span>
+      <Dot />
+      <span className="flex items-center gap-1.5">
+        <span className="kicker text-stone-400">UV</span>
+        <UvField location={location} />
+      </span>
+      <Dot />
+      <span className="flex items-center gap-1.5">
+        <span className="kicker text-stone-400">Location</span>
+        <input
+          value={location || ''}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="Location"
+          className="w-28 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
+        />
+      </span>
+    </div>
+  )
+}
+
+// UV index — pulled live for the location when possible; always editable.
+function UvField({ location }) {
+  const [uv, setUv] = useLocalStorage('mos:settings:uv', '')
+  useEffect(() => {
+    let alive = true
+    const place = (location || '').trim()
+    if (!place) return undefined
+    ;(async () => {
+      try {
+        const v = await fetchUv(place)
+        if (alive && v != null) setUv(String(v))
+      } catch {
+        /* offline / unresolved — keep the manual value */
+      }
+    })()
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location])
+  return (
+    <input
+      value={uv}
+      onChange={(e) => setUv(e.target.value)}
+      placeholder="—"
+      className="w-12 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
+    />
+  )
+}
+
+export default function Today({ cycleConfig, location, setLocation }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
 
-  const phase = useMemo(
-    () => phaseFor(selected, cycleConfig.lastPeriodStart, cycleConfig.cycleLength),
-    [selectedKey, cycleConfig.lastPeriodStart, cycleConfig.cycleLength],
+  const todayPhase = useMemo(
+    () => phaseFor(today, cycleConfig.lastPeriodStart, cycleConfig.cycleLength),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cycleConfig.lastPeriodStart, cycleConfig.cycleLength, dateKey(today)],
   )
-  const moonIdx = moonPhaseIndex(selected)
 
   const [events, setEvents] = useLocalStorage('mos:today:events', {})
   const [detail, setDetail] = useState(null) // { key, id }
@@ -105,68 +177,23 @@ export default function Today({ cycleConfig, setCycleConfig }) {
 
   return (
     <div>
-      {/* Page title — centered at the very top, above the horoscope */}
-      <div className="mb-8 text-center">
+      {/* Page title — centered at the very top of the main content */}
+      <div className="mb-6 text-center">
         <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
       </div>
 
+      <InfoStrip today={today} phase={todayPhase} location={location} setLocation={setLocation} />
+
       <Horoscope />
 
-      {/* Header */}
-      <header className="mb-7">
-        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Daily Schedule</Cursive>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {phase ? (
-            <span
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs"
-              style={{ backgroundColor: phase.color, color: phase.ink }}
-            >
-              <span className="font-medium">{phase.name}</span>
-              <span className="opacity-70">· Day {phase.cycleDay}</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-3.5 py-1.5 text-xs bg-stone-100 text-stone-500">
-              Set your last period below for phase guidance
-            </span>
-          )}
-          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs border border-stone-200 text-stone-600">
-            <MoonIcon index={moonIdx} size={15} />
-            {MOON_NAMES[moonIdx]}
-          </span>
-        </div>
-        {!isSameDay(selected, today) && (
-          <p className="mt-3 text-sm text-stone-500">
-            Viewing {longDate(selected)}.{' '}
-            <button onClick={() => setSelectedKey(dateKey(today))} className="text-stone-900 underline underline-offset-2">
-              Back to today
-            </button>
-          </p>
-        )}
-      </header>
-
-      {/* Cycle settings */}
-      <section className="mb-8 flex flex-wrap items-end gap-6 border border-stone-200 bg-white/40 px-5 py-4">
-        <div>
-          <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
-          <input
-            type="date"
-            value={cycleConfig.lastPeriodStart || ''}
-            onChange={(e) => setCycleConfig({ ...cycleConfig, lastPeriodStart: e.target.value })}
-            className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
-          />
-        </div>
-        <div>
-          <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
-          <input
-            type="number"
-            min="20"
-            max="45"
-            value={cycleConfig.cycleLength || 28}
-            onChange={(e) => setCycleConfig({ ...cycleConfig, cycleLength: Number(e.target.value) })}
-            className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
-          />
-        </div>
-      </section>
+      {!isSameDay(selected, today) && (
+        <p className="mb-6 text-sm text-stone-500">
+          Viewing {longDate(selected)}.{' '}
+          <button onClick={() => setSelectedKey(dateKey(today))} className="text-stone-900 underline underline-offset-2">
+            Back to today
+          </button>
+        </p>
+      )}
 
       <Calendar
         calMonth={calMonth}

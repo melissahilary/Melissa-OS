@@ -49,24 +49,17 @@ const SUBNAV = {
     { id: 'grocery', label: "What's In My Fridge" },
     { id: 'recipes', label: 'Recipes' },
   ],
+  workout: [
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'cycle', label: 'Cycle' },
+  ],
 }
-
-const CursiveTitle = ({ className = '', onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={!onClick}
-    className={`block w-full text-center leading-none ${onClick ? 'cursor-pointer' : 'cursor-default'} ${className}`}
-    style={{ fontFamily: "'Pinyon Script', cursive" }}
-  >
-    Melissa's Digital Planner
-  </button>
-)
 
 export default function App() {
   const [active, setActive] = useLocalStorage('mos:active', 'today')
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
   const [menuSub, setMenuSub] = useLocalStorage('mos:menu:subpage', 'planner')
+  const [workoutSub, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'schedule')
   const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
   const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
   const [cycleConfig, setCycleConfig] = useLocalStorage('mos:settings:cycle', {
@@ -89,6 +82,10 @@ export default function App() {
   const goToday = () => setActive('today')
   const ActivePillar = isPillar ? PILLAR_COMPONENTS[active] : null
   const activePillarMeta = PILLARS.find((p) => p.id === active)
+
+  // The sub-page value + setter for whichever pillar is active.
+  const activeSub = active === 'menu' ? menuSub : active === 'workout' ? workoutSub : null
+  const setActiveSub = active === 'menu' ? setMenuSub : active === 'workout' ? setWorkoutSub : () => {}
 
   return (
     <div className="min-h-screen bg-cream text-stone-900">
@@ -120,14 +117,7 @@ export default function App() {
               </div>
 
               {isToday && (
-                <SidebarToday
-                  today={today}
-                  location={location}
-                  setLocation={setLocation}
-                  setActive={setActive}
-                  setDreamPage={setDreamPage}
-                  pillars={PILLARS}
-                />
+                <SidebarToday setActive={setActive} setDreamPage={setDreamPage} pillars={PILLARS} />
               )}
 
               {isDream && (
@@ -136,16 +126,22 @@ export default function App() {
 
               {isPillar && (
                 <div className="space-y-6">
-                  <CursiveTitle className="text-3xl text-stone-900" onClick={goToday} />
+                  <button
+                    type="button"
+                    onClick={goToday}
+                    className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
+                  >
+                    <ChevronLeft size={16} /> Back to Today
+                  </button>
                   {SUBNAV[active] && (
                     <nav className="space-y-1 border-t border-stone-200 pt-5">
                       <p className="kicker text-stone-400 mb-2">{activePillarMeta?.label}</p>
                       {SUBNAV[active].map((s) => (
                         <button
                           key={s.id}
-                          onClick={() => setMenuSub(s.id)}
+                          onClick={() => setActiveSub(s.id)}
                           className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
-                            menuSub === s.id ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
+                            activeSub === s.id ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
                           }`}
                         >
                           {s.label}
@@ -162,10 +158,10 @@ export default function App() {
         {/* ── Main content ────────────────────────────────────── */}
         <main className="flex-1 overflow-x-hidden px-6 py-8 md:px-10 lg:px-12">
           <div className="mx-auto max-w-5xl">
-            {isToday && <Today cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />}
+            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} />}
             {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
             {isPillar && ActivePillar && (
-              <ActivePillar cycleConfig={cycleConfig} subPage={active === 'menu' ? menuSub : undefined} />
+              <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} />
             )}
             <Footer />
           </div>
@@ -230,38 +226,24 @@ function RailButton({ icon: Icon, label, active, disabled, onClick }) {
 }
 
 // ── Sidebar: default (Today selected) ──────────────────────────────
-function SidebarToday({ today, location, setLocation, setActive, setDreamPage, pillars }) {
+function SidebarToday({ setActive, setDreamPage, pillars }) {
   return (
     <div className="space-y-7">
-      <div>
-        <CursiveTitle className="text-[2.6rem] text-stone-900" onClick={null} />
-      </div>
-
-      <input
-        value={location}
-        onChange={(e) => setLocation(e.target.value)}
-        placeholder="Alameda"
-        className="w-full bg-transparent border-b border-stone-200 pb-1 text-sm text-stone-600 outline-none focus:border-stone-900 transition-colors"
-      />
-
-      <nav className="space-y-1">
-        <button
-          type="button"
-          onClick={() => {
-            setActive('dream')
-            setDreamPage('goals')
-          }}
-          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-100 transition-colors"
-        >
-          <Sparkles size={16} className="shrink-0" />
-          <span>Manifestations</span>
-        </button>
-      </nav>
-
       <div>
         <h2 className="font-serif font-bold text-2xl text-stone-900 mb-3">Daily Schedule</h2>
         <p className="kicker text-stone-400 mb-3">What I'm focused on.</p>
         <nav className="space-y-1">
+          <button
+            type="button"
+            onClick={() => {
+              setActive('dream')
+              setDreamPage('goals')
+            }}
+            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-100 transition-colors"
+          >
+            <span className="w-4 shrink-0" />
+            <span>Manifestations</span>
+          </button>
           {pillars.map((p) => {
             const Icon = p.icon
             const ready = p.ready !== false
