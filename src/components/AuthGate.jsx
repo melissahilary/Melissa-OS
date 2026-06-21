@@ -110,13 +110,9 @@ function Login() {
               className="flex w-full items-center justify-center gap-2 bg-stone-900 px-4 py-2.5 text-sm text-cream hover:bg-stone-700 disabled:opacity-50"
             >
               <Mail size={15} />
-              {busy ? 'Sending…' : 'Let me in.'}
+              {busy ? 'Sending…' : 'let me in.'}
             </button>
             {error && <p className="mt-3 text-xs text-phase-menstrual">{error}</p>}
-            <p className="mt-4 text-xs leading-snug text-stone-400">
-              No password. We email you a one-time link; click it and you're in. Your data is tied to
-              your email and follows you to any device.
-            </p>
           </form>
         )}
       </div>
