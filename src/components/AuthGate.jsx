@@ -49,8 +49,29 @@ function Login() {
     else setSent(true)
   }
 
+  // CSS-only linen: warm off-white base, fine woven grain, subtle vertical threads.
+  const linenBg = {
+    backgroundColor: '#f6f1e6',
+    backgroundImage: [
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E\")",
+      'repeating-linear-gradient(90deg, rgba(150,120,70,0.06) 0px, rgba(150,120,70,0.06) 1px, transparent 1px, transparent 4px)',
+      'repeating-linear-gradient(0deg, rgba(150,120,70,0.035) 0px, rgba(150,120,70,0.035) 1px, transparent 1px, transparent 5px)',
+    ].join(', '),
+  }
+
+  // Warm white-gold light emanating from the card edge — layered glow, no hard line.
+  const cardGlow = {
+    boxShadow: [
+      '0 0 2px 0 rgba(255,250,240,0.95)',
+      '0 0 10px 1px rgba(255,248,231,0.9)',
+      '0 0 28px 6px rgba(255,236,190,0.6)',
+      '0 0 64px 16px rgba(255,240,205,0.35)',
+      'inset 0 0 14px rgba(255,248,231,0.55)',
+    ].join(', '),
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cream px-6">
+    <div className="flex min-h-screen items-center justify-center px-6" style={linenBg}>
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
           <Cursive className="text-5xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
@@ -58,7 +79,7 @@ function Login() {
         </div>
 
         {sent ? (
-          <div className="border border-stone-200 bg-white/50 px-6 py-8 text-center">
+          <div className="rounded-2xl bg-white/60 px-6 py-8 text-center" style={cardGlow}>
             <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-stone-900 text-cream">
               <Check size={18} />
             </div>
@@ -75,7 +96,7 @@ function Login() {
             </button>
           </div>
         ) : (
-          <form onSubmit={submit} className="border border-stone-200 bg-white/50 px-6 py-8">
+          <form onSubmit={submit} className="rounded-2xl bg-white/60 px-6 py-8" style={cardGlow}>
             <p className="kicker text-stone-400 mb-2">Sign in</p>
             <h2 className="font-serif italic text-2xl text-stone-900 mb-5">Enter your email.</h2>
             <input
