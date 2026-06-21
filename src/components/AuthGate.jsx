@@ -110,7 +110,7 @@ function Login() {
               className="flex w-full items-center justify-center gap-2 bg-stone-900 px-4 py-2.5 text-sm text-cream hover:bg-stone-700 disabled:opacity-50"
             >
               <Mail size={15} />
-              {busy ? 'Sending…' : 'Send me a magic link'}
+              {busy ? 'Sending…' : 'Let me in.'}
             </button>
             {error && <p className="mt-3 text-xs text-phase-menstrual">{error}</p>}
             <p className="mt-4 text-xs leading-snug text-stone-400">
