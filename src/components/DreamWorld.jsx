@@ -12,10 +12,12 @@ export const DREAM_PAGES = [
   { id: 'week', label: 'Dream Week' },
   { id: 'calendar', label: 'Dream Calendar' },
   { id: 'outings', label: 'Dream Outings' },
-  { id: 'skincare', label: 'Skincare' },
-  { id: 'wardrobe', label: 'Wardrobe' },
-  { id: 'devices', label: 'Devices' },
-  { id: 'home', label: 'Home' },
+  { id: 'skincare', label: 'Dream Skincare' },
+  { id: 'wardrobe', label: 'Dream Wardrobe' },
+  { id: 'devices', label: 'Dream Cars' },
+  { id: 'home', label: 'Dream Home' },
+  { id: 'investments', label: 'Dream Investments & Assets' },
+  { id: 'haircare', label: 'Dream Haircare' },
 ]
 
 const Cursive = ({ children, className = '' }) => (
@@ -33,10 +35,12 @@ export default function DreamWorld({ page, cycleConfig }) {
       {page === 'week' && <DreamWeek />}
       {page === 'calendar' && <DreamCalendar />}
       {page === 'outings' && <ListPage storageKey="mos:dream:outings" title="Dream Outings." kicker="Places, trips, experiences" placeholder="A restaurant, trip, or experience to do" checkable />}
-      {page === 'skincare' && <ListPage storageKey="mos:dream:skincare" title="Skincare." kicker="The ritual" placeholder="A step in the routine" checkable />}
-      {page === 'wardrobe' && <ListPage storageKey="mos:dream:wardrobe" title="Wardrobe." kicker="The closet" placeholder="A piece to acquire" checkable />}
-      {page === 'devices' && <ListPage storageKey="mos:dream:devices" title="Devices." kicker="The kit" placeholder="A device on the wishlist" checkable />}
-      {page === 'home' && <ListPage storageKey="mos:dream:home" title="Home." kicker="The space" placeholder="Something for the home" checkable />}
+      {page === 'skincare' && <ListPage storageKey="mos:dream:skincare" title="Dream Skincare." kicker="The ritual" placeholder="A step in the routine" checkable />}
+      {page === 'wardrobe' && <ListPage storageKey="mos:dream:wardrobe" title="Dream Wardrobe." kicker="The closet" placeholder="A piece to acquire" checkable />}
+      {page === 'devices' && <ListPage storageKey="mos:dream:devices" title="Dream Cars." kicker="The garage" placeholder="A car on the wishlist" checkable />}
+      {page === 'home' && <ListPage storageKey="mos:dream:home" title="Dream Home." kicker="The space" placeholder="Something for the home" checkable />}
+      {page === 'investments' && <ListPage storageKey="mos:dream:investments" title="Dream Investments & Assets." kicker="What I'm building" placeholder="An asset or investment to acquire" checkable />}
+      {page === 'haircare' && <ListPage storageKey="mos:dream:haircare" title="Dream Haircare." kicker="The ritual" placeholder="A product or step for hair" checkable />}
     </div>
   )
 }
