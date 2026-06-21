@@ -531,16 +531,13 @@ function GroceryList({ onOpenNotes }) {
 
   return (
     <section className="mb-10">
-      <header className="mb-4 flex items-end justify-between">
-        <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900">Grocery list</h2>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-stone-400">{items.length} on the list</span>
-          {anyDone && (
-            <button onClick={clearDone} className="text-xs text-stone-500 hover:text-stone-900">
-              Clear done →
-            </button>
-          )}
-        </div>
+      <header className="mb-4 flex items-center justify-end gap-4">
+        <span className="text-sm text-stone-400">{items.length} on the list</span>
+        {anyDone && (
+          <button onClick={clearDone} className="text-xs text-stone-500 hover:text-stone-900">
+            Clear done →
+          </button>
+        )}
       </header>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">

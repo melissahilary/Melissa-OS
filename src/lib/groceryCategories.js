@@ -42,7 +42,7 @@ const RULES = [
       'zucchini', 'asparagus', 'artichoke', 'pea', 'fennel', 'cucumber', 'lemon', 'lime', 'grapefruit',
       'orange', 'parsley', 'dill', 'basil', 'mint', 'cilantro', 'cauliflower', 'brussels', 'arugula',
       'watercress', 'carrot', 'radish', 'romaine', 'lettuce', 'sweet potato', 'squash', 'parsnip',
-      'turnip', 'banana', 'date', 'fig', 'apple', 'pear', 'grape', 'tomato', 'onion', 'garlic',
+      'turnip', 'cabbage', 'banana', 'date', 'fig', 'apple', 'pear', 'grape', 'tomato', 'onion', 'garlic',
       'ginger', 'mushroom', 'pepper', 'sprout', 'herb', 'fruit', 'vegetable', 'greens',
     ],
   },

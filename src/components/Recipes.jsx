@@ -22,11 +22,7 @@ export default function Recipes() {
 
   return (
     <section>
-      <header className="mb-5 flex items-end justify-between">
-        <div>
-          <p className="kicker text-stone-400 mb-2">The kitchen</p>
-          <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900">Recipes.</h2>
-        </div>
+      <header className="mb-5 flex items-center justify-end">
         <span className="text-sm text-stone-400">{recipes.length} on file</span>
       </header>
 
