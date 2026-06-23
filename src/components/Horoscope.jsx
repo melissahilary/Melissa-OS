@@ -300,15 +300,16 @@ function MeaningWheel({ data }) {
 
       {aspects.map((a, i) => {
         if (a.from === a.to) return null
-        // Curved arc hugging the OUTSIDE of the ring, nested per aspect, so the
-        // interior stays clean (only the center theme lives there).
+        // A single thin arc hugging just OUTSIDE the ring (one consistent radius
+        // for every aspect) so the interior stays clean and they read as one
+        // elegant band rather than offset parallel rings.
         const a1 = angleOf(a.from)
         const a2 = angleOf(a.to)
-        const rArc = rRing + 3 + i * 2.5
+        const rArc = rRing + 5
         const delta = ((a2 - a1) + 360) % 360
         const span = delta <= 180 ? delta : 360 - delta
         const dir = delta <= 180 ? 1 : -1
-        const steps = Math.max(2, Math.round(span / 5))
+        const steps = Math.max(2, Math.round(span / 4))
         const pts = []
         for (let k = 0; k <= steps; k++) {
           const [px, py] = P(a1 + dir * (span * (k / steps)), rArc)
