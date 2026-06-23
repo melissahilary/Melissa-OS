@@ -66,20 +66,14 @@ export default async function handler(req, res) {
       model: 'claude-opus-4-8',
       max_tokens: 700,
       system: SYSTEM,
-      messages: [
-        { role: 'user', content: userContent },
-        // Prefill the assistant turn so the model must continue a JSON object.
-        { role: 'assistant', content: '{' },
-      ],
+      messages: [{ role: 'user', content: userContent }],
     })
 
-    const body2 = (message.content || [])
+    const text = (message.content || [])
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('')
       .trim()
-    // Re-attach the prefilled opening brace.
-    const text = `{${body2}`
 
     // Robustly extract the JSON object from the model output.
     let raw = text.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim()
@@ -108,7 +102,12 @@ export default async function handler(req, res) {
       res.status(200).json({ theme: null, aspects: null, source: 'empty' })
     }
   } catch (err) {
-    console.error('[horoscope] error', String(err && err.message))
-    res.status(200).json({ theme: null, aspects: null, source: 'error', detail: String(err && err.message) })
+    const status = err && err.status
+    const apiMsg =
+      (err && err.error && err.error.error && err.error.error.message) ||
+      (err && err.message) ||
+      'unknown'
+    console.error('[horoscope] APIerror', JSON.stringify({ status, apiMsg }))
+    res.status(200).json({ theme: null, aspects: null, source: 'error', detail: apiMsg })
   }
 }

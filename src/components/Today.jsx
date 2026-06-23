@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { Plus, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, X, Trash2 } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseFor } from '../lib/cycle'
 import {
@@ -141,34 +141,29 @@ function WeatherField({ location }) {
   )
 }
 
-// UV index — pulled live for the location when possible; always editable.
+// UV index — always pulled live for the location (never entered manually).
 function UvField({ location }) {
-  const [uv, setUv] = useLocalStorage('mos:settings:uv', '')
+  const [uv, setUv] = useState(null)
   useEffect(() => {
     let alive = true
     const place = (location || '').trim()
-    if (!place) return undefined
+    if (!place) {
+      setUv(null)
+      return undefined
+    }
     ;(async () => {
       try {
         const v = await fetchUv(place)
-        if (alive && v != null) setUv(String(v))
+        if (alive) setUv(v)
       } catch {
-        /* offline / unresolved — keep the manual value */
+        if (alive) setUv(null)
       }
     })()
     return () => {
       alive = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location])
-  return (
-    <input
-      value={uv}
-      onChange={(e) => setUv(e.target.value)}
-      placeholder="—"
-      className="w-12 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
-    />
-  )
+  return <span className="text-stone-700">UV {uv != null ? uv : '—'}</span>
 }
 
 export default function Today({ cycleConfig, location, setLocation }) {
@@ -303,50 +298,53 @@ function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, c
     setSelectedKey(dateKey(d))
   }
 
+  const goPrev = () => {
+    if (view === 'month') setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))
+    else shiftAnchor(view === 'week' ? -7 : -1)
+  }
+  const goNext = () => {
+    if (view === 'month') setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))
+    else shiftAnchor(view === 'week' ? 7 : 1)
+  }
+  const goToday = () => {
+    setCalMonth(new Date(today.getFullYear(), today.getMonth(), 1))
+    setSelectedKey(dateKey(today))
+  }
+  const periodLabel =
+    view === 'month'
+      ? `${MONTHS[calMonth.getMonth()]} ${calMonth.getFullYear()}`
+      : view === 'week'
+        ? `Week of ${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getDate()}`
+        : `${DOW[anchorDate.getDay()]}, ${MONTHS[anchorDate.getMonth()]} ${anchorDate.getDate()}`
+
   return (
     <section className="mb-12">
-      {/* View toggle */}
-      <div className="mb-4 flex gap-1">
-        {['month', 'week', 'day'].map((v) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={`px-3 py-1.5 text-sm capitalize transition-colors ${view === v ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
-          >
-            {v}
-          </button>
-        ))}
+      {/* Single row: views left · period center · prev/today/next right */}
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex flex-1 justify-start gap-1">
+          {['month', 'week', 'day'].map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-3 py-1.5 text-sm capitalize transition-colors ${view === v ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <h3 className="flex-1 whitespace-nowrap text-center font-serif text-2xl text-stone-900">{periodLabel}</h3>
+        <div className="flex flex-1 items-center justify-end gap-1">
+          <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
+          <button onClick={goToday} className="px-2 text-sm text-stone-500 hover:text-stone-900">Today</button>
+          <button onClick={goNext} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
+          {view === 'day' && (
+            <button onClick={() => onAdd(selectedKey)} className="ml-1 bg-stone-900 px-2 py-1 text-cream hover:bg-stone-700"><Plus size={15} /></button>
+          )}
+        </div>
       </div>
 
       {view === 'month' && (
-        <>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-serif text-2xl text-stone-900">
-              {MONTHS[calMonth.getMonth()]} {calMonth.getFullYear()}
-            </h3>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))}
-                className="p-1.5 text-stone-400 hover:text-stone-900"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                onClick={() => setCalMonth(new Date(today.getFullYear(), today.getMonth(), 1))}
-                className="px-2 text-xs text-stone-500 hover:text-stone-900"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))}
-                className="p-1.5 text-stone-400 hover:text-stone-900"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-7 border-l border-t border-stone-200">
+        <div className="grid grid-cols-7 border-l border-t border-stone-200">
             {DOW.map((d) => (
               <div key={d} className="border-b border-r border-stone-200 px-2 py-1.5 text-center kicker text-stone-400">
                 {d[0]}
@@ -412,20 +410,10 @@ function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, c
               )
             })}
           </div>
-        </>
       )}
 
       {view === 'week' && (
-        <>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-serif text-2xl text-stone-900">Week of {MONTHS[weekDays[0].getMonth()]} {weekDays[0].getDate()}</h3>
-            <div className="flex gap-2">
-              <button onClick={() => shiftAnchor(-7)} className="text-sm text-stone-500 hover:text-stone-900">Prev</button>
-              <button onClick={() => setSelectedKey(dateKey(today))} className="text-sm text-stone-500 hover:text-stone-900">Today</button>
-              <button onClick={() => shiftAnchor(7)} className="text-sm text-stone-500 hover:text-stone-900">Next</button>
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-7">
+        <div className="grid gap-3 md:grid-cols-7">
             {weekDays.map((d) => {
               const key = dateKey(d)
               const isTod = isSameDay(d, today)
@@ -449,16 +437,11 @@ function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, c
               )
             })}
           </div>
-        </>
       )}
 
       {view === 'day' && (
         <CalDayView
-          anchorDate={anchorDate}
           events={eventsFor(selectedKey)}
-          onShift={shiftAnchor}
-          onToday={() => setSelectedKey(dateKey(today))}
-          onAdd={() => onAdd(selectedKey)}
           onToggle={(id) => onToggle(selectedKey, id)}
           onOpen={(id) => onOpen(selectedKey, id)}
         />
@@ -467,21 +450,9 @@ function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, c
   )
 }
 
-function CalDayView({ anchorDate, events, onShift, onToday, onAdd, onToggle, onOpen }) {
+function CalDayView({ events, onToggle, onOpen }) {
   const sorted = [...events].sort(byTime)
   return (
-    <>
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-serif text-2xl text-stone-900">
-          {DOW[anchorDate.getDay()]}, {MONTHS[anchorDate.getMonth()]} {anchorDate.getDate()}
-        </h3>
-        <div className="flex items-center gap-2">
-          <button onClick={() => onShift(-1)} className="text-sm text-stone-500 hover:text-stone-900">Prev</button>
-          <button onClick={onToday} className="text-sm text-stone-500 hover:text-stone-900">Today</button>
-          <button onClick={() => onShift(1)} className="text-sm text-stone-500 hover:text-stone-900">Next</button>
-          <button onClick={onAdd} className="bg-stone-900 px-2 py-1 text-cream hover:bg-stone-700"><Plus size={15} /></button>
-        </div>
-      </div>
       <div className="space-y-7">
         {PARTS.map((g) => {
           const evs = sorted.filter((e) => e.part === g.id)
@@ -511,7 +482,6 @@ function CalDayView({ anchorDate, events, onShift, onToday, onAdd, onToggle, onO
           )
         })}
       </div>
-    </>
   )
 }
 
@@ -519,7 +489,7 @@ function CalDayView({ anchorDate, events, onShift, onToday, onAdd, onToggle, onO
 function DreamDay({ events, dateKeyStr, onToggle, onOpen }) {
   return (
     <section className="mb-14">
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">My dream day.</h2>
+      <Cursive className="block mb-6 text-5xl md:text-6xl text-stone-900 leading-tight">My dream day.</Cursive>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {PARTS.map((part) => {
           const items = events.filter((e) => e.part === part.id).sort(byTime)
@@ -596,68 +566,148 @@ function MealsColumn({ dateKeyStr }) {
   )
 }
 
-// ── Today's notes — one entry per day, auto-saved; past entries archived ─
-function TodayNotes() {
-  const [notes, setNotes] = useLocalStorage('mos:today:notes', {})
-  const todayKey = dateKey(new Date())
-  const [showPast, setShowPast] = useState(false)
-  const [reading, setReading] = useState(null) // dateKey being read
+// ── Today's notes — Keep-style card grid; click a card to edit it ───
+const noteDateLabel = (d) => {
+  const x = parseKey(d)
+  return `${MONTHS[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`
+}
 
-  const past = Object.keys(notes)
-    .filter((k) => k !== todayKey && (notes[k] || '').trim())
-    .sort((a, b) => b.localeCompare(a)) // yyyy-mm-dd sorts newest-first
+function TodayNotes() {
+  const [stored, setNotes] = useLocalStorage('mos:today:notes-v2', [])
+  const notes = Array.isArray(stored) ? stored : []
+  const [draft, setDraft] = useState('')
+  const [openId, setOpenId] = useState(null)
+
+  const add = () => {
+    const t = draft.trim()
+    if (!t) return
+    const note = { id: uid(), title: t, body: '', date: dateKey(new Date()) }
+    setNotes((prev) => [note, ...(Array.isArray(prev) ? prev : [])])
+    setDraft('')
+  }
+  const update = (id, patch) =>
+    setNotes((prev) => (Array.isArray(prev) ? prev : []).map((n) => (n.id === id ? { ...n, ...patch } : n)))
+  const remove = (id) => setNotes((prev) => (Array.isArray(prev) ? prev : []).filter((n) => n.id !== id))
+
+  const openNote = notes.find((n) => n.id === openId) || null
 
   return (
     <section className="mb-14">
       <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Today's Notes.</h2>
-      <textarea
-        value={notes[todayKey] || ''}
-        onChange={(e) => setNotes((prev) => ({ ...prev, [todayKey]: e.target.value }))}
-        placeholder="What did today teach you..."
-        rows={5}
-        className="w-full resize-y bg-transparent border-b border-stone-300 pb-2 text-base leading-relaxed text-stone-800 placeholder-stone-300 outline-none focus:border-stone-900 transition-colors"
-      />
 
-      {past.length > 0 && (
-        <button
-          onClick={() => setShowPast((v) => !v)}
-          className="mt-3 text-sm text-stone-400 hover:text-stone-700 transition-colors"
-        >
-          {showPast ? 'Hide previous notes' : 'Previous notes'}
+      <div className="mb-2 flex justify-end">
+        <span className="text-sm text-stone-400">{notes.length} on file</span>
+      </div>
+      <div className="mb-6 flex justify-end gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="New note title"
+          className="w-48 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+        />
+        <button onClick={add} className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
+          <Plus size={15} /> New note
         </button>
-      )}
+      </div>
 
-      {showPast && (
-        <div className="mt-4 divide-y divide-stone-100 border-t border-stone-200">
-          {past.map((k) => (
-            <button key={k} onClick={() => setReading(k)} className="flex w-full items-baseline gap-3 py-2.5 text-left">
-              <span className="shrink-0 text-sm text-stone-700">{longDate(parseKey(k))}, {parseKey(k).getFullYear()}</span>
-              <span className="truncate text-sm text-stone-400">{(notes[k] || '').trim()}</span>
-            </button>
+      {notes.length === 0 ? (
+        <p className="font-serif italic text-lg text-stone-400">No notes yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {notes.map((n) => (
+            <NoteCard key={n.id} note={n} onOpen={() => setOpenId(n.id)} />
           ))}
         </div>
       )}
 
-      {reading && (
-        <NoteReader
-          dateLabel={`${longDate(parseKey(reading))}, ${parseKey(reading).getFullYear()}`}
-          text={notes[reading] || ''}
-          onClose={() => setReading(null)}
+      {openNote && (
+        <NoteDetail
+          note={openNote}
+          onChange={(patch) => update(openNote.id, patch)}
+          onDelete={() => {
+            remove(openNote.id)
+            setOpenId(null)
+          }}
+          onClose={() => setOpenId(null)}
         />
       )}
     </section>
   )
 }
 
-function NoteReader({ dateLabel, text, onClose }) {
+function NoteCard({ note, onOpen }) {
+  const firstLine = (note.body || '').split('\n').find((l) => l.trim()) || ''
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={onClose}>
-      <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto bg-cream border border-stone-300 p-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-5 flex items-start justify-between">
-          <span className="kicker text-stone-400">{dateLabel}</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+    <button
+      onClick={onOpen}
+      className="flex flex-col items-start border border-stone-200 bg-white/40 p-4 text-left transition-shadow hover:shadow-md"
+    >
+      <h3 className="font-serif text-xl text-stone-900">{note.title || 'Untitled'}</h3>
+      {firstLine ? (
+        <p className="mt-2 line-clamp-1 text-sm leading-relaxed text-stone-500">{firstLine}</p>
+      ) : (
+        <p className="mt-2 text-sm italic text-stone-300">No content yet.</p>
+      )}
+      <p className="kicker text-stone-400 mt-3">{noteDateLabel(note.date)}</p>
+    </button>
+  )
+}
+
+function NoteDetail({ note, onChange, onDelete, onClose }) {
+  const taRef = useRef(null)
+  const autosize = () => {
+    const el = taRef.current
+    if (el) {
+      el.style.height = 'auto'
+      el.style.height = `${el.scrollHeight}px`
+    }
+  }
+  useEffect(() => {
+    autosize()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="w-full max-w-xl bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
+          <input
+            value={note.title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder="Title"
+            autoFocus
+            className="w-full bg-transparent font-serif italic text-3xl text-stone-900 placeholder-stone-300 outline-none"
+          />
+          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><X size={20} /></button>
         </div>
-        <p className="whitespace-pre-wrap font-serif text-lg leading-relaxed text-stone-800">{text}</p>
+
+        <div className="px-6 py-5">
+          <p className="kicker text-stone-400 mb-3">{noteDateLabel(note.date)}</p>
+          <textarea
+            ref={taRef}
+            value={note.body}
+            onChange={(e) => {
+              onChange({ body: e.target.value })
+              autosize()
+            }}
+            placeholder="Write it out…"
+            className="block w-full resize-none overflow-hidden bg-transparent text-base leading-relaxed text-stone-800 placeholder-stone-300 outline-none"
+            style={{ minHeight: '40vh' }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between border-t border-stone-200 px-6 py-4">
+          <button onClick={onDelete} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-phase-menstrual">
+            <Trash2 size={15} /> Delete
+          </button>
+          <button onClick={onClose} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Done</button>
+        </div>
       </div>
     </div>
   )
