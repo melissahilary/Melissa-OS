@@ -171,6 +171,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const [calView, setCalView] = useState('month')
 
   const todayPhase = useMemo(
     () => phaseFor(today, cycleConfig.lastPeriodStart, cycleConfig.cycleLength),
@@ -244,6 +245,8 @@ export default function Today({ cycleConfig, location, setLocation }) {
       )}
 
       <Calendar
+        view={calView}
+        setView={setCalView}
         calMonth={calMonth}
         setCalMonth={setCalMonth}
         selectedKey={selectedKey}
@@ -253,12 +256,14 @@ export default function Today({ cycleConfig, location, setLocation }) {
         eventsFor={dayEvents}
         onAdd={addEvent}
         onOpen={(k, id) => setDetail({ key: k, id })}
-        onToggle={(k, id) => toggleDone(k, id)}
       />
 
+      {/* Day view = unified daily view (calendar header + the four columns).
+          Month/Week = calendar above, titled My dream day below. */}
       <DreamDay
         events={dayEvents(selectedKey)}
         dateKeyStr={selectedKey}
+        showTitle={calView !== 'day'}
         onToggle={(id) => toggleDone(selectedKey, id)}
         onOpen={(id) => setDetail({ key: selectedKey, id })}
       />
@@ -283,8 +288,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
 }
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, onAdd, onOpen, onToggle }) {
-  const [view, setView] = useState('month')
+function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, onAdd, onOpen }) {
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(selectedKey)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -439,57 +443,17 @@ function Calendar({ calMonth, setCalMonth, selectedKey, setSelectedKey, today, c
           </div>
       )}
 
-      {view === 'day' && (
-        <CalDayView
-          events={eventsFor(selectedKey)}
-          onToggle={(id) => onToggle(selectedKey, id)}
-          onOpen={(id) => onOpen(selectedKey, id)}
-        />
-      )}
     </section>
   )
 }
 
-function CalDayView({ events, onToggle, onOpen }) {
-  const sorted = [...events].sort(byTime)
-  return (
-      <div className="space-y-7">
-        {PARTS.map((g) => {
-          const evs = sorted.filter((e) => e.part === g.id)
-          return (
-            <div key={g.id} className="border-t border-stone-300 pt-3">
-              <p className="kicker text-stone-500 mb-3">{g.label}</p>
-              {evs.length === 0 ? (
-                <p className="text-sm text-stone-300">Nothing yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {evs.map((ev) => (
-                    <div key={ev.id} className="group flex items-center gap-3">
-                      <button
-                        onClick={() => onToggle(ev.id)}
-                        className={`h-4 w-4 shrink-0 border ${ev.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-                      />
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
-                      {ev.time && <span className="text-xs text-stone-400 w-12 shrink-0">{ev.time}</span>}
-                      <button onClick={() => onOpen(ev.id)} className={`flex-1 text-left text-sm ${ev.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
-                        {ev.title || 'Untitled'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-  )
-}
-
-// ── My dream day — calendar events by part + today's meals ──────────
-function DreamDay({ events, dateKeyStr, onToggle, onOpen }) {
+// ── My dream day / unified day columns — events by part + today's meals ──
+function DreamDay({ events, dateKeyStr, showTitle = true, onToggle, onOpen }) {
   return (
     <section className="mb-14">
-      <Cursive className="block mb-6 text-5xl md:text-6xl text-stone-900 leading-tight">My dream day.</Cursive>
+      {showTitle && (
+        <Cursive className="block mb-6 text-5xl md:text-6xl text-stone-900 leading-tight">My dream day.</Cursive>
+      )}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {PARTS.map((part) => {
           const items = events.filter((e) => e.part === part.id).sort(byTime)

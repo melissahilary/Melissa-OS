@@ -23,10 +23,11 @@ const SCATTER = [
 ]
 
 // Melissa's hard-coded big three, shown below the wheel.
+// Libra/Taurus glyphs with a trailing U+FE0E to force text (not emoji) rendering.
 const BIG_THREE_GLYPHS = [
-  { glyph: '♎', label: 'sun' },
-  { glyph: '♉', label: 'moon' },
-  { glyph: '♎', label: 'rising' },
+  { glyph: '♎︎', label: 'sun' },
+  { glyph: '♉︎', label: 'moon' },
+  { glyph: '♎︎', label: 'rising' },
 ]
 
 const BIG_THREE = {
@@ -231,7 +232,7 @@ function BigThree() {
         <React.Fragment key={i}>
           {i > 0 && <span className="text-stone-300">·</span>}
           <span className="flex flex-col items-center leading-none">
-            <span className="text-2xl" style={{ color: INK }}>{it.glyph}</span>
+            <span className="text-2xl" style={{ fontFamily: "'Georgia', serif", fontVariantEmoji: 'text', color: inkA(0.6) }}>{it.glyph}</span>
             <span className="kicker mt-1.5" style={{ color: inkA(0.35) }}>{it.label}</span>
           </span>
         </React.Fragment>
@@ -285,13 +286,13 @@ function MeaningWheel({ data }) {
       style={{ fontFamily: "'Cormorant Garamond', ui-serif, Georgia, serif" }}
       onClick={() => setActive(null)}
     >
-      <circle cx={cx} cy={cy} r={rRing} fill="none" stroke={INK} strokeWidth="1" opacity="0.6" />
+      <circle cx={cx} cy={cy} r={rRing} fill="none" stroke={INK} strokeWidth="1" opacity="0.25" />
 
       {/* Subtle gold scatter around the outer edge — light catching dust */}
       {SCATTER.map((m, i) => {
         const [x, y] = P(m.deg, m.r)
         return (
-          <text key={`sc${i}`} x={x} y={y} fill={INK} opacity="0.35" fontSize={m.size} textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
+          <text key={`sc${i}`} x={x} y={y} fill={INK} opacity="0.25" fontSize={m.size} textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
             {m.mark}
           </text>
         )
@@ -322,7 +323,7 @@ function MeaningWheel({ data }) {
               fill="none"
               stroke={INK}
               strokeWidth={active === i ? '1.4' : '0.9'}
-              opacity={active === i ? 0.9 : active === null ? 0.6 : 0.25}
+              opacity={active === i ? 0.85 : active === null ? 0.45 : 0.2}
               strokeDasharray={dashed ? '3 3' : undefined}
             />
             <path
@@ -350,8 +351,8 @@ function MeaningWheel({ data }) {
               {cleanMeaning(activeAspect.meaning)}
             </span>
           ) : (
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '16px', letterSpacing: '1.5px', textTransform: 'uppercase', color: INK }}>
-              {theme}
+            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '17px', lineHeight: 1.3, color: INK }}>
+              {theme ? theme.charAt(0).toUpperCase() + theme.slice(1) : ''}
             </span>
           )}
         </div>
@@ -366,8 +367,8 @@ function MeaningWheel({ data }) {
         return (
           <g key={s} pointerEvents="none">
             {/* Celestial-seal node: thin ring + tiny center dot */}
-            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={INK} strokeWidth="0.7" opacity="0.6" />
-            <circle cx={dx} cy={dy} r="1.2" fill={INK} opacity="0.6" />
+            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={INK} strokeWidth="0.7" opacity="0.7" />
+            <circle cx={dx} cy={dy} r="1.2" fill={INK} opacity="0.7" />
             <text x={lx} y={ly} fill={INK} fontSize="7" letterSpacing="1" textAnchor={anchor} dominantBaseline="middle">
               {String(s).toUpperCase()}
             </text>
