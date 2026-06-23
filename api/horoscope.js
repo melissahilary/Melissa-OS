@@ -9,6 +9,9 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 
+// Give the function room for Opus latency + retry backoff on overloaded responses.
+export const maxDuration = 30
+
 const SYSTEM = `You write Melissa's daily horoscope as STRUCTURED JSON.
 
 Output ONLY a JSON object — no prose, no markdown, no code fences. Shape:
@@ -44,7 +47,8 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
     const { date, aspects = [], natal = {} } = body
 
-    const client = new Anthropic({ apiKey })
+    // maxRetries rides out Anthropic 429/5xx/529 "overloaded" with backoff.
+    const client = new Anthropic({ apiKey, maxRetries: 5 })
 
     const userContent = [
       `Date: ${date}`,
