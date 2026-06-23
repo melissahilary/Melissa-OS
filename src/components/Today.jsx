@@ -97,25 +97,16 @@ function InfoStrip({ phase, today, location, setLocation }) {
       <Dot />
       <span>{dateStr}</span>
       <Dot />
-      <span className="flex items-center gap-1.5">
-        <span className="kicker text-stone-400">Weather</span>
-        <WeatherField location={location} />
-      </span>
+      <WeatherField location={location} />
       <Dot />
-      <span className="flex items-center gap-1.5">
-        <span className="kicker text-stone-400">UV</span>
-        <UvField location={location} />
-      </span>
+      <UvField location={location} />
       <Dot />
-      <span className="flex items-center gap-1.5">
-        <span className="kicker text-stone-400">Location</span>
-        <input
-          value={location || ''}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Location"
-          className="w-28 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
-        />
-      </span>
+      <input
+        value={location || ''}
+        onChange={(e) => setLocation(e.target.value)}
+        placeholder="Location"
+        className="w-28 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
+      />
     </div>
   )
 }
