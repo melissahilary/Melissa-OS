@@ -21,6 +21,7 @@ Rules:
   and "type" EXACTLY as provided (do not add, drop, reorder fields, or rename).
   Add "meaning": exactly ONE sentence, second person ("you"), specific to that
   precise pairing for today, and DIFFERENT from every other meaning in the array.
+  Do NOT use em dashes or en dashes (— or –); use commas or plain short sentences.
 - Voice: plain, warm, precise, direct — a smart friend telling the truth. Normal
   words. No mysticism, no astrology-app filler. Banned: "energies", "the cosmos",
   "the universe", "the heavens", "flows", "vibrations", "presses against".
@@ -90,7 +91,7 @@ export default async function handler(req, res) {
             from: String(a.from),
             to: String(a.to),
             type: String(a.type),
-            meaning: String(a.meaning).trim(),
+            meaning: String(a.meaning).replace(/\s*[—–]\s*/g, ', ').trim(),
           }))
       : null
 

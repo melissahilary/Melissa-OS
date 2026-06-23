@@ -64,7 +64,7 @@ const qualityOf = (asp) =>
       : 'focus'
 const REL = { friction: 'are at odds', flow: 'are in sync', focus: 'come together' }
 const TAIL = {
-  friction: "Don't force it — say what you mean, plainly.",
+  friction: "Don't force it, just say what you mean plainly.",
   flow: "Lean into it; it's working for you.",
   focus: 'Keep it simple and direct.',
 }
@@ -84,6 +84,9 @@ function normalizeData(d) {
   const aspects = d && Array.isArray(d.aspects) ? d.aspects.filter(isValidAspect) : []
   return { theme, aspects }
 }
+
+// Strip em/en dashes from any tooltip sentence (covers API + fallback text).
+const cleanMeaning = (m) => (m || '').replace(/\s*[—–]\s*/g, ', ')
 
 // Deterministic JSON built from the real aspects — used while the API call is in
 // flight and whenever it is unavailable or malformed.
@@ -273,12 +276,12 @@ function MeaningWheel({ data }) {
   return (
     <svg
       viewBox="0 0 260 260"
-      width="260"
-      height="260"
+      width="364"
+      height="364"
       className="block h-auto max-w-full"
       role="img"
       aria-label="Today's aspects, as meanings"
-      style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif' }}
+      style={{ fontFamily: "'Cormorant Garamond', ui-serif, Georgia, serif" }}
       onClick={() => setActive(null)}
     >
       <circle cx={cx} cy={cy} r={rRing} fill="none" stroke={GOLD} strokeWidth="1" />
@@ -333,8 +336,8 @@ function MeaningWheel({ data }) {
       <foreignObject x={cx - 74} y={cy - 50} width="148" height="100" pointerEvents="none">
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 4px' }}>
           {activeAspect ? (
-            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '9px', lineHeight: 1.4, color: '#57534e' }}>
-              {activeAspect.meaning}
+            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '11px', lineHeight: 1.35, color: '#57534e' }}>
+              {cleanMeaning(activeAspect.meaning)}
             </span>
           ) : (
             <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '16px', letterSpacing: '1.5px', textTransform: 'uppercase', color: GOLD }}>
