@@ -277,6 +277,8 @@ export default function Today({ cycleConfig, location, setLocation }) {
         onOpen={(id) => setDetail({ key: selectedKey, id })}
       />
 
+      <TodayNotes />
+
       {detail && (() => {
         const ev = dayEvents(detail.key).find((e) => e.id === detail.id)
         if (!ev) return null
@@ -598,6 +600,73 @@ function MealsColumn({ dateKeyStr }) {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Today's notes — one entry per day, auto-saved; past entries archived ─
+function TodayNotes() {
+  const [notes, setNotes] = useLocalStorage('mos:today:notes', {})
+  const todayKey = dateKey(new Date())
+  const [showPast, setShowPast] = useState(false)
+  const [reading, setReading] = useState(null) // dateKey being read
+
+  const past = Object.keys(notes)
+    .filter((k) => k !== todayKey && (notes[k] || '').trim())
+    .sort((a, b) => b.localeCompare(a)) // yyyy-mm-dd sorts newest-first
+
+  return (
+    <section className="mb-14">
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Today's Notes.</h2>
+      <textarea
+        value={notes[todayKey] || ''}
+        onChange={(e) => setNotes((prev) => ({ ...prev, [todayKey]: e.target.value }))}
+        placeholder="What did today teach you..."
+        rows={5}
+        className="w-full resize-y bg-transparent border-b border-stone-300 pb-2 text-base leading-relaxed text-stone-800 placeholder-stone-300 outline-none focus:border-stone-900 transition-colors"
+      />
+
+      {past.length > 0 && (
+        <button
+          onClick={() => setShowPast((v) => !v)}
+          className="mt-3 text-sm text-stone-400 hover:text-stone-700 transition-colors"
+        >
+          {showPast ? 'Hide previous notes' : 'Previous notes'}
+        </button>
+      )}
+
+      {showPast && (
+        <div className="mt-4 divide-y divide-stone-100 border-t border-stone-200">
+          {past.map((k) => (
+            <button key={k} onClick={() => setReading(k)} className="flex w-full items-baseline gap-3 py-2.5 text-left">
+              <span className="shrink-0 text-sm text-stone-700">{longDate(parseKey(k))}, {parseKey(k).getFullYear()}</span>
+              <span className="truncate text-sm text-stone-400">{(notes[k] || '').trim()}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {reading && (
+        <NoteReader
+          dateLabel={`${longDate(parseKey(reading))}, ${parseKey(reading).getFullYear()}`}
+          text={notes[reading] || ''}
+          onClose={() => setReading(null)}
+        />
+      )}
+    </section>
+  )
+}
+
+function NoteReader({ dateLabel, text, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={onClose}>
+      <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto bg-cream border border-stone-300 p-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-5 flex items-start justify-between">
+          <span className="kicker text-stone-400">{dateLabel}</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
+        <p className="whitespace-pre-wrap font-serif text-lg leading-relaxed text-stone-800">{text}</p>
       </div>
     </div>
   )
