@@ -34,6 +34,7 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
+    console.log('[horoscope] no ANTHROPIC_API_KEY in env')
     res.status(200).json({ theme: null, aspects: null, source: 'none' })
     return
   }
@@ -65,14 +66,20 @@ export default async function handler(req, res) {
       model: 'claude-opus-4-8',
       max_tokens: 700,
       system: SYSTEM,
-      messages: [{ role: 'user', content: userContent }],
+      messages: [
+        { role: 'user', content: userContent },
+        // Prefill the assistant turn so the model must continue a JSON object.
+        { role: 'assistant', content: '{' },
+      ],
     })
 
-    const text = (message.content || [])
+    const body2 = (message.content || [])
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('')
       .trim()
+    // Re-attach the prefilled opening brace.
+    const text = `{${body2}`
 
     // Robustly extract the JSON object from the model output.
     let raw = text.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim()
@@ -94,11 +101,14 @@ export default async function handler(req, res) {
       : null
 
     if (theme && cleaned && cleaned.length) {
+      console.log('[horoscope] ok', JSON.stringify({ theme, n: cleaned.length }))
       res.status(200).json({ theme, aspects: cleaned, source: 'claude' })
     } else {
+      console.log('[horoscope] empty', JSON.stringify({ themeOk: !!theme, raw: text.slice(0, 240) }))
       res.status(200).json({ theme: null, aspects: null, source: 'empty' })
     }
   } catch (err) {
+    console.error('[horoscope] error', String(err && err.message))
     res.status(200).json({ theme: null, aspects: null, source: 'error', detail: String(err && err.message) })
   }
 }
