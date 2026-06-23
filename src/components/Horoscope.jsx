@@ -298,53 +298,6 @@ function MeaningWheel({ data }) {
         )
       })}
 
-      {aspects.map((a, i) => {
-        if (a.from === a.to) return null
-        // A single thin arc hugging just OUTSIDE the ring (one consistent radius
-        // for every aspect) so the interior stays clean and they read as one
-        // elegant band rather than offset parallel rings.
-        const a1 = angleOf(a.from)
-        const a2 = angleOf(a.to)
-        const rArc = rRing + 5
-        const delta = ((a2 - a1) + 360) % 360
-        const span = delta <= 180 ? delta : 360 - delta
-        const dir = delta <= 180 ? 1 : -1
-        const steps = Math.max(2, Math.round(span / 4))
-        const pts = []
-        for (let k = 0; k <= steps; k++) {
-          const [px, py] = P(a1 + dir * (span * (k / steps)), rArc)
-          pts.push(`${px.toFixed(2)} ${py.toFixed(2)}`)
-        }
-        const d = `M ${pts.join(' L ')}`
-        const dashed = a.type === 'quincunx'
-        return (
-          <g key={`a${i}`}>
-            <path
-              d={d}
-              fill="none"
-              stroke={INK}
-              strokeWidth={active === i ? '1.4' : '0.9'}
-              opacity={active === i ? 0.85 : active === null ? 0.45 : 0.2}
-              strokeDasharray={dashed ? '3 3' : undefined}
-            />
-            <path
-              d={d}
-              fill="none"
-              stroke="transparent"
-              strokeWidth="12"
-              pointerEvents="stroke"
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(null)}
-              onClick={(e) => {
-                e.stopPropagation()
-                setActive((cur) => (cur === i ? null : i))
-              }}
-            />
-          </g>
-        )
-      })}
-
       <foreignObject x={cx - 74} y={cy - 50} width="148" height="100" pointerEvents="none">
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 4px' }}>
           {activeAspect ? (
