@@ -1,10 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Sparkles } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { computeTransits } from '../lib/astrology/transits'
 
 const GOLD = '#C4A882'
+
+// Irregular decorative scatter around the wheel's outer edge (fixed, not random).
+const SCATTER = [
+  { deg: 12, r: 116, mark: '✦', o: 0.5, size: 5 },
+  { deg: 41, r: 107, mark: '·', o: 0.45, size: 7 },
+  { deg: 73, r: 121, mark: '✦', o: 0.35, size: 4 },
+  { deg: 104, r: 110, mark: '·', o: 0.5, size: 7 },
+  { deg: 131, r: 119, mark: '✦', o: 0.3, size: 5 },
+  { deg: 159, r: 106, mark: '·', o: 0.45, size: 7 },
+  { deg: 191, r: 120, mark: '✦', o: 0.4, size: 4 },
+  { deg: 218, r: 108, mark: '·', o: 0.35, size: 7 },
+  { deg: 247, r: 118, mark: '✦', o: 0.5, size: 5 },
+  { deg: 281, r: 112, mark: '·', o: 0.4, size: 7 },
+  { deg: 309, r: 121, mark: '✦', o: 0.3, size: 4 },
+  { deg: 338, r: 107, mark: '·', o: 0.45, size: 7 },
+]
+
+// Melissa's hard-coded big three, shown below the wheel.
+const BIG_THREE_GLYPHS = [
+  { glyph: '♎', label: 'sun' },
+  { glyph: '♉', label: 'moon' },
+  { glyph: '♎', label: 'rising' },
+]
 
 const BIG_THREE = {
   sun: 'Libra 24° (Mercury also in Libra, conjunct the Sun)',
@@ -111,15 +133,13 @@ export default function Horoscope() {
 function HoroscopeCard({ data }) {
   const safe = normalizeData(data)
   return (
-    <section className="mb-10 border border-stone-200 bg-white/40 px-6 py-5">
-      <div className="mb-2 flex items-center gap-2">
-        <Sparkles size={14} className="text-sand" />
-        <p className="kicker text-stone-400">Today's Horoscope</p>
-      </div>
+    <section className="mb-10">
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Today's Horoscope</h2>
 
       {safe.aspects.length > 0 ? (
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center">
           <MeaningWheel data={safe} />
+          <BigThree />
         </div>
       ) : (
         <p className="py-6 text-center font-serif italic text-lg text-stone-400">
@@ -200,6 +220,22 @@ function HoroscopeInner() {
 }
 
 // The wheel IS the reading. Renders entirely from { theme, aspects[] }.
+function BigThree() {
+  return (
+    <div className="mt-5 flex items-center justify-center gap-4">
+      {BIG_THREE_GLYPHS.map((it, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span className="text-stone-300">·</span>}
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-2xl" style={{ color: GOLD }}>{it.glyph}</span>
+            <span className="kicker mt-1.5" style={{ color: GOLD }}>{it.label}</span>
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  )
+}
+
 function MeaningWheel({ data }) {
   const [active, setActive] = useState(null)
   const cx = 130
@@ -246,6 +282,16 @@ function MeaningWheel({ data }) {
       onClick={() => setActive(null)}
     >
       <circle cx={cx} cy={cy} r={rRing} fill="none" stroke={GOLD} strokeWidth="1" />
+
+      {/* Subtle gold scatter around the outer edge — light catching dust */}
+      {SCATTER.map((m, i) => {
+        const [x, y] = P(m.deg, m.r)
+        return (
+          <text key={`sc${i}`} x={x} y={y} fill={GOLD} opacity={m.o} fontSize={m.size} textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
+            {m.mark}
+          </text>
+        )
+      })}
 
       {aspects.map((a, i) => {
         if (a.from === a.to) return null
@@ -306,7 +352,9 @@ function MeaningWheel({ data }) {
         const anchor = h > 0.25 ? 'start' : h < -0.25 ? 'end' : 'middle'
         return (
           <g key={s} pointerEvents="none">
-            <circle cx={dx} cy={dy} r="2.6" fill={GOLD} />
+            {/* Celestial-seal node: thin ring + tiny center dot */}
+            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={GOLD} strokeWidth="0.7" />
+            <circle cx={dx} cy={dy} r="1.2" fill={GOLD} />
             <text x={lx} y={ly} fill={GOLD} fontSize="7" letterSpacing="1" textAnchor={anchor} dominantBaseline="middle">
               {String(s).toUpperCase()}
             </text>
