@@ -318,17 +318,34 @@ function MeaningWheel({ data }) {
         const [lx, ly] = P(deg, rLabel)
         const h = Math.cos(((deg - 90) * Math.PI) / 180)
         const anchor = h > 0.25 ? 'start' : h < -0.25 ? 'end' : 'middle'
+        // The aspect this node belongs to — hovering/tapping shows its meaning.
+        const idx = aspects.findIndex((a) => a.from === s || a.to === s)
+        const on = active != null && idx === active
         return (
-          <g key={s} pointerEvents="none">
+          <g key={s}>
             {/* Celestial-seal node: thin ring + tiny center dot */}
-            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={INK} strokeWidth="0.7" opacity="0.7" />
-            <circle cx={dx} cy={dy} r="1.2" fill={INK} opacity="0.7" />
-            <text x={lx} y={ly} fill={INK} fontSize="7" letterSpacing="1" textAnchor={anchor} dominantBaseline="middle">
+            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={INK} strokeWidth="0.7" opacity={on ? 1 : 0.7} pointerEvents="none" />
+            <circle cx={dx} cy={dy} r="1.2" fill={INK} opacity={on ? 1 : 0.7} pointerEvents="none" />
+            <text x={lx} y={ly} fill={INK} fontSize="7" letterSpacing="1" textAnchor={anchor} dominantBaseline="middle" pointerEvents="none">
               {String(s).toUpperCase()}
             </text>
-            <text x={lx} y={ly + 9} fill={INK} fontSize="8" letterSpacing="0.5" textAnchor={anchor} dominantBaseline="middle" opacity="0.35">
+            <text x={lx} y={ly + 9} fill={INK} fontSize="8" letterSpacing="0.5" textAnchor={anchor} dominantBaseline="middle" opacity="0.35" pointerEvents="none">
               {bodyOfStatement(s)}
             </text>
+            {/* Invisible hit target */}
+            <circle
+              cx={dx}
+              cy={dy}
+              r="15"
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onMouseEnter={() => idx >= 0 && setActive(idx)}
+              onMouseLeave={() => setActive(null)}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (idx >= 0) setActive((cur) => (cur === idx ? null : idx))
+              }}
+            />
           </g>
         )
       })}
