@@ -3,7 +3,8 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { computeTransits } from '../lib/astrology/transits'
 
-const GOLD = '#C4A882'
+const INK = '#1C1C1A'
+const inkA = (a) => `rgba(28, 28, 26, ${a})`
 
 // Irregular decorative scatter around the wheel's outer edge (fixed, not random).
 const SCATTER = [
@@ -230,8 +231,8 @@ function BigThree() {
         <React.Fragment key={i}>
           {i > 0 && <span className="text-stone-300">·</span>}
           <span className="flex flex-col items-center leading-none">
-            <span className="text-2xl" style={{ color: GOLD }}>{it.glyph}</span>
-            <span className="kicker mt-1.5" style={{ color: GOLD }}>{it.label}</span>
+            <span className="text-2xl" style={{ color: INK }}>{it.glyph}</span>
+            <span className="kicker mt-1.5" style={{ color: inkA(0.35) }}>{it.label}</span>
           </span>
         </React.Fragment>
       ))}
@@ -284,13 +285,13 @@ function MeaningWheel({ data }) {
       style={{ fontFamily: "'Cormorant Garamond', ui-serif, Georgia, serif" }}
       onClick={() => setActive(null)}
     >
-      <circle cx={cx} cy={cy} r={rRing} fill="none" stroke={GOLD} strokeWidth="1" />
+      <circle cx={cx} cy={cy} r={rRing} fill="none" stroke={INK} strokeWidth="1" opacity="0.6" />
 
       {/* Subtle gold scatter around the outer edge — light catching dust */}
       {SCATTER.map((m, i) => {
         const [x, y] = P(m.deg, m.r)
         return (
-          <text key={`sc${i}`} x={x} y={y} fill={GOLD} opacity={m.o} fontSize={m.size} textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
+          <text key={`sc${i}`} x={x} y={y} fill={INK} opacity="0.35" fontSize={m.size} textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
             {m.mark}
           </text>
         )
@@ -298,28 +299,37 @@ function MeaningWheel({ data }) {
 
       {aspects.map((a, i) => {
         if (a.from === a.to) return null
-        const [x1, y1] = P(angleOf(a.from), rRing)
-        const [x2, y2] = P(angleOf(a.to), rRing)
+        // Curved arc hugging the OUTSIDE of the ring, nested per aspect, so the
+        // interior stays clean (only the center theme lives there).
+        const a1 = angleOf(a.from)
+        const a2 = angleOf(a.to)
+        const rArc = rRing + 3 + i * 2.5
+        const delta = ((a2 - a1) + 360) % 360
+        const span = delta <= 180 ? delta : 360 - delta
+        const dir = delta <= 180 ? 1 : -1
+        const steps = Math.max(2, Math.round(span / 5))
+        const pts = []
+        for (let k = 0; k <= steps; k++) {
+          const [px, py] = P(a1 + dir * (span * (k / steps)), rArc)
+          pts.push(`${px.toFixed(2)} ${py.toFixed(2)}`)
+        }
+        const d = `M ${pts.join(' L ')}`
         const dashed = a.type === 'quincunx'
         return (
           <g key={`a${i}`}>
-            <line
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke={GOLD}
+            <path
+              d={d}
+              fill="none"
+              stroke={INK}
               strokeWidth={active === i ? '1.4' : '0.9'}
-              opacity={active === null || active === i ? 0.85 : 0.3}
+              opacity={active === i ? 0.9 : active === null ? 0.6 : 0.25}
               strokeDasharray={dashed ? '3 3' : undefined}
             />
-            <line
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
+            <path
+              d={d}
+              fill="none"
               stroke="transparent"
-              strokeWidth="16"
+              strokeWidth="12"
               pointerEvents="stroke"
               style={{ cursor: 'pointer' }}
               onMouseEnter={() => setActive(i)}
@@ -340,7 +350,7 @@ function MeaningWheel({ data }) {
               {cleanMeaning(activeAspect.meaning)}
             </span>
           ) : (
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '16px', letterSpacing: '1.5px', textTransform: 'uppercase', color: GOLD }}>
+            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '16px', letterSpacing: '1.5px', textTransform: 'uppercase', color: INK }}>
               {theme}
             </span>
           )}
@@ -356,12 +366,12 @@ function MeaningWheel({ data }) {
         return (
           <g key={s} pointerEvents="none">
             {/* Celestial-seal node: thin ring + tiny center dot */}
-            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={GOLD} strokeWidth="0.7" />
-            <circle cx={dx} cy={dy} r="1.2" fill={GOLD} />
-            <text x={lx} y={ly} fill={GOLD} fontSize="7" letterSpacing="1" textAnchor={anchor} dominantBaseline="middle">
+            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={INK} strokeWidth="0.7" opacity="0.6" />
+            <circle cx={dx} cy={dy} r="1.2" fill={INK} opacity="0.6" />
+            <text x={lx} y={ly} fill={INK} fontSize="7" letterSpacing="1" textAnchor={anchor} dominantBaseline="middle">
               {String(s).toUpperCase()}
             </text>
-            <text x={lx} y={ly + 8} fill={GOLD} fontSize="5.5" letterSpacing="0.5" textAnchor={anchor} dominantBaseline="middle" opacity="0.7">
+            <text x={lx} y={ly + 9} fill={INK} fontSize="8" letterSpacing="0.5" textAnchor={anchor} dominantBaseline="middle" opacity="0.35">
               {bodyOfStatement(s)}
             </text>
           </g>
