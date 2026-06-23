@@ -108,7 +108,7 @@ export default async function handler(req, res) {
       (err && err.error && err.error.error && err.error.error.message) ||
       (err && err.message) ||
       'unknown'
-    console.error('[horoscope] APIerror', JSON.stringify({ status, apiMsg }))
+    console.error(`[horoscope] FAIL ${status} ${apiMsg}`)
     res.status(200).json({ theme: null, aspects: null, source: 'error', detail: apiMsg })
   }
 }
