@@ -31,7 +31,38 @@ export const HAIRCARE_RECIPES_CONFIG = {
   facetB: { key: 'frequencies', label: 'Frequency', options: HAIR_FREQS },
 }
 
+// Health & Fitness protocols — same card/modal as the meal recipes (so existing
+// `mos:menu:recipes` data carries over), plus start/end dates and a
+// "repeated every X weeks" cadence with an "active on a date" filter.
+export const PROTOCOL_CONFIG = {
+  ...MEAL_RECIPES_CONFIG,
+  noun: 'protocol',
+  scheduling: true,
+}
+
 const labelOf = (facet, id) => (facet.options.find((o) => o.id === id) || {}).label || id
+
+// Whole-day count since the epoch, timezone-safe (date inputs give 'YYYY-MM-DD').
+const toDays = (s) => {
+  if (!s) return null
+  const [y, m, d] = String(s).split('-').map(Number)
+  if (!y || !m || !d) return null
+  return Math.floor(Date.UTC(y, m - 1, d) / 86400000)
+}
+
+// Is a scheduled recipe active on the chosen date? Honors the [start, end]
+// window and the "repeated every X weeks" cadence (same weekday as the start).
+const activeOn = (recipe, dateStr) => {
+  const day = toDays(dateStr)
+  if (day == null) return true
+  const start = toDays(recipe.startDate)
+  const end = toDays(recipe.endDate)
+  if (start != null && day < start) return false
+  if (end != null && day > end) return false
+  const rw = Number(recipe.repeatWeeks)
+  if (start != null && rw > 0 && (day - start) % (rw * 7) !== 0) return false
+  return true
+}
 
 const blankRecipe = (config) => ({
   id: uid(),
@@ -40,13 +71,16 @@ const blankRecipe = (config) => ({
   prep: '',
   [config.facetA.key]: [],
   [config.facetB.key]: [],
+  ...(config.scheduling ? { startDate: '', endDate: '', repeatWeeks: '' } : {}),
 })
 
 export default function Recipes({ config = MEAL_RECIPES_CONFIG }) {
   const { storageKey, facetA, facetB } = config
+  const noun = config.noun || 'recipe'
   const [recipes, setRecipes] = useLocalStorage(storageKey, [])
   const [filterA, setFilterA] = useState(null)
   const [filterB, setFilterB] = useState(null)
+  const [activeDate, setActiveDate] = useState('')
   const [editing, setEditing] = useState(null) // recipe object (new or existing) or null
 
   const save = (recipe) => {
@@ -68,9 +102,10 @@ export default function Recipes({ config = MEAL_RECIPES_CONFIG }) {
         const b = r[facetB.key] || []
         if (filterA && !a.includes(filterA)) return false
         if (filterB && !b.includes(filterB)) return false
+        if (config.scheduling && activeDate && !activeOn(r, activeDate)) return false
         return true
       }),
-    [recipes, filterA, filterB, facetA.key, facetB.key],
+    [recipes, filterA, filterB, activeDate, config.scheduling, facetA.key, facetB.key],
   )
 
   return (
@@ -83,7 +118,7 @@ export default function Recipes({ config = MEAL_RECIPES_CONFIG }) {
           onClick={() => setEditing(blankRecipe(config))}
           className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700"
         >
-          <Plus size={15} /> New recipe
+          <Plus size={15} /> New {noun}
         </button>
       </div>
 
@@ -93,14 +128,31 @@ export default function Recipes({ config = MEAL_RECIPES_CONFIG }) {
         <TagFilter options={facetB.options} active={filterB} onPick={setFilterB} phaseColors={facetB.phaseColors} />
       </div>
 
+      {config.scheduling && (
+        <div className="mb-8 -mt-4 flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-stone-400">
+          <span>Active on</span>
+          <input
+            type="date"
+            value={activeDate}
+            onChange={(e) => setActiveDate(e.target.value)}
+            className="bg-transparent border-b border-stone-300 pb-0.5 text-xs normal-case tracking-normal text-stone-700 outline-none focus:border-stone-900"
+          />
+          {activeDate && (
+            <button onClick={() => setActiveDate('')} className="text-stone-400 hover:text-stone-700">
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {recipes.length === 0 ? (
-        <p className="font-serif italic text-lg text-stone-400">No recipes yet.</p>
+        <p className="font-serif italic text-lg text-stone-400">No {noun}s yet.</p>
       ) : visible.length === 0 ? (
         <p className="font-serif italic text-lg text-stone-400">Nothing matches that filter.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((r) => (
-            <RecipeCard key={r.id} recipe={r} facetA={facetA} facetB={facetB} onOpen={() => setEditing(r)} />
+            <RecipeCard key={r.id} recipe={r} facetA={facetA} facetB={facetB} scheduling={config.scheduling} onOpen={() => setEditing(r)} />
           ))}
         </div>
       )}
@@ -143,9 +195,20 @@ function TagFilter({ options, active, onPick, phaseColors }) {
   )
 }
 
-function RecipeCard({ recipe, facetA, facetB, onOpen }) {
+// Compact scheduling summary for a card chip (start/end + cadence).
+function scheduleChips(recipe) {
+  const out = []
+  if (recipe.startDate) out.push(`From ${recipe.startDate}`)
+  if (recipe.endDate) out.push(`Until ${recipe.endDate}`)
+  const rw = Number(recipe.repeatWeeks)
+  if (rw > 0) out.push(rw === 1 ? 'Every week' : `Every ${rw} wks`)
+  return out
+}
+
+function RecipeCard({ recipe, facetA, facetB, scheduling, onOpen }) {
   const aVals = recipe[facetA.key] || []
   const bVals = recipe[facetB.key] || []
+  const schedule = scheduling ? scheduleChips(recipe) : []
   return (
     <button
       onClick={onOpen}
@@ -157,7 +220,7 @@ function RecipeCard({ recipe, facetA, facetB, onOpen }) {
       ) : (
         <p className="mt-2 text-sm italic text-stone-300">No notes yet.</p>
       )}
-      {(aVals.length || bVals.length) ? (
+      {(aVals.length || bVals.length || schedule.length) ? (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {aVals.map((v) => (
             <span key={v} className="border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500">{labelOf(facetA, v)}</span>
@@ -172,6 +235,9 @@ function RecipeCard({ recipe, facetA, facetB, onOpen }) {
               <span key={v} className="border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500">{labelOf(facetB, v)}</span>
             ),
           )}
+          {schedule.map((c) => (
+            <span key={c} className="border border-stone-300 bg-stone-50 px-1.5 py-0.5 text-[10px] text-stone-600">{c}</span>
+          ))}
         </div>
       ) : null}
     </button>
@@ -223,6 +289,8 @@ function FacetEditor({ facet, values, onToggle }) {
 
 function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
   const { facetA, facetB } = config
+  const noun = config.noun || 'recipe'
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1)
   const [draft, setDraft] = useState(() => ({
     ...blankRecipe(config),
     ...recipe,
@@ -259,7 +327,7 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
           <input
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="Recipe name"
+            placeholder={`${Noun} name`}
             autoFocus
             className="w-full bg-transparent font-serif italic text-3xl text-stone-900 placeholder-stone-300 outline-none"
           />
@@ -272,6 +340,44 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
           {/* Tags */}
           <FacetEditor facet={facetA} values={draft[facetA.key]} onToggle={(v) => toggle(facetA.key, v)} />
           <FacetEditor facet={facetB} values={draft[facetB.key]} onToggle={(v) => toggle(facetB.key, v)} />
+
+          {/* Scheduling — start / end window + repeat-every-X-weeks cadence */}
+          {config.scheduling && (
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+              <div>
+                <span className="kicker text-stone-400 mb-2 block">Start date</span>
+                <input
+                  type="date"
+                  value={draft.startDate || ''}
+                  onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
+                  className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
+                />
+              </div>
+              <div>
+                <span className="kicker text-stone-400 mb-2 block">End date</span>
+                <input
+                  type="date"
+                  value={draft.endDate || ''}
+                  onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
+                  className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
+                />
+              </div>
+              <div>
+                <span className="kicker text-stone-400 mb-2 block">Repeat every</span>
+                <div className="flex items-baseline gap-1.5">
+                  <input
+                    type="number"
+                    min="0"
+                    value={draft.repeatWeeks || ''}
+                    onChange={(e) => setDraft({ ...draft, repeatWeeks: e.target.value })}
+                    placeholder="0"
+                    className="w-14 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
+                  />
+                  <span className="text-sm text-stone-500">weeks</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Ingredients */}
           <div>

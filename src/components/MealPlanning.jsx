@@ -9,7 +9,6 @@ import NotesPopup, { hasNotes } from './shared/NotesPopup'
 import ScopePrompt from './shared/ScopePrompt'
 import InlineText from './shared/InlineText'
 import { DayNav, DayHeader } from './shared/DayNav'
-import Recipes from './Recipes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -152,9 +151,8 @@ export default function MealPlanning({ cycleConfig, subPage = 'planner' }) {
   return (
     <div>
       {subPage === 'grocery' && <GroceryList onOpenNotes={setPopup} />}
-      {subPage === 'recipes' && <Recipes />}
 
-      {subPage === 'planner' && (
+      {subPage !== 'grocery' && (
         <>
           <DayNav selected={selected} setSelected={setSelected} today={today} />
           <DayHeader date={selected} phase={phase} />

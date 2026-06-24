@@ -47,7 +47,6 @@ const SUBNAV = {
   menu: [
     { id: 'planner', label: 'Schedule' },
     { id: 'grocery', label: "What's In My Fridge" },
-    { id: 'recipes', label: 'Recipes' },
   ],
   workout: [
     { id: 'schedule', label: 'Schedule' },

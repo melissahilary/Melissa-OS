@@ -5,19 +5,9 @@ import { dateKey } from '../lib/date'
 import SectionTitle from './shared/SectionTitle'
 import { DayNav, DayHeader } from './shared/DayNav'
 import CardCollection from './shared/CardCollection'
+import Recipes, { PROTOCOL_CONFIG } from './Recipes'
 
 const opt = (arr) => arr.map((x) => ({ id: x, label: x }))
-
-const FREQ_OPTS = opt(['Daily', 'Weekly', 'Bi-Weekly', 'Monthly', 'As Needed'])
-const STATUS_OPTS = opt(['On track', 'Building', 'Maintaining', 'Needs work', 'Paused'])
-
-const DAY_OPTS = opt(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
-
-const PROTOCOL_FIELDS = [
-  { key: 'notes', label: 'Notes / description', type: 'textarea' },
-  { key: 'frequency', label: 'Frequency', type: 'select', options: FREQ_OPTS },
-  { key: 'status', label: 'Progress / status', type: 'select', options: STATUS_OPTS },
-]
 
 const PRACTICE_FIELDS = [
   { key: 'notes', label: 'Notes', type: 'textarea' },
@@ -53,16 +43,7 @@ export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, s
         </>
       )}
 
-      {subPage === 'protocols' && (
-        <CardCollection
-          storageKey="mos:workout:protocols"
-          noun="protocol"
-          previewKey="notes"
-          chipKeys={['frequency', 'status']}
-          fields={PROTOCOL_FIELDS}
-          filter={{ key: 'days', label: 'Day of week', options: DAY_OPTS, multi: true }}
-        />
-      )}
+      {subPage === 'protocols' && <Recipes config={PROTOCOL_CONFIG} />}
 
       {subPage === 'practices' && (
         <CardCollection
