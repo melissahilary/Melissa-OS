@@ -11,17 +11,7 @@ const opt = (arr) => arr.map((x) => ({ id: x, label: x }))
 const FREQ_OPTS = opt(['Daily', 'Weekly', 'Bi-Weekly', 'Monthly', 'As Needed'])
 const STATUS_OPTS = opt(['On track', 'Building', 'Maintaining', 'Needs work', 'Paused'])
 
-const PROTOCOL_CATEGORIES = opt([
-  'Internal Health',
-  'Balance & Coordination',
-  'Strength Training',
-  'Cardiovascular',
-  'Mobility & Flexibility',
-  'Pelvic Floor',
-  'Breath & Nervous System',
-  'Recovery & Lymphatic',
-  'Hormonal & Cycle',
-])
+const DAY_OPTS = opt(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
 
 const PROTOCOL_FIELDS = [
   { key: 'notes', label: 'Notes / description', type: 'textarea' },
@@ -70,7 +60,7 @@ export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, s
           previewKey="notes"
           chipKeys={['frequency', 'status']}
           fields={PROTOCOL_FIELDS}
-          filter={{ key: 'category', label: 'Category', options: PROTOCOL_CATEGORIES }}
+          filter={{ key: 'days', label: 'Day of week', options: DAY_OPTS, multi: true }}
         />
       )}
 

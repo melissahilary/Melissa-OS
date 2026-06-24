@@ -80,6 +80,21 @@ const byTime = (a, b) => {
   return ta.localeCompare(tb)
 }
 
+// Does an event stored on evKey occur on targetKey, given its frequency?
+const occursOn = (ev, evKey, targetKey) => {
+  if (targetKey === evKey) return true
+  const f = ev.frequency
+  if (!f || f === 'once') return false
+  if (targetKey < evKey) return false // recurrence only goes forward
+  const a = parseKey(evKey)
+  const b = parseKey(targetKey)
+  if (f === 'daily') return true
+  if (f === 'weekly') return a.getDay() === b.getDay()
+  if (f === 'monthly') return a.getDate() === b.getDate()
+  if (f === 'yearly') return a.getDate() === b.getDate() && a.getMonth() === b.getMonth()
+  return false
+}
+
 const Cursive = ({ children, className = '' }) => (
   <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>
     {children}
@@ -182,7 +197,20 @@ export default function Today({ cycleConfig, location, setLocation }) {
   const [events, setEvents] = useLocalStorage('mos:today:events', {})
   const [detail, setDetail] = useState(null) // { key, id }
 
-  const dayEvents = (k) => (events[k] || []).map(normEvent)
+  // Events for a day = its own events PLUS any recurring event that lands here.
+  const dayEvents = (k) => {
+    const out = []
+    Object.keys(events).forEach((d) => {
+      ;(events[d] || []).forEach((raw) => {
+        const ev = normEvent(raw)
+        if (occursOn(ev, d, k)) out.push(ev)
+      })
+    })
+    return out
+  }
+  // The date an event is actually stored under (its recurrence master).
+  const eventMasterDate = (id) =>
+    Object.keys(events).find((d) => (events[d] || []).some((e) => e.id === id))
 
   const addEvent = (k) => {
     const ev = {
@@ -255,7 +283,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
         cycleConfig={cycleConfig}
         eventsFor={dayEvents}
         onAdd={addEvent}
-        onOpen={(k, id) => setDetail({ key: k, id })}
+        onOpen={(k, id) => setDetail({ key: eventMasterDate(id) || k, id })}
       />
 
       {/* Day view = unified daily view (calendar header + the four columns).
@@ -264,8 +292,8 @@ export default function Today({ cycleConfig, location, setLocation }) {
         events={dayEvents(selectedKey)}
         dateKeyStr={selectedKey}
         showTitle={calView !== 'day'}
-        onToggle={(id) => toggleDone(selectedKey, id)}
-        onOpen={(id) => setDetail({ key: selectedKey, id })}
+        onToggle={(id) => toggleDone(eventMasterDate(id) || selectedKey, id)}
+        onOpen={(id) => setDetail({ key: eventMasterDate(id) || selectedKey, id })}
       />
 
       <TodayNotes />

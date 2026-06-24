@@ -23,7 +23,7 @@ export default function CardCollection({ storageKey, noun, fields, previewKey, c
   const blank = () => {
     const base = { id: uid(), title: '' }
     fields.forEach((f) => { base[f.key] = '' })
-    if (filter) base[filter.key] = ''
+    if (filter) base[filter.key] = filter.multi ? [] : ''
     return base
   }
 
@@ -41,7 +41,11 @@ export default function CardCollection({ storageKey, noun, fields, previewKey, c
 
   const visible = useMemo(() => {
     if (!filter || !activeFilter) return items
-    return items.filter((r) => r[filter.key] === activeFilter)
+    return items.filter((r) =>
+      filter.multi
+        ? Array.isArray(r[filter.key]) && r[filter.key].includes(activeFilter)
+        : r[filter.key] === activeFilter,
+    )
   }, [items, filter, activeFilter])
 
   return (
@@ -117,7 +121,10 @@ function FilterTag({ label, on, onClick }) {
 function Card({ item, previewKey, chipKeys, fields, filter, onOpen }) {
   const preview = (item[previewKey] || '').trim()
   const chips = []
-  if (filter && item[filter.key]) chips.push(labelOf(filter, item[filter.key]))
+  if (filter) {
+    if (filter.multi) (item[filter.key] || []).forEach((v) => chips.push(labelOf(filter, v)))
+    else if (item[filter.key]) chips.push(labelOf(filter, item[filter.key]))
+  }
   chipKeys.forEach((k) => {
     const f = fields.find((x) => x.key === k)
     const v = item[k]
@@ -142,6 +149,31 @@ function Card({ item, previewKey, chipKeys, fields, filter, onOpen }) {
         </div>
       )}
     </button>
+  )
+}
+
+function TagSelect({ facet, values, onToggle }) {
+  return (
+    <div>
+      <span className="kicker text-stone-400 mb-2 block">{facet.label}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {facet.options.map((o) => {
+          const on = values.includes(o.id)
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onToggle(o.id)}
+              className={`px-2.5 py-1 text-xs border transition-colors ${
+                on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'
+              }`}
+            >
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -195,13 +227,22 @@ function Modal({ noun, fields, filter, item, isNew, onClose, onSave, onDelete })
         </div>
 
         <div className="max-h-[64vh] overflow-y-auto px-6 py-5 space-y-6">
-          {filter && (
+          {filter && (filter.multi ? (
+            <TagSelect
+              facet={filter}
+              values={draft[filter.key] || []}
+              onToggle={(v) => {
+                const cur = Array.isArray(draft[filter.key]) ? draft[filter.key] : []
+                set(filter.key, cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v])
+              }}
+            />
+          ) : (
             <FieldEditor
               field={{ key: filter.key, label: filter.label, type: 'select', options: filter.options }}
               value={draft[filter.key]}
               onChange={(v) => set(filter.key, v)}
             />
-          )}
+          ))}
           {fields.map((f) => (
             <FieldEditor key={f.key} field={f} value={draft[f.key]} onChange={(v) => set(f.key, v)} />
           ))}
