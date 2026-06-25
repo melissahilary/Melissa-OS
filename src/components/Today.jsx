@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { phaseFor } from '../lib/cycle'
+import { phaseForConfig } from '../lib/cycle'
 import {
   dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
 } from '../lib/date'
@@ -166,9 +166,9 @@ export default function Today({ cycleConfig, location, setLocation }) {
   const [calView, setCalView] = useState('month')
 
   const todayPhase = useMemo(
-    () => phaseFor(today, cycleConfig.lastPeriodStart, cycleConfig.cycleLength),
+    () => phaseForConfig(cycleConfig, today),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cycleConfig.lastPeriodStart, cycleConfig.cycleLength, dateKey(today)],
+    [cycleConfig.lastPeriodStart, cycleConfig.cycleLength, cycleConfig.manualPhase, dateKey(today)],
   )
 
   const { activities, add, update, updateDetails, remove, toggleComplete, setOrder } = useActivities()

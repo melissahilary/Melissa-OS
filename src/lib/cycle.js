@@ -74,6 +74,23 @@ export function phaseFor(date, lastPeriodStart, cycleLength = 28) {
   return { ...phase, cycleDay: day }
 }
 
+// Average gap (in days) across a list of period-start dates.
+export function averageCycleLength(dates) {
+  const ds = (dates || []).filter(Boolean).map((d) => startOfDay(d).getTime()).sort((a, b) => a - b)
+  if (ds.length < 2) return null
+  let total = 0
+  for (let i = 1; i < ds.length; i++) total += Math.round((ds[i] - ds[i - 1]) / MS_DAY)
+  return Math.round(total / (ds.length - 1))
+}
+
+// Current phase honouring a manual override on the cycle config.
+export function phaseForConfig(cfg, date) {
+  if (cfg && cfg.manualPhase && PHASES[cfg.manualPhase]) {
+    return { ...PHASES[cfg.manualPhase], cycleDay: cycleDayFor(date, cfg.lastPeriodStart, cfg.cycleLength), manual: true }
+  }
+  return phaseFor(date, cfg && cfg.lastPeriodStart, cfg && cfg.cycleLength)
+}
+
 // ── Frequency codes ──────────────────────────────────────────────
 export const FREQ_OPTIONS = [
   { value: 'once', label: 'Once', code: '1x' },

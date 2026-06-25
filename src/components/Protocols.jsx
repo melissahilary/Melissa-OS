@@ -175,7 +175,11 @@ export default function Protocols() {
   const [fTod, setFTod] = useState(null)
   const [fStatus, setFStatus] = useState(null)
   const [pinnedOnly, setPinnedOnly] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+
+  const activeCount = [fPhase, fFreq, fTod, fStatus].filter(Boolean).length + (pinnedOnly ? 1 : 0)
+  const clearFilters = () => { setFPhase(null); setFFreq(null); setFTod(null); setFStatus(null); setPinnedOnly(false) }
 
   const save = (p) => {
     const act = recordToActivity(p)
@@ -291,37 +295,48 @@ export default function Protocols() {
         <p className="mt-1 text-sm text-stone-500">{inCat ? catDef(view) : ALL_DEF}</p>
       </div>
 
-      <div className="flex flex-col gap-8 md:flex-row">
-        <aside className="w-full shrink-0 md:w-48">
-          <div className="mb-5"><SearchBox value={search} onChange={setSearch} small /></div>
-          <FilterGroup title="Phase" options={PHASE_OPTS} active={fPhase} onPick={setFPhase} phaseColors />
-          <FilterGroup title="Frequency" options={FREQ_OPTS} active={fFreq} onPick={setFFreq} />
-          <FilterGroup title="Time of Day" options={PART_OPTS} active={fTod} onPick={setFTod} />
-          <FilterGroup title="Status" options={STATUS_OPTS} active={fStatus} onPick={setFStatus} />
-          <div className="mb-5">
-            <p className="kicker text-stone-400 mb-2">Pinned</p>
-            <button
-              onClick={() => setPinnedOnly((v) => !v)}
-              className={`text-[11px] uppercase tracking-[0.18em] transition-colors ${pinnedOnly ? 'text-stone-900 font-medium' : 'text-stone-400 hover:text-stone-700'}`}
-              style={pinnedOnly ? { textDecoration: 'underline', textUnderlineOffset: '5px', textDecorationColor: '#a8a29e' } : undefined}
-            >
-              Show pinned only
-            </button>
-          </div>
-        </aside>
-
-        <div className="flex-1">
-          <div className="mb-3 flex items-center justify-end gap-4">
-            <span className="text-sm text-stone-400">{list.length} on file</span>
-          </div>
-
-          {list.length === 0 ? (
-            <p className="font-serif italic text-lg text-stone-400">Nothing here yet.</p>
-          ) : (
-            <CardGrid items={list} onOpen={openModal} onPin={togglePin} showCategory={!inCat} />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative">
+          <button onClick={() => setFiltersOpen((o) => !o)} className="flex items-center gap-2 border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:border-stone-900">
+            Filters
+            {activeCount > 0 && (
+              <span onClick={(e) => { e.stopPropagation(); clearFilters() }} className="-mr-1 ml-1 inline-flex items-center bg-stone-900 px-1.5 py-0.5 text-[11px] text-cream" title="Clear filters">· {activeCount}</span>
+            )}
+          </button>
+          {filtersOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setFiltersOpen(false)} />
+              <div className="absolute left-0 z-30 mt-2 w-72 border border-stone-300 bg-cream p-5 shadow-xl">
+                <FilterGroup title="Phase" options={PHASE_OPTS} active={fPhase} onPick={setFPhase} phaseColors />
+                <FilterGroup title="Frequency" options={FREQ_OPTS} active={fFreq} onPick={setFFreq} />
+                <FilterGroup title="Time of Day" options={PART_OPTS} active={fTod} onPick={setFTod} />
+                <FilterGroup title="Status" options={STATUS_OPTS} active={fStatus} onPick={setFStatus} />
+                <div className="mb-5">
+                  <p className="kicker text-stone-400 mb-2">Pinned</p>
+                  <button
+                    onClick={() => setPinnedOnly((v) => !v)}
+                    className={`text-[11px] uppercase tracking-[0.18em] transition-colors ${pinnedOnly ? 'text-stone-900 font-medium' : 'text-stone-400 hover:text-stone-700'}`}
+                    style={pinnedOnly ? { textDecoration: 'underline', textUnderlineOffset: '5px', textDecorationColor: '#a8a29e' } : undefined}
+                  >
+                    Show pinned only
+                  </button>
+                </div>
+                <button onClick={() => setFiltersOpen(false)} className="w-full bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Show results</button>
+              </div>
+            </>
           )}
         </div>
+        <div className="flex items-center gap-4">
+          <div className="w-48"><SearchBox value={search} onChange={setSearch} small /></div>
+          <span className="text-sm text-stone-400">{list.length} on file</span>
+        </div>
       </div>
+
+      {list.length === 0 ? (
+        <p className="font-serif italic text-lg text-stone-400">Nothing here yet.</p>
+      ) : (
+        <CardGrid items={list} onOpen={openModal} onPin={togglePin} showCategory={!inCat} />
+      )}
 
       {editing && (
         <ProtocolModal protocol={editing} isNew={!protocols.some((r) => r.id === editing.id)} onClose={() => setEditing(null)} onSave={save} onDelete={remove} onAddEvent={addEventFromProtocol} onAddMeal={addMealFromProtocol} />
@@ -705,6 +720,7 @@ function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent,
           {showDays && (
             <div>
               <span className={labelCls}>Days of Week</span>
+              <div className="mb-2"><button type="button" onClick={() => setDraft((d) => ({ ...d, days: [1, 2, 3, 4, 5] }))} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Weekdays (Mon–Fri)</button></div>
               <div className="flex flex-wrap gap-1.5">
                 {WEEKDAYS.map((w) => {
                   const on = draft.days.includes(w.d)

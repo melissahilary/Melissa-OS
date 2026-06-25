@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
+import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { PHASES, phaseFor, cycleDayFor, startOfDay } from '../lib/cycle'
+import { PHASES, phaseForConfig, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS } from '../lib/date'
 import Protocols from './Protocols'
 
@@ -37,8 +38,15 @@ function CyclePage({ cycleConfig, setCycleConfig }) {
   const todayKey = dateKey(today)
   const start = cycleConfig.lastPeriodStart || ''
   const len = Number(cycleConfig.cycleLength) > 0 ? Number(cycleConfig.cycleLength) : 28
-  const phase = phaseFor(today, start, len)
+  const phase = phaseForConfig(cycleConfig, today)
   const cycleDay = cycleDayFor(today, start, len)
+
+  // Period history (past start dates) + auto average.
+  const history = Array.isArray(cycleConfig.history) ? cycleConfig.history : []
+  const setCfg = (patch) => setCycleConfig({ ...cycleConfig, ...patch })
+  const setHistory = (arr) => setCfg({ history: arr.filter(Boolean).sort((a, b) => (a < b ? 1 : -1)) })
+  const avgLen = averageCycleLength([...history, start])
+  const manualPhase = cycleConfig.manualPhase || ''
 
   const [logs, setLogs] = useLocalStorage('mos:cycle:logs', {})
   const [reading, setReading] = useState(null) // a past date key being read
@@ -128,14 +136,51 @@ function CyclePage({ cycleConfig, setCycleConfig }) {
       )}
 
       {/* Cycle config */}
-      <section className="mb-10 flex flex-wrap items-end gap-6 border-t border-stone-200 pt-6">
-        <div>
-          <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
-          <input type="date" value={start} onChange={(e) => setCycleConfig({ ...cycleConfig, lastPeriodStart: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+      <section className="mb-10 border-t border-stone-200 pt-6">
+        <div className="flex flex-wrap items-end gap-6">
+          <div>
+            <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
+            <input type="date" value={start} onChange={(e) => setCfg({ lastPeriodStart: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+          </div>
+          <div>
+            <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
+            <input type="number" min="20" max="45" value={cycleConfig.cycleLength || 28} onChange={(e) => setCfg({ cycleLength: Number(e.target.value) })} className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+          </div>
         </div>
-        <div>
-          <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
-          <input type="number" min="20" max="45" value={cycleConfig.cycleLength || 28} onChange={(e) => setCycleConfig({ ...cycleConfig, cycleLength: Number(e.target.value) })} className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+
+        {/* Manual phase override */}
+        <div className="mt-6">
+          <label className="kicker text-stone-400 mb-2 block">Phase</label>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button onClick={() => setCfg({ manualPhase: '' })} className={`px-2.5 py-1 text-xs border transition-colors ${!manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Use calculated phase</button>
+            <button onClick={() => setCfg({ manualPhase: manualPhase || 'follicular' })} className={`px-2.5 py-1 text-xs border transition-colors ${manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Set phase manually</button>
+            {manualPhase && (
+              <select value={manualPhase} onChange={(e) => setCfg({ manualPhase: e.target.value })} className="ml-1 border-b border-stone-300 bg-transparent pb-1 text-sm outline-none">
+                {Object.values(PHASES).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            )}
+          </div>
+          {manualPhase && <p className="mt-2 text-xs text-stone-400">Overrides the calculated phase everywhere until switched back.</p>}
+        </div>
+
+        {/* Period history */}
+        <div className="mt-6">
+          <div className="mb-2 flex items-center gap-3">
+            <label className="kicker text-stone-400">Period history</label>
+            {avgLen && (
+              <button onClick={() => setCfg({ cycleLength: avgLen })} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Avg {avgLen}d · use as length</button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {history.length === 0 && <p className="text-sm italic text-stone-400">No past period dates logged.</p>}
+            {history.map((d, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <input type="date" value={d} onChange={(e) => setHistory(history.map((x, j) => (j === i ? e.target.value : x)))} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+                <button onClick={() => setHistory(history.filter((_, j) => j !== i))} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
+              </div>
+            ))}
+            <button onClick={() => setHistory([...history, start || todayKey])} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Add past date</button>
+          </div>
         </div>
       </section>
 

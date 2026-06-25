@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { X, Pencil } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { phaseFor, PHASE_FOODS } from '../lib/cycle'
+import { phaseForConfig, PHASE_FOODS } from '../lib/cycle'
 import { dateKey } from '../lib/date'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
@@ -47,7 +47,7 @@ function MealSchedule({ cycleConfig }) {
 
   useRegisterAdd(() => setAdding(true), [])
 
-  const phase = phaseFor(selected, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
+  const phase = phaseForConfig(cycleConfig, selected)
 
   return (
     <div>
