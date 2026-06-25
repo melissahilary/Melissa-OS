@@ -5,6 +5,7 @@ import { DOW_LONG, monthGrid, dateKey, parseKey, isSameDay, MONTHS, DOW, moonPha
 import MoonIcon from './shared/MoonIcon'
 import InlineText from './shared/InlineText'
 import Recipes, { HAIRCARE_RECIPES_CONFIG } from './Recipes'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -436,6 +437,9 @@ function ListBody({ placeholder, items, setItems, checkable }) {
   const editText = (id, text) => setItems((prev) => prev.map((x) => (x.id === id ? { ...x, text } : x)))
   const remove = (id) => setItems((prev) => prev.filter((x) => x.id !== id))
 
+  // Universal Add → append a blank, inline-editable item.
+  useRegisterAdd(() => setItems((prev) => [...(Array.isArray(prev) ? prev : []), { id: uid(), text: '', done: false }]), [])
+
   return (
     <section>
       <div className="mb-4 flex items-center gap-2">
@@ -446,7 +450,6 @@ function ListBody({ placeholder, items, setItems, checkable }) {
           placeholder={placeholder}
           className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
-        <button onClick={add} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
       </div>
       <div className="divide-y divide-stone-100">
         {items.map((it) => (

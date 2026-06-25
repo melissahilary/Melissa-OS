@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import {
   UtensilsCrossed, Activity, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays,
@@ -6,6 +6,8 @@ import {
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
 import { dateKey } from './lib/date'
+import { migrateWeekPlan } from './lib/meals'
+import { AddProvider } from './components/shared/AddButton'
 
 import Footer from './components/shared/Footer'
 import Today from './components/Today'
@@ -49,9 +51,7 @@ const SUBNAV = {
     { id: 'grocery', label: "What's In My Fridge" },
   ],
   workout: [
-    { id: 'schedule', label: 'Schedule' },
     { id: 'protocols', label: 'Protocols' },
-    { id: 'practices', label: 'Practices' },
     { id: 'cycle', label: 'Cycle' },
   ],
 }
@@ -60,7 +60,22 @@ export default function App() {
   const [active, setActive] = useLocalStorage('mos:active', 'today')
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
   const [menuSub, setMenuSub] = useLocalStorage('mos:menu:subpage', 'planner')
-  const [workoutSub, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'schedule')
+  const [workoutSubRaw, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'protocols')
+  // Schedule/Practices were removed; coerce any stale value to Protocols.
+  const workoutSub = workoutSubRaw === 'cycle' ? 'cycle' : 'protocols'
+
+  // One-time migration: fold the old per-day meal plan into the unified meal store.
+  const [meals, setMeals] = useLocalStorage('mos:meals', [])
+  const [weekPlanForMigrate] = useLocalStorage('mos:menu:weekplan', {})
+  const migratedRef = useRef(false)
+  useEffect(() => {
+    if (migratedRef.current) return
+    if (Array.isArray(meals) && meals.length > 0) { migratedRef.current = true; return }
+    if (weekPlanForMigrate && Object.keys(weekPlanForMigrate).length) {
+      migratedRef.current = true
+      setMeals(migrateWeekPlan(weekPlanForMigrate))
+    }
+  }, [meals, weekPlanForMigrate, setMeals])
   const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
   const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
   const [cycleConfig, setCycleConfig] = useLocalStorage('mos:settings:cycle', {
@@ -89,6 +104,7 @@ export default function App() {
   const setActiveSub = active === 'menu' ? setMenuSub : active === 'workout' ? setWorkoutSub : () => {}
 
   return (
+    <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
       <div className="mx-auto flex max-w-[1400px] flex-col lg:flex-row">
         {/* ── Sidebar ─────────────────────────────────────────── */}
@@ -171,6 +187,7 @@ export default function App() {
         </main>
       </div>
     </div>
+    </AddProvider>
   )
 }
 

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Plus, X, Trash2 } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const UNITS = ['cup', 'tbsp', 'tsp', 'oz', 'g', 'lb', 'ml', 'L', 'piece', 'clove', 'pinch', 'to taste']
@@ -83,6 +84,8 @@ export default function Recipes({ config = MEAL_RECIPES_CONFIG }) {
   const [activeDate, setActiveDate] = useState('')
   const [editing, setEditing] = useState(null) // recipe object (new or existing) or null
 
+  useRegisterAdd(() => setEditing(blankRecipe(config)), [config])
+
   const save = (recipe) => {
     setRecipes((prev) => {
       const exists = prev.some((r) => r.id === recipe.id)
@@ -113,15 +116,6 @@ export default function Recipes({ config = MEAL_RECIPES_CONFIG }) {
       <div className="mb-2 flex justify-end">
         <span className="text-sm text-stone-400">{recipes.length} on file</span>
       </div>
-      <div className="mb-6 flex justify-end">
-        <button
-          onClick={() => setEditing(blankRecipe(config))}
-          className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700"
-        >
-          <Plus size={15} /> New {noun}
-        </button>
-      </div>
-
       {/* Filter bar — facet A left, facet B right, full width */}
       <div className="mb-8 flex flex-wrap items-center justify-between gap-x-8 gap-y-2 border-y border-stone-100 py-3">
         <TagFilter options={facetA.options} active={filterA} onPick={setFilterA} phaseColors={facetA.phaseColors} />

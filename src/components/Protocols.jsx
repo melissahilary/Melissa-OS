@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X, Trash2, Pin, Search, Check, CalendarPlus, ChevronLeft } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
 import { dateKey, parseKey } from '../lib/date'
+import { MEAL_SLOTS, normMeal } from '../lib/meals'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -111,6 +113,8 @@ export default function Protocols() {
   const [stored, setProtocols] = useLocalStorage('mos:menu:recipes', [])
   const protocols = useMemo(() => (Array.isArray(stored) ? stored.map(norm) : []), [stored])
   const [, setEvents] = useLocalStorage('mos:today:events', {})
+  const [, setMeals] = useLocalStorage('mos:meals', [])
+  const [oliveDone, setOliveDone] = useLocalStorage('mos:flags:oliveReroute', false)
 
   const [view, setView] = useState('landing') // 'landing' | 'all' | <categoryId>
   const [search, setSearch] = useState('')
@@ -136,7 +140,8 @@ export default function Protocols() {
   const togglePin = (id) =>
     setProtocols((prev) => (Array.isArray(prev) ? prev : []).map((r) => (r.id === id ? { ...norm(r), pinned: !norm(r).pinned } : r)))
 
-  const addToCalendar = (p) => {
+  // Route a protocol onto the calendar as an EVENT (checkbox) ...
+  const addEventFromProtocol = (p) => {
     const today = new Date()
     const base = p.series === 'series' && p.startDate ? p.startDate : dateKey(today)
     const part = ['morning', 'afternoon', 'evening'].includes(p.timeOfDay) ? p.timeOfDay : 'morning'
@@ -166,6 +171,45 @@ export default function Protocols() {
       return next
     })
   }
+
+  // ... or as a MEAL ITEM into a chosen slot (never a checkbox event).
+  const addMealFromProtocol = (p, slot) => {
+    const days = p.days && p.days.length ? p.days : []
+    const item = normMeal({
+      name: p.title || 'Untitled', kind: 'food', slot,
+      frequency: p.frequency === 'daily' ? 'daily' : days.length ? 'specific' : 'daily',
+      days,
+      startDate: p.series === 'series' && p.startDate ? p.startDate : '',
+      notes: p.notes || '',
+    })
+    setMeals((prev) => [...(Array.isArray(prev) ? prev : []), item])
+  }
+
+  // Open the New Protocol form from the universal Add button (category-aware).
+  useRegisterAdd(() => setEditing(blank(CAT_IDS.includes(view) ? view : 'nutrition')), [view])
+
+  // One-time reroute: olive oil shot becomes a Meal Item (Empty Stomach), and any
+  // stray checkbox event it created is removed.
+  useEffect(() => {
+    if (oliveDone) return
+    if (!protocols.some((p) => p.title.trim().toLowerCase() === 'olive oil shot')) return
+    setEvents((prev) => {
+      const next = {}
+      let changed = false
+      Object.keys(prev || {}).forEach((k) => {
+        const filtered = (prev[k] || []).filter((e) => (e.title || '').trim().toLowerCase() !== 'olive oil shot')
+        if (filtered.length !== (prev[k] || []).length) changed = true
+        next[k] = filtered
+      })
+      return changed ? next : prev
+    })
+    setMeals((prev) => {
+      const list = Array.isArray(prev) ? prev : []
+      if (list.some((m) => (m.name || '').trim().toLowerCase() === 'olive oil shot')) return list
+      return [...list, normMeal({ name: 'olive oil shot', kind: 'food', slot: 'empty', frequency: 'daily', startDate: '' })]
+    })
+    setOliveDone(true)
+  }, [oliveDone, protocols, setEvents, setMeals, setOliveDone])
 
   const matchFilters = (p) => {
     if (fPhase && !(p.phases.includes(fPhase) || p.phases.includes('any'))) return false
@@ -218,7 +262,7 @@ export default function Protocols() {
         )}
 
         {editing && (
-          <ProtocolModal protocol={editing} isNew={!protocols.some((r) => r.id === editing.id)} onClose={() => setEditing(null)} onSave={save} onDelete={remove} onAddToCalendar={addToCalendar} />
+          <ProtocolModal protocol={editing} isNew={!protocols.some((r) => r.id === editing.id)} onClose={() => setEditing(null)} onSave={save} onDelete={remove} onAddEvent={addEventFromProtocol} onAddMeal={addMealFromProtocol} />
         )}
       </section>
     )
@@ -261,9 +305,6 @@ export default function Protocols() {
         <div className="flex-1">
           <div className="mb-3 flex items-center justify-end gap-4">
             <span className="text-sm text-stone-400">{list.length} on file</span>
-            <button onClick={() => setEditing(blank(inCat ? view : 'nutrition'))} className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
-              <Plus size={15} /> New protocol
-            </button>
           </div>
 
           {list.length === 0 ? (
@@ -275,7 +316,7 @@ export default function Protocols() {
       </div>
 
       {editing && (
-        <ProtocolModal protocol={editing} isNew={!protocols.some((r) => r.id === editing.id)} onClose={() => setEditing(null)} onSave={save} onDelete={remove} onAddToCalendar={addToCalendar} />
+        <ProtocolModal protocol={editing} isNew={!protocols.some((r) => r.id === editing.id)} onClose={() => setEditing(null)} onSave={save} onDelete={remove} onAddEvent={addEventFromProtocol} onAddMeal={addMealFromProtocol} />
       )}
     </section>
   )
@@ -591,9 +632,14 @@ function CategoryFields({ draft, set }) {
 }
 
 // ── Detail modal ────────────────────────────────────────────────────
-function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddToCalendar }) {
+function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent, onAddMeal }) {
   const [draft, setDraft] = useState(() => ({ ...blank(protocol.category), ...protocol, phases: [...(protocol.phases || [])], days: [...(protocol.days || [])] }))
   const [added, setAdded] = useState(false)
+  // Add-to-calendar routing: nutrition defaults to a Meal Item, everything else
+  // to an Event. Meal Item then asks which slot.
+  const [calStep, setCalStep] = useState(false)
+  const [addType, setAddType] = useState('event')
+  const [mealSlot, setMealSlot] = useState('breakfast')
   const set = (k, v) => setDraft((d) => ({ ...d, [k]: v }))
   const togglePhase = (id) => setDraft((d) => ({ ...d, phases: d.phases.includes(id) ? d.phases.filter((x) => x !== id) : [...d.phases, id] }))
   const toggleDay = (n) => setDraft((d) => ({ ...d, days: d.days.includes(n) ? d.days.filter((x) => x !== n) : [...d.days, n] }))
@@ -672,9 +718,46 @@ function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddToCale
             <DateLine label="Last completed" value={draft.lastCompleted} onChange={(v) => set('lastCompleted', v)} />
           </div>
 
-          <button type="button" onClick={() => { onAddToCalendar({ ...draft, title: (draft.title || '').trim() || 'Untitled' }); setAdded(true) }} className="flex items-center gap-1.5 border border-stone-900 px-3 py-1.5 text-sm text-stone-900 hover:bg-stone-900 hover:text-cream transition-colors">
-            {added ? <><Check size={15} /> Added to calendar</> : <><CalendarPlus size={15} /> Add to calendar</>}
-          </button>
+          {/* Add to calendar — asks Event or Meal Item (nutrition defaults to Meal) */}
+          {added ? (
+            <div className="flex items-center gap-1.5 text-sm text-stone-600"><Check size={15} /> Added to calendar</div>
+          ) : calStep ? (
+            <div className="border border-stone-200 bg-white/40 p-3 space-y-3">
+              <div>
+                <span className={labelCls}>Add as</span>
+                <div className="flex items-center gap-4 text-sm text-stone-700">
+                  <label className="flex items-center gap-1.5"><input type="radio" name="addType" checked={addType === 'event'} onChange={() => setAddType('event')} /> Event</label>
+                  <label className="flex items-center gap-1.5"><input type="radio" name="addType" checked={addType === 'meal'} onChange={() => setAddType('meal')} /> Meal Item</label>
+                </div>
+              </div>
+              {addType === 'meal' && (
+                <SelectLine label="Slot" value={mealSlot} onChange={setMealSlot} options={MEAL_SLOTS} />
+              )}
+              <div className="flex items-center gap-3">
+                <button onClick={() => setCalStep(false)} className="text-xs text-stone-500 hover:text-stone-900">Cancel</button>
+                <button
+                  onClick={() => {
+                    const clean = { ...draft, title: (draft.title || '').trim() || 'Untitled' }
+                    if (addType === 'meal') onAddMeal(clean, mealSlot)
+                    else onAddEvent(clean)
+                    setAdded(true)
+                    setCalStep(false)
+                  }}
+                  className="bg-stone-900 px-3 py-1 text-xs text-cream hover:bg-stone-700"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { const meal = draft.category === 'nutrition'; setAddType(meal ? 'meal' : 'event'); setMealSlot(meal ? 'empty' : 'breakfast'); setCalStep(true) }}
+              className="flex items-center gap-1.5 border border-stone-900 px-3 py-1.5 text-sm text-stone-900 hover:bg-stone-900 hover:text-cream transition-colors"
+            >
+              <CalendarPlus size={15} /> Add to calendar
+            </button>
+          )}
 
           <TextArea label="Notes" value={draft.notes} onChange={(v) => set('notes', v)} placeholder="Anything to remember" />
 

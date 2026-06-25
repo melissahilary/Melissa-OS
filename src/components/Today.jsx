@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X, Trash2 } from 'lucide-react'
+import { X, Trash2 } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseFor } from '../lib/cycle'
 import {
@@ -7,7 +7,9 @@ import {
 } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
-import { SLOTS } from './MealPlanning'
+import MealSlots, { AddMealForm } from './shared/MealSlots'
+import { slotsForPart } from '../lib/meals'
+import { useRegisterAdd } from './shared/AddButton'
 
 // Geocode a place name to coordinates via Open-Meteo (no key, CORS-friendly).
 async function geocode(place) {
@@ -218,7 +220,12 @@ export default function Today({ cycleConfig, location, setLocation }) {
   )
 
   const [events, setEvents] = useLocalStorage('mos:today:events', {})
+  const [meals, setMeals] = useLocalStorage('mos:meals', [])
   const [detail, setDetail] = useState(null) // { key, id }
+  const [homeAdd, setHomeAdd] = useState(null) // null | 'choose' | 'meal'
+
+  const addMeal = (item) => setMeals((prev) => [...(Array.isArray(prev) ? prev : []), item])
+  const removeMeal = (id) => setMeals((prev) => (Array.isArray(prev) ? prev : []).filter((m) => m.id !== id))
 
   // Events for a day = its own events PLUS any recurring event that lands here.
   const dayEvents = (k) => {
@@ -275,6 +282,11 @@ export default function Today({ cycleConfig, location, setLocation }) {
       [k]: (p[k] || []).map((e) => (e.id === id ? { ...normEvent(e), done: !normEvent(e).done } : e)),
     }))
 
+  // Universal Add on the home page → choose Event or Meal Item.
+  useRegisterAdd(() => setHomeAdd('choose'), [])
+
+  const pickDay = (k) => { setSelectedKey(k); setCalView('day') }
+
   return (
     <div>
       {/* Page title — centered at the very top of the main content */}
@@ -305,7 +317,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
         today={today}
         cycleConfig={cycleConfig}
         eventsFor={dayEvents}
-        onAdd={addEvent}
+        onPickDay={pickDay}
         onOpen={(k, id) => setDetail({ key: eventMasterDate(id) || k, id })}
       />
 
@@ -315,11 +327,30 @@ export default function Today({ cycleConfig, location, setLocation }) {
         events={dayEvents(selectedKey)}
         dateKeyStr={selectedKey}
         showTitle={calView !== 'day'}
+        meals={meals}
+        onAddMeal={addMeal}
+        onRemoveMeal={removeMeal}
         onToggle={(id) => toggleDone(eventMasterDate(id) || selectedKey, id)}
         onOpen={(id) => setDetail({ key: eventMasterDate(id) || selectedKey, id })}
       />
 
       <TodayNotes />
+
+      {homeAdd === 'choose' && (
+        <HomeAddChooser
+          onEvent={() => { setHomeAdd(null); addEvent(selectedKey) }}
+          onMeal={() => setHomeAdd('meal')}
+          onClose={() => setHomeAdd(null)}
+        />
+      )}
+      {homeAdd === 'meal' && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setHomeAdd(null) }}>
+          <div className="w-full max-w-md bg-cream border border-stone-300 p-6 shadow-2xl">
+            <p className="font-serif italic text-2xl text-stone-900 mb-4">New meal item</p>
+            <AddMealForm kind="food" dateKeyStr={selectedKey} showSlot onCancel={() => setHomeAdd(null)} onSave={(item) => { addMeal(item); setHomeAdd(null) }} />
+          </div>
+        </div>
+      )}
 
       {detail && (() => {
         const ev = dayEvents(detail.key).find((e) => e.id === detail.id)
@@ -339,7 +370,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
 }
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, onAdd, onOpen }) {
+function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, onPickDay, onOpen }) {
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(selectedKey)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -392,9 +423,6 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
           <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
           <button onClick={goToday} className="px-2 text-sm text-stone-500 hover:text-stone-900">Today</button>
           <button onClick={goNext} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
-          {view === 'day' && (
-            <button onClick={() => onAdd(selectedKey)} className="ml-1 bg-stone-900 px-2 py-1 text-cream hover:bg-stone-700"><Plus size={15} /></button>
-          )}
         </div>
       </div>
 
@@ -420,7 +448,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
                     inMonth ? 'bg-transparent' : 'bg-stone-50 text-stone-300'
                   } ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
                 >
-                  <button onClick={() => setSelectedKey(key)} className="block w-full text-left">
+                  <button onClick={() => onPickDay(key)} className="block w-full text-left">
                     <span
                       className={`inline-flex h-6 w-6 items-center justify-center text-xs ${
                         isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'
@@ -454,13 +482,6 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
                       <p className="text-[9px] text-stone-400">+{dayEvents.length - 2} more</p>
                     )}
                   </div>
-
-                  <button
-                    onClick={() => onAdd(key)}
-                    className="absolute right-1 top-1 hidden text-stone-300 hover:text-stone-900 group-hover:block"
-                  >
-                    <Plus size={13} />
-                  </button>
                 </div>
               )
             })}
@@ -476,8 +497,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
               return (
                 <div key={key} className="group border-t border-stone-300 pt-2">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className={`kicker ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</p>
-                    <button onClick={() => onAdd(key)} className="hidden text-stone-300 hover:text-stone-900 group-hover:block"><Plus size={13} /></button>
+                    <button onClick={() => onPickDay(key)} className={`kicker text-left hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
                   </div>
                   <div className="space-y-1">
                     {evs.map((ev) => (
@@ -498,18 +518,8 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
   )
 }
 
-// Which Meal Planning slots belong to each part of the day.
-const PART_SLOTS = {
-  morning: ['empty', 'breakfast', 'snack1'],
-  afternoon: ['lunch', 'snack2'],
-  evening: ['dinner', 'bed'],
-}
-
-// ── My dream day / unified day columns — events + meals blended per part ──
-function DreamDay({ events, dateKeyStr, showTitle = true, onToggle, onOpen }) {
-  const [weekPlan] = useLocalStorage('mos:menu:weekplan', {})
-  const day = weekPlan[dateKeyStr] || {}
-
+// ── My dream day / unified day columns — events + editable meals per part ──
+function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRemoveMeal, onToggle, onOpen }) {
   return (
     <section className="mb-14">
       {showTitle && (
@@ -518,6 +528,7 @@ function DreamDay({ events, dateKeyStr, showTitle = true, onToggle, onOpen }) {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {PARTS.map((part) => {
           const items = events.filter((e) => e.part === part.id).sort(byTime)
+          const slotIds = slotsForPart(part.id).map((s) => s.id)
           return (
             <div key={part.id} className="border-t border-stone-300 pt-3">
               <p className="kicker text-stone-500 mb-3">{part.label}</p>
@@ -547,7 +558,7 @@ function DreamDay({ events, dateKeyStr, showTitle = true, onToggle, onOpen }) {
               {/* Subtle divider between events and the meal slots */}
               <div className="my-4 border-t border-stone-100" />
 
-              <MealSlots day={day} partId={part.id} />
+              <MealSlots slotIds={slotIds} dateKeyStr={dateKeyStr} meals={meals} onAdd={onAddMeal} onRemove={onRemoveMeal} compact />
             </div>
           )
         })}
@@ -556,40 +567,26 @@ function DreamDay({ events, dateKeyStr, showTitle = true, onToggle, onOpen }) {
   )
 }
 
-// Read-only meal slots for a part of day, pulled from Meal Planning → Schedule.
-function MealSlots({ day, partId }) {
-  const slotIds = PART_SLOTS[partId] || []
-  const rows = []
-  slotIds.forEach((id) => {
-    const slot = SLOTS.find((s) => s.id === id)
-    if (!slot) return
-    const slotData = day[id] || {}
-    rows.push({
-      label: slot.label,
-      values: (slotData.foods || []).map((f) => f.name).filter(Boolean),
-      placeholder: 'add food',
-    })
-    if (slot.supps) {
-      rows.push({
-        label: 'Supplements',
-        values: (slotData.supps || []).map((s) => s.name).filter(Boolean),
-        placeholder: 'add supplement',
-        sub: true,
-      })
-    }
-  })
+// Home Add button → choose Event or Meal Item.
+function HomeAddChooser({ onEvent, onMeal, onClose }) {
   return (
-    <div className="space-y-2">
-      {rows.map((r, i) => (
-        <div key={i} className={r.sub ? 'pl-3' : ''}>
-          <p className={`kicker ${r.sub ? 'text-stone-300' : 'text-stone-400'}`}>{r.label}</p>
-          {r.values.length ? (
-            <p className="text-sm text-stone-700">{r.values.join(', ')}</p>
-          ) : (
-            <p className="text-sm italic text-stone-300">{r.placeholder}</p>
-          )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs bg-cream border border-stone-300 p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <span className="kicker text-stone-400">Add to your day</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
-      ))}
+        <div className="space-y-2">
+          <button onClick={onEvent} className="w-full border border-stone-300 px-4 py-3 text-left text-sm text-stone-800 hover:border-stone-900 transition-colors">
+            <span className="font-serif text-lg">Event</span>
+            <span className="block text-xs text-stone-500">Something you do</span>
+          </button>
+          <button onClick={onMeal} className="w-full border border-stone-300 px-4 py-3 text-left text-sm text-stone-800 hover:border-stone-900 transition-colors">
+            <span className="font-serif text-lg">Meal Item</span>
+            <span className="block text-xs text-stone-500">Something you eat or drink</span>
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -634,8 +631,8 @@ function TodayNotes() {
           placeholder="New note title"
           className="w-48 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
-        <button onClick={add} className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
-          <Plus size={15} /> New note
+        <button onClick={add} className="bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
+          New note
         </button>
       </div>
 
