@@ -4,7 +4,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
 import { dateKey, parseKey } from '../lib/date'
 import { MEAL_SLOTS, normMeal } from '../lib/meals'
-import { useRegisterAdd } from './shared/AddButton'
+import { useRegisterAdd, AddChooser } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -88,7 +88,7 @@ const norm = (p) => {
     title,
     category,
     phases: Array.isArray(p.phases) ? p.phases : [],
-    timeOfDay: p.timeOfDay || 'any',
+    timesOfDay: Array.isArray(p.timesOfDay) ? p.timesOfDay : p.timeOfDay && p.timeOfDay !== 'any' ? [p.timeOfDay] : [],
     frequency: p.frequency || 'daily',
     days: Array.isArray(p.days) ? p.days : [],
     series: p.series || (p.startDate ? 'series' : 'onetime'),
@@ -103,10 +103,17 @@ const norm = (p) => {
 }
 
 const blank = (category = 'nutrition') => ({
-  id: uid(), title: '', category, phases: [], timeOfDay: 'any',
+  id: uid(), title: '', category, phases: [], timesOfDay: [],
   frequency: 'daily', days: [], series: 'onetime', startDate: '', endDate: '', noEndDate: true,
   status: 'active', pinned: false, lastCompleted: '', notes: '',
 })
+
+// Parts of day for the multi-select chips.
+const PART_OPTS = [
+  { id: 'morning', label: 'Morning' },
+  { id: 'afternoon', label: 'Afternoon' },
+  { id: 'evening', label: 'Evening' },
+]
 
 // ── Root ────────────────────────────────────────────────────────────
 export default function Protocols() {
@@ -139,31 +146,35 @@ export default function Protocols() {
   const togglePin = (id) =>
     setProtocols((prev) => (Array.isArray(prev) ? prev : []).map((r) => (r.id === id ? { ...norm(r), pinned: !norm(r).pinned } : r)))
 
-  // Route a protocol onto the calendar as an EVENT (checkbox) ...
+  // Route a protocol onto the calendar as an EVENT (checkbox), one per selected
+  // time of day (so a Morning + Evening protocol lands in both columns).
   const addEventFromProtocol = (p) => {
     const today = new Date()
     const base = p.series === 'series' && p.startDate ? p.startDate : dateKey(today)
-    const part = ['morning', 'afternoon', 'evening'].includes(p.timeOfDay) ? p.timeOfDay : 'morning'
     const end = p.series === 'series' && !p.noEndDate && p.endDate ? p.endDate : ''
     const title = p.title || 'Untitled protocol'
-    const make = (k, frequency, days) => ({
+    const parts = (p.timesOfDay || []).filter((t) => ['morning', 'afternoon', 'evening'].includes(t))
+    const useParts = parts.length ? parts : ['morning']
+    const make = (k, frequency, days, part) => ({
       key: k,
       ev: { id: uid(), title, time: '', part, description: p.notes || '', attendees: '', frequency, days: days || [], endDate: end, done: false },
     })
     const additions = []
-    if (p.frequency === 'daily') additions.push(make(base, 'daily', []))
-    else if (p.frequency === 'monthly') additions.push(make(base, 'monthly', []))
-    else if (p.frequency === 'yearly') additions.push(make(base, 'yearly', []))
-    else if (p.frequency === 'quarterly' || p.frequency === 'asneeded') additions.push(make(base, 'once', []))
-    else {
-      const evFreq = p.frequency === 'biweekly' ? 'biweekly' : 'weekly'
-      const days = p.days && p.days.length ? p.days : [parseKey(base).getDay()]
-      days.forEach((dow) => {
-        const d = parseKey(base)
-        d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7))
-        additions.push(make(dateKey(d), evFreq, [dow]))
-      })
-    }
+    useParts.forEach((part) => {
+      if (p.frequency === 'daily') additions.push(make(base, 'daily', [], part))
+      else if (p.frequency === 'monthly') additions.push(make(base, 'monthly', [], part))
+      else if (p.frequency === 'yearly') additions.push(make(base, 'yearly', [], part))
+      else if (p.frequency === 'quarterly' || p.frequency === 'asneeded') additions.push(make(base, 'once', [], part))
+      else {
+        const evFreq = p.frequency === 'biweekly' ? 'biweekly' : 'weekly'
+        const days = p.days && p.days.length ? p.days : [parseKey(base).getDay()]
+        days.forEach((dow) => {
+          const d = parseKey(base)
+          d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7))
+          additions.push(make(dateKey(d), evFreq, [dow], part))
+        })
+      }
+    })
     setEvents((prev) => {
       const next = { ...prev }
       additions.forEach(({ key, ev }) => { next[key] = [...(next[key] || []), ev] })
@@ -190,7 +201,7 @@ export default function Protocols() {
   const matchFilters = (p) => {
     if (fPhase && !(p.phases.includes(fPhase) || p.phases.includes('any'))) return false
     if (fFreq && p.frequency !== fFreq) return false
-    if (fTod && p.timeOfDay !== fTod) return false
+    if (fTod && !(p.timesOfDay || []).includes(fTod)) return false
     if (fStatus && p.status !== fStatus) return false
     if (pinnedOnly && !p.pinned) return false
     if (search.trim()) {
@@ -264,7 +275,7 @@ export default function Protocols() {
           <div className="mb-5"><SearchBox value={search} onChange={setSearch} small /></div>
           <FilterGroup title="Phase" options={PHASE_OPTS} active={fPhase} onPick={setFPhase} phaseColors />
           <FilterGroup title="Frequency" options={FREQ_OPTS} active={fFreq} onPick={setFFreq} />
-          <FilterGroup title="Time of Day" options={TOD_OPTS} active={fTod} onPick={setFTod} />
+          <FilterGroup title="Time of Day" options={PART_OPTS} active={fTod} onPick={setFTod} />
           <FilterGroup title="Status" options={STATUS_OPTS} active={fStatus} onPick={setFStatus} />
           <div className="mb-5">
             <p className="kicker text-stone-400 mb-2">Pinned</p>
@@ -611,13 +622,14 @@ function CategoryFields({ draft, set }) {
 function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent, onAddMeal }) {
   const [draft, setDraft] = useState(() => ({ ...blank(protocol.category), ...protocol, phases: [...(protocol.phases || [])], days: [...(protocol.days || [])] }))
   const [added, setAdded] = useState(false)
-  // Add-to-calendar routing: nutrition defaults to a Meal Item, everything else
-  // to an Event. Meal Item then asks which slot.
-  const [calStep, setCalStep] = useState(false)
-  const [addType, setAddType] = useState('event')
+  // Add-to-calendar routing: opens the shared Event/Meal chooser. Nutrition is
+  // recommended as a Meal Item; Meal Item then asks which slot.
+  const [calStep, setCalStep] = useState(null) // null | 'choose' | 'meal'
   const [mealSlot, setMealSlot] = useState('breakfast')
   const set = (k, v) => setDraft((d) => ({ ...d, [k]: v }))
+  const cleanDraft = () => ({ ...draft, title: (draft.title || '').trim() || 'Untitled' })
   const togglePhase = (id) => setDraft((d) => ({ ...d, phases: d.phases.includes(id) ? d.phases.filter((x) => x !== id) : [...d.phases, id] }))
+  const toggleTime = (id) => setDraft((d) => ({ ...d, timesOfDay: (d.timesOfDay || []).includes(id) ? d.timesOfDay.filter((x) => x !== id) : [...(d.timesOfDay || []), id] }))
   const toggleDay = (n) => setDraft((d) => ({ ...d, days: d.days.includes(n) ? d.days.filter((x) => x !== n) : [...d.days, n] }))
   const showDays = draft.frequency !== 'daily' && draft.frequency !== 'asneeded'
 
@@ -650,11 +662,23 @@ function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent,
             </div>
           </div>
 
-          {/* Time of day + Frequency */}
-          <div className="flex flex-wrap gap-x-6 gap-y-4">
-            <div className="min-w-[140px] flex-1"><SelectLine label="Time of Day" value={draft.timeOfDay} onChange={(v) => set('timeOfDay', v)} options={TOD_OPTS} /></div>
-            <div className="min-w-[140px] flex-1"><SelectLine label="Frequency" value={draft.frequency} onChange={(v) => set('frequency', v)} options={FREQ_OPTS} /></div>
+          {/* Time of Day — multi-select chips */}
+          <div>
+            <span className={labelCls}>Time of Day</span>
+            <div className="flex flex-wrap gap-1.5">
+              {PART_OPTS.map((o) => {
+                const on = (draft.timesOfDay || []).includes(o.id)
+                return (
+                  <button key={o.id} type="button" onClick={() => toggleTime(o.id)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>
+                    {o.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
+
+          {/* Frequency */}
+          <SelectLine label="Frequency" value={draft.frequency} onChange={(v) => set('frequency', v)} options={FREQ_OPTS} />
 
           {/* Days of week */}
           {showDays && (
@@ -694,45 +718,38 @@ function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent,
             <DateLine label="Last completed" value={draft.lastCompleted} onChange={(v) => set('lastCompleted', v)} />
           </div>
 
-          {/* Add to calendar — asks Event or Meal Item (nutrition defaults to Meal) */}
+          {/* Add to calendar — opens the shared Event/Meal chooser first */}
           {added ? (
             <div className="flex items-center gap-1.5 text-sm text-stone-600"><Check size={15} /> Added to calendar</div>
-          ) : calStep ? (
-            <div className="border border-stone-200 bg-white/40 p-3 space-y-3">
-              <div>
-                <span className={labelCls}>Add as</span>
-                <div className="flex items-center gap-4 text-sm text-stone-700">
-                  <label className="flex items-center gap-1.5"><input type="radio" name="addType" checked={addType === 'event'} onChange={() => setAddType('event')} /> Event</label>
-                  <label className="flex items-center gap-1.5"><input type="radio" name="addType" checked={addType === 'meal'} onChange={() => setAddType('meal')} /> Meal Item</label>
-                </div>
-              </div>
-              {addType === 'meal' && (
-                <SelectLine label="Slot" value={mealSlot} onChange={setMealSlot} options={MEAL_SLOTS} />
-              )}
-              <div className="flex items-center gap-3">
-                <button onClick={() => setCalStep(false)} className="text-xs text-stone-500 hover:text-stone-900">Cancel</button>
-                <button
-                  onClick={() => {
-                    const clean = { ...draft, title: (draft.title || '').trim() || 'Untitled' }
-                    if (addType === 'meal') onAddMeal(clean, mealSlot)
-                    else onAddEvent(clean)
-                    setAdded(true)
-                    setCalStep(false)
-                  }}
-                  className="bg-stone-900 px-3 py-1 text-xs text-cream hover:bg-stone-700"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
           ) : (
             <button
               type="button"
-              onClick={() => { const meal = draft.category === 'nutrition'; setAddType(meal ? 'meal' : 'event'); setMealSlot(meal ? 'empty' : 'breakfast'); setCalStep(true) }}
+              onClick={() => setCalStep('choose')}
               className="flex items-center gap-1.5 border border-stone-900 px-3 py-1.5 text-sm text-stone-900 hover:bg-stone-900 hover:text-cream transition-colors"
             >
               <CalendarPlus size={15} /> Add to calendar
             </button>
+          )}
+
+          {calStep === 'choose' && (
+            <AddChooser
+              recommended={draft.category === 'nutrition' ? 'meal' : 'event'}
+              onEvent={() => { onAddEvent(cleanDraft()); setAdded(true); setCalStep(null) }}
+              onMeal={() => { setMealSlot(draft.category === 'nutrition' ? 'empty' : 'breakfast'); setCalStep('meal') }}
+              onClose={() => setCalStep(null)}
+            />
+          )}
+          {calStep === 'meal' && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/40 px-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setCalStep(null) }}>
+              <div className="w-full max-w-xs bg-cream border border-stone-300 p-6 shadow-2xl">
+                <p className="font-serif italic text-2xl text-stone-900 mb-4">Which slot?</p>
+                <SelectLine label="Slot" value={mealSlot} onChange={setMealSlot} options={MEAL_SLOTS} />
+                <div className="mt-5 flex items-center justify-end gap-3">
+                  <button onClick={() => setCalStep(null)} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
+                  <button onClick={() => { onAddMeal(cleanDraft(), mealSlot); setAdded(true); setCalStep(null) }} className="bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
+                </div>
+              </div>
+            </div>
           )}
 
           <TextArea label="Notes" value={draft.notes} onChange={(v) => set('notes', v)} placeholder="Anything to remember" />

@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseFor, cycleDayFor, startOfDay } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS } from '../lib/date'
-import SectionTitle from './shared/SectionTitle'
 import Protocols from './Protocols'
 
 const MS_DAY = 86400000
@@ -90,8 +89,6 @@ function CyclePage({ cycleConfig, setCycleConfig }) {
 
   return (
     <div className="mb-10">
-      <SectionTitle kicker="02 · The body" title="Cycle." />
-
       {/* Current phase + day */}
       <section className="mb-8">
         {phase ? (

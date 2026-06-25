@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import { useRegisterAdd } from './shared/AddButton'
+import Checkbox from './shared/Checkbox'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const ROOMS = ['Kitchen', 'Bath', 'Bedroom', 'Office', 'Dog Station', 'Supplement Cabinet', 'Cleaning', 'Other']
@@ -87,10 +88,7 @@ export default function Household() {
           <div className="divide-y divide-stone-100">
             {items.map((item) => (
               <div key={item.id} className="group flex items-center gap-3 py-2.5">
-                <button
-                  onClick={() => toggle(item.id)}
-                  className={`h-4 w-4 shrink-0 border ${item.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-                />
+                <Checkbox checked={item.done} onClick={() => toggle(item.id)} />
                 <span className={`flex-1 text-sm ${item.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
                   {item.name}
                 </span>

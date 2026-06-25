@@ -8,8 +8,9 @@ import {
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
 import MealSlots, { AddMealForm } from './shared/MealSlots'
-import { slotsForPart } from '../lib/meals'
-import { useRegisterAdd } from './shared/AddButton'
+import { slotsForPart, mealOccursOn } from '../lib/meals'
+import { useRegisterAdd, AddChooser } from './shared/AddButton'
+import Checkbox from './shared/Checkbox'
 
 // Geocode a place name to coordinates via Open-Meteo (no key, CORS-friendly).
 async function geocode(place) {
@@ -336,7 +337,9 @@ export default function Today({ cycleConfig, location, setLocation }) {
         today={today}
         cycleConfig={cycleConfig}
         eventsFor={dayEvents}
+        meals={meals}
         onPickDay={pickDay}
+        onAdd={() => setHomeAdd('choose')}
         onOpen={(k, id) => setDetail({ key: eventMasterDate(id) || k, id })}
       />
 
@@ -358,7 +361,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
       <TodayNotes />
 
       {homeAdd === 'choose' && (
-        <HomeAddChooser
+        <AddChooser
           onEvent={() => { setHomeAdd(null); addEvent(selectedKey) }}
           onMeal={() => setHomeAdd('meal')}
           onClose={() => setHomeAdd(null)}
@@ -391,7 +394,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
 }
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, onPickDay, onOpen }) {
+function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, meals, onPickDay, onAdd, onOpen }) {
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(selectedKey)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -444,6 +447,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
           <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
           <button onClick={goToday} className="px-2 text-sm text-stone-500 hover:text-stone-900">Today</button>
           <button onClick={goNext} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
+          <button onClick={onAdd} className="px-2 text-sm text-stone-500 hover:text-stone-900">Add</button>
         </div>
       </div>
 
@@ -515,18 +519,24 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
               const key = dateKey(d)
               const isTod = isSameDay(d, today)
               const evs = eventsFor(key).sort(byTime)
+              const dayMeals = (meals || []).filter((m) => mealOccursOn(m, key))
               return (
                 <div key={key} className="group border-t border-stone-300 pt-2">
                   <div className="mb-2 flex items-center justify-between">
                     <button onClick={() => onPickDay(key)} className={`kicker text-left hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
                   </div>
                   <div className="space-y-1">
+                    {/* Events — bullet dot */}
                     {evs.map((ev) => (
                       <button key={ev.id} onClick={() => onOpen(key, ev.id)} className="flex w-full items-center gap-1.5 text-left">
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
                         {ev.time && <span className="text-[10px] text-stone-400">{ev.time}</span>}
                         <span className={`truncate text-xs ${ev.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{ev.title || 'Untitled'}</span>
                       </button>
+                    ))}
+                    {/* Meal items — italic, no bullet */}
+                    {dayMeals.map((m) => (
+                      <p key={m.id} className="truncate text-xs italic text-stone-500">{m.name}</p>
                     ))}
                   </div>
                 </div>
@@ -612,10 +622,7 @@ function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRe
                       >
                         {it.title || 'Untitled'}
                       </button>
-                      <button
-                        onClick={() => onToggle(it.id)}
-                        className={`h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-                      />
+                      <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
                     </div>
                   ))
                 )}
@@ -631,30 +638,6 @@ function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRe
         })}
       </div>
     </section>
-  )
-}
-
-// Home Add button → choose Event or Meal Item.
-function HomeAddChooser({ onEvent, onMeal, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream border border-stone-300 p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="kicker text-stone-400">Add to your day</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
-        </div>
-        <div className="space-y-2">
-          <button onClick={onEvent} className="w-full border border-stone-300 px-4 py-3 text-left text-sm text-stone-800 hover:border-stone-900 transition-colors">
-            <span className="font-serif text-lg">Event</span>
-            <span className="block text-xs text-stone-500">Something you do</span>
-          </button>
-          <button onClick={onMeal} className="w-full border border-stone-300 px-4 py-3 text-left text-sm text-stone-800 hover:border-stone-900 transition-colors">
-            <span className="font-serif text-lg">Meal Item</span>
-            <span className="block text-xs text-stone-500">Something you eat or drink</span>
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 

@@ -6,6 +6,7 @@ import MoonIcon from './shared/MoonIcon'
 import InlineText from './shared/InlineText'
 import Recipes, { HAIRCARE_RECIPES_CONFIG } from './Recipes'
 import { useRegisterAdd } from './shared/AddButton'
+import Checkbox from './shared/Checkbox'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -349,10 +350,7 @@ function DayView({ anchor, anchorDate, today, events, catColor, onShift, onToday
                 <div className="space-y-2">
                   {evs.map((ev) => (
                     <div key={ev.id} className="group flex items-center gap-3">
-                      <button
-                        onClick={() => onToggle(ev.id)}
-                        className={`h-4 w-4 shrink-0 border ${ev.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-                      />
+                      <Checkbox checked={ev.done} onClick={() => onToggle(ev.id)} />
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: catColor(ev.category) }} />
                       {ev.time && <span className="text-xs text-stone-400 w-12 shrink-0">{ev.time}</span>}
                       <button onClick={() => onOpen(ev.id)} className={`flex-1 text-left text-sm ${ev.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
@@ -461,7 +459,7 @@ function ListBody({ placeholder, items, setItems, checkable }) {
         {items.map((it) => (
           <div key={it.id} className="group flex items-center gap-3 py-2.5">
             {checkable && (
-              <button onClick={() => toggle(it.id)} className={`h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`} />
+              <Checkbox checked={it.done} onClick={() => toggle(it.id)} />
             )}
             <InlineText
               value={it.text}

@@ -3,6 +3,7 @@ import { X, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import { useRegisterAdd } from './shared/AddButton'
+import Checkbox from './shared/Checkbox'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const STAGES = ['Researching', 'Applied', 'Screening', 'Interviewing', 'Offer', 'Passed']
@@ -74,10 +75,7 @@ function Checklist({ title, items, onAdd, onToggle, onRemove }) {
       <div className="divide-y divide-stone-100">
         {items.map((it) => (
           <div key={it.id} className="group flex items-center gap-3 py-2">
-            <button
-              onClick={() => onToggle(it.id)}
-              className={`h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-            />
+            <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
             <span className={`flex-1 text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{it.text}</span>
             <button onClick={() => onRemove(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100">
               <X size={14} />
