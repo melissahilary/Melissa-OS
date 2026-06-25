@@ -22,7 +22,7 @@ import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
   { id: 'menu', label: 'Meal Planning', icon: UtensilsCrossed },
-  { id: 'workout', label: 'Health & Fitness', icon: Activity },
+  { id: 'workout', label: 'Health & Wellness', icon: Activity },
   { id: 'relationship', label: 'Relationship', icon: Heart },
   { id: 'career', label: 'Landing an EA Offer', icon: Briefcase },
   { id: 'app', label: 'Designing An App', icon: Code2 },

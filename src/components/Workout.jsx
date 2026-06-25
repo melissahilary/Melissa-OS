@@ -23,7 +23,7 @@ export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, s
 
   return (
     <div>
-      <SectionTitle kicker="02 · The body" title="Health & Fitness." />
+      <SectionTitle kicker="02 · The body" title="Health & Wellness." />
 
       {subPage === 'schedule' && (
         <>
