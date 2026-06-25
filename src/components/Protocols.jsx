@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react'
 import { X, Trash2, Pin, Search, Check, CalendarPlus, ChevronLeft } from 'lucide-react'
-import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
 import { dateKey, parseKey } from '../lib/date'
-import { MEAL_SLOTS, normMeal } from '../lib/meals'
+import { MEAL_SLOTS } from '../lib/meals'
+import { useActivities } from '../hooks/useActivities'
+import { blankActivity } from '../lib/activities'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -115,12 +116,57 @@ const PART_OPTS = [
   { id: 'evening', label: 'Evening' },
 ]
 
+// ── Activity <-> protocol record converters ─────────────────────────
+const baseFromRecord = (r) => ({
+  id: r.id,
+  title: r.title,
+  category: r.category,
+  phase: r.phases || [],
+  timeOfDay: r.timesOfDay || [],
+  frequency: r.frequency || 'daily',
+  daysOfWeek: r.days || [],
+  seriesStart: r.startDate || '',
+  seriesEnd: r.noEndDate ? '' : r.endDate || '',
+  status: r.status || 'active',
+  pinned: !!r.pinned,
+  lastCompleted: r.lastCompleted || '',
+  notes: r.notes || '',
+})
+
+// Activity → the record shape the Protocols UI expects.
+const activityToRecord = (a) => {
+  const common = {
+    id: a.id, title: a.title,
+    phases: a.phase, timesOfDay: a.timeOfDay, frequency: a.frequency, days: a.daysOfWeek,
+    series: a.seriesStart ? 'series' : 'onetime', startDate: a.seriesStart, endDate: a.seriesEnd, noEndDate: !a.seriesEnd,
+    status: a.status, pinned: a.pinned, lastCompleted: a.lastCompleted, notes: a.notes,
+  }
+  if (a.type === 'supplement') {
+    return norm({
+      ...common, category: 'supplements',
+      compound: a.title, dose: a.details.dose, doseUnit: a.details.unit, suppTiming: a.details.timingNotes,
+      cycleLength: a.details.cycleLength, stackNotes: a.details.stackNotes, provider: a.details.provider,
+    })
+  }
+  return norm({ ...(a.details.categoryFields || {}), ...common, category: a.category })
+}
+
+// Record → activity (supplements category becomes a supplement activity).
+const recordToActivity = (r) => {
+  const base = baseFromRecord(r)
+  if (r.category === 'supplements') {
+    return blankActivity('supplement', { ...base, details: { dose: r.dose || '', unit: r.doseUnit || 'mg', timingNotes: r.suppTiming || '', cycleLength: r.cycleLength || '', stackNotes: r.stackNotes || '', provider: r.provider || '' } })
+  }
+  return blankActivity('protocol', { ...base, details: { categoryFields: r } })
+}
+
 // ── Root ────────────────────────────────────────────────────────────
 export default function Protocols() {
-  const [stored, setProtocols] = useLocalStorage('mos:menu:recipes', [])
-  const protocols = useMemo(() => (Array.isArray(stored) ? stored.map(norm) : []), [stored])
-  const [, setEvents] = useLocalStorage('mos:today:events', {})
-  const [, setMeals] = useLocalStorage('mos:meals', [])
+  const { activities, add, update, remove: removeActivity } = useActivities()
+  const protocols = useMemo(
+    () => activities.filter((a) => a.type === 'protocol' || a.type === 'supplement').map(activityToRecord),
+    [activities],
+  )
 
   const [view, setView] = useState('landing') // 'landing' | 'all' | <categoryId>
   const [search, setSearch] = useState('')
@@ -132,67 +178,42 @@ export default function Protocols() {
   const [editing, setEditing] = useState(null)
 
   const save = (p) => {
-    setProtocols((prev) => {
-      const list = Array.isArray(prev) ? prev : []
-      const exists = list.some((r) => r.id === p.id)
-      return exists ? list.map((r) => (r.id === p.id ? p : r)) : [...list, p]
-    })
+    const act = recordToActivity(p)
+    if (protocols.some((r) => r.id === p.id)) update(p.id, act)
+    else add(act)
     setEditing(null)
   }
-  const remove = (id) => {
-    setProtocols((prev) => (Array.isArray(prev) ? prev : []).filter((r) => r.id !== id))
-    setEditing(null)
+  const remove = (id) => { removeActivity(id); setEditing(null) }
+  const togglePin = (id) => {
+    const a = activities.find((x) => x.id === id)
+    if (a) update(id, { pinned: !a.pinned })
   }
-  const togglePin = (id) =>
-    setProtocols((prev) => (Array.isArray(prev) ? prev : []).map((r) => (r.id === id ? { ...norm(r), pinned: !norm(r).pinned } : r)))
 
-  // Route a protocol onto the calendar as an EVENT (checkbox), one per selected
-  // time of day (so a Morning + Evening protocol lands in both columns).
+  // Route a protocol onto the calendar as a linked EVENT activity, one per
+  // selected time of day (so a Morning + Evening protocol lands in both columns).
   const addEventFromProtocol = (p) => {
     const today = new Date()
     const base = p.series === 'series' && p.startDate ? p.startDate : dateKey(today)
     const end = p.series === 'series' && !p.noEndDate && p.endDate ? p.endDate : ''
-    const title = p.title || 'Untitled protocol'
     const parts = (p.timesOfDay || []).filter((t) => ['morning', 'afternoon', 'evening'].includes(t))
     const useParts = parts.length ? parts : ['morning']
-    const make = (k, frequency, days, part) => ({
-      key: k,
-      ev: { id: uid(), title, time: '', part, description: p.notes || '', attendees: '', frequency, days: days || [], endDate: end, done: false },
-    })
-    const additions = []
     useParts.forEach((part) => {
-      if (p.frequency === 'daily') additions.push(make(base, 'daily', [], part))
-      else if (p.frequency === 'monthly') additions.push(make(base, 'monthly', [], part))
-      else if (p.frequency === 'yearly') additions.push(make(base, 'yearly', [], part))
-      else if (p.frequency === 'quarterly' || p.frequency === 'asneeded') additions.push(make(base, 'once', [], part))
-      else {
-        const evFreq = p.frequency === 'biweekly' ? 'biweekly' : 'weekly'
-        const days = p.days && p.days.length ? p.days : [parseKey(base).getDay()]
-        days.forEach((dow) => {
-          const d = parseKey(base)
-          d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7))
-          additions.push(make(dateKey(d), evFreq, [dow], part))
-        })
-      }
-    })
-    setEvents((prev) => {
-      const next = { ...prev }
-      additions.forEach(({ key, ev }) => { next[key] = [...(next[key] || []), ev] })
-      return next
+      add(blankActivity('event', {
+        title: p.title || 'Untitled', frequency: p.frequency || 'daily', daysOfWeek: p.days || [],
+        seriesStart: base, seriesEnd: end, linkedId: p.id,
+        details: { partOfDay: part, description: p.notes || '', attendees: '', durationMinutes: '', time: '' },
+      }))
     })
   }
 
-  // ... or as a MEAL ITEM into a chosen slot (never a checkbox event).
+  // ... or as a linked MEAL ITEM in a chosen slot (never a checkbox event).
   const addMealFromProtocol = (p, slot) => {
     const days = p.days && p.days.length ? p.days : []
-    const item = normMeal({
-      name: p.title || 'Untitled', kind: 'food', slot,
-      frequency: p.frequency === 'daily' ? 'daily' : days.length ? 'specific' : 'daily',
-      days,
-      startDate: p.series === 'series' && p.startDate ? p.startDate : '',
-      notes: p.notes || '',
-    })
-    setMeals((prev) => [...(Array.isArray(prev) ? prev : []), item])
+    add(blankActivity('meal_item', {
+      title: p.title || 'Untitled', frequency: p.frequency === 'daily' ? 'daily' : days.length ? 'specific' : 'daily',
+      daysOfWeek: days, seriesStart: p.series === 'series' && p.startDate ? p.startDate : '', linkedId: p.id,
+      details: { slot, beverage: slot === 'drink' },
+    }))
   }
 
   // Open the New Protocol form from the universal Add button (category-aware).

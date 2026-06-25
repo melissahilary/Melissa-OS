@@ -3,14 +3,17 @@ import { X, Trash2 } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseFor } from '../lib/cycle'
 import {
-  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW, startOfWeek,
+  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
 } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
-import MealSlots, { AddMealForm } from './shared/MealSlots'
-import { slotsForPart, mealOccursOn } from '../lib/meals'
+import MealSlots from './shared/MealSlots'
+import { slotsForPart } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
+import ActivityForm from './shared/ActivityForm'
+import { useActivities } from '../hooks/useActivities'
+import { activityOccursOn, isDoneOn, toMealShape, blankActivity, ACTIVITY_TYPES } from '../lib/activities'
 
 // Geocode a place name to coordinates via Open-Meteo (no key, CORS-friendly).
 async function geocode(place) {
@@ -61,65 +64,12 @@ const PARTS = [
   { id: 'afternoon', label: 'Afternoon' },
   { id: 'evening', label: 'Evening' },
 ]
-const FREQ_OPTS = [
-  { id: 'once', label: 'Once' },
-  { id: 'daily', label: 'Daily' },
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'biweekly', label: 'Bi-weekly' },
-  { id: 'monthly', label: 'Monthly' },
-  { id: 'yearly', label: 'Yearly' },
-]
-// Mon-first weekday checkboxes; stored as JS getDay() indices (Sun=0).
-const WEEKDAYS = [
-  { d: 1, label: 'Mon' }, { d: 2, label: 'Tue' }, { d: 3, label: 'Wed' },
-  { d: 4, label: 'Thu' }, { d: 5, label: 'Fri' }, { d: 6, label: 'Sat' }, { d: 0, label: 'Sun' },
-]
-
-// Normalize a stored event (old shape was { id, text, category }).
-const normEvent = (ev) => ({
-  id: ev.id,
-  title: ev.title != null ? ev.title : ev.text || '',
-  time: ev.time || '',
-  part: ev.part || 'morning',
-  description: ev.description || '',
-  attendees: ev.attendees || '',
-  frequency: ev.frequency || 'once',
-  days: Array.isArray(ev.days) ? ev.days : [],
-  endDate: ev.endDate || '',
-  order: typeof ev.order === 'number' ? ev.order : undefined,
-  done: !!ev.done,
-})
-
 const byTime = (a, b) => {
   const ta = a.time || '', tb = b.time || ''
   if (!ta && !tb) return 0
   if (!ta) return -1
   if (!tb) return 1
   return ta.localeCompare(tb)
-}
-
-// Does an event stored on evKey occur on targetKey, given its frequency?
-const occursOn = (ev, evKey, targetKey) => {
-  if (targetKey === evKey) return true
-  const f = ev.frequency
-  if (!f || f === 'once') return false
-  if (targetKey < evKey) return false // recurrence only goes forward
-  if (ev.endDate && targetKey > ev.endDate) return false // past the series end
-  const a = parseKey(evKey)
-  const b = parseKey(targetKey)
-  if (f === 'daily') return true
-  if (f === 'weekly' || f === 'biweekly') {
-    const days = Array.isArray(ev.days) && ev.days.length ? ev.days : [a.getDay()]
-    if (!days.includes(b.getDay())) return false
-    if (f === 'biweekly') {
-      const weeks = Math.round((startOfWeek(b).getTime() - startOfWeek(a).getTime()) / (7 * 86400000))
-      if (weeks % 2 !== 0) return false
-    }
-    return true
-  }
-  if (f === 'monthly') return a.getDate() === b.getDate()
-  if (f === 'yearly') return a.getDate() === b.getDate() && a.getMonth() === b.getMonth()
-  return false
 }
 
 const Cursive = ({ children, className = '' }) => (
@@ -221,89 +171,38 @@ export default function Today({ cycleConfig, location, setLocation }) {
     [cycleConfig.lastPeriodStart, cycleConfig.cycleLength, dateKey(today)],
   )
 
-  const [events, setEvents] = useLocalStorage('mos:today:events', {})
-  const [meals, setMeals] = useLocalStorage('mos:meals', [])
-  const [detail, setDetail] = useState(null) // { key, id }
-  const [homeAdd, setHomeAdd] = useState(null) // null | 'choose' | 'meal'
+  const { activities, add, update, updateDetails, remove, toggleComplete, setOrder } = useActivities()
+  const [editing, setEditing] = useState(null) // an activity (new or existing)
+  const [homeAdd, setHomeAdd] = useState(false) // type chooser open
 
-  const addMeal = (item) => setMeals((prev) => [...(Array.isArray(prev) ? prev : []), item])
-  const removeMeal = (id) => setMeals((prev) => (Array.isArray(prev) ? prev : []).filter((m) => m.id !== id))
+  const isNew = (a) => !activities.some((x) => x.id === a.id)
 
-  // Events for a day = its own events PLUS any recurring event that lands here.
-  const dayEvents = (k) => {
-    const out = []
-    Object.keys(events).forEach((d) => {
-      ;(events[d] || []).forEach((raw) => {
-        const ev = normEvent(raw)
-        if (occursOn(ev, d, k)) out.push(ev)
-      })
-    })
-    return out
-  }
-  // The date an event is actually stored under (its recurrence master).
-  const eventMasterDate = (id) =>
-    Object.keys(events).find((d) => (events[d] || []).some((e) => e.id === id))
+  // Events for a day, shaped for the calendar / Dream Day columns.
+  const dayEvents = (k) =>
+    activities
+      .filter((a) => a.type === 'event' && a.status !== 'archived' && activityOccursOn(a, k))
+      .map((a) => ({ id: a.id, title: a.title, part: a.details.partOfDay || 'morning', time: a.details.time || '', done: isDoneOn(a, k), order: a.order }))
 
-  const addEvent = (k) => {
-    const ev = {
-      id: uid(), title: '', time: '', part: 'morning',
-      description: '', attendees: '', frequency: 'once', days: [], endDate: '', done: false,
-    }
-    setEvents((p) => ({ ...p, [k]: [...(p[k] || []), ev] }))
-    setDetail({ key: k, id: ev.id })
-  }
+  // Meal items + supplements for a day, shaped for MealSlots.
+  const dayMeals = (k) =>
+    activities
+      .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived' && activityOccursOn(a, k))
+      .map(toMealShape)
 
-  const updateEvent = (k, id, patch) => {
-    setEvents((prev) => {
-      const list = (prev[k] || []).map(normEvent)
-      const idx = list.findIndex((e) => e.id === id)
-      if (idx < 0) return prev
-      const merged = { ...list[idx], ...patch }
-      const newKey = patch.date && patch.date !== k ? patch.date : k
-      delete merged.date
-      if (newKey === k) {
-        const nl = [...list]
-        nl[idx] = merged
-        return { ...prev, [k]: nl }
-      }
-      const fromList = list.filter((e) => e.id !== id)
-      const toList = [...(prev[newKey] || []).map(normEvent), merged]
-      return { ...prev, [k]: fromList, [newKey]: toList }
-    })
-    if (patch.date && patch.date !== k) setDetail({ key: patch.date, id })
-  }
-
-  const removeEvent = (k, id) => {
-    setEvents((p) => ({ ...p, [k]: (p[k] || []).filter((e) => e.id !== id) }))
-    setDetail(null)
-  }
-
-  const toggleDone = (k, id) =>
-    setEvents((p) => ({
-      ...p,
-      [k]: (p[k] || []).map((e) => (e.id === id ? { ...normEvent(e), done: !normEvent(e).done } : e)),
+  // Quick inline add from a meal slot (AddMealForm shape → activity).
+  const addMeal = (m) =>
+    add(blankActivity(m.kind === 'supp' ? 'supplement' : 'meal_item', {
+      title: m.name, frequency: m.frequency || 'daily', daysOfWeek: m.days || [], seriesStart: m.startDate || '',
+      details: m.kind === 'supp' ? { slot: m.slot, dose: '', unit: 'mg' } : { slot: m.slot, beverage: m.slot === 'drink' },
     }))
+  const removeMeal = (id) => remove(id)
+  const toggleEvent = (id) => toggleComplete(id, selectedKey)
+  const moveEventToPart = (id, part) => updateDetails(id, { partOfDay: part })
 
-  // Reorder events within a Dream Day column (writes an order index onto masters).
-  const setEventOrder = (orderedIds) =>
-    setEvents((prev) => {
-      const next = {}
-      Object.keys(prev).forEach((d) => {
-        next[d] = (prev[d] || []).map((e) => {
-          const idx = orderedIds.indexOf(e.id)
-          return idx >= 0 ? { ...normEvent(e), order: idx } : e
-        })
-      })
-      return next
-    })
-  // Move an event to a different part of day (drag between columns).
-  const moveEventToPart = (id, part) => {
-    const k = eventMasterDate(id)
-    if (k) updateEvent(k, id, { part })
-  }
+  const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
 
-  // Universal Add on the home page → choose Event or Meal Item.
-  useRegisterAdd(() => setHomeAdd('choose'), [])
+  // Universal Add on the home page → choose a type, then open its form.
+  useRegisterAdd(() => setHomeAdd(true), [])
 
   const pickDay = (k) => { setSelectedKey(k); setCalView('day') }
 
@@ -337,10 +236,10 @@ export default function Today({ cycleConfig, location, setLocation }) {
         today={today}
         cycleConfig={cycleConfig}
         eventsFor={dayEvents}
-        meals={meals}
+        mealsFor={dayMeals}
         onPickDay={pickDay}
-        onAdd={() => setHomeAdd('choose')}
-        onOpen={(k, id) => setDetail({ key: eventMasterDate(id) || k, id })}
+        onAdd={() => setHomeAdd(true)}
+        onOpen={(id) => setEditing(activities.find((a) => a.id === id) || null)}
       />
 
       {/* Day view = unified daily view (calendar header + the four columns).
@@ -349,52 +248,40 @@ export default function Today({ cycleConfig, location, setLocation }) {
         events={dayEvents(selectedKey)}
         dateKeyStr={selectedKey}
         showTitle={calView !== 'day'}
-        meals={meals}
+        meals={dayMeals(selectedKey)}
         onAddMeal={addMeal}
         onRemoveMeal={removeMeal}
-        onReorder={setEventOrder}
+        onReorder={setOrder}
         onMovePart={moveEventToPart}
-        onToggle={(id) => toggleDone(eventMasterDate(id) || selectedKey, id)}
-        onOpen={(id) => setDetail({ key: eventMasterDate(id) || selectedKey, id })}
+        onToggle={toggleEvent}
+        onOpen={(id) => setEditing(activities.find((a) => a.id === id) || null)}
       />
 
       <TodayNotes />
 
-      {homeAdd === 'choose' && (
+      {homeAdd && (
         <AddChooser
-          onEvent={() => { setHomeAdd(null); addEvent(selectedKey) }}
-          onMeal={() => setHomeAdd('meal')}
-          onClose={() => setHomeAdd(null)}
+          options={ACTIVITY_TYPES}
+          onPick={(type) => { setHomeAdd(false); setEditing(blankActivity(type, { seriesStart: selectedKey, frequency: type === 'event' ? 'asneeded' : 'daily' })) }}
+          onClose={() => setHomeAdd(false)}
         />
       )}
-      {homeAdd === 'meal' && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setHomeAdd(null) }}>
-          <div className="w-full max-w-md bg-cream border border-stone-300 p-6 shadow-2xl">
-            <p className="font-serif italic text-2xl text-stone-900 mb-4">New meal item</p>
-            <AddMealForm kind="food" dateKeyStr={selectedKey} showSlot onCancel={() => setHomeAdd(null)} onSave={(item) => { addMeal(item); setHomeAdd(null) }} />
-          </div>
-        </div>
-      )}
 
-      {detail && (() => {
-        const ev = dayEvents(detail.key).find((e) => e.id === detail.id)
-        if (!ev) return null
-        return (
-          <EventDetail
-            ev={ev}
-            dateKeyStr={detail.key}
-            onChange={(patch) => updateEvent(detail.key, detail.id, patch)}
-            onDelete={() => removeEvent(detail.key, detail.id)}
-            onClose={() => setDetail(null)}
-          />
-        )
-      })()}
+      {editing && (
+        <ActivityForm
+          activity={editing}
+          isNew={isNew(editing)}
+          onSave={saveActivity}
+          onDelete={() => { remove(editing.id); setEditing(null) }}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   )
 }
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, meals, onPickDay, onAdd, onOpen }) {
+function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, mealsFor, onPickDay, onAdd, onOpen }) {
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(selectedKey)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -496,7 +383,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
 
                   <div className="mt-0.5 space-y-0.5">
                     {dayEvents.slice(0, 2).map((ev) => (
-                      <button key={ev.id} onClick={() => onOpen(key, ev.id)} className="flex w-full items-center gap-1 text-left">
+                      <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1 text-left">
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
                         <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
                           {ev.title || 'Untitled'}
@@ -519,7 +406,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
               const key = dateKey(d)
               const isTod = isSameDay(d, today)
               const evs = eventsFor(key).sort(byTime)
-              const dayMeals = (meals || []).filter((m) => mealOccursOn(m, key))
+              const dayMeals = mealsFor(key)
               return (
                 <div key={key} className="group border-t border-stone-300 pt-2">
                   <div className="mb-2 flex items-center justify-between">
@@ -528,7 +415,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
                   <div className="space-y-1">
                     {/* Events — bullet dot */}
                     {evs.map((ev) => (
-                      <button key={ev.id} onClick={() => onOpen(key, ev.id)} className="flex w-full items-center gap-1.5 text-left">
+                      <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1.5 text-left">
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
                         {ev.time && <span className="text-[10px] text-stone-400">{ev.time}</span>}
                         <span className={`truncate text-xs ${ev.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{ev.title || 'Untitled'}</span>
@@ -782,117 +669,6 @@ function NoteDetail({ note, onChange, onDelete, onClose }) {
             <Trash2 size={15} /> Delete
           </button>
           <button onClick={onClose} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Done</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Event detail editor ─────────────────────────────────────────────
-function EventDetail({ ev, dateKeyStr, onChange, onDelete, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-cream border border-stone-300 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-start justify-between">
-          <span className="kicker text-stone-400">Event</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
-        </div>
-
-        <input
-          value={ev.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="Title"
-          className="mb-4 w-full bg-transparent border-b border-stone-300 pb-1.5 font-serif text-2xl text-stone-900 outline-none focus:border-stone-900"
-        />
-
-        <div className="space-y-3 text-sm">
-          <div className="flex gap-3">
-            <label className="block flex-1">
-              <span className="kicker text-stone-400 mb-1 block">Date</span>
-              <input type="date" value={dateKeyStr} onChange={(e) => onChange({ date: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
-            </label>
-            <label className="block flex-1">
-              <span className="kicker text-stone-400 mb-1 block">Time</span>
-              <input type="time" value={ev.time} onChange={(e) => onChange({ time: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="kicker text-stone-400 mb-1 block">Part of day</span>
-            <select value={ev.part} onChange={(e) => onChange({ part: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900">
-              {PARTS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-          </label>
-
-          {/* Recurrence — frequency, days (weekly/bi-weekly), series end */}
-          <div className="space-y-3 border-t border-stone-200 pt-3">
-            <label className="block">
-              <span className="kicker text-stone-400 mb-1 block">Frequency</span>
-              <select value={ev.frequency} onChange={(e) => onChange({ frequency: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900">
-                {FREQ_OPTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-              </select>
-            </label>
-
-            {(ev.frequency === 'weekly' || ev.frequency === 'biweekly') && (
-              <div>
-                <span className="kicker text-stone-400 mb-1 block">Days of week</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {WEEKDAYS.map((w) => {
-                    const on = (ev.days || []).includes(w.d)
-                    return (
-                      <button
-                        key={w.d}
-                        type="button"
-                        onClick={() => {
-                          const cur = ev.days || []
-                          onChange({ days: on ? cur.filter((x) => x !== w.d) : [...cur, w.d] })
-                        }}
-                        className={`px-2.5 py-1 text-xs border transition-colors ${
-                          on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'
-                        }`}
-                      >
-                        {w.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {ev.frequency !== 'once' && (
-              <div>
-                <span className="kicker text-stone-400 mb-1 block">Series end</span>
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5">
-                    <input type="radio" name="seriesEnd" checked={!ev.endDate} onChange={() => onChange({ endDate: '' })} />
-                    No end date
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="seriesEnd" checked={!!ev.endDate} onChange={() => onChange({ endDate: ev.endDate || dateKeyStr })} />
-                    End on date
-                    {ev.endDate && (
-                      <input type="date" value={ev.endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="bg-transparent border-b border-stone-300 pb-0.5 outline-none focus:border-stone-900" />
-                    )}
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <label className="block">
-            <span className="kicker text-stone-400 mb-1 block">Description</span>
-            <textarea value={ev.description} onChange={(e) => onChange({ description: e.target.value })} rows={2} className="w-full bg-transparent border border-stone-300 px-2 py-1 outline-none focus:border-stone-900" />
-          </label>
-
-          <label className="block">
-            <span className="kicker text-stone-400 mb-1 block">Attendees</span>
-            <input value={ev.attendees} onChange={(e) => onChange({ attendees: e.target.value })} placeholder="Comma separated" className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900" />
-          </label>
-        </div>
-
-        <div className="mt-6 flex items-center justify-between">
-          <button onClick={onDelete} className="text-sm text-stone-500 hover:text-stone-900">Delete</button>
-          <button onClick={onClose} className="bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Save</button>
         </div>
       </div>
     </div>

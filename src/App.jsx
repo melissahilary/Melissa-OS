@@ -7,6 +7,7 @@ import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
 import { dateKey } from './lib/date'
 import { migrateWeekPlan, normMeal } from './lib/meals'
+import { migrateToActivities } from './lib/activities'
 import { AddProvider } from './components/shared/AddButton'
 
 // Titles that were mistakenly stored as checkbox events but are really meal items.
@@ -119,6 +120,24 @@ export default function App() {
     })
     setReclassDone(true)
   }, [reclassDone, eventsForFix, setEventsFix, setMeals, setReclassDone])
+
+  // One-time migration into the unified Activity store (originals are kept).
+  const [activitiesRaw, setActivitiesRaw] = useLocalStorage('mos:activities', [])
+  const [protocolsForMigrate] = useLocalStorage('mos:menu:recipes', [])
+  const actMigRef = useRef(false)
+  useEffect(() => {
+    if (actMigRef.current) return
+    if (Array.isArray(activitiesRaw) && activitiesRaw.length > 0) { actMigRef.current = true; return }
+    const hasLegacy =
+      (eventsForFix && Object.keys(eventsForFix).length) ||
+      (Array.isArray(meals) && meals.length) ||
+      (weekPlanForMigrate && Object.keys(weekPlanForMigrate).length) ||
+      (Array.isArray(protocolsForMigrate) && protocolsForMigrate.length)
+    if (!hasLegacy) return
+    actMigRef.current = true
+    const mealsSource = Array.isArray(meals) && meals.length ? meals : migrateWeekPlan(weekPlanForMigrate)
+    setActivitiesRaw(migrateToActivities({ events: eventsForFix, meals: mealsSource, protocols: protocolsForMigrate }))
+  }, [activitiesRaw, eventsForFix, meals, protocolsForMigrate, setActivitiesRaw])
   const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
   const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
   const [cycleConfig, setCycleConfig] = useLocalStorage('mos:settings:cycle', {

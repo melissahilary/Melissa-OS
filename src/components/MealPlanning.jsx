@@ -10,6 +10,8 @@ import { DayNav, DayHeader } from './shared/DayNav'
 import MealSlots, { AddMealForm } from './shared/MealSlots'
 import { MEAL_SLOTS } from '../lib/meals'
 import { useRegisterAdd } from './shared/AddButton'
+import { useActivities } from '../hooks/useActivities'
+import { activityOccursOn, toMealShape, blankActivity } from '../lib/activities'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -29,11 +31,19 @@ function MealSchedule({ cycleConfig }) {
   const today = new Date()
   const [selected, setSelected] = useState(new Date())
   const key = dateKey(selected)
-  const [meals, setMeals] = useLocalStorage('mos:meals', [])
+  const { activities, add, remove } = useActivities()
   const [adding, setAdding] = useState(false)
 
-  const addMeal = (item) => setMeals((prev) => [...(Array.isArray(prev) ? prev : []), item])
-  const removeMeal = (id) => setMeals((prev) => (Array.isArray(prev) ? prev : []).filter((m) => m.id !== id))
+  const meals = activities
+    .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived' && activityOccursOn(a, key))
+    .map(toMealShape)
+
+  const addMeal = (m) =>
+    add(blankActivity(m.kind === 'supp' ? 'supplement' : 'meal_item', {
+      title: m.name, frequency: m.frequency || 'daily', daysOfWeek: m.days || [], seriesStart: m.startDate || '',
+      details: m.kind === 'supp' ? { slot: m.slot, dose: '', unit: 'mg' } : { slot: m.slot, beverage: m.slot === 'drink' },
+    }))
+  const removeMeal = (id) => remove(id)
 
   useRegisterAdd(() => setAdding(true), [])
 
