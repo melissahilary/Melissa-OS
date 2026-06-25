@@ -1,14 +1,23 @@
-import React, { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const ROOMS = ['Kitchen', 'Bath', 'Bedroom', 'Office', 'Dog Station', 'Supplement Cabinet', 'Cleaning', 'Other']
 
+// Floating Add focuses the page's primary add field (Enter commits).
+const focusAdd = (ref) => {
+  const el = ref.current && ref.current.querySelector('input[placeholder], textarea[placeholder]')
+  if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }
+}
+
 export default function Household() {
+  const rootRef = useRef(null)
   const [items, setItems] = useLocalStorage('mos:menu:shop', [])
   const [draft, setDraft] = useState({ name: '', room: 'Kitchen', cost: '', type: 'shop' })
+  useRegisterAdd(() => focusAdd(rootRef), [])
 
   const add = () => {
     if (!draft.name.trim()) return
@@ -26,7 +35,7 @@ export default function Household() {
     .reduce((sum, i) => sum + (Number(i.cost) || 0), 0)
 
   return (
-    <div>
+    <div ref={rootRef}>
       <SectionTitle kicker="06 · Running the house" title="Household." />
 
       <section>
@@ -70,9 +79,6 @@ export default function Household() {
             <option value="shop">shop</option>
             <option value="restock">restock</option>
           </select>
-          <button onClick={add} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700">
-            <Plus size={16} />
-          </button>
         </div>
 
         {items.length === 0 ? (

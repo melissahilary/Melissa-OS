@@ -1,20 +1,28 @@
-import React, { useState } from 'react'
-import { Plus, X, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { X, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const STAGES = ['Researching', 'Applied', 'Screening', 'Interviewing', 'Offer', 'Passed']
 
+const focusAdd = (ref) => {
+  const el = ref.current && ref.current.querySelector('input[placeholder], textarea[placeholder]')
+  if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }
+}
+
 export default function Career() {
+  const rootRef = useRef(null)
   const [data, setData] = useLocalStorage('mos:career', {
     linkedin: [],
     resume: [],
     jobs: [],
   })
+  useRegisterAdd(() => focusAdd(rootRef), [])
 
   return (
-    <div>
+    <div ref={rootRef}>
       <SectionTitle kicker="04 · The next chapter" title="Landing an EA Offer." />
 
       <div className="grid gap-10 md:grid-cols-2">
@@ -62,7 +70,6 @@ function Checklist({ title, items, onAdd, onToggle, onRemove }) {
           placeholder="Add a step"
           className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
-        <button onClick={commit} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
       </div>
       <div className="divide-y divide-stone-100">
         {items.map((it) => (
@@ -106,15 +113,14 @@ function JobsPipeline({ data, setData }) {
       <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900 mb-5">The pipeline.</h2>
 
       <div className="mb-6 grid gap-2 md:grid-cols-6">
-        <input value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })} placeholder="Role" className="md:col-span-2 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
-        <input value={draft.company} onChange={(e) => setDraft({ ...draft, company: e.target.value })} placeholder="Company" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
-        <input value={draft.salary} onChange={(e) => setDraft({ ...draft, salary: e.target.value })} placeholder="Salary" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
-        <input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} placeholder="Location" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+        <input value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Role" className="md:col-span-2 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+        <input value={draft.company} onChange={(e) => setDraft({ ...draft, company: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Company" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+        <input value={draft.salary} onChange={(e) => setDraft({ ...draft, salary: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Salary" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+        <input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Location" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
         <div className="flex gap-2">
           <select value={draft.stage} onChange={(e) => setDraft({ ...draft, stage: e.target.value })} className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none">
             {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <button onClick={add} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
         </div>
       </div>
 

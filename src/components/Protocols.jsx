@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X, Trash2, Pin, Search, Check, CalendarPlus, ChevronLeft } from 'lucide-react'
+import { X, Trash2, Pin, Search, Check, CalendarPlus, ChevronLeft } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
 import { dateKey, parseKey } from '../lib/date'
@@ -506,7 +506,7 @@ function RowList({ label, value, onChange, fields, numbered, addLabel = 'Add' })
           </div>
         ))}
       </div>
-      <button onClick={add} className="mt-2 flex items-center gap-1 text-xs text-stone-500 hover:text-stone-900"><Plus size={13} /> {addLabel}</button>
+      <button onClick={add} className="mt-2 flex items-center gap-1 text-xs text-stone-500 hover:text-stone-900">{addLabel}</button>
     </div>
   )
 }

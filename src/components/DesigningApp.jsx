@@ -1,12 +1,19 @@
-import React, { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const PAGE_STATUS = ['Planned', 'Building', 'Live', 'Parked']
 
+const focusAdd = (ref) => {
+  const el = ref.current && ref.current.querySelector('input[placeholder], textarea[placeholder]')
+  if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }
+}
+
 export default function DesigningApp() {
+  const rootRef = useRef(null)
   const [data, setData] = useLocalStorage('mos:app', {
     pages: [],
     terminal: [],
@@ -14,11 +21,12 @@ export default function DesigningApp() {
     textFixes: [],
     copyFixes: [],
   })
+  useRegisterAdd(() => focusAdd(rootRef), [])
 
   const mut = (key, fn) => setData((d) => ({ ...d, [key]: fn(d[key] || []) }))
 
   return (
-    <div>
+    <div ref={rootRef}>
       <SectionTitle kicker="05 · The build" title="Designing An App." />
 
       {/* App pages with status */}
@@ -65,7 +73,6 @@ function PagesList({ pages, onAdd, onStatus, onRemove }) {
           placeholder="A page or screen"
           className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
-        <button onClick={commit} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
       </div>
       <div className="divide-y divide-stone-100">
         {pages.map((p) => (
@@ -106,7 +113,6 @@ function TextList({ title, items, onAdd, onRemove, mono = false }) {
           placeholder="Add an entry"
           className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
-        <button onClick={commit} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
       </div>
       <div className="divide-y divide-stone-100">
         {items.map((it) => (

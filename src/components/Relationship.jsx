@@ -1,10 +1,16 @@
-import React, { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { parseKey, longDate } from '../lib/date'
 import SectionTitle from './shared/SectionTitle'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
+
+const focusAdd = (ref) => {
+  const el = ref.current && ref.current.querySelector('input[placeholder], textarea[placeholder]')
+  if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }
+}
 
 function subtractMinutes(timeStr, minutes) {
   if (!timeStr) return ''
@@ -17,12 +23,14 @@ function subtractMinutes(timeStr, minutes) {
 }
 
 export default function Relationship() {
+  const rootRef = useRef(null)
   const [data, setData] = useLocalStorage('mos:rel', {
     anniversary: '',
     dateNights: [],
     ideas: [],
     habits: [],
   })
+  useRegisterAdd(() => focusAdd(rootRef), [])
 
   const daysUntilAnniversary = (() => {
     if (!data.anniversary) return null
@@ -35,7 +43,7 @@ export default function Relationship() {
   })()
 
   return (
-    <div>
+    <div ref={rootRef}>
       <SectionTitle kicker="03 · The two of us" title="Relationship." />
 
       {/* Anniversary */}
@@ -114,13 +122,12 @@ function DateNights({ data, setData, subtractMinutes }) {
       <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900 mb-5">Scheduled date nights.</h2>
 
       <div className="mb-6 grid gap-2 md:grid-cols-6">
-        <input value={draft.place} onChange={(e) => setDraft({ ...draft, place: e.target.value })} placeholder="Place" className="md:col-span-2 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
-        <input value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: e.target.value })} type="number" placeholder="$" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+        <input value={draft.place} onChange={(e) => setDraft({ ...draft, place: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Place" className="md:col-span-2 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+        <input value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} type="number" placeholder="$" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
         <input value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} type="date" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
         <input value={draft.departure} onChange={(e) => setDraft({ ...draft, departure: e.target.value })} type="time" className="bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
         <div className="flex gap-2">
-          <input value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} placeholder="Duration" className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
-          <button onClick={add} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
+          <input value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Duration" className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
         </div>
       </div>
 
@@ -189,7 +196,6 @@ function SimpleList({ title, placeholder, items, onAdd, onRemove }) {
           placeholder={placeholder}
           className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
-        <button onClick={commit} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
       </div>
       <div className="divide-y divide-stone-100">
         {items.map((it) => (
@@ -221,7 +227,6 @@ function HabitInput({ onAdd }) {
         placeholder="Something we hold to"
         className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
       />
-      <button onClick={commit} className="bg-stone-900 px-2.5 py-1.5 text-cream hover:bg-stone-700"><Plus size={16} /></button>
     </div>
   )
 }

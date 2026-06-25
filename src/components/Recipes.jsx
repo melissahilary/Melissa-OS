@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Plus, X, Trash2 } from 'lucide-react'
+import { X, Trash2 } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
 import { useRegisterAdd } from './shared/AddButton'
@@ -420,7 +420,7 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
               >
                 {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
-              <button onClick={addIngredient} className="bg-stone-900 px-2 py-1 text-cream hover:bg-stone-700"><Plus size={14} /></button>
+              <button onClick={addIngredient} className="bg-stone-900 px-2.5 py-1 text-xs text-cream hover:bg-stone-700">Add</button>
             </div>
           </div>
 

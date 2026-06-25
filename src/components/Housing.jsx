@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
+import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const STAGES = ['Interested', 'Touring', 'Applied', 'Approved', 'Rejected']
@@ -57,6 +58,7 @@ export default function Housing() {
     setData((d) => ({ ...d, properties: [...(d.properties || []), p] }))
     setExpanded(p.id)
   }
+  useRegisterAdd(() => addProperty(), [])
   const updateProperty = (id, patch) =>
     setData((d) => ({ ...d, properties: d.properties.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
   const removeProperty = (id) =>
@@ -76,9 +78,6 @@ export default function Housing() {
         </div>
         <div className="mb-5 flex items-end justify-between">
           <h2 className="font-serif italic text-2xl md:text-3xl text-stone-900">What we're considering.</h2>
-          <button onClick={addProperty} className="flex items-center gap-1.5 bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
-            <Plus size={15} /> Add
-          </button>
         </div>
 
         <div className="space-y-2">

@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { DOW_LONG, monthGrid, dateKey, parseKey, isSameDay, MONTHS, DOW, moonPhaseIndex } from '../lib/date'
 import MoonIcon from './shared/MoonIcon'
@@ -8,6 +8,11 @@ import Recipes, { HAIRCARE_RECIPES_CONFIG } from './Recipes'
 import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
+
+const focusAdd = (ref) => {
+  const el = ref.current && ref.current.querySelector('input[placeholder], textarea[placeholder]')
+  if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }
+}
 
 // Full set of Manifestations subsections (Overview removed).
 export const DREAM_PAGES = [
@@ -55,7 +60,9 @@ export default function DreamWorld({ page, cycleConfig }) {
 }
 
 function DreamWeek() {
+  const rootRef = useRef(null)
   const [week, setWeek] = useLocalStorage('mos:dream:week', {})
+  useRegisterAdd(() => focusAdd(rootRef), [])
   const add = (day, text) => {
     if (!text.trim()) return
     setWeek((w) => ({ ...w, [day]: [...(w[day] || []), { id: uid(), text: text.trim() }] }))
@@ -65,7 +72,7 @@ function DreamWeek() {
   const remove = (day, id) => setWeek((w) => ({ ...w, [day]: (w[day] || []).filter((x) => x.id !== id) }))
 
   return (
-    <section>
+    <section ref={rootRef}>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {DOW_LONG.map((day) => (
           <DayCol key={day} day={day} items={week[day] || []} onAdd={(t) => add(day, t)} onEdit={(id, t) => edit(day, id, t)} onRemove={(id) => remove(day, id)} />
@@ -156,6 +163,8 @@ function DreamCalendar() {
   const toggleDone = (key, id) =>
     setEvents((p) => ({ ...p, [key]: (p[key] || []).map((e) => (e.id === id ? { ...normEvent(e), done: !normEvent(e).done } : e)) }))
 
+  useRegisterAdd(() => addEvent(anchor), [anchor])
+
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(anchor)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -233,7 +242,6 @@ function DreamCalendar() {
                       </button>
                     ))}
                   </div>
-                  <button onClick={() => addEvent(key)} className="absolute right-1 top-1 hidden text-stone-300 hover:text-stone-900 group-hover:block"><Plus size={13} /></button>
                 </div>
               )
             })}
@@ -260,7 +268,6 @@ function DreamCalendar() {
                 <div key={key} className="group border-t border-stone-300 pt-2">
                   <div className="mb-2 flex items-center justify-between">
                     <p className={`kicker ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</p>
-                    <button onClick={() => addEvent(key)} className="hidden text-stone-300 hover:text-stone-900 group-hover:block"><Plus size={13} /></button>
                   </div>
                   <div className="space-y-1">
                     {evs.map((ev) => (
@@ -328,7 +335,6 @@ function DayView({ anchor, anchorDate, today, events, catColor, onShift, onToday
           <button onClick={() => onShift(-1)} className="text-sm text-stone-500 hover:text-stone-900">Prev</button>
           <button onClick={onToday} className="text-sm text-stone-500 hover:text-stone-900">Today</button>
           <button onClick={() => onShift(1)} className="text-sm text-stone-500 hover:text-stone-900">Next</button>
-          <button onClick={onAdd} className="bg-stone-900 px-2 py-1 text-cream hover:bg-stone-700"><Plus size={15} /></button>
         </div>
       </div>
       <div className="space-y-7">
