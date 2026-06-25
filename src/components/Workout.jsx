@@ -5,9 +5,7 @@ import { dateKey } from '../lib/date'
 import SectionTitle from './shared/SectionTitle'
 import { DayNav, DayHeader } from './shared/DayNav'
 import CardCollection from './shared/CardCollection'
-import Recipes, { PROTOCOL_CONFIG } from './Recipes'
-
-const opt = (arr) => arr.map((x) => ({ id: x, label: x }))
+import Protocols from './Protocols'
 
 const PRACTICE_FIELDS = [
   { key: 'notes', label: 'Notes', type: 'textarea' },
@@ -43,7 +41,7 @@ export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, s
         </>
       )}
 
-      {subPage === 'protocols' && <Recipes config={PROTOCOL_CONFIG} />}
+      {subPage === 'protocols' && <Protocols />}
 
       {subPage === 'practices' && (
         <CardCollection

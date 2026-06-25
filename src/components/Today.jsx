@@ -3,7 +3,7 @@ import { Plus, X, Trash2 } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseFor } from '../lib/cycle'
 import {
-  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
+  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW, startOfWeek,
 } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
@@ -58,7 +58,19 @@ const PARTS = [
   { id: 'afternoon', label: 'Afternoon' },
   { id: 'evening', label: 'Evening' },
 ]
-const FREQS = ['once', 'daily', 'weekly', 'monthly', 'yearly']
+const FREQ_OPTS = [
+  { id: 'once', label: 'Once' },
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'biweekly', label: 'Bi-weekly' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'yearly', label: 'Yearly' },
+]
+// Mon-first weekday checkboxes; stored as JS getDay() indices (Sun=0).
+const WEEKDAYS = [
+  { d: 1, label: 'Mon' }, { d: 2, label: 'Tue' }, { d: 3, label: 'Wed' },
+  { d: 4, label: 'Thu' }, { d: 5, label: 'Fri' }, { d: 6, label: 'Sat' }, { d: 0, label: 'Sun' },
+]
 
 // Normalize a stored event (old shape was { id, text, category }).
 const normEvent = (ev) => ({
@@ -69,6 +81,8 @@ const normEvent = (ev) => ({
   description: ev.description || '',
   attendees: ev.attendees || '',
   frequency: ev.frequency || 'once',
+  days: Array.isArray(ev.days) ? ev.days : [],
+  endDate: ev.endDate || '',
   done: !!ev.done,
 })
 
@@ -86,10 +100,19 @@ const occursOn = (ev, evKey, targetKey) => {
   const f = ev.frequency
   if (!f || f === 'once') return false
   if (targetKey < evKey) return false // recurrence only goes forward
+  if (ev.endDate && targetKey > ev.endDate) return false // past the series end
   const a = parseKey(evKey)
   const b = parseKey(targetKey)
   if (f === 'daily') return true
-  if (f === 'weekly') return a.getDay() === b.getDay()
+  if (f === 'weekly' || f === 'biweekly') {
+    const days = Array.isArray(ev.days) && ev.days.length ? ev.days : [a.getDay()]
+    if (!days.includes(b.getDay())) return false
+    if (f === 'biweekly') {
+      const weeks = Math.round((startOfWeek(b).getTime() - startOfWeek(a).getTime()) / (7 * 86400000))
+      if (weeks % 2 !== 0) return false
+    }
+    return true
+  }
   if (f === 'monthly') return a.getDate() === b.getDate()
   if (f === 'yearly') return a.getDate() === b.getDate() && a.getMonth() === b.getMonth()
   return false
@@ -215,7 +238,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
   const addEvent = (k) => {
     const ev = {
       id: uid(), title: '', time: '', part: 'morning',
-      description: '', attendees: '', frequency: 'once', done: false,
+      description: '', attendees: '', frequency: 'once', days: [], endDate: '', done: false,
     }
     setEvents((p) => ({ ...p, [k]: [...(p[k] || []), ev] }))
     setDetail({ key: k, id: ev.id })
@@ -475,19 +498,30 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
   )
 }
 
-// ── My dream day / unified day columns — events by part + today's meals ──
+// Which Meal Planning slots belong to each part of the day.
+const PART_SLOTS = {
+  morning: ['empty', 'breakfast', 'snack1'],
+  afternoon: ['lunch', 'snack2'],
+  evening: ['dinner', 'bed'],
+}
+
+// ── My dream day / unified day columns — events + meals blended per part ──
 function DreamDay({ events, dateKeyStr, showTitle = true, onToggle, onOpen }) {
+  const [weekPlan] = useLocalStorage('mos:menu:weekplan', {})
+  const day = weekPlan[dateKeyStr] || {}
+
   return (
     <section className="mb-14">
       {showTitle && (
         <Cursive className="block mb-6 text-5xl md:text-6xl text-stone-900 leading-tight">My dream day.</Cursive>
       )}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {PARTS.map((part) => {
           const items = events.filter((e) => e.part === part.id).sort(byTime)
           return (
             <div key={part.id} className="border-t border-stone-300 pt-3">
               <p className="kicker text-stone-500 mb-3">{part.label}</p>
+
               {items.length === 0 ? (
                 <p className="text-sm text-stone-300">Nothing scheduled.</p>
               ) : (
@@ -509,22 +543,27 @@ function DreamDay({ events, dateKeyStr, showTitle = true, onToggle, onOpen }) {
                   ))}
                 </div>
               )}
+
+              {/* Subtle divider between events and the meal slots */}
+              <div className="my-4 border-t border-stone-100" />
+
+              <MealSlots day={day} partId={part.id} />
             </div>
           )
         })}
-        <MealsColumn dateKeyStr={dateKeyStr} />
       </div>
     </section>
   )
 }
 
-// Read-only view of today's Meal Planning → Schedule entries, in slot order.
-function MealsColumn({ dateKeyStr }) {
-  const [weekPlan] = useLocalStorage('mos:menu:weekplan', {})
-  const day = weekPlan[dateKeyStr] || {}
+// Read-only meal slots for a part of day, pulled from Meal Planning → Schedule.
+function MealSlots({ day, partId }) {
+  const slotIds = PART_SLOTS[partId] || []
   const rows = []
-  SLOTS.forEach((slot) => {
-    const slotData = day[slot.id] || {}
+  slotIds.forEach((id) => {
+    const slot = SLOTS.find((s) => s.id === id)
+    if (!slot) return
+    const slotData = day[id] || {}
     rows.push({
       label: slot.label,
       values: (slotData.foods || []).map((f) => f.name).filter(Boolean),
@@ -540,20 +579,17 @@ function MealsColumn({ dateKeyStr }) {
     }
   })
   return (
-    <div className="border-t border-stone-300 pt-3">
-      <p className="kicker text-stone-500 mb-3">Today's meals</p>
-      <div className="space-y-2">
-        {rows.map((r, i) => (
-          <div key={i} className={r.sub ? 'pl-3' : ''}>
-            <p className={`kicker ${r.sub ? 'text-stone-300' : 'text-stone-400'}`}>{r.label}</p>
-            {r.values.length ? (
-              <p className="text-sm text-stone-700">{r.values.join(', ')}</p>
-            ) : (
-              <p className="text-sm italic text-stone-300">{r.placeholder}</p>
-            )}
-          </div>
-        ))}
-      </div>
+    <div className="space-y-2">
+      {rows.map((r, i) => (
+        <div key={i} className={r.sub ? 'pl-3' : ''}>
+          <p className={`kicker ${r.sub ? 'text-stone-300' : 'text-stone-400'}`}>{r.label}</p>
+          {r.values.length ? (
+            <p className="text-sm text-stone-700">{r.values.join(', ')}</p>
+          ) : (
+            <p className="text-sm italic text-stone-300">{r.placeholder}</p>
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -734,19 +770,66 @@ function EventDetail({ ev, dateKeyStr, onChange, onDelete, onClose }) {
             </label>
           </div>
 
-          <div className="flex gap-3">
-            <label className="block flex-1">
-              <span className="kicker text-stone-400 mb-1 block">Part of day</span>
-              <select value={ev.part} onChange={(e) => onChange({ part: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900">
-                {PARTS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              </select>
-            </label>
-            <label className="block flex-1">
+          <label className="block">
+            <span className="kicker text-stone-400 mb-1 block">Part of day</span>
+            <select value={ev.part} onChange={(e) => onChange({ part: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900">
+              {PARTS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+          </label>
+
+          {/* Recurrence — frequency, days (weekly/bi-weekly), series end */}
+          <div className="space-y-3 border-t border-stone-200 pt-3">
+            <label className="block">
               <span className="kicker text-stone-400 mb-1 block">Frequency</span>
-              <select value={ev.frequency} onChange={(e) => onChange({ frequency: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 capitalize outline-none focus:border-stone-900">
-                {FREQS.map((f) => <option key={f} value={f}>{f}</option>)}
+              <select value={ev.frequency} onChange={(e) => onChange({ frequency: e.target.value })} className="w-full bg-transparent border-b border-stone-300 pb-1 outline-none focus:border-stone-900">
+                {FREQ_OPTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
               </select>
             </label>
+
+            {(ev.frequency === 'weekly' || ev.frequency === 'biweekly') && (
+              <div>
+                <span className="kicker text-stone-400 mb-1 block">Days of week</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {WEEKDAYS.map((w) => {
+                    const on = (ev.days || []).includes(w.d)
+                    return (
+                      <button
+                        key={w.d}
+                        type="button"
+                        onClick={() => {
+                          const cur = ev.days || []
+                          onChange({ days: on ? cur.filter((x) => x !== w.d) : [...cur, w.d] })
+                        }}
+                        className={`px-2.5 py-1 text-xs border transition-colors ${
+                          on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'
+                        }`}
+                      >
+                        {w.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {ev.frequency !== 'once' && (
+              <div>
+                <span className="kicker text-stone-400 mb-1 block">Series end</span>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5">
+                    <input type="radio" name="seriesEnd" checked={!ev.endDate} onChange={() => onChange({ endDate: '' })} />
+                    No end date
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="radio" name="seriesEnd" checked={!!ev.endDate} onChange={() => onChange({ endDate: ev.endDate || dateKeyStr })} />
+                    End on date
+                    {ev.endDate && (
+                      <input type="date" value={ev.endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="bg-transparent border-b border-stone-300 pb-0.5 outline-none focus:border-stone-900" />
+                    )}
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
 
           <label className="block">
