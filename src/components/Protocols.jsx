@@ -64,24 +64,28 @@ const blankProtocol = () => ({
   notes: '',
 })
 
-// Normalize a stored protocol (tolerates older / partial shapes).
+// Normalize a stored protocol. Tolerates the older recipe-shaped records
+// (name/prep/ingredients...) so existing cards are restored, and preserves any
+// legacy fields via the spread so nothing is destroyed on save.
 const norm = (p) => ({
+  ...p,
   id: p.id || uid(),
-  title: p.title || '',
+  title: p.title || p.name || '',
   category: p.category || 'nutrition',
   phases: Array.isArray(p.phases) ? p.phases : [],
   timeOfDay: p.timeOfDay || 'any',
   frequency: p.frequency || 'daily',
   days: Array.isArray(p.days) ? p.days : [],
-  series: p.series === 'series' ? 'series' : 'onetime',
+  series: p.series || (p.startDate ? 'series' : 'onetime'),
   startDate: p.startDate || '',
   endDate: p.endDate || '',
-  noEndDate: p.noEndDate !== false,
-  notes: p.notes || '',
+  noEndDate: p.noEndDate != null ? p.noEndDate : !p.endDate,
+  notes: p.notes || p.prep || '',
 })
 
 export default function Protocols() {
-  const [stored, setProtocols] = useLocalStorage('mos:workout:protocols', [])
+  // Reads the existing protocol/recipe data so previously-created cards persist.
+  const [stored, setProtocols] = useLocalStorage('mos:menu:recipes', [])
   const protocols = useMemo(() => (Array.isArray(stored) ? stored.map(norm) : []), [stored])
   const [, setEvents] = useLocalStorage('mos:today:events', {})
 
