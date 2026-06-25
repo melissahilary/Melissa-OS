@@ -6,8 +6,19 @@ import {
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
 import { dateKey } from './lib/date'
-import { migrateWeekPlan } from './lib/meals'
+import { migrateWeekPlan, normMeal } from './lib/meals'
 import { AddProvider } from './components/shared/AddButton'
+
+// Titles that were mistakenly stored as checkbox events but are really meal items.
+const RECLASSIFY = {
+  'olive oil shot': 'empty',
+  '2l of water': 'drink',
+  '2 l of water': 'drink',
+  '2l water': 'drink',
+  '2 liters of water': 'drink',
+  '2l': 'drink',
+}
+const reclassSlot = (title) => RECLASSIFY[(title || '').trim().toLowerCase()]
 
 import Footer from './components/shared/Footer'
 import Today from './components/Today'
@@ -76,6 +87,38 @@ export default function App() {
       setMeals(migrateWeekPlan(weekPlanForMigrate))
     }
   }, [meals, weekPlanForMigrate, setMeals])
+
+  // One-time fix: reclassify mis-typed checkbox events (olive oil shot, water) as
+  // meal items in the right slot, and drop them from the event lists.
+  const [eventsForFix, setEventsFix] = useLocalStorage('mos:today:events', {})
+  const [reclassDone, setReclassDone] = useLocalStorage('mos:flags:reclassifyV2', false)
+  useEffect(() => {
+    if (reclassDone) return
+    const matches = []
+    Object.keys(eventsForFix || {}).forEach((k) => {
+      ;(eventsForFix[k] || []).forEach((e) => {
+        const slot = reclassSlot(e.title)
+        if (slot) matches.push({ title: (e.title || '').trim(), slot })
+      })
+    })
+    if (!matches.length) return
+    setEventsFix((prev) => {
+      const next = {}
+      Object.keys(prev || {}).forEach((k) => { next[k] = (prev[k] || []).filter((e) => !reclassSlot(e.title)) })
+      return next
+    })
+    setMeals((prev) => {
+      const list = Array.isArray(prev) ? prev : []
+      const additions = []
+      matches.forEach((m) => {
+        const key = m.title.toLowerCase()
+        const exists = list.some((x) => (x.name || '').trim().toLowerCase() === key) || additions.some((a) => a.name.toLowerCase() === key)
+        if (!exists) additions.push(normMeal({ name: m.title, kind: 'food', slot: m.slot, frequency: 'daily', startDate: '' }))
+      })
+      return additions.length ? [...list, ...additions] : list
+    })
+    setReclassDone(true)
+  }, [reclassDone, eventsForFix, setEventsFix, setMeals, setReclassDone])
   const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
   const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
   const [cycleConfig, setCycleConfig] = useLocalStorage('mos:settings:cycle', {

@@ -85,6 +85,7 @@ const normEvent = (ev) => ({
   frequency: ev.frequency || 'once',
   days: Array.isArray(ev.days) ? ev.days : [],
   endDate: ev.endDate || '',
+  order: typeof ev.order === 'number' ? ev.order : undefined,
   done: !!ev.done,
 })
 
@@ -282,6 +283,24 @@ export default function Today({ cycleConfig, location, setLocation }) {
       [k]: (p[k] || []).map((e) => (e.id === id ? { ...normEvent(e), done: !normEvent(e).done } : e)),
     }))
 
+  // Reorder events within a Dream Day column (writes an order index onto masters).
+  const setEventOrder = (orderedIds) =>
+    setEvents((prev) => {
+      const next = {}
+      Object.keys(prev).forEach((d) => {
+        next[d] = (prev[d] || []).map((e) => {
+          const idx = orderedIds.indexOf(e.id)
+          return idx >= 0 ? { ...normEvent(e), order: idx } : e
+        })
+      })
+      return next
+    })
+  // Move an event to a different part of day (drag between columns).
+  const moveEventToPart = (id, part) => {
+    const k = eventMasterDate(id)
+    if (k) updateEvent(k, id, { part })
+  }
+
   // Universal Add on the home page → choose Event or Meal Item.
   useRegisterAdd(() => setHomeAdd('choose'), [])
 
@@ -330,6 +349,8 @@ export default function Today({ cycleConfig, location, setLocation }) {
         meals={meals}
         onAddMeal={addMeal}
         onRemoveMeal={removeMeal}
+        onReorder={setEventOrder}
+        onMovePart={moveEventToPart}
         onToggle={(id) => toggleDone(eventMasterDate(id) || selectedKey, id)}
         onOpen={(id) => setDetail({ key: eventMasterDate(id) || selectedKey, id })}
       />
@@ -518,8 +539,38 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
   )
 }
 
+// Sort events by manual order (drag), falling back to time.
+const sortEvents = (a, b) => {
+  const ao = a.order, bo = b.order
+  if (ao != null && bo != null) return ao - bo
+  if (ao != null) return -1
+  if (bo != null) return 1
+  return byTime(a, b)
+}
+
 // ── My dream day / unified day columns — events + editable meals per part ──
-function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRemoveMeal, onToggle, onOpen }) {
+function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+  const [drag, setDrag] = useState(null) // { id, fromPart }
+
+  const dropOnRow = (targetPart, targetId, colIds) => {
+    if (!drag) return
+    if (drag.fromPart !== targetPart) {
+      onMovePart(drag.id, targetPart)
+    } else {
+      const ids = colIds.filter((id) => id !== drag.id)
+      const at = ids.indexOf(targetId)
+      ids.splice(at < 0 ? ids.length : at, 0, drag.id)
+      onReorder(ids)
+    }
+    setDrag(null)
+  }
+  const dropOnColumn = (targetPart, colIds) => {
+    if (!drag) return
+    if (drag.fromPart !== targetPart) onMovePart(drag.id, targetPart)
+    else { const ids = colIds.filter((id) => id !== drag.id); ids.push(drag.id); onReorder(ids) }
+    setDrag(null)
+  }
+
   return (
     <section className="mb-14">
       {showTitle && (
@@ -527,37 +578,53 @@ function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRe
       )}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {PARTS.map((part) => {
-          const items = events.filter((e) => e.part === part.id).sort(byTime)
+          const items = events.filter((e) => e.part === part.id).sort(sortEvents)
+          const colIds = items.map((i) => i.id)
           const slotIds = slotsForPart(part.id).map((s) => s.id)
           return (
             <div key={part.id} className="border-t border-stone-300 pt-3">
               <p className="kicker text-stone-500 mb-3">{part.label}</p>
 
-              {items.length === 0 ? (
-                <p className="text-sm text-stone-300">Nothing scheduled.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {items.map((it) => (
-                    <div key={it.id} className="group flex items-start gap-2">
-                      <button
-                        onClick={() => onToggle(it.id)}
-                        className={`mt-0.5 h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
-                      />
-                      {it.time && <span className="mt-0.5 text-xs text-stone-400 w-12 shrink-0">{it.time}</span>}
+              <p className="kicker text-stone-300 text-[10px] mb-2">Your day</p>
+              <div
+                className="min-h-[1.5rem] space-y-1.5"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => dropOnColumn(part.id, colIds)}
+              >
+                {items.length === 0 ? (
+                  <p className="text-sm text-stone-300">Nothing scheduled.</p>
+                ) : (
+                  items.map((it, idx) => (
+                    <div
+                      key={it.id}
+                      draggable
+                      onDragStart={() => setDrag({ id: it.id, fromPart: part.id })}
+                      onDragEnd={() => setDrag(null)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.stopPropagation(); dropOnRow(part.id, it.id, colIds) }}
+                      className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${drag && drag.id === it.id ? 'opacity-40' : ''}`}
+                    >
+                      <span className="shrink-0 text-sm text-stone-400 tabular-nums">{idx + 1}</span>
+                      <span className="shrink-0 text-stone-300">·</span>
                       <button
                         onClick={() => onOpen(it.id)}
                         className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}
                       >
                         {it.title || 'Untitled'}
                       </button>
+                      <button
+                        onClick={() => onToggle(it.id)}
+                        className={`h-4 w-4 shrink-0 border ${it.done ? 'bg-stone-900 border-stone-900' : 'border-stone-400'}`}
+                      />
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
 
-              {/* Subtle divider between events and the meal slots */}
+              {/* Separator: your schedule above, your meals below */}
               <div className="my-4 border-t border-stone-100" />
 
+              <p className="kicker text-stone-300 text-[10px] mb-2">Your meals</p>
               <MealSlots slotIds={slotIds} dateKeyStr={dateKeyStr} meals={meals} onAdd={onAddMeal} onRemove={onRemoveMeal} compact />
             </div>
           )

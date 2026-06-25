@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { X, Trash2, Pin, Search, Check, CalendarPlus, ChevronLeft } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
@@ -114,7 +114,6 @@ export default function Protocols() {
   const protocols = useMemo(() => (Array.isArray(stored) ? stored.map(norm) : []), [stored])
   const [, setEvents] = useLocalStorage('mos:today:events', {})
   const [, setMeals] = useLocalStorage('mos:meals', [])
-  const [oliveDone, setOliveDone] = useLocalStorage('mos:flags:oliveReroute', false)
 
   const [view, setView] = useState('landing') // 'landing' | 'all' | <categoryId>
   const [search, setSearch] = useState('')
@@ -187,29 +186,6 @@ export default function Protocols() {
 
   // Open the New Protocol form from the universal Add button (category-aware).
   useRegisterAdd(() => setEditing(blank(CAT_IDS.includes(view) ? view : 'nutrition')), [view])
-
-  // One-time reroute: olive oil shot becomes a Meal Item (Empty Stomach), and any
-  // stray checkbox event it created is removed.
-  useEffect(() => {
-    if (oliveDone) return
-    if (!protocols.some((p) => p.title.trim().toLowerCase() === 'olive oil shot')) return
-    setEvents((prev) => {
-      const next = {}
-      let changed = false
-      Object.keys(prev || {}).forEach((k) => {
-        const filtered = (prev[k] || []).filter((e) => (e.title || '').trim().toLowerCase() !== 'olive oil shot')
-        if (filtered.length !== (prev[k] || []).length) changed = true
-        next[k] = filtered
-      })
-      return changed ? next : prev
-    })
-    setMeals((prev) => {
-      const list = Array.isArray(prev) ? prev : []
-      if (list.some((m) => (m.name || '').trim().toLowerCase() === 'olive oil shot')) return list
-      return [...list, normMeal({ name: 'olive oil shot', kind: 'food', slot: 'empty', frequency: 'daily', startDate: '' })]
-    })
-    setOliveDone(true)
-  }, [oliveDone, protocols, setEvents, setMeals, setOliveDone])
 
   const matchFilters = (p) => {
     if (fPhase && !(p.phases.includes(fPhase) || p.phases.includes('any'))) return false
