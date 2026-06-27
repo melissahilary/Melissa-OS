@@ -352,7 +352,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
               const isTod = isSameDay(cell, today)
               const holiday = holidayFor(cell)
               const dayEvents = eventsFor(key)
-              const phase = phaseFor(cell, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
+              const phase = phaseForConfig(cycleConfig, cell)
               return (
                 <div
                   key={key}
