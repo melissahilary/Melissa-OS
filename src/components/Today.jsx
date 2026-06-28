@@ -158,12 +158,17 @@ function UvField({ location }) {
   return <span className="text-stone-700">UV {uv != null ? uv : '—'}</span>
 }
 
-export default function Today({ cycleConfig, location, setLocation }) {
+export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [calView, setCalView] = useState('day') // 'day' (Today) | 'week' | 'month'
+
+  // Arriving from another page with a specific day → open it in TODAY view.
+  useEffect(() => {
+    if (pendingDay) { setSelectedKey(pendingDay); setCalView('day'); clearPendingDay() }
+  }, [pendingDay, clearPendingDay])
 
   const todayPhase = useMemo(
     () => phaseForConfig(cycleConfig, today),
@@ -218,6 +223,12 @@ export default function Today({ cycleConfig, location, setLocation }) {
     }))
   const removeMeal = (id) => remove(id)
   const toggleEvent = (id) => toggleComplete(id, selectedKey)
+
+  // Carry-forward — yesterday's unchecked agenda items (relative to selected day).
+  const yKey = (() => { const y = parseKey(selectedKey); y.setDate(y.getDate() - 1); return dateKey(y) })()
+  const carryForward = dedupeById(dayEvents(yKey)).filter((it) => !it.done)
+  const completeCarry = (id) => toggleComplete(id, yKey)
+  const agendaHint = PHASE_AGENDA_HINT[todayPhase && todayPhase.id] || ''
   // Move an agenda item to another column — events by partOfDay, protocols by timeOfDay.
   const moveEventToPart = (id, part) => {
     const a = activities.find((x) => x.id === id)
@@ -257,6 +268,8 @@ export default function Today({ cycleConfig, location, setLocation }) {
 
       <Horoscope />
 
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">My Schedule.</h2>
+
       <Calendar
         view={calView}
         setView={setCalView}
@@ -269,6 +282,9 @@ export default function Today({ cycleConfig, location, setLocation }) {
         eventsFor={dayEvents}
         ritualsFor={dayRituals}
         mealsFor={dayMeals}
+        carry={carryForward}
+        onCompleteCarry={completeCarry}
+        agendaHint={agendaHint}
         onPickDay={pickDay}
         onAddMeal={addMeal}
         onRemoveMeal={removeMeal}
@@ -315,9 +331,16 @@ const VIEW_TABS = [
   { id: 'week', label: 'Week' },
   { id: 'month', label: 'Month' },
 ]
+// Phase-aware one-liner shown under the AGENDA header.
+const PHASE_AGENDA_HINT = {
+  follicular: 'Good day for new tasks and deep focus.',
+  ovulation: 'Lead, communicate, be seen.',
+  luteal: 'Finish and organize.',
+  menstrual: 'Keep it light today.',
+}
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
   const [fromWeek, setFromWeek] = useState(false) // TODAY view reached from week
   const openDay = (k) => { setFromWeek(true); onPickDay(k) }
   const cells = monthGrid(calMonth)
@@ -390,6 +413,9 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
           rituals={ritualsFor(selectedKey)}
           dateKeyStr={selectedKey}
           meals={mealsFor(selectedKey)}
+          carry={carry}
+          onCompleteCarry={onCompleteCarry}
+          agendaHint={agendaHint}
           onAddMeal={onAddMeal}
           onRemoveMeal={onRemoveMeal}
           onReorder={onReorder}
@@ -557,13 +583,13 @@ const COL_SECTIONS = {
   ],
 }
 
-// Collapsible section header used in the TODAY columns.
+// Collapsible section header used in the TODAY columns — tinted zone boundary.
 function Collapsible({ label, open, onToggle, children }) {
   return (
     <div>
-      <button onClick={onToggle} className="mb-2 flex w-full items-center justify-between">
-        <span className="kicker text-stone-400">{label}</span>
-        {open ? <ChevronDown size={13} className="text-stone-300" /> : <ChevronRight size={13} className="text-stone-300" />}
+      <button onClick={onToggle} className="mb-2 flex w-full items-center justify-between px-2 py-1.5" style={{ backgroundColor: '#F0EFED' }}>
+        <span className="kicker text-stone-500">{label}</span>
+        {open ? <ChevronDown size={13} className="text-stone-400" /> : <ChevronRight size={13} className="text-stone-400" />}
       </button>
       {open && children}
     </div>
@@ -571,7 +597,7 @@ function Collapsible({ label, open, onToggle, children }) {
 }
 
 // ── TODAY view body — RITUAL · NOURISHMENT · AGENDA per column ──
-function DayColumns({ events, rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onCompleteCarry, agendaHint, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
   const [drag, setDrag] = useState(null) // { id, fromPart }
   const [collapsed, setCollapsed] = useState({}) // `${part}:${section}` -> true
   const toggleSec = (k) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))
@@ -637,6 +663,21 @@ function DayColumns({ events, rituals, dateKeyStr, meals, onAddMeal, onRemoveMea
 
             {/* AGENDA */}
             <Collapsible label="Agenda" open={isOpen(`${part.id}:agenda`)} onToggle={() => toggleSec(`${part.id}:agenda`)}>
+              {agendaHint && <p className="mb-2 text-xs italic text-stone-400">{agendaHint}</p>}
+
+              {/* Carry-forward from yesterday — Morning only */}
+              {part.id === 'morning' && carry.length > 0 && (
+                <div className="mb-2 space-y-1.5">
+                  {carry.map((it) => (
+                    <div key={`carry-${it.id}`} className="flex items-center gap-2">
+                      <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-300">yesterday</span>
+                      <span className="flex-1 text-sm italic text-stone-400">{it.title || 'Untitled'}</span>
+                      <Checkbox checked={false} onClick={() => onCompleteCarry(it.id)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div
                 className="min-h-[1.5rem] space-y-1.5"
                 onDragOver={(e) => e.preventDefault()}
@@ -700,7 +741,7 @@ function MealSection({ section, part, meals, dateKeyStr, onAdd, onRemove }) {
           onSave={(item) => { onAdd({ ...item, slot: section.slot, kind: section.kind }); setAdding(false) }}
         />
       ) : (
-        <button onClick={() => setAdding(true)} className="text-sm italic text-stone-400 hover:text-stone-600 transition-colors">
+        <button onClick={() => setAdding(true)} className="text-sm italic hover:text-stone-700 transition-colors" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>
           {section.kind === 'supp' ? 'add supplement' : 'add food'}
         </button>
       )}

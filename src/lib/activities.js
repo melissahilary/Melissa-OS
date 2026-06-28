@@ -76,10 +76,16 @@ export const sectionForCategory = (cat) => {
   if (SECTION_CATS.nourishment.includes(cat)) return 'nourishment'
   return 'agenda'
 }
-// The parts of day an activity belongs to (defaults to morning when unset).
+// The parts of day an activity belongs to. Explicit timeOfDay wins; otherwise an
+// AM/PM hint in the title routes it; otherwise it's "Any" → all three columns.
+const ALL_PARTS = ['morning', 'afternoon', 'evening']
 export const partsOfActivity = (a) => {
-  const t = (a.timeOfDay || []).filter((p) => ['morning', 'afternoon', 'evening'].includes(p))
-  return t.length ? t : ['morning']
+  const t = (a.timeOfDay || []).filter((p) => ALL_PARTS.includes(p))
+  if (t.length) return t
+  const title = (a.title || '').toLowerCase()
+  if (/\bam\b/.test(title) || /\bmorning\b/.test(title)) return ['morning']
+  if (/\bpm\b/.test(title) || /\bevening\b/.test(title) || /\bnight\b/.test(title)) return ['evening']
+  return ALL_PARTS
 }
 
 export const normActivity = (a) => ({

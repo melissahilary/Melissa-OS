@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays,
@@ -153,6 +153,10 @@ export default function App() {
     [cycleConfig.lastPeriodStart, cycleConfig.cycleLength, dateKey(today)],
   )
 
+  // Cross-page nav: jump to a specific day in the home TODAY view.
+  const [pendingDay, setPendingDay] = useState(null)
+  const goToDay = (k) => { setPendingDay(k); setActive('today') }
+
   const isToday = active === 'today'
   const isDream = active === 'dream'
   const isPillar = !isToday && !isDream
@@ -239,10 +243,10 @@ export default function App() {
         {/* ── Main content ────────────────────────────────────── */}
         <main className="flex-1 overflow-x-hidden px-6 py-8 md:px-10 lg:px-12">
           <div className="mx-auto max-w-5xl">
-            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} />}
+            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} />}
             {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
             {isPillar && ActivePillar && (
-              <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} />
+              <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
             )}
             <Footer />
           </div>

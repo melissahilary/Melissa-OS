@@ -1,18 +1,21 @@
 import React, { useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS } from '../lib/date'
+import { useActivities } from '../hooks/useActivities'
+import { activityOccursOn, isDoneOn, SECTION_CATS } from '../lib/activities'
+import Checkbox from './shared/Checkbox'
 import Protocols from './Protocols'
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 
-export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, subPage = 'protocols' }) {
+export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, subPage = 'protocols', goToDay = () => {} }) {
   return (
     <div>
       {subPage === 'protocols' && <Protocols />}
-      {subPage === 'cycle' && <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />}
+      {subPage === 'cycle' && <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
     </div>
   )
 }
@@ -33,7 +36,15 @@ const PHASE_SEG = [
   { id: 'luteal', label: 'Luteal', start: 17 },
 ]
 
-function CyclePage({ cycleConfig, setCycleConfig }) {
+const ENERGY = { menstrual: 1, follicular: 4, ovulation: 5, luteal: 3 }
+const INTENTION = {
+  follicular: 'Your mind is sharp and your energy is building. Schedule deep work and new starts.',
+  ovulation: 'Peak output day. Be visible, pitch, connect, lead.',
+  luteal: 'Wrap up, organize, reflect. Protect your energy in the second half.',
+  menstrual: "Rest and reset. Honor the slowdown — it's productive in its own way.",
+}
+
+function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const today = new Date()
   const todayKey = dateKey(today)
   const start = cycleConfig.lastPeriodStart || ''
@@ -41,32 +52,52 @@ function CyclePage({ cycleConfig, setCycleConfig }) {
   const phase = phaseForConfig(cycleConfig, today)
   const cycleDay = cycleDayFor(today, start, len)
 
-  // Period history (past start dates) + auto average.
+  const { activities, toggleComplete } = useActivities()
+  const [logs, setLogs] = useLocalStorage('mos:cycle:logs', {})
+  const [reading, setReading] = useState(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [carryDismissed, setCarryDismissed] = useLocalStorage('mos:carry:dismissed', [])
+  const todayLog = logs[todayKey] || { symptoms: [], flow: '', bbt: '', notes: '' }
+  const setToday = (patch) => setLogs((p) => ({ ...p, [todayKey]: { symptoms: [], flow: '', bbt: '', notes: '', ...(p[todayKey] || {}), ...patch } }))
+  const toggleSymptom = (s) => { const cur = todayLog.symptoms || []; setToday({ symptoms: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] }) }
+
+  // Settings / history.
   const history = Array.isArray(cycleConfig.history) ? cycleConfig.history : []
   const setCfg = (patch) => setCycleConfig({ ...cycleConfig, ...patch })
   const setHistory = (arr) => setCfg({ history: arr.filter(Boolean).sort((a, b) => (a < b ? 1 : -1)) })
   const avgLen = averageCycleLength([...history, start])
   const manualPhase = cycleConfig.manualPhase || ''
 
-  const [logs, setLogs] = useLocalStorage('mos:cycle:logs', {})
-  const [reading, setReading] = useState(null) // a past date key being read
-  const todayLog = logs[todayKey] || { symptoms: [], flow: '', bbt: '', notes: '' }
-  const setToday = (patch) => setLogs((p) => ({ ...p, [todayKey]: { symptoms: [], flow: '', bbt: '', notes: '', ...(p[todayKey] || {}), ...patch } }))
-  const toggleSymptom = (s) => {
-    const cur = todayLog.symptoms || []
-    setToday({ symptoms: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] })
-  }
-
-  // Segment widths (in days) for the timeline + today's marker position.
-  const seg = PHASE_SEG.map((s, i) => {
-    const next = PHASE_SEG[i + 1]
-    const days = (next ? next.start : len + 1) - s.start
-    return { ...s, days: Math.max(0, days) }
-  })
+  // Hero timeline segments + today marker.
+  const seg = PHASE_SEG.map((s, i) => { const next = PHASE_SEG[i + 1]; const days = (next ? next.start : len + 1) - s.start; return { ...s, days: Math.max(0, days) } })
   const markerPct = cycleDay ? Math.min(100, ((cycleDay - 0.5) / len) * 100) : null
+  const energy = phase ? ENERGY[phase.id] || 0 : 0
+
+  // Load balancing — current week (Mon-Sun) item counts.
+  const monday = (() => { const d = new Date(today); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d })()
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+  const counts = weekDates.map((d) => activities.filter((a) => a.status !== 'archived' && activityOccursOn(a, dateKey(d))).length)
+  const maxCount = Math.max(1, ...counts)
+  const order = counts.map((c, i) => ({ c, i })).sort((a, b) => b.c - a.c)
+  const heavy = new Set(order.slice(0, 2).filter((x) => x.c > 0).map((x) => x.i))
+  const light = new Set(order.slice(-2).map((x) => x.i))
+
+  // Carry forward — yesterday's unchecked agenda items.
+  const yKey = dateKey(addDays(today, -1))
+  const agendaForDay = (k) => {
+    const out = []; const seen = new Set()
+    activities.forEach((a) => {
+      if (a.status === 'archived' || !activityOccursOn(a, k)) return
+      const isAgenda = a.type === 'event' || (a.type === 'protocol' && SECTION_CATS.agenda.includes(a.category))
+      if (!isAgenda || seen.has(a.id)) return
+      seen.add(a.id); out.push({ id: a.id, title: a.title, done: isDoneOn(a, k) })
+    })
+    return out
+  }
+  const carry = agendaForDay(yKey).filter((it) => !it.done && !carryDismissed.includes(`${it.id}:${yKey}`))
 
   // Predictions.
-  const predictions = useMemo(() => {
+  const predictions = (() => {
     if (!start) return null
     const s0 = startOfDay(parseKey(start))
     const daysSince = Math.floor((startOfDay(today) - s0) / MS_DAY)
@@ -76,126 +107,96 @@ function CyclePage({ cycleConfig, setCycleConfig }) {
     const cd = cycleDay || 1
     const ovById = (base) => ({ from: addDays(base, 13), to: addDays(base, 15) })
     const nextOv = cd < 14 ? ovById(curStart) : ovById(nextStart)
-    // Next phase boundary after today.
     const boundaries = [6, 14, 17, len + 1]
     const nextBoundDay = boundaries.find((b) => b > cd)
     let nextPhaseDate, nextPhaseName
-    if (nextBoundDay && nextBoundDay <= len) {
-      nextPhaseDate = addDays(curStart, nextBoundDay - 1)
-      const segMatch = PHASE_SEG.find((p) => p.start === nextBoundDay)
-      nextPhaseName = segMatch ? segMatch.label : ''
-    } else {
-      nextPhaseDate = nextStart
-      nextPhaseName = 'Menstrual'
-    }
+    if (nextBoundDay && nextBoundDay <= len) { nextPhaseDate = addDays(curStart, nextBoundDay - 1); const m = PHASE_SEG.find((p) => p.start === nextBoundDay); nextPhaseName = m ? m.label : '' }
+    else { nextPhaseDate = nextStart; nextPhaseName = 'Menstrual' }
     return { nextPeriod: nextStart, nextOv, nextPhaseDate, nextPhaseName }
-  }, [start, len, cycleDay, today])
+  })()
 
   const pastKeys = Object.keys(logs)
     .filter((k) => k !== todayKey && logs[k] && ((logs[k].symptoms && logs[k].symptoms.length) || logs[k].flow || logs[k].bbt || (logs[k].notes && logs[k].notes.trim())))
     .sort((a, b) => (a < b ? 1 : -1))
 
   return (
-    <div className="mb-10">
-      {/* Current phase + day */}
-      <section className="mb-8">
+    <div className="mb-10 space-y-12">
+      {/* TOP HERO — Today's Status */}
+      <section>
         {phase ? (
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="inline-flex items-center gap-2 px-4 py-2 text-sm" style={{ backgroundColor: phase.color, color: phase.ink }}>
-              <span className="font-medium">{phase.name}</span>
-              <span className="opacity-70">Day {cycleDay}</span>
-            </span>
-            <span className="text-sm text-stone-500">{phase.range}</span>
-          </div>
+          <>
+            <p className="font-serif italic text-4xl md:text-5xl text-stone-900">{phase.name} · Day {cycleDay}</p>
+            <div className="relative mt-6">
+              <div className="flex h-8 w-full overflow-hidden rounded-sm">
+                {seg.map((s) => <div key={s.id} title={s.label} style={{ width: `${(s.days / len) * 100}%`, backgroundColor: PHASES[s.id].color }} />)}
+              </div>
+              {markerPct != null && (
+                <div className="absolute -top-1.5 flex flex-col items-center" style={{ left: `calc(${markerPct}% - 5px)` }}>
+                  <span className="block h-3 w-3 rounded-full border-2 border-cream bg-stone-900" />
+                </div>
+              )}
+            </div>
+            <div className="mt-2 flex w-full">
+              {seg.map((s) => <div key={s.id} className="text-center" style={{ width: `${(s.days / len) * 100}%` }}><span className="text-[10px] uppercase tracking-[0.12em] text-stone-400">{s.label}</span></div>)}
+            </div>
+            <div className="mt-6 flex items-center gap-3">
+              <span className="kicker text-stone-400">Energy</span>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((n) => <span key={n} className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: n <= energy ? phase.color : 'transparent', borderColor: phase.color }} />)}
+              </div>
+            </div>
+            <p className="mt-4 font-serif italic text-lg text-stone-600">{INTENTION[phase.id]}</p>
+          </>
         ) : (
-          <p className="text-sm text-stone-400">Set your last period below to see your current phase.</p>
+          <p className="text-sm text-stone-400">Set your last period in Cycle Settings to see your status.</p>
         )}
       </section>
 
-      {/* Phase timeline */}
-      {phase && (
-        <section className="mb-10">
-          <div className="relative">
-            <div className="flex h-7 w-full overflow-hidden rounded-sm">
-              {seg.map((s) => (
-                <div key={s.id} className="flex items-center justify-center" style={{ width: `${(s.days / len) * 100}%`, backgroundColor: PHASES[s.id].color }} title={s.label} />
-              ))}
-            </div>
-            {markerPct != null && (
-              <div className="absolute -top-1 h-9 w-0.5 bg-stone-900" style={{ left: `${markerPct}%` }} />
-            )}
-          </div>
-          <div className="mt-2 flex w-full">
-            {seg.map((s) => (
-              <div key={s.id} className="text-center" style={{ width: `${(s.days / len) * 100}%` }}>
-                <span className="kicker text-stone-400">{s.label}</span>
+      {/* LOAD BALANCING — This Week at a Glance */}
+      <section>
+        <h3 className="font-serif italic text-2xl text-stone-900 mb-4">This Week at a Glance.</h3>
+        <div className="flex items-end gap-2">
+          {weekDates.map((d, i) => {
+            const isTod = dateKey(d) === todayKey
+            const h = 8 + (counts[i] / maxCount) * 56
+            return (
+              <button key={i} onClick={() => goToDay(dateKey(d))} className="group flex flex-1 flex-col items-center gap-1.5">
+                <div className="flex h-16 items-end">
+                  <div className="w-5 transition-colors" style={{ height: `${h}px`, backgroundColor: isTod ? '#1c1917' : '#d6d3d1' }} />
+                </div>
+                <span className={`text-[10px] uppercase tracking-[0.1em] ${isTod ? 'text-stone-900' : 'text-stone-400'}`}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
+                {heavy.has(i) ? <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#C4A882' }} /> : light.has(i) ? <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#7B8B5F' }} /> : <span className="h-1.5 w-1.5" />}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* CARRY FORWARD — Still Open */}
+      {carry.length > 0 && (
+        <section>
+          <h3 className="font-serif italic text-2xl text-stone-900 mb-3">Still Open.</h3>
+          <div className="space-y-2">
+            {carry.map((it) => (
+              <div key={it.id} className="flex items-center gap-3">
+                <Checkbox checked={false} onClick={() => toggleComplete(it.id, yKey)} />
+                <span className="flex-1 text-sm text-stone-600">{it.title || 'Untitled'}<span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-stone-300">from yesterday</span></span>
+                <button onClick={() => setCarryDismissed([...carryDismissed, `${it.id}:${yKey}`])} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Cycle config */}
-      <section className="mb-10 border-t border-stone-200 pt-6">
-        <div className="flex flex-wrap items-end gap-6">
-          <div>
-            <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
-            <input type="date" value={start} onChange={(e) => setCfg({ lastPeriodStart: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-          </div>
-          <div>
-            <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
-            <input type="number" min="20" max="45" value={cycleConfig.cycleLength || 28} onChange={(e) => setCfg({ cycleLength: Number(e.target.value) })} className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-          </div>
-        </div>
-
-        {/* Manual phase override */}
-        <div className="mt-6">
-          <label className="kicker text-stone-400 mb-2 block">Phase</label>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={() => setCfg({ manualPhase: '' })} className={`px-2.5 py-1 text-xs border transition-colors ${!manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Use calculated phase</button>
-            <button onClick={() => setCfg({ manualPhase: manualPhase || 'follicular' })} className={`px-2.5 py-1 text-xs border transition-colors ${manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Set phase manually</button>
-            {manualPhase && (
-              <select value={manualPhase} onChange={(e) => setCfg({ manualPhase: e.target.value })} className="ml-1 border-b border-stone-300 bg-transparent pb-1 text-sm outline-none">
-                {Object.values(PHASES).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            )}
-          </div>
-          {manualPhase && <p className="mt-2 text-xs text-stone-400">Overrides the calculated phase everywhere until switched back.</p>}
-        </div>
-
-        {/* Period history */}
-        <div className="mt-6">
-          <div className="mb-2 flex items-center gap-3">
-            <label className="kicker text-stone-400">Period history</label>
-            {avgLen && (
-              <button onClick={() => setCfg({ cycleLength: avgLen })} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Avg {avgLen}d · use as length</button>
-            )}
-          </div>
-          <div className="space-y-2">
-            {history.length === 0 && <p className="text-sm italic text-stone-400">No past period dates logged.</p>}
-            {history.map((d, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <input type="date" value={d} onChange={(e) => setHistory(history.map((x, j) => (j === i ? e.target.value : x)))} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-                <button onClick={() => setHistory(history.filter((_, j) => j !== i))} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
-              </div>
-            ))}
-            <button onClick={() => setHistory([...history, start || todayKey])} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Add past date</button>
-          </div>
-        </div>
-      </section>
-
-      {/* Today's log */}
-      <section className="mb-10 border-t border-stone-200 pt-6">
-        <h3 className="font-serif italic text-2xl text-stone-900 mb-1">Today's log</h3>
+      {/* TODAY'S LOG */}
+      <section className="border-t border-stone-200 pt-8">
         <p className="kicker text-stone-400 mb-5">{fmt(today)}</p>
 
         <p className="kicker text-stone-400 mb-2">Symptoms</p>
         <div className="mb-6 flex flex-wrap gap-1.5">
           {SYMPTOMS.map((s) => {
             const on = (todayLog.symptoms || []).includes(s)
-            return (
-              <button key={s} onClick={() => toggleSymptom(s)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{s}</button>
-            )
+            return <button key={s} onClick={() => toggleSymptom(s)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{s}</button>
           })}
         </div>
 
@@ -211,11 +212,9 @@ function CyclePage({ cycleConfig, setCycleConfig }) {
           </div>
         )}
 
-        <div className="mb-6 flex flex-wrap items-end gap-6">
-          <div>
-            <label className="kicker text-stone-400 mb-1.5 block">Basal body temp (°F)</label>
-            <input type="number" step="0.1" value={todayLog.bbt || ''} onChange={(e) => setToday({ bbt: e.target.value })} placeholder="97.8" className="w-24 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-          </div>
+        <div className="mb-6">
+          <label className="kicker text-stone-400 mb-1.5 block">Basal body temp (°F)</label>
+          <input type="number" step="0.1" value={todayLog.bbt || ''} onChange={(e) => setToday({ bbt: e.target.value })} placeholder="97.8" className="w-24 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
         </div>
 
         <div>
@@ -224,21 +223,82 @@ function CyclePage({ cycleConfig, setCycleConfig }) {
         </div>
       </section>
 
-      {/* Predictions */}
+      {/* CYCLE SETTINGS — collapsible */}
+      <section className="border-t border-stone-200 pt-6">
+        <button onClick={() => setSettingsOpen((o) => !o)} className="flex w-full items-center justify-between">
+          <span className="kicker text-stone-500">Cycle Settings</span>
+          {settingsOpen ? <ChevronDown size={16} className="text-stone-400" /> : <ChevronRight size={16} className="text-stone-400" />}
+        </button>
+        {settingsOpen && (
+          <div className="mt-5">
+            <div className="flex flex-wrap items-end gap-6">
+              <div>
+                <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
+                <input type="date" value={start} onChange={(e) => setCfg({ lastPeriodStart: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              </div>
+              <div>
+                <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
+                <input type="number" min="20" max="45" value={cycleConfig.cycleLength || 28} onChange={(e) => setCfg({ cycleLength: Number(e.target.value) })} className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <label className="kicker text-stone-400 mb-2 block">Phase</label>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button onClick={() => setCfg({ manualPhase: '' })} className={`px-2.5 py-1 text-xs border transition-colors ${!manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Use calculated phase</button>
+                <button onClick={() => setCfg({ manualPhase: manualPhase || 'follicular' })} className={`px-2.5 py-1 text-xs border transition-colors ${manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Set phase manually</button>
+                {manualPhase && (
+                  <select value={manualPhase} onChange={(e) => setCfg({ manualPhase: e.target.value })} className="ml-1 border-b border-stone-300 bg-transparent pb-1 text-sm outline-none">
+                    {Object.values(PHASES).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="mb-2 flex items-center gap-3">
+                <label className="kicker text-stone-400">Period history</label>
+                {history.length >= 3 && avgLen && (
+                  <button onClick={() => setCfg({ cycleLength: avgLen })} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Avg {avgLen}d · use as length</button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {history.length === 0 && <p className="text-sm italic text-stone-400">No past period dates logged.</p>}
+                {history.map((d, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <input type="date" value={d} onChange={(e) => setHistory(history.map((x, j) => (j === i ? e.target.value : x)))} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+                    <button onClick={() => setHistory(history.filter((_, j) => j !== i))} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
+                  </div>
+                ))}
+                <button onClick={() => setHistory([...history, start || todayKey])} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Add past date</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* PREDICTIONS — What's Coming */}
       {predictions && (
-        <section className="mb-10 border-t border-stone-200 pt-6">
-          <h3 className="font-serif italic text-2xl text-stone-900 mb-4">Predictions</h3>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Prediction label="Next period" value={fmt(predictions.nextPeriod)} />
-            <Prediction label="Next ovulation window" value={`${MONTHS[predictions.nextOv.from.getMonth()]} ${predictions.nextOv.from.getDate()} – ${predictions.nextOv.to.getDate()}`} />
-            <Prediction label="Next phase start" value={`${predictions.nextPhaseName} · ${fmt(predictions.nextPhaseDate)}`} />
+        <section className="border-t border-stone-200 pt-6">
+          <h3 className="font-serif italic text-2xl text-stone-900 mb-4">What's Coming.</h3>
+          <div>
+            {[
+              ['Next period', fmt(predictions.nextPeriod)],
+              ['Next ovulation', `${MONTHS[predictions.nextOv.from.getMonth()]} ${predictions.nextOv.from.getDate()} – ${predictions.nextOv.to.getDate()}`],
+              ['Next phase', `${predictions.nextPhaseName} · ${fmt(predictions.nextPhaseDate)}`],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-baseline justify-between border-b border-stone-100 py-2.5">
+                <span className="kicker text-stone-400">{label}</span>
+                <span className="text-sm text-stone-800">{value}</span>
+              </div>
+            ))}
           </div>
         </section>
       )}
 
-      {/* Past entries */}
+      {/* PAST ENTRIES */}
       <section className="border-t border-stone-200 pt-6">
-        <h3 className="font-serif italic text-2xl text-stone-900 mb-4">Past entries</h3>
+        <h3 className="font-serif italic text-2xl text-stone-900 mb-4">Past entries.</h3>
         {pastKeys.length === 0 ? (
           <p className="text-sm italic text-stone-400">No past logs yet.</p>
         ) : (
