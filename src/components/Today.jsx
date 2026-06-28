@@ -224,9 +224,13 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const removeMeal = (id) => remove(id)
   const toggleEvent = (id) => toggleComplete(id, selectedKey)
 
-  // Carry-forward — yesterday's unchecked agenda items (relative to selected day).
+  // Carry-forward — only yesterday's unchecked ONE-TIME events. Recurring items
+  // (daily/weekly protocols and events) repeat on their own and never carry over.
   const yKey = (() => { const y = parseKey(selectedKey); y.setDate(y.getDate() - 1); return dateKey(y) })()
-  const carryForward = dedupeById(dayEvents(yKey)).filter((it) => !it.done)
+  const carryForward = activities
+    .filter((a) => a.type === 'event' && (a.frequency === 'asneeded' || a.frequency === 'once') && a.status !== 'archived' && activityOccursOn(a, yKey) && !isDoneOn(a, yKey))
+    .sort((a, b) => (b.seriesStart || b.createdAt || '').localeCompare(a.seriesStart || a.createdAt || ''))
+    .map((a) => ({ id: a.id, title: a.title }))
   const completeCarry = (id) => toggleComplete(id, yKey)
   const agendaHint = PHASE_AGENDA_HINT[todayPhase && todayPhase.id] || ''
   // Move an agenda item to another column — events by partOfDay, protocols by timeOfDay.
@@ -623,7 +627,7 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
       {PARTS.map((part) => {
         const agenda = events.filter((e) => e.part === part.id).sort(sortEvents)
         const colIds = agenda.map((i) => i.id)
@@ -637,7 +641,7 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
               {ritualItems.length === 0 ? (
                 <p className="text-sm italic text-stone-400">Nothing yet.</p>
               ) : (
-                <div className="space-y-1.5">
+                <div className="max-h-28 space-y-1.5 overflow-y-auto">
                   {ritualItems.map((it) => (
                     <div key={it.id} className="flex items-center gap-2">
                       <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.title || 'Untitled'}</button>
@@ -652,7 +656,7 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
 
             {/* NOURISHMENT */}
             <Collapsible label="Nourishment" open={isOpen(`${part.id}:nourishment`)} onToggle={() => toggleSec(`${part.id}:nourishment`)}>
-              <div className="space-y-3">
+              <div className="max-h-44 space-y-3 overflow-y-auto pr-1">
                 {COL_SECTIONS[part.id].map((sec) => (
                   <MealSection key={sec.label} section={sec} part={part.id} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
                 ))}
@@ -665,21 +669,24 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
             <Collapsible label="Agenda" open={isOpen(`${part.id}:agenda`)} onToggle={() => toggleSec(`${part.id}:agenda`)}>
               {agendaHint && <p className="mb-2 text-xs italic text-stone-400">{agendaHint}</p>}
 
-              {/* Carry-forward from yesterday — Morning only */}
+              {/* Carry-forward from yesterday — Morning only, max 3 one-time items */}
               {part.id === 'morning' && carry.length > 0 && (
                 <div className="mb-2 space-y-1.5">
-                  {carry.map((it) => (
+                  {carry.slice(0, 3).map((it) => (
                     <div key={`carry-${it.id}`} className="flex items-center gap-2">
                       <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-300">yesterday</span>
                       <span className="flex-1 text-sm italic text-stone-400">{it.title || 'Untitled'}</span>
                       <Checkbox checked={false} onClick={() => onCompleteCarry(it.id)} />
                     </div>
                   ))}
+                  {carry.length > 3 && (
+                    <p className="text-[10px] italic text-stone-300">+{carry.length - 3} more from yesterday</p>
+                  )}
                 </div>
               )}
 
               <div
-                className="min-h-[1.5rem] space-y-1.5"
+                className="max-h-28 min-h-[1.5rem] space-y-1.5 overflow-y-auto"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => dropOnColumn(part.id, colIds)}
               >
