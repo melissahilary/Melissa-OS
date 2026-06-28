@@ -645,9 +645,9 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
             {/* RITUAL */}
             <Collapsible label="Ritual" open={isOpen(`${part.id}:ritual`)} onToggle={() => toggleSec(`${part.id}:ritual`)}>
               {ritualItems.length === 0 ? (
-                <p className="text-sm italic text-stone-400">Nothing yet.</p>
+                <div className="h-44"><p className="text-sm italic text-stone-400">Nothing yet.</p></div>
               ) : (
-                <div className="max-h-28 space-y-1.5 overflow-y-auto">
+                <div className="h-44 space-y-1.5 overflow-y-auto">
                   {ritualItems.map((it) => (
                     <div key={it.id} className="flex items-center gap-2">
                       <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.title || 'Untitled'}</button>
@@ -662,7 +662,7 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
 
             {/* NOURISHMENT */}
             <Collapsible label="Nourishment" open={isOpen(`${part.id}:nourishment`)} onToggle={() => toggleSec(`${part.id}:nourishment`)}>
-              <div className="max-h-44 space-y-3 overflow-y-auto pr-1">
+              <div className="h-44 space-y-3 overflow-y-auto pr-1">
                 {COL_SECTIONS[part.id].map((sec) => (
                   <MealSection key={sec.label} section={sec} part={part.id} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
                 ))}
@@ -673,6 +673,7 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
 
             {/* AGENDA */}
             <Collapsible label="Agenda" open={isOpen(`${part.id}:agenda`)} onToggle={() => toggleSec(`${part.id}:agenda`)}>
+             <div className="h-44 overflow-y-auto">
               {agendaHint && <p className="mb-2 text-xs italic text-stone-400">{agendaHint}</p>}
 
               {/* Carry-forward from yesterday — Morning only, max 3 one-time items */}
@@ -692,7 +693,7 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
               )}
 
               <div
-                className="max-h-28 min-h-[1.5rem] space-y-1.5 overflow-y-auto"
+                className="min-h-[1.5rem] space-y-1.5"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => dropOnColumn(part.id, colIds)}
               >
@@ -717,6 +718,7 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
                   ))
                 )}
               </div>
+             </div>
             </Collapsible>
           </div>
         )
