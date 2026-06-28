@@ -134,6 +134,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 </select>
               </div>
               <label className="flex items-center gap-2 text-sm text-stone-700"><input type="checkbox" checked={!!draft.details.beverage} onChange={(e) => setD('beverage', e.target.checked)} /> Beverage</label>
+              <div><span className={labelCls}>Cycle phase</span><Chips value={draft.phase} options={PHASE_OPTS} onToggle={(v) => toggleArr('phase', v)} colored /></div>
               {Scheduling}
             </>
           )}

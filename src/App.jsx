@@ -35,7 +35,7 @@ import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './component
 import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
-  { id: 'menu', label: 'Meal Planning', icon: UtensilsCrossed },
+  { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
   { id: 'workout', label: 'Health & Wellness', icon: Activity },
   { id: 'relationship', label: 'Relationship', icon: Heart },
   { id: 'career', label: 'Landing an EA Offer', icon: Briefcase },
@@ -59,7 +59,7 @@ const PILLAR_COMPONENTS = {
 // Category sub-navigation shown when inside a section.
 const SUBNAV = {
   menu: [
-    { id: 'planner', label: 'Schedule' },
+    { id: 'diet', label: 'Diet' },
     { id: 'grocery', label: "What's In My Fridge" },
   ],
   workout: [
@@ -71,7 +71,9 @@ const SUBNAV = {
 export default function App() {
   const [active, setActive] = useLocalStorage('mos:active', 'today')
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
-  const [menuSub, setMenuSub] = useLocalStorage('mos:menu:subpage', 'planner')
+  const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
+  // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
+  const menuSub = menuSubRaw === 'grocery' ? 'grocery' : 'diet'
   const [workoutSubRaw, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'protocols')
   // Schedule/Practices were removed; coerce any stale value to Protocols.
   const workoutSub = workoutSubRaw === 'cycle' ? 'cycle' : 'protocols'

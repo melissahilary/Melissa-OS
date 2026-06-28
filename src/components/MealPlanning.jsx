@@ -1,87 +1,196 @@
 import React, { useState } from 'react'
 import { X, Pencil } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { phaseForConfig, PHASE_FOODS } from '../lib/cycle'
-import { dateKey } from '../lib/date'
+import { PHASES } from '../lib/cycle'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
 import InlineText from './shared/InlineText'
-import { DayNav, DayHeader } from './shared/DayNav'
-import MealSlots, { AddMealForm } from './shared/MealSlots'
-import { MEAL_SLOTS } from '../lib/meals'
+import { AddMealForm } from './shared/MealSlots'
+import { MEAL_SLOTS, slotMeta } from '../lib/meals'
 import { useRegisterAdd } from './shared/AddButton'
 import { useActivities } from '../hooks/useActivities'
-import { activityOccursOn, toMealShape, blankActivity } from '../lib/activities'
+import { blankActivity, FREQUENCIES } from '../lib/activities'
+import ActivityForm from './shared/ActivityForm'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 // Kept for compatibility with any older imports.
 export const SLOTS = MEAL_SLOTS
 
-export default function MealPlanning({ cycleConfig = {}, subPage = 'planner' }) {
+const FREQ_LABEL = Object.fromEntries(FREQUENCIES.map((f) => [f.id, f.label]))
+const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
+
+// Layer 1 — the daily protocol, slot by slot (supplements grouped by part).
+const DIET_ROWS = [
+  { kind: 'food', slot: 'empty', label: 'Empty Stomach' },
+  { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
+  { kind: 'supp', part: 'morning', slot: 'breakfast', label: 'Supplements' },
+  { kind: 'food', slot: 'snack', label: 'Snack' },
+  { kind: 'food', slot: 'lunch', label: 'Lunch' },
+  { kind: 'supp', part: 'afternoon', slot: 'lunch', label: 'Supplements' },
+  { kind: 'food', slot: 'snack', label: 'Snack' },
+  { kind: 'food', slot: 'dinner', label: 'Dinner' },
+  { kind: 'supp', part: 'evening', slot: 'dinner', label: 'Supplements' },
+  { kind: 'food', slot: 'bed', label: 'Before Bed' },
+  { kind: 'food', slot: 'drink', label: 'Drink' },
+]
+
+const SLOT_FILTERS = ['empty', 'breakfast', 'snack', 'lunch', 'dinner', 'bed', 'drink']
+const PHASE_FILTERS = [
+  { id: 'follicular', label: 'Follicular' },
+  { id: 'ovulation', label: 'Ovulatory' },
+  { id: 'luteal', label: 'Luteal' },
+  { id: 'menstrual', label: 'Menstrual' },
+]
+
+export default function MealPlanning({ cycleConfig = {}, subPage = 'diet' }) {
   return (
     <div>
-      {subPage === 'grocery' ? <GroceryList /> : <MealSchedule cycleConfig={cycleConfig} />}
+      {subPage === 'grocery' ? <GroceryList /> : <Diet />}
     </div>
   )
 }
 
-// ── Schedule — editable meal slots backed by the unified meal store ──
-function MealSchedule({ cycleConfig }) {
-  const today = new Date()
-  const [selected, setSelected] = useState(new Date())
-  const key = dateKey(selected)
-  const { activities, add, remove } = useActivities()
-  const [adding, setAdding] = useState(false)
+// ── Diet — Layer 1 (daily protocol) + Layer 2 (recipe library) ──
+function Diet() {
+  const { activities, add, update, remove } = useActivities()
+  const [editing, setEditing] = useState(null)
 
-  const meals = activities
-    .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived' && activityOccursOn(a, key))
-    .map(toMealShape)
+  const newRecipe = () => blankActivity('meal_item', { details: { slot: 'breakfast', beverage: false } })
+  useRegisterAdd(() => setEditing(newRecipe()), [])
 
-  const addMeal = (m) =>
+  const recurring = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived' && isRecurring(a))
+  const addItem = (m) =>
     add(blankActivity(m.kind === 'supp' ? 'supplement' : 'meal_item', {
-      title: m.name, frequency: m.frequency || 'daily', daysOfWeek: m.days || [], seriesStart: m.startDate || '',
+      title: m.name, frequency: m.frequency || 'daily', daysOfWeek: m.days || [],
       details: m.kind === 'supp' ? { slot: m.slot, dose: '', unit: 'mg' } : { slot: m.slot, beverage: m.slot === 'drink' },
     }))
-  const removeMeal = (id) => remove(id)
-
-  useRegisterAdd(() => setAdding(true), [])
-
-  const phase = phaseForConfig(cycleConfig, selected)
+  const saveRecipe = (a) => { if (activities.some((x) => x.id === a.id)) update(a.id, a); else add(a); setEditing(null) }
 
   return (
-    <div>
-      <DayNav selected={selected} setSelected={setSelected} today={today} />
-      <DayHeader date={selected} phase={phase} />
-      <PhaseNote phase={phase} hasPeriod={!!cycleConfig.lastPeriodStart} />
-
-      <div className="border-t border-stone-200 pt-7">
-        <MealSlots slotIds={MEAL_SLOTS.map((s) => s.id)} dateKeyStr={key} meals={meals} onAdd={addMeal} onRemove={removeMeal} />
-      </div>
-
-      {adding && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdding(false) }}>
-          <div className="w-full max-w-md bg-cream border border-stone-300 p-6 shadow-2xl">
-            <p className="font-serif italic text-2xl text-stone-900 mb-4">New meal item</p>
-            <AddMealForm kind="food" dateKeyStr={key} showSlot onCancel={() => setAdding(false)} onSave={(item) => { addMeal(item); setAdding(false) }} />
-          </div>
+    <div className="mb-10">
+      {/* LAYER 1 — Your Protocol */}
+      <section>
+        <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900">Your Protocol.</h2>
+        <p className="kicker text-stone-400 mt-1 mb-6">What you eat every day</p>
+        <div className="space-y-3">
+          {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={recurring} onAdd={addItem} onRemove={remove} />)}
         </div>
+      </section>
+
+      <hr className="my-12 border-stone-200" />
+
+      {/* LAYER 2 — Your Recipes */}
+      <RecipeLibrary activities={activities} onOpen={setEditing} onAdd={() => setEditing(newRecipe())} />
+
+      {editing && (
+        <ActivityForm
+          activity={editing}
+          isNew={!activities.some((x) => x.id === editing.id)}
+          onSave={saveRecipe}
+          onDelete={() => { remove(editing.id); setEditing(null) }}
+          onClose={() => setEditing(null)}
+        />
       )}
     </div>
   )
 }
 
-// The day's cycle-phase nutrition guidance, kept calm and to the side.
-function PhaseNote({ phase, hasPeriod }) {
-  if (!hasPeriod) {
-    return <p className="mb-12 text-sm text-stone-400">Set your last period on the Cycle page to see phase guidance here.</p>
-  }
-  if (!phase) return null
+function DietSlotRow({ row, meals, onAdd, onRemove }) {
+  const [adding, setAdding] = useState(false)
+  const items = meals.filter((a) =>
+    row.kind === 'supp'
+      ? a.type === 'supplement' && slotMeta(a.details.slot || 'breakfast').part === row.part
+      : a.type === 'meal_item' && (a.details.slot || 'breakfast') === row.slot,
+  )
   return (
-    <div className="mb-12 border-l-2 pl-4" style={{ borderColor: phase.color }}>
-      <p className="kicker mb-1.5" style={{ color: phase.color }}>Prioritize this phase · {phase.range}</p>
-      <p className="text-sm leading-relaxed text-stone-500">{PHASE_FOODS[phase.id].join(', ')}.</p>
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5 border-b border-stone-100 pb-3">
+      <span className="kicker w-32 shrink-0 text-stone-400">{row.label}</span>
+      <div className="flex flex-1 flex-wrap items-center gap-1.5">
+        {items.map((a) => (
+          <span key={a.id} className="inline-flex items-center gap-1.5 border border-stone-300 bg-white/50 px-2 py-0.5 text-xs text-stone-700">
+            {a.title}
+            <span className="text-[9px] uppercase tracking-[0.1em] text-stone-400">{FREQ_LABEL[a.frequency] || a.frequency}</span>
+            <button onClick={() => onRemove(a.id)} className="text-stone-400 hover:text-stone-700"><X size={11} /></button>
+          </span>
+        ))}
+        {adding ? (
+          <AddMealForm slot={slotMeta(row.slot)} kind={row.kind} onCancel={() => setAdding(false)} onSave={(item) => { onAdd({ ...item, slot: row.slot, kind: row.kind }); setAdding(false) }} />
+        ) : (
+          <button onClick={() => setAdding(true)} className="text-sm italic hover:text-stone-700" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>
+            {row.kind === 'supp' ? 'add supplement' : 'add food'}
+          </button>
+        )}
+      </div>
     </div>
+  )
+}
+
+function FilterCap({ label, on, onClick }) {
+  return (
+    <button onClick={onClick} className={`text-[11px] uppercase tracking-[0.18em] transition-colors ${on ? 'text-stone-900 font-medium' : 'text-stone-400 hover:text-stone-700'}`} style={on ? { textDecoration: 'underline', textUnderlineOffset: '5px', textDecorationColor: '#a8a29e' } : undefined}>
+      {label}
+    </button>
+  )
+}
+
+function RecipeLibrary({ activities, onOpen, onAdd }) {
+  const [slotF, setSlotF] = useState(null)
+  const [phaseF, setPhaseF] = useState(null)
+  const recipes = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived')
+  const filtered = recipes.filter((a) =>
+    (!slotF || (a.details.slot || 'breakfast') === slotF) && (!phaseF || (a.phase || []).includes(phaseF)),
+  )
+  return (
+    <section>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900">Your Recipes.</h2>
+          <p className="kicker text-stone-400 mt-1">Your kitchen library</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-stone-400">{filtered.length}</span>
+          <button onClick={onAdd} className="bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">Add recipe</button>
+        </div>
+      </div>
+
+      <div className="my-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-y border-stone-100 py-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {SLOT_FILTERS.map((s) => <FilterCap key={s} label={slotMeta(s).label} on={slotF === s} onClick={() => setSlotF(slotF === s ? null : s)} />)}
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {PHASE_FILTERS.map((p) => <FilterCap key={p.id} label={p.label} on={phaseF === p.id} onClick={() => setPhaseF(phaseF === p.id ? null : p.id)} />)}
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="font-serif italic text-lg text-stone-400">No recipes yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((a) => <RecipeCard key={a.id} a={a} onOpen={() => onOpen(a)} />)}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function RecipeCard({ a, onOpen }) {
+  const preview = (a.notes || '').split('\n').find((l) => l.trim()) || ''
+  const ph = (a.phase || [])[0]
+  return (
+    <button onClick={onOpen} className="flex flex-col items-start border border-stone-200 bg-white/40 p-4 text-left transition-shadow hover:shadow-md">
+      <h3 className="font-serif text-xl text-stone-900">{a.title || 'Untitled'}</h3>
+      {preview ? (
+        <p className="mt-1 line-clamp-1 text-sm text-stone-500">{preview}</p>
+      ) : (
+        <p className="mt-1 text-sm italic text-stone-300">No notes yet.</p>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <span className="kicker text-stone-400">{slotMeta(a.details.slot || 'breakfast').label}</span>
+        {ph && PHASES[ph] && <span className="text-[10px] uppercase tracking-[0.1em]" style={{ color: PHASES[ph].color }}>{PHASES[ph].name}</span>}
+        <span className="text-[10px] uppercase tracking-[0.1em] text-stone-400">{FREQ_LABEL[a.frequency] || a.frequency}</span>
+      </div>
+    </button>
   )
 }
 
