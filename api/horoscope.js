@@ -15,15 +15,23 @@ export const maxDuration = 30
 const SYSTEM = `You write Melissa's daily horoscope as STRUCTURED JSON.
 
 Output ONLY a JSON object — no prose, no markdown, no code fences. Shape:
-{"theme": string, "aspects": [{"from": string, "to": string, "type": string, "meaning": string}]}
+{"theme": string, "summary": string, "aspects": [{"from": string, "to": string, "type": string, "meaning": string}]}
 
 Rules:
 - "theme": 2-3 words, lowercase, the single through-line tying today's aspects
   together (e.g. "say it plainly"). No punctuation except an optional ending period.
-- "aspects": echo back EVERY aspect you are given, preserving its "from", "to",
-  and "type" EXACTLY as provided (do not add, drop, reorder fields, or rename).
-  Add "meaning": exactly ONE sentence, second person ("you"), specific to that
-  precise pairing for today, and DIFFERENT from every other meaning in the array.
+- "summary": write ONE cohesive paragraph of 3-4 sentences where each idea connects
+  to and builds on the previous one. It should read as a single unified daily
+  reading, not separate observations. Weave the thread between all of today's
+  aspects into one voice — do not list them separately.
+- "aspects": echo back the aspects you are given, preserving "from", "to", and
+  "type" EXACTLY as provided. Add "meaning": exactly ONE sentence, second person
+  ("you"), specific to that pairing and DIFFERENT from every other meaning.
+  VALIDATE each aspect before returning: every entry must have two DISTINCT "I"
+  statements (the "from" and "to" must not be the same), and its "type" must be one
+  of: square, quincunx, trine, sextile. If an aspect has the same statement on both
+  sides, or its type is not one of those four, DROP it from the array entirely. No
+  orphaned or duplicate entries.
   Do NOT use em dashes or en dashes (— or –); use commas or plain short sentences.
 - Voice: plain, warm, precise, direct — a smart friend telling the truth. Normal
   words. No mysticism, no astrology-app filler. Banned: "energies", "the cosmos",
@@ -88,9 +96,14 @@ export default async function handler(req, res) {
     const parsed = JSON.parse(raw)
 
     const theme = typeof parsed.theme === 'string' ? parsed.theme.trim() : null
+    const summary = typeof parsed.summary === 'string' ? parsed.summary.replace(/\s*[—–]\s*/g, ', ').trim() : ''
+    const VALID_TYPES = ['square', 'quincunx', 'trine', 'sextile']
     const cleaned = Array.isArray(parsed.aspects)
       ? parsed.aspects
           .filter((a) => a && a.from && a.to && a.type && a.meaning)
+          // Drop same-statement pairs and any type without a defined operator.
+          .filter((a) => String(a.from).trim().toUpperCase() !== String(a.to).trim().toUpperCase())
+          .filter((a) => VALID_TYPES.includes(String(a.type).toLowerCase()))
           .map((a) => ({
             from: String(a.from),
             to: String(a.to),
@@ -101,7 +114,7 @@ export default async function handler(req, res) {
 
     if (theme && cleaned && cleaned.length) {
       console.log('[horoscope] ok', JSON.stringify({ theme, n: cleaned.length }))
-      res.status(200).json({ theme, aspects: cleaned, source: 'claude' })
+      res.status(200).json({ theme, summary, aspects: cleaned, source: 'claude' })
     } else {
       console.log('[horoscope] empty', JSON.stringify({ themeOk: !!theme, raw: text.slice(0, 240) }))
       res.status(200).json({ theme: null, aspects: null, source: 'empty' })

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig } from '../lib/cycle'
 import {
@@ -13,7 +13,7 @@ import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { useActivities } from '../hooks/useActivities'
-import { activityOccursOn, isDoneOn, toMealShape, blankActivity, ACTIVITY_TYPES } from '../lib/activities'
+import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity } from '../lib/activities'
 
 // Geocode a place name to coordinates via Open-Meteo (no key, CORS-friendly).
 async function geocode(place) {
@@ -173,20 +173,41 @@ export default function Today({ cycleConfig, location, setLocation }) {
 
   const { activities, add, update, updateDetails, remove, toggleComplete, setOrder } = useActivities()
   const [editing, setEditing] = useState(null) // an activity (new or existing)
-  const [homeAdd, setHomeAdd] = useState(false) // type chooser open
+  const [homeAdd, setHomeAdd] = useState(false) // section chooser open
+  const [formAllowed, setFormAllowed] = useState(null) // restrict category dropdown
 
   const isNew = (a) => !activities.some((x) => x.id === a.id)
 
-  // Events for a day, shaped for the calendar / Dream Day columns.
-  const dayEvents = (k) =>
-    activities
-      .filter((a) => a.type === 'event' && a.status !== 'archived' && activityOccursOn(a, k))
-      .map((a) => ({ id: a.id, title: a.title, part: a.details.partOfDay || 'morning', time: a.details.time || '', done: isDoneOn(a, k), order: a.order }))
+  const active = (a, k) => a.status !== 'archived' && activityOccursOn(a, k)
 
-  // Meal items + supplements for a day, shaped for MealSlots.
+  // AGENDA — calendar events + Fitness/Appointments protocols, by part of day.
+  const dayEvents = (k) => {
+    const out = []
+    activities.forEach((a) => {
+      if (!active(a, k)) return
+      if (a.type === 'event') {
+        out.push({ id: a.id, title: a.title, part: a.details.partOfDay || 'morning', time: a.details.time || '', done: isDoneOn(a, k), order: a.order })
+      } else if (a.type === 'protocol' && SECTION_CATS.agenda.includes(a.category)) {
+        partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, time: '', done: isDoneOn(a, k), order: a.order }))
+      }
+    })
+    return out
+  }
+
+  // RITUAL — Skincare/Facial/Haircare/Body/Aesthetics/Treatments/Wellness protocols.
+  const dayRituals = (k) => {
+    const out = []
+    activities.forEach((a) => {
+      if (a.type !== 'protocol' || !SECTION_CATS.ritual.includes(a.category) || !active(a, k)) return
+      partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, done: isDoneOn(a, k) }))
+    })
+    return out
+  }
+
+  // NOURISHMENT — meal items + supplements for a day, shaped for the slots.
   const dayMeals = (k) =>
     activities
-      .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived' && activityOccursOn(a, k))
+      .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && active(a, k))
       .map(toMealShape)
 
   // Quick inline add from a meal slot (AddMealForm shape → activity).
@@ -197,11 +218,30 @@ export default function Today({ cycleConfig, location, setLocation }) {
     }))
   const removeMeal = (id) => remove(id)
   const toggleEvent = (id) => toggleComplete(id, selectedKey)
-  const moveEventToPart = (id, part) => updateDetails(id, { partOfDay: part })
+  // Move an agenda item to another column — events by partOfDay, protocols by timeOfDay.
+  const moveEventToPart = (id, part) => {
+    const a = activities.find((x) => x.id === id)
+    if (!a) return
+    if (a.type === 'event') updateDetails(id, { partOfDay: part })
+    else update(id, { timeOfDay: [part] })
+  }
 
   const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
 
-  // Universal Add on the home page → choose a type, then open its form.
+  // The TODAY-view add chooser routes by section → the right type + categories.
+  const SECTION_ADD = {
+    ritual: { label: 'Ritual', blurb: 'Skincare, hair, body, treatments', type: 'protocol', allowed: SECTION_CATS.ritual, overrides: { category: 'skincare', timeOfDay: ['morning'] } },
+    nourishment: { label: 'Nourishment', blurb: 'Food, drink, supplements', type: 'meal_item', allowed: null, overrides: { details: { slot: 'breakfast', beverage: false } } },
+    agenda: { label: 'Agenda', blurb: 'Events, fitness, appointments', type: 'event', allowed: null, overrides: { seriesStart: selectedKey, frequency: 'asneeded', details: { partOfDay: 'morning' } } },
+  }
+  const pickSection = (id) => {
+    const s = SECTION_ADD[id]
+    setHomeAdd(false)
+    setFormAllowed(s.allowed)
+    setEditing(blankActivity(s.type, s.overrides))
+  }
+
+  // Universal Add on the home page → choose a section, then open its form.
   useRegisterAdd(() => setHomeAdd(true), [])
 
   const pickDay = (k) => { setSelectedKey(k); setCalView('day') }
@@ -227,6 +267,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
         today={today}
         cycleConfig={cycleConfig}
         eventsFor={dayEvents}
+        ritualsFor={dayRituals}
         mealsFor={dayMeals}
         onPickDay={pickDay}
         onAddMeal={addMeal}
@@ -234,15 +275,15 @@ export default function Today({ cycleConfig, location, setLocation }) {
         onReorder={setOrder}
         onMovePart={moveEventToPart}
         onToggle={toggleEvent}
-        onOpen={(id) => setEditing(activities.find((a) => a.id === id) || null)}
+        onOpen={(id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }}
       />
 
       <TodayNotes />
 
       {homeAdd && (
         <AddChooser
-          options={ACTIVITY_TYPES}
-          onPick={(type) => { setHomeAdd(false); setEditing(blankActivity(type, { seriesStart: selectedKey, frequency: type === 'event' ? 'asneeded' : 'daily' })) }}
+          options={Object.entries(SECTION_ADD).map(([id, s]) => ({ id, label: s.label, blurb: s.blurb }))}
+          onPick={pickSection}
           onClose={() => setHomeAdd(false)}
         />
       )}
@@ -251,9 +292,10 @@ export default function Today({ cycleConfig, location, setLocation }) {
         <ActivityForm
           activity={editing}
           isNew={isNew(editing)}
-          onSave={saveActivity}
-          onDelete={() => { remove(editing.id); setEditing(null) }}
-          onClose={() => setEditing(null)}
+          allowedCategories={formAllowed}
+          onSave={(a) => { saveActivity(a); setFormAllowed(null) }}
+          onDelete={() => { remove(editing.id); setEditing(null); setFormAllowed(null) }}
+          onClose={() => { setEditing(null); setFormAllowed(null) }}
         />
       )}
     </div>
@@ -275,7 +317,7 @@ const VIEW_TABS = [
 ]
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, mealsFor, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(selectedKey)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -338,6 +380,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
       {view === 'day' && (
         <DayColumns
           events={eventsFor(selectedKey)}
+          rituals={ritualsFor(selectedKey)}
           dateKeyStr={selectedKey}
           meals={mealsFor(selectedKey)}
           onAddMeal={onAddMeal}
@@ -365,13 +408,13 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
               const holiday = holidayFor(cell)
               const dayEvents = eventsFor(key)
               const phase = phaseForConfig(cycleConfig, cell)
-              const tint = inMonth && phase ? PHASE_TINT[phase.id] : undefined
+              const tint = phase ? PHASE_TINT[phase.id] : undefined
               return (
                 <div
                   key={key}
                   style={tint ? { backgroundColor: tint } : undefined}
                   className={`group relative min-h-[78px] border-b border-r border-stone-200 px-1.5 py-1 text-left transition-colors ${
-                    inMonth ? '' : 'bg-stone-50 text-stone-300'
+                    inMonth ? '' : 'text-stone-300'
                   } ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
                 >
                   <button onClick={() => onPickDay(key)} className="block w-full text-left">
@@ -485,9 +528,25 @@ const COL_SECTIONS = {
   ],
 }
 
-// ── TODAY view body — numbered draggable events + meal sections per column ──
-function DayColumns({ events, dateKeyStr, meals, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+// Collapsible section header used in the TODAY columns.
+function Collapsible({ label, open, onToggle, children }) {
+  return (
+    <div>
+      <button onClick={onToggle} className="mb-2 flex w-full items-center justify-between">
+        <span className="kicker text-stone-400">{label}</span>
+        {open ? <ChevronDown size={13} className="text-stone-300" /> : <ChevronRight size={13} className="text-stone-300" />}
+      </button>
+      {open && children}
+    </div>
+  )
+}
+
+// ── TODAY view body — RITUAL · NOURISHMENT · AGENDA per column ──
+function DayColumns({ events, rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
   const [drag, setDrag] = useState(null) // { id, fromPart }
+  const [collapsed, setCollapsed] = useState({}) // `${part}:${section}` -> true
+  const toggleSec = (k) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))
+  const isOpen = (k) => !collapsed[k]
 
   const dropOnRow = (targetPart, targetId, colIds) => {
     if (!drag) return
@@ -511,59 +570,71 @@ function DayColumns({ events, dateKeyStr, meals, onAddMeal, onRemoveMeal, onReor
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {PARTS.map((part) => {
-        const items = events.filter((e) => e.part === part.id).sort(sortEvents)
-        const colIds = items.map((i) => i.id)
+        const agenda = events.filter((e) => e.part === part.id).sort(sortEvents)
+        const colIds = agenda.map((i) => i.id)
+        const ritualItems = rituals.filter((r) => r.part === part.id)
         return (
           <div key={part.id} className="border-t border-stone-300 pt-3">
             <p className="kicker text-stone-500 mb-3">{part.label}</p>
 
-            <div
-              className="min-h-[1.5rem] space-y-1.5"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => dropOnColumn(part.id, colIds)}
-            >
-              {items.length === 0 ? (
-                <p className="text-sm italic text-stone-400">Nothing scheduled.</p>
+            {/* RITUAL */}
+            <Collapsible label="Ritual" open={isOpen(`${part.id}:ritual`)} onToggle={() => toggleSec(`${part.id}:ritual`)}>
+              {ritualItems.length === 0 ? (
+                <p className="text-sm italic text-stone-400">Nothing yet.</p>
               ) : (
-                items.map((it, idx) => (
-                  <div
-                    key={it.id}
-                    draggable
-                    onDragStart={() => setDrag({ id: it.id, fromPart: part.id })}
-                    onDragEnd={() => setDrag(null)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => { e.stopPropagation(); dropOnRow(part.id, it.id, colIds) }}
-                    className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${drag && drag.id === it.id ? 'opacity-40' : ''}`}
-                  >
-                    <span className="shrink-0 text-sm text-stone-400 tabular-nums">{idx + 1}</span>
-                    <span className="shrink-0 text-stone-300">·</span>
-                    <button
-                      onClick={() => onOpen(it.id)}
-                      className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}
-                    >
-                      {it.title || 'Untitled'}
-                    </button>
-                    <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
-                  </div>
-                ))
+                <div className="space-y-1.5">
+                  {ritualItems.map((it) => (
+                    <div key={it.id} className="flex items-center gap-2">
+                      <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.title || 'Untitled'}</button>
+                      <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
+            </Collapsible>
 
-            <div className="my-4 border-t border-stone-200" />
+            <div className="my-3 border-t border-stone-100" />
 
-            <div className="space-y-3">
-              {COL_SECTIONS[part.id].map((sec) => (
-                <MealSection
-                  key={sec.label}
-                  section={sec}
-                  part={part.id}
-                  meals={meals}
-                  dateKeyStr={dateKeyStr}
-                  onAdd={onAddMeal}
-                  onRemove={onRemoveMeal}
-                />
-              ))}
-            </div>
+            {/* NOURISHMENT */}
+            <Collapsible label="Nourishment" open={isOpen(`${part.id}:nourishment`)} onToggle={() => toggleSec(`${part.id}:nourishment`)}>
+              <div className="space-y-3">
+                {COL_SECTIONS[part.id].map((sec) => (
+                  <MealSection key={sec.label} section={sec} part={part.id} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
+                ))}
+              </div>
+            </Collapsible>
+
+            <div className="my-3 border-t border-stone-100" />
+
+            {/* AGENDA */}
+            <Collapsible label="Agenda" open={isOpen(`${part.id}:agenda`)} onToggle={() => toggleSec(`${part.id}:agenda`)}>
+              <div
+                className="min-h-[1.5rem] space-y-1.5"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => dropOnColumn(part.id, colIds)}
+              >
+                {agenda.length === 0 ? (
+                  <p className="text-sm italic text-stone-400">Nothing scheduled.</p>
+                ) : (
+                  agenda.map((it, idx) => (
+                    <div
+                      key={it.id}
+                      draggable
+                      onDragStart={() => setDrag({ id: it.id, fromPart: part.id })}
+                      onDragEnd={() => setDrag(null)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.stopPropagation(); dropOnRow(part.id, it.id, colIds) }}
+                      className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${drag && drag.id === it.id ? 'opacity-40' : ''}`}
+                    >
+                      <span className="shrink-0 text-sm text-stone-400 tabular-nums">{idx + 1}</span>
+                      <span className="shrink-0 text-stone-300">·</span>
+                      <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.title || 'Untitled'}</button>
+                      <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
+                    </div>
+                  ))
+                )}
+              </div>
+            </Collapsible>
           </div>
         )
       })}

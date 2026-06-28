@@ -29,8 +29,9 @@ const BIG_THREE_SIGNS = [
   { glyph: '♎︎', sign: 'Libra', role: 'Rising' },
 ]
 
-// Aspect operator glyphs for the one-line aspect summary.
-const ASPECT_OP = { friction: '×', flow: '↗', focus: '·' }
+// Aspect operator glyphs, keyed by aspect type. Only these four are rendered.
+const ASPECT_OP = { square: '×', quincunx: '↗', trine: '△', sextile: '∗' }
+const aspectOp = (t) => ASPECT_OP[String(t || '').toLowerCase()]
 
 const BIG_THREE = {
   sun: 'Libra 24° (Mercury also in Libra, conjunct the Sun)',
@@ -85,8 +86,9 @@ const isValidAspect = (a) =>
 // Coerce any value into a safe { theme, aspects[] } the wheel can render.
 function normalizeData(d) {
   const theme = d && typeof d.theme === 'string' ? d.theme : ''
+  const summary = d && typeof d.summary === 'string' ? d.summary : ''
   const aspects = d && Array.isArray(d.aspects) ? d.aspects.filter(isValidAspect) : []
-  return { theme, aspects }
+  return { theme, summary, aspects }
 }
 
 // Strip em/en dashes from any tooltip sentence (covers API + fallback text).
@@ -141,12 +143,13 @@ export default function Horoscope() {
 function HoroscopeCard({ data }) {
   const safe = normalizeData(data)
   const theme = safe.theme ? safe.theme.charAt(0).toUpperCase() + safe.theme.slice(1).replace(/[.\s]+$/, '') + '.' : ''
-  const summary =
-    data && typeof data.summary === 'string' && data.summary.trim()
-      ? cleanMeaning(data.summary.trim())
-      : safe.aspects.slice(0, 3).map((a) => cleanMeaning(a.meaning)).join(' ')
+  const summary = safe.summary
+    ? cleanMeaning(safe.summary)
+    : safe.aspects.slice(0, 3).map((a) => cleanMeaning(a.meaning)).join(' ')
+  // Only valid pairs: two distinct statements joined by exactly one operator.
   const aspectLine = safe.aspects
-    .map((a) => `${a.from} ${ASPECT_OP[qualityOf(a.type)] || '·'} ${a.to}`)
+    .filter((a) => a.from && a.to && a.from !== a.to && aspectOp(a.type))
+    .map((a) => `${a.from} ${aspectOp(a.type)} ${a.to}`)
     .join('   ·   ')
 
   return (
@@ -229,7 +232,7 @@ function HoroscopeInner() {
         const next = normalizeData(json)
         if (next.aspects.length && next.theme && alive) {
           setData(next)
-          setCached({ date: key, theme: next.theme, aspects: next.aspects, source: 'claude' })
+          setCached({ date: key, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
         }
       } catch {
         /* offline / no key — the deterministic fallback already rendered */

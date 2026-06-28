@@ -15,7 +15,10 @@ const labelCls = 'kicker text-stone-400 mb-2 block'
 const lineCls = 'w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900'
 
 // Unified create/edit form for every activity type.
-export default function ActivityForm({ activity, isNew, onSave, onDelete, onClose }) {
+export default function ActivityForm({ activity, isNew, allowedCategories, onSave, onDelete, onClose }) {
+  const categoryOpts = Array.isArray(allowedCategories) && allowedCategories.length
+    ? ACTIVITY_CATEGORIES.filter((c) => allowedCategories.includes(c.id))
+    : ACTIVITY_CATEGORIES
   const [draft, setDraft] = useState(() => ({
     ...blankActivity(activity.type),
     ...activity,
@@ -157,7 +160,7 @@ export default function ActivityForm({ activity, isNew, onSave, onDelete, onClos
             <>
               <div><span className={labelCls}>Category</span>
                 <select value={draft.category || 'nutrition'} onChange={(e) => set('category', e.target.value)} className={lineCls}>
-                  {ACTIVITY_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  {categoryOpts.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
               </div>
               <div><span className={labelCls}>Phase</span><Chips value={draft.phase} options={PHASE_OPTS} onToggle={(v) => toggleArr('phase', v)} colored /></div>

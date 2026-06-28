@@ -4,7 +4,7 @@ import { PHASES } from '../lib/cycle'
 import { dateKey, parseKey } from '../lib/date'
 import { MEAL_SLOTS } from '../lib/meals'
 import { useActivities } from '../hooks/useActivities'
-import { blankActivity } from '../lib/activities'
+import { blankActivity, sectionForCategory } from '../lib/activities'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -755,38 +755,26 @@ function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent,
             <DateLine label="Last completed" value={draft.lastCompleted} onChange={(v) => set('lastCompleted', v)} />
           </div>
 
-          {/* Add to calendar — opens the shared Event/Meal chooser first */}
+          {/* Add to calendar — auto-routes by category. Nutrition becomes a meal
+              item; Ritual, Agenda and Supplements surface directly in their
+              section once the protocol is saved. */}
           {added ? (
-            <div className="flex items-center gap-1.5 text-sm text-stone-600"><Check size={15} /> Added to calendar</div>
+            <div className="flex items-center gap-1.5 text-sm text-stone-600"><Check size={15} /> Added — appears in {sectionForCategory(draft.category)}</div>
           ) : (
             <button
               type="button"
-              onClick={() => setCalStep('choose')}
+              onClick={() => {
+                if (draft.category === 'nutrition') {
+                  const tod = (draft.timesOfDay || [])[0]
+                  const slot = tod === 'afternoon' ? 'lunch' : tod === 'evening' ? 'dinner' : 'breakfast'
+                  onAddMeal(cleanDraft(), slot)
+                }
+                setAdded(true)
+              }}
               className="flex items-center gap-1.5 border border-stone-900 px-3 py-1.5 text-sm text-stone-900 hover:bg-stone-900 hover:text-cream transition-colors"
             >
               <CalendarPlus size={15} /> Add to calendar
             </button>
-          )}
-
-          {calStep === 'choose' && (
-            <AddChooser
-              recommended={draft.category === 'nutrition' ? 'meal' : 'event'}
-              onEvent={() => { onAddEvent(cleanDraft()); setAdded(true); setCalStep(null) }}
-              onMeal={() => { setMealSlot(draft.category === 'nutrition' ? 'empty' : 'breakfast'); setCalStep('meal') }}
-              onClose={() => setCalStep(null)}
-            />
-          )}
-          {calStep === 'meal' && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/40 px-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setCalStep(null) }}>
-              <div className="w-full max-w-xs bg-cream border border-stone-300 p-6 shadow-2xl">
-                <p className="font-serif italic text-2xl text-stone-900 mb-4">Which slot?</p>
-                <SelectLine label="Slot" value={mealSlot} onChange={setMealSlot} options={MEAL_SLOTS} />
-                <div className="mt-5 flex items-center justify-end gap-3">
-                  <button onClick={() => setCalStep(null)} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-                  <button onClick={() => { onAddMeal(cleanDraft(), mealSlot); setAdded(true); setCalStep(null) }} className="bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
-                </div>
-              </div>
-            </div>
           )}
 
           <TextArea label="Notes" value={draft.notes} onChange={(v) => set('notes', v)} placeholder="Anything to remember" />

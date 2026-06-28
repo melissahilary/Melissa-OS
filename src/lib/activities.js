@@ -65,6 +65,23 @@ export const WEEKDAYS = [
 // Frequencies that don't take specific weekdays.
 export const NO_DAYS_FREQ = ['daily', 'asneeded']
 
+// Which Dream Day section a protocol category belongs to.
+export const SECTION_CATS = {
+  ritual: ['skincare', 'facial', 'haircare', 'body', 'aesthetics', 'treatments', 'wellness'],
+  nourishment: ['nutrition', 'supplements'],
+  agenda: ['fitness', 'appointments'],
+}
+export const sectionForCategory = (cat) => {
+  if (SECTION_CATS.ritual.includes(cat)) return 'ritual'
+  if (SECTION_CATS.nourishment.includes(cat)) return 'nourishment'
+  return 'agenda'
+}
+// The parts of day an activity belongs to (defaults to morning when unset).
+export const partsOfActivity = (a) => {
+  const t = (a.timeOfDay || []).filter((p) => ['morning', 'afternoon', 'evening'].includes(p))
+  return t.length ? t : ['morning']
+}
+
 export const normActivity = (a) => ({
   id: a.id || uid(),
   createdAt: a.createdAt || '',
