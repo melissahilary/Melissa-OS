@@ -20,10 +20,14 @@ Output ONLY a JSON object — no prose, no markdown, no code fences. Shape:
 Rules:
 - "theme": 2-3 words, lowercase, the single through-line tying today's aspects
   together (e.g. "say it plainly"). No punctuation except an optional ending period.
-- "summary": write ONE cohesive paragraph of 3-4 sentences where each idea connects
-  to and builds on the previous one. It should read as a single unified daily
-  reading, not separate observations. Weave the thread between all of today's
-  aspects into one voice — do not list them separately.
+- "summary": write ONE cohesive paragraph of 3-4 sentences. Requirements: no
+  sentence starts with a possessive (Your, My). Vary sentence structure — mix short
+  punchy sentences with longer ones. Write in second person but with authority, not
+  advice. Each sentence must earn its place — no filler, no repeating the same idea
+  in different words. The tone is a trusted friend who sees clearly, not a horoscope
+  column. Do NOT use the words: sync, relitigating, plainest, slightly, toward.
+  Write with precision and a slight edge. It should feel like one unified thought,
+  not three observations stapled together.
 - "aspects": echo back the aspects you are given, preserving "from", "to", and
   "type" EXACTLY as provided. Add "meaning": exactly ONE sentence, second person
   ("you"), specific to that pairing and DIFFERENT from every other meaning.

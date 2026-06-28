@@ -272,7 +272,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
       <Horoscope />
 
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">My Schedule.</h2>
+      <div className="pt-10">
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-8">My Schedule.</h2>
 
       <Calendar
         view={calView}
@@ -297,6 +298,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onToggle={toggleEvent}
         onOpen={(id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }}
       />
+      </div>
 
       <TodayNotes />
 
@@ -382,16 +384,18 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
 
   return (
     <section className="mb-12">
-      {/* Nav: Prev · (inline viewing) · view toggle · Next */}
-      <div className="mb-2 flex items-center gap-3">
-        <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
-        {notToday && (
-          <span className="text-xs text-stone-400">
-            Viewing {longDate(anchorDate)}.{' '}
-            <button onClick={goToday} className="underline underline-offset-2 hover:text-stone-700">Back to today</button>
-          </span>
-        )}
-        <div className="flex flex-1 justify-center gap-1">
+      {/* Nav: Prev far left · view toggle centered · Next far right */}
+      <div className="my-4 grid grid-cols-3 items-center">
+        <div className="flex min-w-0 items-center gap-2 justify-self-start">
+          <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
+          {notToday && (
+            <span className="hidden truncate text-xs text-stone-400 sm:inline">
+              Viewing {longDate(anchorDate)}.{' '}
+              <button onClick={goToday} className="underline underline-offset-2 hover:text-stone-700">Back to today</button>
+            </span>
+          )}
+        </div>
+        <div className="flex justify-center gap-1">
           {VIEW_TABS.map((t) => (
             <button
               key={t.id}
@@ -402,9 +406,9 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
             </button>
           ))}
         </div>
-        <button onClick={goNext} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
+        <button onClick={goNext} className="justify-self-end px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
       </div>
-      <div className="mb-5 flex items-center justify-center gap-3">
+      <div className="mb-5 mt-6 flex items-center justify-center gap-3">
         {view === 'day' && fromWeek && (
           <button onClick={() => { setFromWeek(false); setView('week') }} className="text-xs text-stone-400 hover:text-stone-900">← Week</button>
         )}
@@ -498,7 +502,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
       )}
 
       {view === 'week' && (
-        <div className="grid gap-4 md:grid-cols-7">
+        <div className="grid grid-cols-7 items-stretch gap-2 md:gap-4">
           {weekDays.map((d) => {
             const key = dateKey(d)
             const isTod = isSameDay(d, today)
@@ -507,8 +511,8 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
             const nourish = mealsFor(key).map((m) => ({ id: m.id, label: m.name }))
             const agenda = dedupeById(eventsFor(key).sort(byTime)).map((a) => ({ id: a.id, label: a.title || 'Untitled', done: a.done }))
             return (
-              <div key={key} className="border-t border-stone-300 pt-2">
-                <button onClick={more} className={`mb-2 block w-full text-left kicker hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
+              <div key={key} className="min-w-0 border-t border-stone-300 pt-2">
+                <button onClick={more} className={`mb-2 block w-full truncate text-left kicker hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
                 <WeekSection label="Ritual" variant="ritual" items={ritual} onToggle={onToggle} onMore={more} />
                 <div className="my-2 border-t border-stone-100" />
                 <WeekSection label="Nourish" variant="nourish" items={nourish} onMore={more} />
@@ -528,30 +532,32 @@ const dedupeById = (arr) => {
   return arr.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)))
 }
 
-// One compact week-view section: up to 3 items, then a +N more link.
+// One compact week-view section: fixed height, up to 3 items, then a +N more link.
 function WeekSection({ label, variant, items, onToggle, onMore }) {
   const shown = items.slice(0, 3)
   return (
-    <div>
-      <p className="mb-1 text-[9px] uppercase tracking-[0.14em] text-stone-400">{label}</p>
-      {items.length === 0 ? (
-        <p className="text-xs italic text-stone-300">nothing</p>
-      ) : (
-        <div className="space-y-1">
-          {shown.map((it, idx) => (
-            <div key={it.id} className="flex items-start gap-1.5">
-              {variant === 'agenda' && <span className="shrink-0 text-[10px] tabular-nums text-stone-400">{idx + 1}</span>}
-              <span className={`flex-1 text-xs leading-snug ${variant === 'nourish' ? 'italic text-stone-500' : it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
-                {it.label}
-              </span>
-              {variant !== 'nourish' && <Checkbox checked={it.done} onClick={() => onToggle(it.id)} size={13} />}
-            </div>
-          ))}
-          {items.length > 3 && (
-            <button onClick={onMore} className="text-[10px] text-stone-400 hover:text-stone-700">+{items.length - 3} more</button>
-          )}
-        </div>
-      )}
+    <div className="min-w-0">
+      <p className="mb-1 text-[9px] font-normal uppercase tracking-[0.14em] text-stone-400">{label}</p>
+      <div className="min-h-[76px]">
+        {items.length === 0 ? (
+          <p className="text-xs italic text-stone-300">nothing</p>
+        ) : (
+          <div className="space-y-1">
+            {shown.map((it, idx) => (
+              <div key={it.id} className="flex items-center gap-1.5">
+                {variant === 'agenda' && <span className="shrink-0 text-[10px] tabular-nums text-stone-400">{idx + 1}</span>}
+                <span className={`min-w-0 flex-1 truncate text-xs ${variant === 'nourish' ? 'italic text-stone-500' : it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
+                  {it.label}
+                </span>
+                {variant !== 'nourish' && <Checkbox checked={it.done} onClick={() => onToggle(it.id)} size={13} />}
+              </div>
+            ))}
+            {items.length > 3 && (
+              <button onClick={onMore} className="text-[10px] text-stone-400 hover:text-stone-700">+{items.length - 3} more</button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

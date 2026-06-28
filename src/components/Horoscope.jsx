@@ -138,19 +138,13 @@ export default function Horoscope() {
   )
 }
 
-// Editorial reading: a single italic theme, a short prose summary, the aspects
-// on one small-caps line, then the big three. All from live data — no wheel.
+// Editorial reading: a single italic theme + a short prose summary. Nothing else.
 function HoroscopeCard({ data }) {
   const safe = normalizeData(data)
   const theme = safe.theme ? safe.theme.charAt(0).toUpperCase() + safe.theme.slice(1).replace(/[.\s]+$/, '') + '.' : ''
   const summary = safe.summary
     ? cleanMeaning(safe.summary)
     : safe.aspects.slice(0, 3).map((a) => cleanMeaning(a.meaning)).join(' ')
-  // Only valid pairs: two distinct statements joined by exactly one operator.
-  const aspectLine = safe.aspects
-    .filter((a) => a.from && a.to && a.from !== a.to && aspectOp(a.type))
-    .map((a) => `${a.from} ${aspectOp(a.type)} ${a.to}`)
-    .join('   ·   ')
 
   return (
     <section className="mb-10">
@@ -164,10 +158,6 @@ function HoroscopeCard({ data }) {
           {summary && (
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-stone-600">{summary}</p>
           )}
-          {aspectLine && (
-            <p className="mt-6 text-[11px] uppercase tracking-[0.16em] text-stone-400">{aspectLine}</p>
-          )}
-          <BigThree />
         </div>
       ) : (
         <p className="py-6 text-center font-serif italic text-lg text-stone-400">
