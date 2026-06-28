@@ -7,8 +7,8 @@ import {
 } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
-import MealSlots from './shared/MealSlots'
-import { slotsForPart } from '../lib/meals'
+import { AddMealForm } from './shared/MealSlots'
+import { slotMeta } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
@@ -163,7 +163,7 @@ export default function Today({ cycleConfig, location, setLocation }) {
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-  const [calView, setCalView] = useState('month')
+  const [calView, setCalView] = useState('day') // 'day' (Today) | 'week' | 'month'
 
   const todayPhase = useMemo(
     () => phaseForConfig(cycleConfig, today),
@@ -217,15 +217,6 @@ export default function Today({ cycleConfig, location, setLocation }) {
 
       <Horoscope />
 
-      {!isSameDay(selected, today) && (
-        <p className="mb-6 text-sm text-stone-500">
-          Viewing {longDate(selected)}.{' '}
-          <button onClick={() => setSelectedKey(dateKey(today))} className="text-stone-900 underline underline-offset-2">
-            Back to today
-          </button>
-        </p>
-      )}
-
       <Calendar
         view={calView}
         setView={setCalView}
@@ -238,17 +229,6 @@ export default function Today({ cycleConfig, location, setLocation }) {
         eventsFor={dayEvents}
         mealsFor={dayMeals}
         onPickDay={pickDay}
-        onAdd={() => setHomeAdd(true)}
-        onOpen={(id) => setEditing(activities.find((a) => a.id === id) || null)}
-      />
-
-      {/* Day view = unified daily view (calendar header + the four columns).
-          Month/Week = calendar above, titled My dream day below. */}
-      <DreamDay
-        events={dayEvents(selectedKey)}
-        dateKeyStr={selectedKey}
-        showTitle={calView !== 'day'}
-        meals={dayMeals(selectedKey)}
         onAddMeal={addMeal}
         onRemoveMeal={removeMeal}
         onReorder={setOrder}
@@ -280,8 +260,22 @@ export default function Today({ cycleConfig, location, setLocation }) {
   )
 }
 
+// Very subtle per-phase cell tints for the month grid.
+const PHASE_TINT = { menstrual: '#F9EDEE', follicular: '#EFF4EF', ovulation: '#FAF5EE', luteal: '#F0EEF4' }
+const PHASE_LEGEND = [
+  { id: 'menstrual', label: 'Menstrual' },
+  { id: 'follicular', label: 'Follicular' },
+  { id: 'ovulation', label: 'Ovulatory' },
+  { id: 'luteal', label: 'Luteal' },
+]
+const VIEW_TABS = [
+  { id: 'day', label: 'Today' },
+  { id: 'week', label: 'Week' },
+  { id: 'month', label: 'Month' },
+]
+
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, mealsFor, onPickDay, onAdd, onOpen }) {
+function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, mealsFor, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(selectedKey)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -307,6 +301,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
     setCalMonth(new Date(today.getFullYear(), today.getMonth(), 1))
     setSelectedKey(dateKey(today))
   }
+  const notToday = selectedKey !== dateKey(today)
   const periodLabel =
     view === 'month'
       ? `${MONTHS[calMonth.getMonth()]} ${calMonth.getFullYear()}`
@@ -316,30 +311,47 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
 
   return (
     <section className="mb-12">
-      {/* Single row: views left · period center · prev/today/next right */}
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex flex-1 justify-start gap-1">
-          {['month', 'week', 'day'].map((v) => (
+      {/* Nav: Prev · (inline viewing) · view toggle · Next */}
+      <div className="mb-2 flex items-center gap-3">
+        <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
+        {notToday && (
+          <span className="text-xs text-stone-400">
+            Viewing {longDate(anchorDate)}.{' '}
+            <button onClick={goToday} className="underline underline-offset-2 hover:text-stone-700">Back to today</button>
+          </span>
+        )}
+        <div className="flex flex-1 justify-center gap-1">
+          {VIEW_TABS.map((t) => (
             <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-3 py-1.5 text-sm capitalize transition-colors ${view === v ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
+              key={t.id}
+              onClick={() => setView(t.id)}
+              className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition-colors ${view === t.id ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
             >
-              {v}
+              {t.label}
             </button>
           ))}
         </div>
-        <h3 className="flex-1 whitespace-nowrap text-center font-serif text-2xl text-stone-900">{periodLabel}</h3>
-        <div className="flex flex-1 items-center justify-end gap-1">
-          <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
-          <button onClick={goToday} className="px-2 text-sm text-stone-500 hover:text-stone-900">Today</button>
-          <button onClick={goNext} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
-          <button onClick={onAdd} className="px-2 text-sm text-stone-500 hover:text-stone-900">Add</button>
-        </div>
+        <button onClick={goNext} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
       </div>
+      <h3 className="mb-5 whitespace-nowrap text-center font-serif text-2xl text-stone-900">{periodLabel}</h3>
+
+      {view === 'day' && (
+        <DayColumns
+          events={eventsFor(selectedKey)}
+          dateKeyStr={selectedKey}
+          meals={mealsFor(selectedKey)}
+          onAddMeal={onAddMeal}
+          onRemoveMeal={onRemoveMeal}
+          onReorder={onReorder}
+          onMovePart={onMovePart}
+          onToggle={onToggle}
+          onOpen={onOpen}
+        />
+      )}
 
       {view === 'month' && (
-        <div className="grid grid-cols-7 border-l border-t border-stone-200">
+        <>
+          <div className="grid grid-cols-7 border-l border-t border-stone-200">
             {DOW.map((d) => (
               <div key={d} className="border-b border-r border-stone-200 px-2 py-1.5 text-center kicker text-stone-400">
                 {d[0]}
@@ -353,11 +365,13 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
               const holiday = holidayFor(cell)
               const dayEvents = eventsFor(key)
               const phase = phaseForConfig(cycleConfig, cell)
+              const tint = inMonth && phase ? PHASE_TINT[phase.id] : undefined
               return (
                 <div
                   key={key}
+                  style={tint ? { backgroundColor: tint } : undefined}
                   className={`group relative min-h-[78px] border-b border-r border-stone-200 px-1.5 py-1 text-left transition-colors ${
-                    inMonth ? 'bg-transparent' : 'bg-stone-50 text-stone-300'
+                    inMonth ? '' : 'bg-stone-50 text-stone-300'
                   } ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
                 >
                   <button onClick={() => onPickDay(key)} className="block w-full text-left">
@@ -368,13 +382,6 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
                     >
                       {cell.getDate()}
                     </span>
-                    {phase && inMonth && (
-                      <span
-                        className="ml-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
-                        style={{ backgroundColor: phase.color }}
-                        title={phase.name}
-                      />
-                    )}
                   </button>
 
                   {holiday && (
@@ -391,47 +398,58 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
                       </button>
                     ))}
                     {dayEvents.length > 2 && (
-                      <p className="text-[9px] text-stone-400">+{dayEvents.length - 2} more</p>
+                      <button onClick={() => onPickDay(key)} className="text-[9px] text-stone-400 hover:text-stone-700">+{dayEvents.length - 2} more</button>
                     )}
                   </div>
                 </div>
               )
             })}
           </div>
+          {/* Cycle phase legend */}
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+            {PHASE_LEGEND.map((p) => (
+              <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-400">
+                <span className="inline-block h-2.5 w-2.5 rounded-full border border-stone-200" style={{ backgroundColor: PHASE_TINT[p.id] }} />
+                {p.label}
+              </span>
+            ))}
+          </div>
+        </>
       )}
 
       {view === 'week' && (
         <div className="grid gap-3 md:grid-cols-7">
-            {weekDays.map((d) => {
-              const key = dateKey(d)
-              const isTod = isSameDay(d, today)
-              const evs = eventsFor(key).sort(byTime)
-              const dayMeals = mealsFor(key)
-              return (
-                <div key={key} className="group border-t border-stone-300 pt-2">
-                  <div className="mb-2 flex items-center justify-between">
-                    <button onClick={() => onPickDay(key)} className={`kicker text-left hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
-                  </div>
-                  <div className="space-y-1">
-                    {/* Events — bullet dot */}
-                    {evs.map((ev) => (
-                      <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1.5 text-left">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
-                        {ev.time && <span className="text-[10px] text-stone-400">{ev.time}</span>}
-                        <span className={`truncate text-xs ${ev.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{ev.title || 'Untitled'}</span>
-                      </button>
-                    ))}
-                    {/* Meal items — italic, no bullet */}
-                    {dayMeals.map((m) => (
-                      <p key={m.id} className="truncate text-xs italic text-stone-500">{m.name}</p>
-                    ))}
-                  </div>
+          {weekDays.map((d) => {
+            const key = dateKey(d)
+            const isTod = isSameDay(d, today)
+            const evs = eventsFor(key).sort(byTime)
+            const mealCount = mealsFor(key).length
+            return (
+              <div key={key} className="group border-t border-stone-300 pt-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <button onClick={() => onPickDay(key)} className={`kicker text-left hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
                 </div>
-              )
-            })}
-          </div>
+                <div className="space-y-1">
+                  {evs.slice(0, 4).map((ev) => (
+                    <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1.5 text-left">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
+                      <span className={`truncate text-xs ${ev.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{ev.title || 'Untitled'}</span>
+                    </button>
+                  ))}
+                  {evs.length > 4 && (
+                    <button onClick={() => onPickDay(key)} className="text-[10px] text-stone-400 hover:text-stone-700">+{evs.length - 4} more</button>
+                  )}
+                </div>
+                {mealCount > 0 && (
+                  <button onClick={() => onPickDay(key)} className="mt-2 block text-xs italic text-stone-400 hover:text-stone-700">
+                    {mealCount} meal{mealCount === 1 ? '' : 's'} planned
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
-
     </section>
   )
 }
@@ -445,8 +463,30 @@ const sortEvents = (a, b) => {
   return byTime(a, b)
 }
 
-// ── My dream day / unified day columns — events + editable meals per part ──
-function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+// Meal sections per Dream Day column. Supplements aggregate every supp-item in
+// that part; the representative slot is used when adding a new supplement.
+const COL_SECTIONS = {
+  morning: [
+    { kind: 'food', slot: 'empty', label: 'Empty Stomach' },
+    { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
+    { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
+    { kind: 'food', slot: 'snack', label: 'Snack' },
+    { kind: 'food', slot: 'drink', label: 'Drink' },
+  ],
+  afternoon: [
+    { kind: 'food', slot: 'lunch', label: 'Lunch' },
+    { kind: 'supp', slot: 'lunch', label: 'Supplements' },
+    { kind: 'food', slot: 'snack', label: 'Snack' },
+  ],
+  evening: [
+    { kind: 'food', slot: 'dinner', label: 'Dinner' },
+    { kind: 'supp', slot: 'dinner', label: 'Supplements' },
+    { kind: 'food', slot: 'bed', label: 'Before Bed' },
+  ],
+}
+
+// ── TODAY view body — numbered draggable events + meal sections per column ──
+function DayColumns({ events, dateKeyStr, meals, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
   const [drag, setDrag] = useState(null) // { id, fromPart }
 
   const dropOnRow = (targetPart, targetId, colIds) => {
@@ -469,62 +509,102 @@ function DreamDay({ events, dateKeyStr, showTitle = true, meals, onAddMeal, onRe
   }
 
   return (
-    <section className="mb-14">
-      {showTitle && (
-        <Cursive className="block mb-6 text-5xl md:text-6xl text-stone-900 leading-tight">My dream day.</Cursive>
-      )}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {PARTS.map((part) => {
-          const items = events.filter((e) => e.part === part.id).sort(sortEvents)
-          const colIds = items.map((i) => i.id)
-          const slotIds = slotsForPart(part.id).map((s) => s.id)
-          return (
-            <div key={part.id} className="border-t border-stone-300 pt-3">
-              <p className="kicker text-stone-500 mb-3">{part.label}</p>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {PARTS.map((part) => {
+        const items = events.filter((e) => e.part === part.id).sort(sortEvents)
+        const colIds = items.map((i) => i.id)
+        return (
+          <div key={part.id} className="border-t border-stone-300 pt-3">
+            <p className="kicker text-stone-500 mb-3">{part.label}</p>
 
-              <p className="kicker text-stone-300 text-[10px] mb-2">Your day</p>
-              <div
-                className="min-h-[1.5rem] space-y-1.5"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => dropOnColumn(part.id, colIds)}
-              >
-                {items.length === 0 ? (
-                  <p className="text-sm text-stone-300">Nothing scheduled.</p>
-                ) : (
-                  items.map((it, idx) => (
-                    <div
-                      key={it.id}
-                      draggable
-                      onDragStart={() => setDrag({ id: it.id, fromPart: part.id })}
-                      onDragEnd={() => setDrag(null)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => { e.stopPropagation(); dropOnRow(part.id, it.id, colIds) }}
-                      className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${drag && drag.id === it.id ? 'opacity-40' : ''}`}
+            <div
+              className="min-h-[1.5rem] space-y-1.5"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => dropOnColumn(part.id, colIds)}
+            >
+              {items.length === 0 ? (
+                <p className="text-sm italic text-stone-400">Nothing scheduled.</p>
+              ) : (
+                items.map((it, idx) => (
+                  <div
+                    key={it.id}
+                    draggable
+                    onDragStart={() => setDrag({ id: it.id, fromPart: part.id })}
+                    onDragEnd={() => setDrag(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.stopPropagation(); dropOnRow(part.id, it.id, colIds) }}
+                    className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${drag && drag.id === it.id ? 'opacity-40' : ''}`}
+                  >
+                    <span className="shrink-0 text-sm text-stone-400 tabular-nums">{idx + 1}</span>
+                    <span className="shrink-0 text-stone-300">·</span>
+                    <button
+                      onClick={() => onOpen(it.id)}
+                      className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}
                     >
-                      <span className="shrink-0 text-sm text-stone-400 tabular-nums">{idx + 1}</span>
-                      <span className="shrink-0 text-stone-300">·</span>
-                      <button
-                        onClick={() => onOpen(it.id)}
-                        className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}
-                      >
-                        {it.title || 'Untitled'}
-                      </button>
-                      <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Separator: your schedule above, your meals below */}
-              <div className="my-4 border-t border-stone-100" />
-
-              <p className="kicker text-stone-300 text-[10px] mb-2">Your meals</p>
-              <MealSlots slotIds={slotIds} dateKeyStr={dateKeyStr} meals={meals} onAdd={onAddMeal} onRemove={onRemoveMeal} compact />
+                      {it.title || 'Untitled'}
+                    </button>
+                    <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
+                  </div>
+                ))
+              )}
             </div>
-          )
-        })}
-      </div>
-    </section>
+
+            <div className="my-4 border-t border-stone-200" />
+
+            <div className="space-y-3">
+              {COL_SECTIONS[part.id].map((sec) => (
+                <MealSection
+                  key={sec.label}
+                  section={sec}
+                  part={part.id}
+                  meals={meals}
+                  dateKeyStr={dateKeyStr}
+                  onAdd={onAddMeal}
+                  onRemove={onRemoveMeal}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function MealSection({ section, part, meals, dateKeyStr, onAdd, onRemove }) {
+  const [adding, setAdding] = useState(false)
+  const items = (meals || []).filter((m) =>
+    section.kind === 'supp'
+      ? m.kind === 'supp' && slotMeta(m.slot).part === part
+      : m.kind === 'food' && m.slot === section.slot,
+  )
+  return (
+    <div>
+      <p className="kicker text-stone-400 mb-1.5">{section.label}</p>
+      {items.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap gap-1.5">
+          {items.map((m) => (
+            <span key={m.id} className="group inline-flex items-center gap-1 border border-stone-300 bg-white/50 px-2 py-0.5 text-xs text-stone-700">
+              {m.name}
+              <button onClick={() => onRemove(m.id)} className="text-stone-400 transition-colors hover:text-stone-700"><X size={11} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      {adding ? (
+        <AddMealForm
+          slot={slotMeta(section.slot)}
+          kind={section.kind}
+          dateKeyStr={dateKeyStr}
+          onCancel={() => setAdding(false)}
+          onSave={(item) => { onAdd({ ...item, slot: section.slot, kind: section.kind }); setAdding(false) }}
+        />
+      ) : (
+        <button onClick={() => setAdding(true)} className="text-sm italic text-stone-400 hover:text-stone-600 transition-colors">
+          {section.kind === 'supp' ? 'add supplement' : 'add food'}
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -555,18 +635,15 @@ function TodayNotes() {
 
   return (
     <section className="mb-14">
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Today's Notes.</h2>
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-4">Today's Notes.</h2>
 
-      <div className="mb-2 flex justify-end">
-        <span className="text-sm text-stone-400">{notes.length} on file</span>
-      </div>
-      <div className="mb-6 flex justify-end gap-2">
+      <div className="mb-6 flex items-center gap-2">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="New note title"
-          className="w-48 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+          className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
         />
         <button onClick={add} className="bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
           New note

@@ -22,13 +22,15 @@ const SCATTER = [
   { deg: 338, r: 107, mark: '·', o: 0.45, size: 7 },
 ]
 
-// Melissa's hard-coded big three, shown below the wheel.
-// Libra/Taurus glyphs with a trailing U+FE0E to force text (not emoji) rendering.
-const BIG_THREE_GLYPHS = [
-  { glyph: '♎︎', label: 'sun' },
-  { glyph: '♉︎', label: 'moon' },
-  { glyph: '♎︎', label: 'rising' },
+// Melissa's hard-coded big three. Trailing U+FE0E forces text (not emoji) glyphs.
+const BIG_THREE_SIGNS = [
+  { glyph: '♎︎', sign: 'Libra', role: 'Sun' },
+  { glyph: '♉︎', sign: 'Taurus', role: 'Moon' },
+  { glyph: '♎︎', sign: 'Libra', role: 'Rising' },
 ]
+
+// Aspect operator glyphs for the one-line aspect summary.
+const ASPECT_OP = { friction: '×', flow: '↗', focus: '·' }
 
 const BIG_THREE = {
   sun: 'Libra 24° (Mercury also in Libra, conjunct the Sun)',
@@ -134,16 +136,34 @@ export default function Horoscope() {
   )
 }
 
-// Card shell + optional wheel. With no/empty data it shows a quiet empty state.
+// Editorial reading: a single italic theme, a short prose summary, the aspects
+// on one small-caps line, then the big three. All from live data — no wheel.
 function HoroscopeCard({ data }) {
   const safe = normalizeData(data)
+  const theme = safe.theme ? safe.theme.charAt(0).toUpperCase() + safe.theme.slice(1).replace(/[.\s]+$/, '') + '.' : ''
+  const summary =
+    data && typeof data.summary === 'string' && data.summary.trim()
+      ? cleanMeaning(data.summary.trim())
+      : safe.aspects.slice(0, 3).map((a) => cleanMeaning(a.meaning)).join(' ')
+  const aspectLine = safe.aspects
+    .map((a) => `${a.from} ${ASPECT_OP[qualityOf(a.type)] || '·'} ${a.to}`)
+    .join('   ·   ')
+
   return (
     <section className="mb-10">
       <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Today's Horoscope</h2>
 
       {safe.aspects.length > 0 ? (
-        <div className="flex flex-col items-center">
-          <MeaningWheel data={safe} />
+        <div className="mx-auto max-w-2xl text-center">
+          {theme && (
+            <p className="font-serif italic text-3xl md:text-4xl leading-tight text-stone-900">{theme}</p>
+          )}
+          {summary && (
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-stone-600">{summary}</p>
+          )}
+          {aspectLine && (
+            <p className="mt-6 text-[11px] uppercase tracking-[0.16em] text-stone-400">{aspectLine}</p>
+          )}
           <BigThree />
         </div>
       ) : (
@@ -224,131 +244,18 @@ function HoroscopeInner() {
   return <HoroscopeCard data={data} />
 }
 
-// The wheel IS the reading. Renders entirely from { theme, aspects[] }.
+// Melissa's big three — glyph + sign on one line, role in small-caps beneath.
 function BigThree() {
   return (
-    <div className="mt-5 flex items-center justify-center gap-4">
-      {BIG_THREE_GLYPHS.map((it, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <span className="text-stone-300">·</span>}
-          <span className="flex flex-col items-center leading-none">
-            <span className="text-2xl" style={{ fontFamily: "'Georgia', serif", fontVariantEmoji: 'text', color: inkA(0.6) }}>{it.glyph}</span>
-            <span className="kicker mt-1.5" style={{ color: inkA(0.35) }}>{it.label}</span>
+    <div className="mt-8 flex flex-wrap items-start justify-center gap-x-10 gap-y-4">
+      {BIG_THREE_SIGNS.map((it, i) => (
+        <span key={i} className="flex flex-col items-center leading-none">
+          <span className="font-serif text-xl" style={{ color: inkA(0.8) }}>
+            <span style={{ fontFamily: "'Georgia', serif", fontVariantEmoji: 'text' }}>{it.glyph}</span>{' '}{it.sign}
           </span>
-        </React.Fragment>
+          <span className="kicker mt-2" style={{ color: inkA(0.4) }}>{it.role}</span>
+        </span>
       ))}
     </div>
-  )
-}
-
-function MeaningWheel({ data }) {
-  const [active, setActive] = useState(null)
-  const cx = 130
-  const cy = 130
-  const rRing = 78
-  const rLabel = 92
-
-  const aspects = data && Array.isArray(data.aspects) ? data.aspects.filter(isValidAspect) : []
-  const theme = data && typeof data.theme === 'string' ? data.theme : ''
-  if (!aspects.length) return null
-
-  const P = (deg, r) => {
-    const a = ((deg - 90) * Math.PI) / 180
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)]
-  }
-
-  // Unique "I" statement nodes in first-appearance order.
-  const order = []
-  const seen = new Set()
-  const add = (s) => {
-    if (s && !seen.has(s)) {
-      seen.add(s)
-      order.push(s)
-    }
-  }
-  aspects.forEach((a) => {
-    add(a.from)
-    add(a.to)
-  })
-  const N = order.length || 1
-  const angleOf = (s) => (order.indexOf(s) * 360) / N
-
-  const activeAspect = active != null && aspects[active] ? aspects[active] : null
-
-  return (
-    <svg
-      viewBox="0 0 260 260"
-      width="364"
-      height="364"
-      className="block h-auto max-w-full"
-      role="img"
-      aria-label="Today's aspects, as meanings"
-      style={{ fontFamily: "'Cormorant Garamond', ui-serif, Georgia, serif" }}
-      onClick={() => setActive(null)}
-    >
-      <circle cx={cx} cy={cy} r={rRing} fill="none" stroke={INK} strokeWidth="1" opacity="0.25" />
-
-      {/* Subtle gold scatter around the outer edge — light catching dust */}
-      {SCATTER.map((m, i) => {
-        const [x, y] = P(m.deg, m.r)
-        return (
-          <text key={`sc${i}`} x={x} y={y} fill={INK} opacity="0.25" fontSize={m.size} textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
-            {m.mark}
-          </text>
-        )
-      })}
-
-      <foreignObject x={cx - 74} y={cy - 50} width="148" height="100" pointerEvents="none">
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 4px' }}>
-          {activeAspect ? (
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '11px', lineHeight: 1.35, color: '#57534e' }}>
-              {cleanMeaning(activeAspect.meaning)}
-            </span>
-          ) : (
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '17px', lineHeight: 1.3, color: INK }}>
-              {theme ? theme.charAt(0).toUpperCase() + theme.slice(1) : ''}
-            </span>
-          )}
-        </div>
-      </foreignObject>
-
-      {order.map((s) => {
-        const deg = angleOf(s)
-        const [dx, dy] = P(deg, rRing)
-        const [lx, ly] = P(deg, rLabel)
-        const h = Math.cos(((deg - 90) * Math.PI) / 180)
-        const anchor = h > 0.25 ? 'start' : h < -0.25 ? 'end' : 'middle'
-        // The aspect this node belongs to — hovering/tapping shows its meaning.
-        const idx = aspects.findIndex((a) => a.from === s || a.to === s)
-        const on = active != null && idx === active
-        return (
-          <g key={s}>
-            {/* Celestial-seal node: thin ring + tiny center dot */}
-            <circle cx={dx} cy={dy} r="3.6" fill="none" stroke={INK} strokeWidth="0.7" opacity={on ? 1 : 0.7} pointerEvents="none" />
-            <circle cx={dx} cy={dy} r="1.2" fill={INK} opacity={on ? 1 : 0.7} pointerEvents="none" />
-            <text x={lx} y={ly} fill={INK} fontSize="7" letterSpacing="1" textAnchor={anchor} dominantBaseline="middle" pointerEvents="none">
-              {String(s).toUpperCase()}
-            </text>
-            <text x={lx} y={ly + 9} fill={INK} fontSize="8" letterSpacing="0.5" textAnchor={anchor} dominantBaseline="middle" opacity="0.35" pointerEvents="none">
-              {bodyOfStatement(s)}
-            </text>
-            {/* Invisible hit target */}
-            <circle
-              cx={dx}
-              cy={dy}
-              r="15"
-              fill="transparent"
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={() => idx >= 0 && setActive(idx)}
-              onMouseLeave={() => setActive(null)}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (idx >= 0) setActive((cur) => (cur === idx ? null : idx))
-              }}
-            />
-          </g>
-        )
-      })}
-    </svg>
   )
 }
