@@ -318,6 +318,8 @@ const VIEW_TABS = [
 
 // ── Calendar ───────────────────────────────────────────────────────
 function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+  const [fromWeek, setFromWeek] = useState(false) // TODAY view reached from week
+  const openDay = (k) => { setFromWeek(true); onPickDay(k) }
   const cells = monthGrid(calMonth)
   const anchorDate = parseKey(selectedKey)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -366,7 +368,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
           {VIEW_TABS.map((t) => (
             <button
               key={t.id}
-              onClick={() => setView(t.id)}
+              onClick={() => { setFromWeek(false); setView(t.id) }}
               className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition-colors ${view === t.id ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
             >
               {t.label}
@@ -375,7 +377,12 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
         </div>
         <button onClick={goNext} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
       </div>
-      <h3 className="mb-5 whitespace-nowrap text-center font-serif text-2xl text-stone-900">{periodLabel}</h3>
+      <div className="mb-5 flex items-center justify-center gap-3">
+        {view === 'day' && fromWeek && (
+          <button onClick={() => { setFromWeek(false); setView('week') }} className="text-xs text-stone-400 hover:text-stone-900">← Week</button>
+        )}
+        <h3 className="whitespace-nowrap text-center font-serif text-2xl text-stone-900">{periodLabel}</h3>
+      </div>
 
       {view === 'day' && (
         <DayColumns
@@ -461,39 +468,61 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
       )}
 
       {view === 'week' && (
-        <div className="grid gap-3 md:grid-cols-7">
+        <div className="grid gap-4 md:grid-cols-7">
           {weekDays.map((d) => {
             const key = dateKey(d)
             const isTod = isSameDay(d, today)
-            const evs = eventsFor(key).sort(byTime)
-            const mealCount = mealsFor(key).length
+            const more = () => openDay(key)
+            const ritual = dedupeById(ritualsFor(key)).map((r) => ({ id: r.id, label: r.title || 'Untitled', done: r.done }))
+            const nourish = mealsFor(key).map((m) => ({ id: m.id, label: m.name }))
+            const agenda = dedupeById(eventsFor(key).sort(byTime)).map((a) => ({ id: a.id, label: a.title || 'Untitled', done: a.done }))
             return (
-              <div key={key} className="group border-t border-stone-300 pt-2">
-                <div className="mb-2 flex items-center justify-between">
-                  <button onClick={() => onPickDay(key)} className={`kicker text-left hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
-                </div>
-                <div className="space-y-1">
-                  {evs.slice(0, 4).map((ev) => (
-                    <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1.5 text-left">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
-                      <span className={`truncate text-xs ${ev.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{ev.title || 'Untitled'}</span>
-                    </button>
-                  ))}
-                  {evs.length > 4 && (
-                    <button onClick={() => onPickDay(key)} className="text-[10px] text-stone-400 hover:text-stone-700">+{evs.length - 4} more</button>
-                  )}
-                </div>
-                {mealCount > 0 && (
-                  <button onClick={() => onPickDay(key)} className="mt-2 block text-xs italic text-stone-400 hover:text-stone-700">
-                    {mealCount} meal{mealCount === 1 ? '' : 's'} planned
-                  </button>
-                )}
+              <div key={key} className="border-t border-stone-300 pt-2">
+                <button onClick={more} className={`mb-2 block w-full text-left kicker hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
+                <WeekSection label="Ritual" variant="ritual" items={ritual} onToggle={onToggle} onMore={more} />
+                <div className="my-2 border-t border-stone-100" />
+                <WeekSection label="Nourish" variant="nourish" items={nourish} onMore={more} />
+                <div className="my-2 border-t border-stone-100" />
+                <WeekSection label="Agenda" variant="agenda" items={agenda} onToggle={onToggle} onMore={more} />
               </div>
             )
           })}
         </div>
       )}
     </section>
+  )
+}
+
+const dedupeById = (arr) => {
+  const seen = new Set()
+  return arr.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)))
+}
+
+// One compact week-view section: up to 3 items, then a +N more link.
+function WeekSection({ label, variant, items, onToggle, onMore }) {
+  const shown = items.slice(0, 3)
+  return (
+    <div>
+      <p className="mb-1 text-[9px] uppercase tracking-[0.14em] text-stone-400">{label}</p>
+      {items.length === 0 ? (
+        <p className="text-xs italic text-stone-300">nothing</p>
+      ) : (
+        <div className="space-y-1">
+          {shown.map((it, idx) => (
+            <div key={it.id} className="flex items-start gap-1.5">
+              {variant === 'agenda' && <span className="shrink-0 text-[10px] tabular-nums text-stone-400">{idx + 1}</span>}
+              <span className={`flex-1 text-xs leading-snug ${variant === 'nourish' ? 'italic text-stone-500' : it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
+                {it.label}
+              </span>
+              {variant !== 'nourish' && <Checkbox checked={it.done} onClick={() => onToggle(it.id)} size={13} />}
+            </div>
+          ))}
+          {items.length > 3 && (
+            <button onClick={onMore} className="text-[10px] text-stone-400 hover:text-stone-700">+{items.length - 3} more</button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
