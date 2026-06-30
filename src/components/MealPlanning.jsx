@@ -28,6 +28,7 @@ const DIET_ROWS = [
   { kind: 'food', slot: 'snack', label: 'Snack' },
   { kind: 'food', slot: 'lunch', label: 'Lunch' },
   { kind: 'supp', part: 'afternoon', slot: 'lunch', label: 'Supplements' },
+  { kind: 'food', slot: 'snack2', label: 'Snack' },
   { kind: 'food', slot: 'dinner', label: 'Dinner' },
   { kind: 'supp', part: 'evening', slot: 'dinner', label: 'Supplements' },
   { kind: 'food', slot: 'bed', label: 'Before Bed' },
