@@ -63,6 +63,8 @@ export default function App() {
     if (!valid.has(active)) setActive('today')
   }, [active, setActive])
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
+  // Recipes subsection removed — redirect off it.
+  useEffect(() => { if (dreamPage === 'haircare-recipes') setDreamPage('haircare') }, [dreamPage, setDreamPage])
   const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
   // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
   const menuSub = menuSubRaw === 'grocery' ? 'grocery' : 'diet'
@@ -404,20 +406,7 @@ function SidebarDream({ goToday, dreamPage, setDreamPage }) {
           <NavButton key={id} id={id} draggable={false} />
         ))}
         {reorderIds.map((id) => (
-          <React.Fragment key={id}>
-            <NavButton id={id} draggable />
-            {id === 'haircare' && (
-              <button
-                type="button"
-                onClick={() => setDreamPage('haircare-recipes')}
-                className={`block w-full py-2 pl-9 pr-3 text-left text-sm transition-colors ${
-                  dreamPage === 'haircare-recipes' ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
-                }`}
-              >
-                Recipes
-              </button>
-            )}
-          </React.Fragment>
+          <NavButton key={id} id={id} draggable />
         ))}
       </nav>
     </div>
