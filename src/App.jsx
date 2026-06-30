@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  UtensilsCrossed, Activity, Dumbbell, Brain, Heart, Briefcase, Code2, Home, Building2, Users,
+  UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -27,11 +27,13 @@ import MealPlanning from './components/MealPlanning'
 import Fitness from './components/Fitness'
 import Workout from './components/Workout'
 import Mindset from './components/Mindset'
+import Haircare from './components/Haircare'
 import Relationship from './components/Relationship'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
+  { id: 'haircare', label: 'Haircare', icon: Scissors },
   { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
   { id: 'fitness', label: 'Fitness', icon: Dumbbell },
   { id: 'workout', label: 'Hormone Health', icon: Activity },
@@ -40,6 +42,7 @@ const PILLARS = [
 ]
 
 const PILLAR_COMPONENTS = {
+  haircare: Haircare,
   menu: MealPlanning,
   fitness: Fitness,
   workout: Workout,
@@ -49,6 +52,9 @@ const PILLAR_COMPONENTS = {
 
 // Category sub-navigation shown when inside a section.
 const SUBNAV = {
+  haircare: [
+    { id: 'masks', label: 'Masks' },
+  ],
   menu: [
     { id: 'diet', label: 'Diet' },
     { id: 'grocery', label: "What's In My Fridge" },
@@ -77,6 +83,7 @@ export default function App() {
   const workoutSub = 'cycle'
   const [fitnessSub, setFitnessSub] = useLocalStorage('mos:fitness:subpage', 'workouts')
   const [mindsetSub, setMindsetSub] = useLocalStorage('mos:mindset:subpage', 'influences')
+  const [haircareSub, setHaircareSub] = useLocalStorage('mos:haircare:subpage', 'masks')
 
   // One-time migration: fold the old per-day meal plan into the unified meal store.
   const [meals, setMeals] = useLocalStorage('mos:meals', [])
@@ -168,8 +175,8 @@ export default function App() {
   const activePillarMeta = PILLARS.find((p) => p.id === active)
 
   // The sub-page value + setter for whichever pillar is active.
-  const activeSub = active === 'menu' ? menuSub : active === 'fitness' ? fitnessSub : active === 'mindset' ? mindsetSub : active === 'workout' ? workoutSub : null
-  const setActiveSub = active === 'menu' ? setMenuSub : active === 'fitness' ? setFitnessSub : active === 'mindset' ? setMindsetSub : active === 'workout' ? setWorkoutSub : () => {}
+  const activeSub = active === 'haircare' ? haircareSub : active === 'menu' ? menuSub : active === 'fitness' ? fitnessSub : active === 'mindset' ? mindsetSub : active === 'workout' ? workoutSub : null
+  const setActiveSub = active === 'haircare' ? setHaircareSub : active === 'menu' ? setMenuSub : active === 'fitness' ? setFitnessSub : active === 'mindset' ? setMindsetSub : active === 'workout' ? setWorkoutSub : () => {}
 
   return (
     <AddProvider>
