@@ -38,7 +38,7 @@ import { AccountDot } from './components/shared/AccountPanel'
 const PILLARS = [
   { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
   { id: 'fitness', label: 'Fitness', icon: Dumbbell },
-  { id: 'workout', label: 'Health & Wellness', icon: Activity },
+  { id: 'workout', label: 'Hormone Health', icon: Activity },
   { id: 'relationship', label: 'Relationship', icon: Heart },
   { id: 'career', label: 'Landing an EA Offer', icon: Briefcase },
   { id: 'app', label: 'Designing An App', icon: Code2 },
@@ -68,10 +68,6 @@ const SUBNAV = {
   fitness: [
     { id: 'workouts', label: 'Workouts' },
   ],
-  workout: [
-    { id: 'protocols', label: 'Protocols' },
-    { id: 'cycle', label: 'Cycle' },
-  ],
 }
 
 export default function App() {
@@ -80,9 +76,9 @@ export default function App() {
   const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
   // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
   const menuSub = menuSubRaw === 'grocery' ? 'grocery' : 'diet'
-  const [workoutSubRaw, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'protocols')
-  // Schedule/Practices were removed; coerce any stale value to Protocols.
-  const workoutSub = workoutSubRaw === 'cycle' ? 'cycle' : 'protocols'
+  // Hormone Health now has only the Cycle page (Protocols section removed).
+  const [, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'cycle')
+  const workoutSub = 'cycle'
   const [fitnessSub, setFitnessSub] = useLocalStorage('mos:fitness:subpage', 'workouts')
 
   // One-time migration: fold the old per-day meal plan into the unified meal store.

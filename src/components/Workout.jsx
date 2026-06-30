@@ -4,18 +4,15 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS } from '../lib/date'
 import { useActivities } from '../hooks/useActivities'
-import { activityOccursOn, isDoneOn, SECTION_CATS } from '../lib/activities'
-import Checkbox from './shared/Checkbox'
-import Protocols from './Protocols'
+import { activityOccursOn } from '../lib/activities'
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 
-export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, subPage = 'protocols', goToDay = () => {} }) {
+export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {} }) {
   return (
     <div>
-      {subPage === 'protocols' && <Protocols />}
-      {subPage === 'cycle' && <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
+      <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />
     </div>
   )
 }
@@ -52,11 +49,10 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const phase = phaseForConfig(cycleConfig, today)
   const cycleDay = cycleDayFor(today, start, len)
 
-  const { activities, toggleComplete } = useActivities()
+  const { activities } = useActivities()
   const [logs, setLogs] = useLocalStorage('mos:cycle:logs', {})
   const [reading, setReading] = useState(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [carryDismissed, setCarryDismissed] = useLocalStorage('mos:carry:dismissed', [])
   const todayLog = logs[todayKey] || { symptoms: [], flow: '', bbt: '', notes: '' }
   const setToday = (patch) => setLogs((p) => ({ ...p, [todayKey]: { symptoms: [], flow: '', bbt: '', notes: '', ...(p[todayKey] || {}), ...patch } }))
   const toggleSymptom = (s) => { const cur = todayLog.symptoms || []; setToday({ symptoms: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] }) }
@@ -81,20 +77,6 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const order = counts.map((c, i) => ({ c, i })).sort((a, b) => b.c - a.c)
   const heavy = new Set(order.slice(0, 2).filter((x) => x.c > 0).map((x) => x.i))
   const light = new Set(order.slice(-2).map((x) => x.i))
-
-  // Carry forward — yesterday's unchecked agenda items.
-  const yKey = dateKey(addDays(today, -1))
-  const agendaForDay = (k) => {
-    const out = []; const seen = new Set()
-    activities.forEach((a) => {
-      if (a.status === 'archived' || !activityOccursOn(a, k)) return
-      const isAgenda = a.type === 'event' || (a.type === 'protocol' && SECTION_CATS.agenda.includes(a.category))
-      if (!isAgenda || seen.has(a.id)) return
-      seen.add(a.id); out.push({ id: a.id, title: a.title, done: isDoneOn(a, k) })
-    })
-    return out
-  }
-  const carry = agendaForDay(yKey).filter((it) => !it.done && !carryDismissed.includes(`${it.id}:${yKey}`))
 
   // Predictions.
   const predictions = (() => {
@@ -171,22 +153,6 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
           })}
         </div>
       </section>
-
-      {/* CARRY FORWARD — Still Open */}
-      {carry.length > 0 && (
-        <section>
-          <h3 className="font-serif italic text-2xl text-stone-900 mb-3">Still Open.</h3>
-          <div className="space-y-2">
-            {carry.map((it) => (
-              <div key={it.id} className="flex items-center gap-3">
-                <Checkbox checked={false} onClick={() => toggleComplete(it.id, yKey)} />
-                <span className="flex-1 text-sm text-stone-600">{it.title || 'Untitled'}<span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-stone-300">from yesterday</span></span>
-                <button onClick={() => setCarryDismissed([...carryDismissed, `${it.id}:${yKey}`])} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* TODAY'S LOG */}
       <section className="border-t border-stone-200 pt-8">
