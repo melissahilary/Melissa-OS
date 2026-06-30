@@ -321,7 +321,7 @@ function SidebarToday({ setActive, setDreamPage, pillars }) {
             }}
             className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-100 transition-colors"
           >
-            <span className="w-4 shrink-0" />
+            <Sparkles size={16} className="shrink-0" />
             <span>Manifestations</span>
           </button>
           {pillars.map((p) => {
