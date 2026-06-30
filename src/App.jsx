@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  UtensilsCrossed, Activity, Heart, Briefcase, Code2, Home, Building2, Users,
+  UtensilsCrossed, Activity, Dumbbell, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -24,6 +24,7 @@ const reclassSlot = (title) => RECLASSIFY[(title || '').trim().toLowerCase()]
 import Footer from './components/shared/Footer'
 import Today from './components/Today'
 import MealPlanning from './components/MealPlanning'
+import Fitness from './components/Fitness'
 import Workout from './components/Workout'
 import Relationship from './components/Relationship'
 import Career from './components/Career'
@@ -36,6 +37,7 @@ import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
   { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
+  { id: 'fitness', label: 'Fitness', icon: Dumbbell },
   { id: 'workout', label: 'Health & Wellness', icon: Activity },
   { id: 'relationship', label: 'Relationship', icon: Heart },
   { id: 'career', label: 'Landing an EA Offer', icon: Briefcase },
@@ -47,6 +49,7 @@ const PILLARS = [
 
 const PILLAR_COMPONENTS = {
   menu: MealPlanning,
+  fitness: Fitness,
   workout: Workout,
   relationship: Relationship,
   career: Career,
@@ -61,6 +64,9 @@ const SUBNAV = {
   menu: [
     { id: 'diet', label: 'Diet' },
     { id: 'grocery', label: "What's In My Fridge" },
+  ],
+  fitness: [
+    { id: 'workouts', label: 'Workouts' },
   ],
   workout: [
     { id: 'protocols', label: 'Protocols' },
@@ -77,6 +83,7 @@ export default function App() {
   const [workoutSubRaw, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'protocols')
   // Schedule/Practices were removed; coerce any stale value to Protocols.
   const workoutSub = workoutSubRaw === 'cycle' ? 'cycle' : 'protocols'
+  const [fitnessSub, setFitnessSub] = useLocalStorage('mos:fitness:subpage', 'workouts')
 
   // One-time migration: fold the old per-day meal plan into the unified meal store.
   const [meals, setMeals] = useLocalStorage('mos:meals', [])
@@ -168,8 +175,8 @@ export default function App() {
   const activePillarMeta = PILLARS.find((p) => p.id === active)
 
   // The sub-page value + setter for whichever pillar is active.
-  const activeSub = active === 'menu' ? menuSub : active === 'workout' ? workoutSub : null
-  const setActiveSub = active === 'menu' ? setMenuSub : active === 'workout' ? setWorkoutSub : () => {}
+  const activeSub = active === 'menu' ? menuSub : active === 'fitness' ? fitnessSub : active === 'workout' ? workoutSub : null
+  const setActiveSub = active === 'menu' ? setMenuSub : active === 'fitness' ? setFitnessSub : active === 'workout' ? setWorkoutSub : () => {}
 
   return (
     <AddProvider>
