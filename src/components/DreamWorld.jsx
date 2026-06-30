@@ -4,7 +4,6 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { DOW_LONG, monthGrid, dateKey, parseKey, isSameDay, MONTHS, DOW, moonPhaseIndex } from '../lib/date'
 import MoonIcon from './shared/MoonIcon'
 import InlineText from './shared/InlineText'
-import Recipes, { HAIRCARE_RECIPES_CONFIG } from './Recipes'
 import { useRegisterAdd } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 
@@ -55,7 +54,6 @@ export default function DreamWorld({ page, cycleConfig }) {
       {page === 'home' && <ListPage storageKey="mos:dream:home" placeholder="Something for the home" checkable />}
       {page === 'investments' && <ListPage storageKey="mos:dream:investments" placeholder="An asset or investment to acquire" checkable />}
       {page === 'haircare' && <ListPage storageKey="mos:dream:haircare" placeholder="A product or step for hair" checkable />}
-      {page === 'haircare-recipes' && <Recipes config={HAIRCARE_RECIPES_CONFIG} />}
     </div>
   )
 }

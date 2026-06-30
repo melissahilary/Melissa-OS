@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  UtensilsCrossed, Activity, Dumbbell, Heart, Briefcase, Code2, Home, Building2, Users,
+  UtensilsCrossed, Activity, Dumbbell, Brain, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -26,6 +26,7 @@ import Today from './components/Today'
 import MealPlanning from './components/MealPlanning'
 import Fitness from './components/Fitness'
 import Workout from './components/Workout'
+import Mindset from './components/Mindset'
 import Relationship from './components/Relationship'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
@@ -34,6 +35,7 @@ const PILLARS = [
   { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
   { id: 'fitness', label: 'Fitness', icon: Dumbbell },
   { id: 'workout', label: 'Hormone Health', icon: Activity },
+  { id: 'mindset', label: 'Mindset', icon: Brain },
   { id: 'relationship', label: 'Relationship', icon: Heart },
 ]
 
@@ -41,6 +43,7 @@ const PILLAR_COMPONENTS = {
   menu: MealPlanning,
   fitness: Fitness,
   workout: Workout,
+  mindset: Mindset,
   relationship: Relationship,
 }
 
@@ -53,6 +56,9 @@ const SUBNAV = {
   fitness: [
     { id: 'workouts', label: 'Workouts' },
   ],
+  mindset: [
+    { id: 'influences', label: 'Influences' },
+  ],
 }
 
 export default function App() {
@@ -63,8 +69,6 @@ export default function App() {
     if (!valid.has(active)) setActive('today')
   }, [active, setActive])
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
-  // Recipes subsection removed — redirect off it.
-  useEffect(() => { if (dreamPage === 'haircare-recipes') setDreamPage('haircare') }, [dreamPage, setDreamPage])
   const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
   // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
   const menuSub = menuSubRaw === 'grocery' ? 'grocery' : 'diet'
@@ -72,6 +76,7 @@ export default function App() {
   const [, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'cycle')
   const workoutSub = 'cycle'
   const [fitnessSub, setFitnessSub] = useLocalStorage('mos:fitness:subpage', 'workouts')
+  const [mindsetSub, setMindsetSub] = useLocalStorage('mos:mindset:subpage', 'influences')
 
   // One-time migration: fold the old per-day meal plan into the unified meal store.
   const [meals, setMeals] = useLocalStorage('mos:meals', [])
@@ -163,8 +168,8 @@ export default function App() {
   const activePillarMeta = PILLARS.find((p) => p.id === active)
 
   // The sub-page value + setter for whichever pillar is active.
-  const activeSub = active === 'menu' ? menuSub : active === 'fitness' ? fitnessSub : active === 'workout' ? workoutSub : null
-  const setActiveSub = active === 'menu' ? setMenuSub : active === 'fitness' ? setFitnessSub : active === 'workout' ? setWorkoutSub : () => {}
+  const activeSub = active === 'menu' ? menuSub : active === 'fitness' ? fitnessSub : active === 'mindset' ? mindsetSub : active === 'workout' ? workoutSub : null
+  const setActiveSub = active === 'menu' ? setMenuSub : active === 'fitness' ? setFitnessSub : active === 'mindset' ? setMindsetSub : active === 'workout' ? setWorkoutSub : () => {}
 
   return (
     <AddProvider>
