@@ -204,7 +204,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     const out = []
     activities.forEach((a) => {
       if (a.type !== 'protocol' || !SECTION_CATS.ritual.includes(a.category) || !active(a, k)) return
-      partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, done: isDoneOn(a, k) }))
+      partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, done: isDoneOn(a, k), order: a.order }))
     })
     return out
   }
@@ -571,26 +571,68 @@ const sortEvents = (a, b) => {
   return byTime(a, b)
 }
 
-// Meal sections per Dream Day column. Supplements aggregate every supp-item in
-// that part; the representative slot is used when adding a new supplement.
-const COL_SECTIONS = {
-  morning: [
-    { kind: 'food', slot: 'empty', label: 'Empty Stomach' },
-    { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
-    { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
-    { kind: 'food', slot: 'snack', label: 'Snack' },
-    { kind: 'food', slot: 'drink', label: 'Drink' },
-  ],
-  afternoon: [
-    { kind: 'food', slot: 'lunch', label: 'Lunch' },
-    { kind: 'supp', slot: 'lunch', label: 'Supplements' },
-    { kind: 'food', slot: 'snack', label: 'Snack' },
-  ],
-  evening: [
-    { kind: 'food', slot: 'dinner', label: 'Dinner' },
-    { kind: 'supp', slot: 'dinner', label: 'Supplements' },
-    { kind: 'food', slot: 'bed', label: 'Before Bed' },
-  ],
+// The full day's nourishment slots, in order. Supplement rows aggregate every
+// supp-item in that part; the representative slot is used when adding one.
+const NOURISH_SLOTS = [
+  { kind: 'food', slot: 'empty', label: 'Empty Stomach' },
+  { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
+  { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
+  { kind: 'food', slot: 'snack', label: 'Snack' },
+  { kind: 'food', slot: 'lunch', label: 'Lunch' },
+  { kind: 'supp', slot: 'lunch', label: 'Supplements' },
+  { kind: 'food', slot: 'snack2', label: 'Snack' },
+  { kind: 'food', slot: 'dinner', label: 'Dinner' },
+  { kind: 'supp', slot: 'dinner', label: 'Supplements' },
+  { kind: 'food', slot: 'bed', label: 'Before Bed' },
+  { kind: 'food', slot: 'drink', label: 'Drink' },
+]
+
+// Agenda order: manual drag order wins; otherwise morning→evening, then time.
+const PART_RANK = { morning: 0, afternoon: 1, evening: 2 }
+const agendaSort = (a, b) => {
+  const ao = a.order, bo = b.order
+  if (ao != null && bo != null) return ao - bo
+  if (ao != null) return -1
+  if (bo != null) return 1
+  return ((PART_RANK[a.part] ?? 1) - (PART_RANK[b.part] ?? 1)) || byTime(a, b)
+}
+
+// A numbered, drag-to-reorder list with a checkbox per row (rituals + agenda).
+function OrderedList({ items, emptyText, onToggle, onOpen, onReorder }) {
+  const [drag, setDrag] = useState(null)
+  const ids = items.map((i) => i.id)
+  const dropBefore = (targetId) => {
+    if (!drag) return
+    const arr = ids.filter((id) => id !== drag)
+    const at = arr.indexOf(targetId)
+    arr.splice(at < 0 ? arr.length : at, 0, drag)
+    onReorder(arr); setDrag(null)
+  }
+  const dropEnd = () => { if (!drag) return; const arr = ids.filter((id) => id !== drag); arr.push(drag); onReorder(arr); setDrag(null) }
+  return (
+    <div className="space-y-1.5" onDragOver={(e) => e.preventDefault()} onDrop={dropEnd}>
+      {items.length === 0 ? (
+        <p className="text-sm italic text-stone-400">{emptyText}</p>
+      ) : (
+        items.map((it, idx) => (
+          <div
+            key={it.id}
+            draggable
+            onDragStart={() => setDrag(it.id)}
+            onDragEnd={() => setDrag(null)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.stopPropagation(); dropBefore(it.id) }}
+            className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${drag === it.id ? 'opacity-40' : ''}`}
+          >
+            <span className="shrink-0 text-sm text-stone-400 tabular-nums">{idx + 1}</span>
+            <span className="shrink-0 text-stone-300">·</span>
+            <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.title || 'Untitled'}</button>
+            <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
+          </div>
+        ))
+      )}
+    </div>
+  )
 }
 
 // Collapsible section header used in the TODAY columns — tinted zone boundary.
@@ -606,123 +648,55 @@ function Collapsible({ label, open, onToggle, children }) {
   )
 }
 
-// ── TODAY view body — RITUAL · NOURISHMENT · AGENDA per column ──
-function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onCompleteCarry, agendaHint, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
-  const [drag, setDrag] = useState(null) // { id, fromPart }
-  const [collapsed, setCollapsed] = useState({}) // `${part}:${section}` -> true
+// ── TODAY view body — a single daily flow ──
+// Morning Routine · Nourishment (full day) · Agenda (once) · Evening Routine.
+function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onCompleteCarry, agendaHint, onAddMeal, onRemoveMeal, onReorder, onToggle, onOpen }) {
+  const [collapsed, setCollapsed] = useState({})
   const toggleSec = (k) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))
   const isOpen = (k) => !collapsed[k]
 
-  const dropOnRow = (targetPart, targetId, colIds) => {
-    if (!drag) return
-    if (drag.fromPart !== targetPart) {
-      onMovePart(drag.id, targetPart)
-    } else {
-      const ids = colIds.filter((id) => id !== drag.id)
-      const at = ids.indexOf(targetId)
-      ids.splice(at < 0 ? ids.length : at, 0, drag.id)
-      onReorder(ids)
-    }
-    setDrag(null)
-  }
-  const dropOnColumn = (targetPart, colIds) => {
-    if (!drag) return
-    if (drag.fromPart !== targetPart) onMovePart(drag.id, targetPart)
-    else { const ids = colIds.filter((id) => id !== drag.id); ids.push(drag.id); onReorder(ids) }
-    setDrag(null)
-  }
+  const morningRituals = dedupeById(rituals.filter((r) => r.part === 'morning' || r.part === 'afternoon')).sort(sortEvents)
+  const eveningRituals = dedupeById(rituals.filter((r) => r.part === 'evening')).sort(sortEvents)
+  const agenda = dedupeById(events).sort(agendaSort)
 
   return (
-    <div className="grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {PARTS.map((part) => {
-        const agenda = events.filter((e) => e.part === part.id).sort(sortEvents)
-        const colIds = agenda.map((i) => i.id)
-        const ritualItems = rituals.filter((r) => r.part === part.id)
-        return (
-          <div key={part.id} className="border-t border-stone-300 pt-3">
-            <p className="kicker text-stone-500 mb-3">{part.label}</p>
+    <div className="mx-auto max-w-2xl space-y-5">
+      {/* MORNING ROUTINE */}
+      <Collapsible label="Morning Routine" open={isOpen('ritual:morning')} onToggle={() => toggleSec('ritual:morning')}>
+        <OrderedList items={morningRituals} emptyText="Nothing yet." onToggle={onToggle} onOpen={onOpen} onReorder={onReorder} />
+      </Collapsible>
 
-            {/* RITUAL */}
-            <Collapsible label="Ritual" open={isOpen(`${part.id}:ritual`)} onToggle={() => toggleSec(`${part.id}:ritual`)}>
-              {ritualItems.length === 0 ? (
-                <div className="h-44"><p className="text-sm italic text-stone-400">Nothing yet.</p></div>
-              ) : (
-                <div className="h-44 space-y-1.5 overflow-y-auto">
-                  {ritualItems.map((it) => (
-                    <div key={it.id} className="flex items-center gap-2">
-                      <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.title || 'Untitled'}</button>
-                      <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Collapsible>
+      {/* NOURISHMENT — the full day */}
+      <Collapsible label="Nourishment" open={isOpen('nourishment')} onToggle={() => toggleSec('nourishment')}>
+        <div className="space-y-3">
+          {NOURISH_SLOTS.map((sec) => (
+            <MealSection key={sec.label} section={sec} part={slotMeta(sec.slot).part} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
+          ))}
+        </div>
+      </Collapsible>
 
-            <div className="my-3 border-t border-stone-100" />
-
-            {/* NOURISHMENT */}
-            <Collapsible label="Nourishment" open={isOpen(`${part.id}:nourishment`)} onToggle={() => toggleSec(`${part.id}:nourishment`)}>
-              <div className="h-44 space-y-3 overflow-y-auto pr-1">
-                {COL_SECTIONS[part.id].map((sec) => (
-                  <MealSection key={sec.label} section={sec} part={part.id} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
-                ))}
+      {/* AGENDA — one list for the whole day */}
+      <Collapsible label="Agenda" open={isOpen('agenda')} onToggle={() => toggleSec('agenda')}>
+        {agendaHint && <p className="mb-2 text-xs italic text-stone-400">{agendaHint}</p>}
+        {carry.length > 0 && (
+          <div className="mb-2 space-y-1.5">
+            {carry.slice(0, 3).map((it) => (
+              <div key={`carry-${it.id}`} className="flex items-center gap-2">
+                <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-300">yesterday</span>
+                <span className="flex-1 text-sm italic text-stone-400">{it.title || 'Untitled'}</span>
+                <Checkbox checked={false} onClick={() => onCompleteCarry(it.id)} />
               </div>
-            </Collapsible>
-
-            <div className="my-3 border-t border-stone-100" />
-
-            {/* AGENDA */}
-            <Collapsible label="Agenda" open={isOpen(`${part.id}:agenda`)} onToggle={() => toggleSec(`${part.id}:agenda`)}>
-             <div className="h-44 overflow-y-auto">
-              {agendaHint && <p className="mb-2 text-xs italic text-stone-400">{agendaHint}</p>}
-
-              {/* Carry-forward from yesterday — Morning only, max 3 one-time items */}
-              {part.id === 'morning' && carry.length > 0 && (
-                <div className="mb-2 space-y-1.5">
-                  {carry.slice(0, 3).map((it) => (
-                    <div key={`carry-${it.id}`} className="flex items-center gap-2">
-                      <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-300">yesterday</span>
-                      <span className="flex-1 text-sm italic text-stone-400">{it.title || 'Untitled'}</span>
-                      <Checkbox checked={false} onClick={() => onCompleteCarry(it.id)} />
-                    </div>
-                  ))}
-                  {carry.length > 3 && (
-                    <p className="text-[10px] italic text-stone-300">+{carry.length - 3} more from yesterday</p>
-                  )}
-                </div>
-              )}
-
-              <div
-                className="min-h-[1.5rem] space-y-1.5"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => dropOnColumn(part.id, colIds)}
-              >
-                {agenda.length === 0 ? (
-                  <p className="text-sm italic text-stone-400">Nothing scheduled.</p>
-                ) : (
-                  agenda.map((it, idx) => (
-                    <div
-                      key={it.id}
-                      draggable
-                      onDragStart={() => setDrag({ id: it.id, fromPart: part.id })}
-                      onDragEnd={() => setDrag(null)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => { e.stopPropagation(); dropOnRow(part.id, it.id, colIds) }}
-                      className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${drag && drag.id === it.id ? 'opacity-40' : ''}`}
-                    >
-                      <span className="shrink-0 text-sm text-stone-400 tabular-nums">{idx + 1}</span>
-                      <span className="shrink-0 text-stone-300">·</span>
-                      <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.title || 'Untitled'}</button>
-                      <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
-                    </div>
-                  ))
-                )}
-              </div>
-             </div>
-            </Collapsible>
+            ))}
+            {carry.length > 3 && <p className="text-[10px] italic text-stone-300">+{carry.length - 3} more from yesterday</p>}
           </div>
-        )
-      })}
+        )}
+        <OrderedList items={agenda} emptyText="Nothing scheduled." onToggle={onToggle} onOpen={onOpen} onReorder={onReorder} />
+      </Collapsible>
+
+      {/* EVENING ROUTINE */}
+      <Collapsible label="Evening Routine" open={isOpen('ritual:evening')} onToggle={() => toggleSec('ritual:evening')}>
+        <OrderedList items={eveningRituals} emptyText="Nothing yet." onToggle={onToggle} onOpen={onOpen} onReorder={onReorder} />
+      </Collapsible>
     </div>
   )
 }
