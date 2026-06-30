@@ -50,8 +50,8 @@ function Workouts() {
                 {items.map((a) => (
                   <div key={a.id} className="group flex items-start gap-3 border border-stone-200 bg-white/40 px-4 py-3">
                     <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
-                      <p className="font-serif text-lg text-stone-900">{a.title || firstLine(a.details.description)}</p>
-                      {a.details.description && a.details.description.trim() !== (a.title || '').trim() && (
+                      <p className="font-serif text-lg text-stone-900">{a.title || 'Workout'}</p>
+                      {a.details.description && a.details.description.trim() && (
                         <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-stone-500">{a.details.description}</p>
                       )}
                       <p className="kicker text-stone-400 mt-2">{PART_LABEL[a.details.partOfDay || 'morning']}{isRecurring(a) ? ' · Weekly' : ' · One-time'}</p>
@@ -80,21 +80,22 @@ function Workouts() {
 
 function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const { weekday } = entry
-  const [text, setText] = useState(entry.activity.details.description || entry.activity.title || '')
+  const [name, setName] = useState(entry.activity.title || '')
+  const [text, setText] = useState(entry.activity.details.description || '')
   const [part, setPart] = useState(entry.activity.details.partOfDay || 'morning')
   const [weekly, setWeekly] = useState(isRecurring(entry.activity))
 
   const submit = () => {
-    const t = text.trim()
-    if (!t) return
+    const nm = name.trim() || firstLine(text)
+    if (!nm) return
     onSave({
       ...entry.activity,
-      title: firstLine(t),
+      title: nm,
       category: 'fitness',
       frequency: weekly ? 'weekly' : 'asneeded',
       daysOfWeek: weekly ? [weekday] : [],
       seriesStart: weekly ? '' : thisWeekDate(weekday),
-      details: { ...entry.activity.details, partOfDay: part, description: t },
+      details: { ...entry.activity.details, partOfDay: part, description: text.trim() },
     })
   }
 
@@ -107,13 +108,25 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          <textarea
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={'Lower Power\n\nSquats: 4x5-8 (heavy), 2-3 min rest\nDeadlifts: 4x5 (heavy), 3 min rest'}
-            className="w-full min-h-[200px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900"
-          />
+          <div>
+            <span className="kicker text-stone-400 mb-1.5 block">Name</span>
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Lower Power"
+              className="w-full bg-transparent border-b border-stone-300 pb-1.5 font-serif text-2xl text-stone-900 placeholder-stone-300 outline-none focus:border-stone-900"
+            />
+          </div>
+          <div>
+            <span className="kicker text-stone-400 mb-1.5 block">Workout</span>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={'Squats: 4x5-8 (heavy), 2-3 min rest\nDeadlifts: 4x5 (heavy), 3 min rest\nHip thrusts: 4x8 (heavy), 90 sec rest'}
+              className="w-full min-h-[180px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900"
+            />
+          </div>
           <div>
             <span className="kicker text-stone-400 mb-2 block">Time of day</span>
             <div className="flex gap-1.5">
