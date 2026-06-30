@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { phaseForConfig } from '../lib/cycle'
+import { phaseForConfig, PHASES } from '../lib/cycle'
 import {
   dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
 } from '../lib/date'
@@ -492,8 +492,8 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
           {/* Cycle phase legend */}
           <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
             {PHASE_LEGEND.map((p) => (
-              <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-400">
-                <span className="inline-block h-2.5 w-2.5 rounded-full border border-stone-200" style={{ backgroundColor: PHASE_TINT[p.id] }} />
+              <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
                 {p.label}
               </span>
             ))}

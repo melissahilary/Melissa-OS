@@ -27,11 +27,6 @@ import MealPlanning from './components/MealPlanning'
 import Fitness from './components/Fitness'
 import Workout from './components/Workout'
 import Relationship from './components/Relationship'
-import Career from './components/Career'
-import DesigningApp from './components/DesigningApp'
-import Household from './components/Household'
-import Housing from './components/Housing'
-import Parents from './components/Parents'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
 
@@ -40,11 +35,6 @@ const PILLARS = [
   { id: 'fitness', label: 'Fitness', icon: Dumbbell },
   { id: 'workout', label: 'Hormone Health', icon: Activity },
   { id: 'relationship', label: 'Relationship', icon: Heart },
-  { id: 'career', label: 'Landing an EA Offer', icon: Briefcase },
-  { id: 'app', label: 'Designing An App', icon: Code2 },
-  { id: 'household', label: 'Household', icon: Home },
-  { id: 'apartments', label: 'Housing', icon: Building2 },
-  { id: 'parents', label: 'Parents', icon: Users, ready: false },
 ]
 
 const PILLAR_COMPONENTS = {
@@ -52,11 +42,6 @@ const PILLAR_COMPONENTS = {
   fitness: Fitness,
   workout: Workout,
   relationship: Relationship,
-  career: Career,
-  app: DesigningApp,
-  household: Household,
-  apartments: Housing,
-  parents: Parents,
 }
 
 // Category sub-navigation shown when inside a section.
@@ -72,6 +57,11 @@ const SUBNAV = {
 
 export default function App() {
   const [active, setActive] = useLocalStorage('mos:active', 'today')
+  // Redirect away from any removed section.
+  useEffect(() => {
+    const valid = new Set(['today', 'dream', ...PILLARS.map((p) => p.id)])
+    if (!valid.has(active)) setActive('today')
+  }, [active, setActive])
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
   const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
   // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
