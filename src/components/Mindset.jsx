@@ -4,11 +4,67 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import InlineText from './shared/InlineText'
+import { dateKey, parseKey, longDate, isSameDay } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-export default function Mindset() {
+export default function Mindset({ subPage }) {
+  if (subPage === 'journal') return <Journal />
   return <Influences />
+}
+
+// ── Journal — one diary entry per day. Navigate day by day; today opens by
+// default. Each day's writing autosaves under its date.
+function Journal() {
+  const today = new Date()
+  const [entries, setEntries] = useLocalStorage('mos:mindset:journal', {})
+  const store = entries && typeof entries === 'object' ? entries : {}
+  const [selectedKey, setSelectedKey] = useState(dateKey(today))
+  const selected = parseKey(selectedKey)
+  const text = store[selectedKey] || ''
+
+  const shift = (days) => { const d = parseKey(selectedKey); d.setDate(d.getDate() + days); setSelectedKey(dateKey(d)) }
+  const write = (val) => setEntries((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [selectedKey]: val }))
+  const isToday = isSameDay(selected, today)
+
+  // Past entries with content, most recent first (excluding the open day).
+  const past = Object.keys(store)
+    .filter((k) => k !== selectedKey && (store[k] || '').trim())
+    .sort((a, b) => b.localeCompare(a))
+
+  return (
+    <div className="mb-12">
+      <div className="mb-4 flex items-center justify-between">
+        <button onClick={() => shift(-1)} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
+        <div className="text-center">
+          <h3 className="font-serif italic text-2xl text-stone-900">{longDate(selected)}</h3>
+          {!isToday && <button onClick={() => setSelectedKey(dateKey(today))} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">Back to today</button>}
+        </div>
+        <button onClick={() => shift(1)} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(e) => write(e.target.value)}
+        placeholder="Dear diary…"
+        className="block w-full min-h-[45vh] resize-y bg-white/40 border border-stone-200 px-5 py-4 font-serif text-lg leading-relaxed text-stone-800 placeholder-stone-300 outline-none focus:border-stone-900"
+      />
+
+      {past.length > 0 && (
+        <div className="mt-8">
+          <p className="kicker text-stone-400 mb-3">Past entries</p>
+          <div className="divide-y divide-stone-100">
+            {past.map((k) => (
+              <button key={k} onClick={() => setSelectedKey(k)} className="block w-full py-3 text-left">
+                <p className="kicker text-stone-400">{longDate(parseKey(k))}</p>
+                <p className="mt-1 line-clamp-1 text-sm text-stone-600">{store[k].trim()}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // A yes / no checklist of influences. The two lists never show side by side —

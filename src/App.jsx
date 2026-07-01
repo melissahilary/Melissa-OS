@@ -70,6 +70,7 @@ const SUBNAV = {
   ],
   mindset: [
     { id: 'influences', label: 'Influences' },
+    { id: 'journal', label: 'Journal' },
   ],
 }
 
