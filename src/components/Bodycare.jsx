@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { X } from 'lucide-react'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
-import { parseKey, dateKey } from '../lib/date'
+import { parseKey } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -10,15 +10,14 @@ const WEEK = [1, 2, 3, 4, 5, 6, 0] // Monday-first
 const PARTS = [{ id: 'morning', label: 'AM' }, { id: 'evening', label: 'PM' }]
 const FREQ_OPTS = [
   { id: 'weekly', label: 'Weekly' },
-  { id: 'weekdays', label: 'Daily · Mon–Fri' },
-  { id: 'once', label: 'This week' },
+  { id: 'daily', label: 'Daily' },
 ]
 
 const firstLine = (t) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || 'Treatment'
 const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
-const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
 const itemPart = (a) => ((a.timeOfDay || []).includes('evening') ? 'evening' : 'morning')
-const freqOf = (a) => (a.frequency === 'weekdays' ? 'weekdays' : isRecurring(a) ? 'weekly' : 'once')
+// Daily = every day, Mon–Sun. ('weekdays' is legacy — treat it as daily too.)
+const freqOf = (a) => (a.frequency === 'daily' || a.frequency === 'weekdays' ? 'daily' : 'weekly')
 // Manual drag order wins; items without an order fall to the end. Same field
 // the home page (Today) sorts rituals by, so a reorder here is reflected there.
 const byOrder = (a, b) => {
@@ -30,8 +29,7 @@ const byOrder = (a, b) => {
 }
 // Which weekdays a recurring item lands on.
 const recurWeekdays = (a) => {
-  if (a.frequency === 'weekdays') return [1, 2, 3, 4, 5]
-  if (a.frequency === 'daily') return [0, 1, 2, 3, 4, 5, 6]
+  if (a.frequency === 'daily' || a.frequency === 'weekdays') return [0, 1, 2, 3, 4, 5, 6]
   if (Array.isArray(a.daysOfWeek) && a.daysOfWeek.length) return a.daysOfWeek
   if (a.seriesStart) return [parseKey(a.seriesStart).getDay()]
   return []
@@ -139,8 +137,7 @@ function TreatmentForm({ entry, isNew, onSave, onDelete, onClose }) {
     const nm = name.trim() || firstLine(text)
     if (!nm) return
     const base = { ...entry.activity, title: nm, category: 'body', timeOfDay: [part], notes: text.trim() }
-    if (freq === 'weekdays') Object.assign(base, { frequency: 'weekdays', daysOfWeek: [], seriesStart: '' })
-    else if (freq === 'once') Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], seriesStart: thisWeekDate(weekday) })
+    if (freq === 'daily') Object.assign(base, { frequency: 'daily', daysOfWeek: [], seriesStart: '' })
     else Object.assign(base, { frequency: 'weekly', daysOfWeek: [weekday], seriesStart: '' })
     onSave(base)
   }

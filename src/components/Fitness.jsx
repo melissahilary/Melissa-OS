@@ -11,20 +11,20 @@ const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'A
 const PART_LABEL = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' }
 const FREQ_OPTS = [
   { id: 'weekly', label: 'Weekly' },
-  { id: 'weekdays', label: 'Daily · Mon–Fri' },
+  { id: 'daily', label: 'Daily' },
   { id: 'once', label: 'This week' },
 ]
 
 const firstLine = (t) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || 'Workout'
 const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
-const freqOf = (a) => (a.frequency === 'weekdays' ? 'weekdays' : isRecurring(a) ? 'weekly' : 'once')
-const freqLabel = (a) => (freqOf(a) === 'weekdays' ? ' · Daily' : freqOf(a) === 'weekly' ? ' · Weekly' : ' · One-time')
+// Daily = every day, Mon–Sun. ('weekdays' is legacy — treat it as daily too.)
+const freqOf = (a) => (a.frequency === 'daily' || a.frequency === 'weekdays' ? 'daily' : isRecurring(a) ? 'weekly' : 'once')
+const freqLabel = (a) => (freqOf(a) === 'daily' ? ' · Daily' : freqOf(a) === 'weekly' ? ' · Weekly' : ' · One-time')
 // The date of the given weekday within the current week.
 const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
 // Which weekdays a recurring workout lands on.
 const recurWeekdays = (a) => {
-  if (a.frequency === 'weekdays') return [1, 2, 3, 4, 5]
-  if (a.frequency === 'daily') return [0, 1, 2, 3, 4, 5, 6]
+  if (a.frequency === 'daily' || a.frequency === 'weekdays') return [0, 1, 2, 3, 4, 5, 6]
   if (Array.isArray(a.daysOfWeek) && a.daysOfWeek.length) return a.daysOfWeek
   if (a.seriesStart) return [parseKey(a.seriesStart).getDay()]
   return []
@@ -104,7 +104,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
     const nm = name.trim() || firstLine(text)
     if (!nm) return
     const base = { ...entry.activity, title: nm, category: 'fitness', details: { ...entry.activity.details, partOfDay: part, description: text.trim() } }
-    if (freq === 'weekdays') Object.assign(base, { frequency: 'weekdays', daysOfWeek: [], seriesStart: '' })
+    if (freq === 'daily') Object.assign(base, { frequency: 'daily', daysOfWeek: [], seriesStart: '' })
     else if (freq === 'once') Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], seriesStart: thisWeekDate(weekday) })
     else Object.assign(base, { frequency: 'weekly', daysOfWeek: [weekday], seriesStart: '' })
     onSave(base)
