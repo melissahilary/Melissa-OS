@@ -19,6 +19,15 @@ const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
 const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
 const itemPart = (a) => ((a.timeOfDay || []).includes('evening') ? 'evening' : 'morning')
 const freqOf = (a) => (a.frequency === 'weekdays' ? 'weekdays' : isRecurring(a) ? 'weekly' : 'once')
+// Manual drag order wins; items without an order fall to the end. Same field
+// the home page (Today) sorts rituals by, so a reorder here is reflected there.
+const byOrder = (a, b) => {
+  const ao = a.order, bo = b.order
+  if (ao != null && bo != null) return ao - bo
+  if (ao != null) return -1
+  if (bo != null) return 1
+  return 0
+}
 // Which weekdays a recurring item lands on.
 const recurWeekdays = (a) => {
   if (a.frequency === 'weekdays') return [1, 2, 3, 4, 5]
@@ -35,12 +44,14 @@ export default function Bodycare() {
 // ── Body care — a weekly schedule with AM / PM columns per day. Each entry is a
 // body-care ritual (AM → Morning Routine, PM → Evening Routine on the home page).
 function Treatments() {
-  const { activities, add, update, remove } = useActivities()
+  const { activities, add, update, remove, setOrder } = useActivities()
   const [editing, setEditing] = useState(null) // { weekday, activity }
 
   const items = activities.filter((a) => a.type === 'protocol' && a.category === 'body' && a.status !== 'archived')
   const forDayPart = (wd, part) =>
-    items.filter((a) => itemPart(a) === part && (isRecurring(a) ? recurWeekdays(a).includes(wd) : a.seriesStart && parseKey(a.seriesStart).getDay() === wd))
+    items
+      .filter((a) => itemPart(a) === part && (isRecurring(a) ? recurWeekdays(a).includes(wd) : a.seriesStart && parseKey(a.seriesStart).getDay() === wd))
+      .sort(byOrder)
 
   const openNew = (wd, part) => setEditing({ weekday: wd, activity: blankActivity('protocol', { category: 'body', frequency: 'weekly', daysOfWeek: [wd], timeOfDay: [part] }) })
   const openEdit = (a) => setEditing({ weekday: (a.daysOfWeek || [])[0] != null ? a.daysOfWeek[0] : (a.seriesStart ? parseKey(a.seriesStart).getDay() : 1), activity: a })
@@ -55,7 +66,7 @@ function Treatments() {
           <h3 className="font-serif italic text-2xl text-stone-900 mb-3">{DOW_LONG[wd]}</h3>
           <div className="grid grid-cols-2 gap-4">
             {PARTS.map((p) => (
-              <DayColumn key={p.id} label={p.label} items={forDayPart(wd, p.id)} onAdd={() => openNew(wd, p.id)} onOpen={openEdit} onRemove={remove} />
+              <DayColumn key={p.id} label={p.label} items={forDayPart(wd, p.id)} onAdd={() => openNew(wd, p.id)} onOpen={openEdit} onRemove={remove} onReorder={setOrder} />
             ))}
           </div>
         </section>
@@ -74,7 +85,18 @@ function Treatments() {
   )
 }
 
-function DayColumn({ label, items, onAdd, onOpen, onRemove }) {
+// A single AM or PM column. Rows are numbered and drag-to-reorder; a reorder
+// rewrites the `order` field, which the home page also sorts by.
+function DayColumn({ label, items, onAdd, onOpen, onRemove, onReorder }) {
+  const [drag, setDrag] = useState(null)
+  const ids = items.map((i) => i.id)
+  const dropBefore = (targetId) => {
+    if (!drag || drag === targetId) { setDrag(null); return }
+    const arr = ids.filter((id) => id !== drag)
+    const at = arr.indexOf(targetId)
+    arr.splice(at < 0 ? arr.length : at, 0, drag)
+    onReorder(arr); setDrag(null)
+  }
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
@@ -84,9 +106,17 @@ function DayColumn({ label, items, onAdd, onOpen, onRemove }) {
       {items.length === 0 ? (
         <p className="text-xs italic text-stone-300">Nothing.</p>
       ) : (
-        <div className="max-h-24 space-y-1 overflow-y-auto pr-1">
+        <div className="max-h-24 space-y-1 overflow-y-auto pr-1" onDragOver={(e) => e.preventDefault()}>
           {items.map((a, idx) => (
-            <div key={a.id} className="group flex items-center gap-1.5">
+            <div
+              key={a.id}
+              draggable
+              onDragStart={() => setDrag(a.id)}
+              onDragEnd={() => setDrag(null)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.stopPropagation(); dropBefore(a.id) }}
+              className={`group flex items-center gap-1.5 cursor-grab active:cursor-grabbing ${drag === a.id ? 'opacity-40' : ''}`}
+            >
               <span className="shrink-0 text-xs tabular-nums text-stone-400">{idx + 1}</span>
               <button onClick={() => onOpen(a)} className="min-w-0 flex-1 truncate text-left text-sm text-stone-700">{a.title || 'Treatment'}</button>
               <button onClick={() => onRemove(a.id)} className="shrink-0 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={12} /></button>

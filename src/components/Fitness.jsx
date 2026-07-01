@@ -9,11 +9,26 @@ const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 const WEEK = [1, 2, 3, 4, 5, 6, 0] // Monday-first
 const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
 const PART_LABEL = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' }
+const FREQ_OPTS = [
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'weekdays', label: 'Daily · Mon–Fri' },
+  { id: 'once', label: 'This week' },
+]
 
 const firstLine = (t) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || 'Workout'
 const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
+const freqOf = (a) => (a.frequency === 'weekdays' ? 'weekdays' : isRecurring(a) ? 'weekly' : 'once')
+const freqLabel = (a) => (freqOf(a) === 'weekdays' ? ' · Daily' : freqOf(a) === 'weekly' ? ' · Weekly' : ' · One-time')
 // The date of the given weekday within the current week.
 const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
+// Which weekdays a recurring workout lands on.
+const recurWeekdays = (a) => {
+  if (a.frequency === 'weekdays') return [1, 2, 3, 4, 5]
+  if (a.frequency === 'daily') return [0, 1, 2, 3, 4, 5, 6]
+  if (Array.isArray(a.daysOfWeek) && a.daysOfWeek.length) return a.daysOfWeek
+  if (a.seriesStart) return [parseKey(a.seriesStart).getDay()]
+  return []
+}
 
 export default function Fitness() {
   return <Workouts />
@@ -25,7 +40,7 @@ function Workouts() {
   const [editing, setEditing] = useState(null) // { weekday, activity }
 
   const workouts = activities.filter((a) => a.type === 'event' && a.category === 'fitness' && a.status !== 'archived')
-  const forDay = (wd) => workouts.filter((a) => (isRecurring(a) ? (a.daysOfWeek || []).includes(wd) : a.seriesStart && parseKey(a.seriesStart).getDay() === wd))
+  const forDay = (wd) => workouts.filter((a) => (isRecurring(a) ? recurWeekdays(a).includes(wd) : a.seriesStart && parseKey(a.seriesStart).getDay() === wd))
 
   const openNew = (wd) => setEditing({ weekday: wd, activity: blankActivity('event', { category: 'fitness', frequency: 'weekly', daysOfWeek: [wd], details: { partOfDay: 'morning', description: '' } }) })
   const openEdit = (a) => setEditing({ weekday: (a.daysOfWeek || [])[0] != null ? a.daysOfWeek[0] : (a.seriesStart ? parseKey(a.seriesStart).getDay() : 1), activity: a })
@@ -54,7 +69,7 @@ function Workouts() {
                       {a.details.description && a.details.description.trim() && (
                         <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-stone-500">{a.details.description}</p>
                       )}
-                      <p className="kicker text-stone-400 mt-2">{PART_LABEL[a.details.partOfDay || 'morning']}{isRecurring(a) ? ' · Weekly' : ' · One-time'}</p>
+                      <p className="kicker text-stone-400 mt-2">{PART_LABEL[a.details.partOfDay || 'morning']}{freqLabel(a)}</p>
                     </button>
                     <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={16} /></button>
                   </div>
@@ -83,20 +98,16 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const [name, setName] = useState(entry.activity.title || '')
   const [text, setText] = useState(entry.activity.details.description || '')
   const [part, setPart] = useState(entry.activity.details.partOfDay || 'morning')
-  const [weekly, setWeekly] = useState(isRecurring(entry.activity))
+  const [freq, setFreq] = useState(freqOf(entry.activity))
 
   const submit = () => {
     const nm = name.trim() || firstLine(text)
     if (!nm) return
-    onSave({
-      ...entry.activity,
-      title: nm,
-      category: 'fitness',
-      frequency: weekly ? 'weekly' : 'asneeded',
-      daysOfWeek: weekly ? [weekday] : [],
-      seriesStart: weekly ? '' : thisWeekDate(weekday),
-      details: { ...entry.activity.details, partOfDay: part, description: text.trim() },
-    })
+    const base = { ...entry.activity, title: nm, category: 'fitness', details: { ...entry.activity.details, partOfDay: part, description: text.trim() } }
+    if (freq === 'weekdays') Object.assign(base, { frequency: 'weekdays', daysOfWeek: [], seriesStart: '' })
+    else if (freq === 'once') Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], seriesStart: thisWeekDate(weekday) })
+    else Object.assign(base, { frequency: 'weekly', daysOfWeek: [weekday], seriesStart: '' })
+    onSave(base)
   }
 
   return (
@@ -135,9 +146,16 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
               ))}
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm text-stone-700">
-            <input type="checkbox" checked={weekly} onChange={(e) => setWeekly(e.target.checked)} /> Repeat every {DOW_LONG[weekday]}
-          </label>
+          <div>
+            <span className="kicker text-stone-400 mb-2 block">Repeat</span>
+            <div className="flex flex-wrap gap-1.5">
+              {FREQ_OPTS.map((f) => (
+                <button key={f.id} type="button" onClick={() => setFreq(f.id)} className={`px-2.5 py-1 text-xs border transition-colors ${freq === f.id ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>
+                  {f.id === 'weekly' ? `Weekly · ${DOW_LONG[weekday]}` : f.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between border-t border-stone-200 px-6 py-4">
