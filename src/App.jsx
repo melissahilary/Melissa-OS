@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
-  ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays,
+  ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
@@ -30,6 +30,7 @@ import Mindset from './components/Mindset'
 import Haircare from './components/Haircare'
 import Bodycare from './components/Bodycare'
 import Relationship from './components/Relationship'
+import Audit from './components/Audit'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
 
@@ -41,6 +42,7 @@ const PILLARS = [
   { id: 'workout', label: 'Hormone Health', icon: Activity },
   { id: 'mindset', label: 'Mindset', icon: Brain },
   { id: 'relationship', label: 'Relationship', icon: Heart },
+  { id: 'audit', label: 'Audit', icon: ClipboardList },
 ]
 
 const PILLAR_COMPONENTS = {
@@ -51,6 +53,7 @@ const PILLAR_COMPONENTS = {
   workout: Workout,
   mindset: Mindset,
   relationship: Relationship,
+  audit: Audit,
 }
 
 // Category sub-navigation shown when inside a section.
