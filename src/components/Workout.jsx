@@ -23,7 +23,7 @@ const SYMPTOMS = [
   'Clear Skin', 'Breakouts', 'Strong Libido', 'Low Libido', 'Tender Breasts', 'Back Pain',
   'Insomnia', 'Deep Sleep', 'Anxiety', 'Calm', 'Irritable', 'Emotional', 'Confident',
 ]
-const FLOW = ['Light', 'Medium', 'Heavy', 'Spotting']
+const FLOW = ['Spotting', 'Light', 'Medium', 'Heavy']
 
 // Phase segments across one cycle, in day order, with their starting cycle-day.
 const PHASE_SEG = [
@@ -63,6 +63,18 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const setHistory = (arr) => setCfg({ history: arr.filter(Boolean).sort((a, b) => (a < b ? 1 : -1)) })
   const avgLen = averageCycleLength([...history, start])
   const manualPhase = cycleConfig.manualPhase || ''
+
+  // Marking a true period start resets Day 1 to today: the old start drops into
+  // history (so average cycle length re-learns) and predictions recompute.
+  const isDayOne = start === todayKey
+  const markPeriodStart = () => {
+    const merged = (start && start !== todayKey ? [...history, start] : history)
+      .filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort((a, b) => (a < b ? 1 : -1))
+    setCfg({ lastPeriodStart: todayKey, history: merged, manualPhase: '' })
+    setToday({ periodStart: true, flow: todayLog.flow && todayLog.flow !== 'Spotting' ? todayLog.flow : 'Light' })
+  }
 
   // Hero timeline segments + today marker.
   const seg = PHASE_SEG.map((s, i) => { const next = PHASE_SEG[i + 1]; const days = (next ? next.start : len + 1) - s.start; return { ...s, days: Math.max(0, days) } })
@@ -166,17 +178,31 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
           })}
         </div>
 
-        {phase && phase.id === 'menstrual' && (
-          <div className="mb-6">
-            <p className="kicker text-stone-400 mb-2">Flow intensity</p>
-            <div className="flex flex-wrap gap-1.5">
-              {FLOW.map((f) => {
-                const on = todayLog.flow === f
-                return <button key={f} onClick={() => setToday({ flow: on ? '' : f })} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{f}</button>
-              })}
-            </div>
+        <div className="mb-6">
+          <p className="kicker text-stone-400 mb-2">Period &amp; spotting</p>
+          <div className="flex flex-wrap gap-1.5">
+            {FLOW.map((f) => {
+              const on = todayLog.flow === f
+              return <button key={f} onClick={() => setToday({ flow: on ? '' : f })} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{f}</button>
+            })}
           </div>
-        )}
+
+          {todayLog.flow && (
+            <div className="mt-3">
+              <label className="kicker text-stone-400 mb-1.5 block">{todayLog.flow === 'Spotting' ? 'Time spotting started' : 'Time it started'}</label>
+              <input type="time" value={todayLog.flowTime || ''} onChange={(e) => setToday({ flowTime: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+            </div>
+          )}
+
+          <div className="mt-4">
+            {isDayOne ? (
+              <p className="text-sm text-stone-600">✓ Today is <span className="text-stone-900">Day 1</span> — predictions now count from here.</p>
+            ) : (
+              <button onClick={markPeriodStart} className="bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Mark today as Day 1 (period start)</button>
+            )}
+            <p className="mt-2 text-xs italic text-stone-400">Spotting is logged but won't reset your cycle. Mark Day 1 only when true flow begins.</p>
+          </div>
+        </div>
 
         <div className="mb-6">
           <label className="kicker text-stone-400 mb-1.5 block">Basal body temp (°F)</label>
@@ -274,7 +300,7 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
               return (
                 <button key={k} onClick={() => setReading(k)} className="flex w-full items-center justify-between py-2.5 text-left hover:text-stone-900">
                   <span className="text-sm text-stone-700">{fmt(parseKey(k))}</span>
-                  <span className="text-xs text-stone-400">{(l.symptoms || []).length} symptom{(l.symptoms || []).length === 1 ? '' : 's'}{l.flow ? ` · ${l.flow}` : ''}</span>
+                  <span className="text-xs text-stone-400">{(l.symptoms || []).length} symptom{(l.symptoms || []).length === 1 ? '' : 's'}{l.flow ? ` · ${l.flow}` : ''}{l.periodStart ? ' · Day 1' : ''}</span>
                 </button>
               )
             })}
@@ -309,7 +335,7 @@ function PastEntry({ dateKeyStr, log, onClose }) {
             <p className="text-sm text-stone-700">{(log.symptoms || []).join(', ')}</p>
           </div>
         )}
-        {log.flow && <p className="mb-4 text-sm text-stone-700"><span className="kicker text-stone-400 mr-2">Flow</span>{log.flow}</p>}
+        {log.flow && <p className="mb-4 text-sm text-stone-700"><span className="kicker text-stone-400 mr-2">Flow</span>{log.flow}{log.flowTime ? ` · ${log.flowTime}` : ''}{log.periodStart ? ' · Day 1' : ''}</p>}
         {log.bbt && <p className="mb-4 text-sm text-stone-700"><span className="kicker text-stone-400 mr-2">BBT</span>{log.bbt}°F</p>}
         {log.notes && log.notes.trim() && (
           <div className="mb-4">
