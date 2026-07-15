@@ -17,6 +17,10 @@ const FREQ_OPTS = [
 
 const firstLine = (t) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || 'Workout'
 const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
+// A workout's part of day (timeOfDay wins; falls back to the legacy event field).
+const workoutPart = (a) => (a.timeOfDay && a.timeOfDay[0]) || (a.details && a.details.partOfDay) || 'morning'
+// The workout body — protocol notes, falling back to the legacy event description.
+const workoutBody = (a) => a.notes || (a.details && a.details.description) || ''
 // Daily = every day, Mon–Sun. ('weekdays' is legacy — treat it as daily too.)
 const freqOf = (a) => (a.frequency === 'daily' || a.frequency === 'weekdays' ? 'daily' : isRecurring(a) ? 'weekly' : 'once')
 const freqLabel = (a) => (freqOf(a) === 'daily' ? ' · Daily' : freqOf(a) === 'weekly' ? ' · Weekly' : ' · One-time')
@@ -34,15 +38,16 @@ export default function Fitness() {
   return <Workouts />
 }
 
-// ── Workouts — a Monday–Sunday weekly schedule, each workout an Agenda event ──
+// ── Workouts — a Monday–Sunday weekly schedule. Each workout is a ritual
+// protocol, so it shows in the home Morning/Evening Routine (not Agenda).
 function Workouts() {
   const { activities, add, update, remove } = useActivities()
   const [editing, setEditing] = useState(null) // { weekday, activity }
 
-  const workouts = activities.filter((a) => a.type === 'event' && a.category === 'fitness' && a.status !== 'archived')
+  const workouts = activities.filter((a) => a.type === 'protocol' && a.category === 'fitness' && a.status !== 'archived')
   const forDay = (wd) => workouts.filter((a) => (isRecurring(a) ? recurWeekdays(a).includes(wd) : a.seriesStart && parseKey(a.seriesStart).getDay() === wd))
 
-  const openNew = (wd) => setEditing({ weekday: wd, activity: blankActivity('event', { category: 'fitness', frequency: 'weekly', daysOfWeek: [wd], details: { partOfDay: 'morning', description: '' } }) })
+  const openNew = (wd) => setEditing({ weekday: wd, activity: blankActivity('protocol', { category: 'fitness', frequency: 'weekly', daysOfWeek: [wd], timeOfDay: ['morning'] }) })
   const openEdit = (a) => setEditing({ weekday: (a.daysOfWeek || [])[0] != null ? a.daysOfWeek[0] : (a.seriesStart ? parseKey(a.seriesStart).getDay() : 1), activity: a })
   const save = (a) => { if (activities.some((x) => x.id === a.id)) update(a.id, a); else add(a); setEditing(null) }
 
@@ -66,10 +71,10 @@ function Workouts() {
                   <div key={a.id} className="group flex items-start gap-3 border border-stone-200 bg-white/40 px-4 py-3">
                     <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
                       <p className="font-serif text-lg text-stone-900">{a.title || 'Workout'}</p>
-                      {a.details.description && a.details.description.trim() && (
-                        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-stone-500">{a.details.description}</p>
+                      {workoutBody(a).trim() && (
+                        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-stone-500">{workoutBody(a)}</p>
                       )}
-                      <p className="kicker text-stone-400 mt-2">{PART_LABEL[a.details.partOfDay || 'morning']}{freqLabel(a)}</p>
+                      <p className="kicker text-stone-400 mt-2">{PART_LABEL[workoutPart(a)]}{freqLabel(a)}</p>
                     </button>
                     <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={16} /></button>
                   </div>
@@ -96,14 +101,14 @@ function Workouts() {
 function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const { weekday } = entry
   const [name, setName] = useState(entry.activity.title || '')
-  const [text, setText] = useState(entry.activity.details.description || '')
-  const [part, setPart] = useState(entry.activity.details.partOfDay || 'morning')
+  const [text, setText] = useState(workoutBody(entry.activity))
+  const [part, setPart] = useState(workoutPart(entry.activity))
   const [freq, setFreq] = useState(freqOf(entry.activity))
 
   const submit = () => {
     const nm = name.trim() || firstLine(text)
     if (!nm) return
-    const base = { ...entry.activity, title: nm, category: 'fitness', details: { ...entry.activity.details, partOfDay: part, description: text.trim() } }
+    const base = { ...entry.activity, type: 'protocol', title: nm, category: 'fitness', timeOfDay: [part], notes: text.trim() }
     if (freq === 'daily') Object.assign(base, { frequency: 'daily', daysOfWeek: [], seriesStart: '' })
     else if (freq === 'once') Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], seriesStart: thisWeekDate(weekday) })
     else Object.assign(base, { frequency: 'weekly', daysOfWeek: [weekday], seriesStart: '' })

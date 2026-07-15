@@ -67,9 +67,9 @@ export const NO_DAYS_FREQ = ['daily', 'asneeded']
 
 // Which Dream Day section a protocol category belongs to.
 export const SECTION_CATS = {
-  ritual: ['skincare', 'facial', 'haircare', 'body', 'aesthetics', 'treatments', 'wellness'],
+  ritual: ['skincare', 'facial', 'haircare', 'body', 'fitness', 'aesthetics', 'treatments', 'wellness'],
   nourishment: ['nutrition', 'supplements'],
-  agenda: ['fitness', 'appointments'],
+  agenda: ['appointments'],
 }
 export const sectionForCategory = (cat) => {
   if (SECTION_CATS.ritual.includes(cat)) return 'ritual'
@@ -88,14 +88,27 @@ export const partsOfActivity = (a) => {
   return ALL_PARTS
 }
 
-export const normActivity = (a) => ({
+export const normActivity = (a) => {
+  // Fitness is a ritual now: fold legacy fitness "events" (which stored their
+  // part of day under details.partOfDay and the workout under details.description)
+  // into ritual protocols so they surface in the Morning/Evening Routine.
+  let type = a.type || 'event'
+  let timeOfDay = Array.isArray(a.timeOfDay) ? a.timeOfDay : []
+  let notes = a.notes || ''
+  if (type === 'event' && a.category === 'fitness') {
+    const d = a.details && typeof a.details === 'object' ? a.details : {}
+    type = 'protocol'
+    if (!timeOfDay.length && d.partOfDay) timeOfDay = [d.partOfDay]
+    if (!notes && d.description) notes = d.description
+  }
+  return {
   id: a.id || uid(),
   createdAt: a.createdAt || '',
-  type: a.type || 'event',
+  type,
   title: a.title || '',
   category: a.category || '',
   phase: Array.isArray(a.phase) ? a.phase : [],
-  timeOfDay: Array.isArray(a.timeOfDay) ? a.timeOfDay : [],
+  timeOfDay,
   frequency: a.frequency || 'daily',
   daysOfWeek: Array.isArray(a.daysOfWeek) ? a.daysOfWeek : [],
   seriesStart: a.seriesStart || '',
@@ -103,12 +116,13 @@ export const normActivity = (a) => ({
   status: a.status || 'active',
   pinned: !!a.pinned,
   lastCompleted: a.lastCompleted || '',
-  notes: a.notes || '',
+  notes,
   completions: a.completions && typeof a.completions === 'object' ? a.completions : {},
   details: a.details && typeof a.details === 'object' ? a.details : {},
   order: typeof a.order === 'number' ? a.order : undefined,
   linkedId: a.linkedId || null,
-})
+  }
+}
 
 export const blankActivity = (type = 'event', overrides = {}) => normActivity({
   id: uid(),

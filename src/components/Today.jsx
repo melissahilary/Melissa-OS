@@ -245,9 +245,9 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   // The TODAY-view add chooser routes by section → the right type + categories.
   const SECTION_ADD = {
-    ritual: { label: 'Ritual', blurb: 'Skincare, hair, body, treatments', type: 'protocol', allowed: SECTION_CATS.ritual, overrides: { category: 'skincare', timeOfDay: ['morning'] } },
+    ritual: { label: 'Ritual', blurb: 'Skincare, hair, body, fitness, treatments', type: 'protocol', allowed: SECTION_CATS.ritual, overrides: { category: 'skincare', timeOfDay: ['morning'] } },
     nourishment: { label: 'Nourishment', blurb: 'Food, drink, supplements', type: 'meal_item', allowed: null, overrides: { details: { slot: 'breakfast', beverage: false } } },
-    agenda: { label: 'Agenda', blurb: 'Events, fitness, appointments', type: 'event', allowed: null, overrides: { seriesStart: selectedKey, frequency: 'asneeded', details: { partOfDay: 'morning' } } },
+    agenda: { label: 'Agenda', blurb: 'Events, appointments', type: 'event', allowed: null, overrides: { seriesStart: selectedKey, frequency: 'asneeded', details: { partOfDay: 'morning' } } },
   }
   const pickSection = (id) => {
     const s = SECTION_ADD[id]
