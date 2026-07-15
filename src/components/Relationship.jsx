@@ -34,7 +34,7 @@ export default function Relationship() {
 
   return (
     <div ref={rootRef}>
-      <SectionTitle kicker="03 · The two of us" title="Relationship." />
+      <SectionTitle kicker="03 · The two of us" title="Relationships." />
 
       {/* Anniversary */}
       <section className="mb-12 flex flex-wrap items-end gap-8 border border-stone-200 bg-white/40 px-5 py-4">

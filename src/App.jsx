@@ -41,7 +41,7 @@ const PILLARS = [
   { id: 'fitness', label: 'Fitness', icon: Dumbbell },
   { id: 'workout', label: 'Hormone Health', icon: Activity },
   { id: 'mindset', label: 'Mindset', icon: Brain },
-  { id: 'relationship', label: 'Relationship', icon: Heart },
+  { id: 'relationship', label: 'Relationships', icon: Heart },
   { id: 'audit', label: 'Audit', icon: ClipboardList },
 ]
 
