@@ -46,6 +46,7 @@ export const ACTIVITY_CATEGORIES = [
   { id: 'aesthetics', label: 'Aesthetics' },
   { id: 'supplements', label: 'Supplements' },
   { id: 'wellness', label: 'Wellness Practices' },
+  { id: 'spirituality', label: 'Spirituality' },
   { id: 'treatments', label: 'Treatments' },
   { id: 'appointments', label: 'Appointments' },
 ]
@@ -67,7 +68,7 @@ export const NO_DAYS_FREQ = ['daily', 'asneeded']
 
 // Which Dream Day section a protocol category belongs to.
 export const SECTION_CATS = {
-  ritual: ['skincare', 'facial', 'haircare', 'body', 'fitness', 'aesthetics', 'treatments', 'wellness'],
+  ritual: ['skincare', 'facial', 'haircare', 'body', 'fitness', 'aesthetics', 'spirituality', 'treatments', 'wellness'],
   nourishment: ['nutrition', 'supplements'],
   agenda: ['appointments'],
 }

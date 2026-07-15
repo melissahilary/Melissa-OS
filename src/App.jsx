@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
-  ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList,
+  ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
@@ -29,30 +29,42 @@ import Workout from './components/Workout'
 import Mindset from './components/Mindset'
 import Haircare from './components/Haircare'
 import Bodycare from './components/Bodycare'
+import Skincare from './components/Skincare'
+import Aesthetics from './components/Aesthetics'
+import Spirituality from './components/Spirituality'
+import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
 import Audit from './components/Audit'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
-  { id: 'bodycare', label: 'Bodycare', icon: Droplets },
-  { id: 'haircare', label: 'Haircare', icon: Scissors },
-  { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
-  { id: 'fitness', label: 'Fitness', icon: Dumbbell },
-  { id: 'workout', label: 'Hormone Health', icon: Activity },
   { id: 'mindset', label: 'Mindset', icon: Brain },
+  { id: 'skincare', label: 'Skincare', icon: Flower2 },
+  { id: 'haircare', label: 'Haircare', icon: Scissors },
+  { id: 'aesthetics', label: 'Aesthetics', icon: Gem },
+  { id: 'bodycare', label: 'Bodycare', icon: Droplets },
+  { id: 'fitness', label: 'Fitness', icon: Dumbbell },
+  { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
+  { id: 'workout', label: 'Hormones', icon: Activity },
+  { id: 'diagnostics', label: 'Diagnostics', icon: FlaskConical },
   { id: 'relationship', label: 'Relationships', icon: Heart },
+  { id: 'spirituality', label: 'Spirituality', icon: Sun },
   { id: 'audit', label: 'Audit', icon: ClipboardList },
 ]
 
 const PILLAR_COMPONENTS = {
-  bodycare: Bodycare,
-  haircare: Haircare,
-  menu: MealPlanning,
-  fitness: Fitness,
-  workout: Workout,
   mindset: Mindset,
+  skincare: Skincare,
+  haircare: Haircare,
+  aesthetics: Aesthetics,
+  bodycare: Bodycare,
+  fitness: Fitness,
+  menu: MealPlanning,
+  workout: Workout,
+  diagnostics: Diagnostics,
   relationship: Relationship,
+  spirituality: Spirituality,
   audit: Audit,
 }
 
