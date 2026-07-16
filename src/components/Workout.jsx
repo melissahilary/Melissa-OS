@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { PHASES, phaseForConfig, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
+import { PHASES, phaseForConfig, phaseFor, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '../lib/date'
 
 const MS_DAY = 86400000
@@ -141,7 +141,7 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
 
         <div className="mt-5">
           <p className="kicker text-stone-400 mb-2">Period dates</p>
-          <PeriodCalendar dates={periodDays} onChange={setPeriodDays} today={today} />
+          <PeriodCalendar dates={periodDays} onChange={setPeriodDays} today={today} cycleConfig={cycleConfig} />
           <p className="mt-2 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1 and updates the phase above — and the whole planner.</p>
         </div>
       </section>
@@ -294,9 +294,20 @@ function CycleSettings({ cycleConfig, setCycleConfig }) {
   )
 }
 
-// An inline month calendar for editing period-start dates. Tapping a day toggles
-// it; the selected days flow straight back to the cycle config.
-function PeriodCalendar({ dates, onChange, today }) {
+// Soft per-phase day tints + a legend for the calendar.
+const PHASE_TINT = { menstrual: '#F4DEDE', follicular: '#E4EDE1', ovulation: '#F2E7CF', luteal: '#E4E0EC' }
+const PHASE_LEGEND = [
+  { id: 'menstrual', label: 'Menstrual' },
+  { id: 'follicular', label: 'Follicular' },
+  { id: 'ovulation', label: 'Ovulatory' },
+  { id: 'luteal', label: 'Luteal' },
+]
+
+// An inline month calendar for editing period days. Tapping a day toggles it as a
+// period day (solid red). Every other day is tinted by its projected cycle phase,
+// so paging month-to-month shows the whole menstrual/follicular/ovulatory/luteal
+// pattern — as far back or forward as you like.
+function PeriodCalendar({ dates, onChange, today, cycleConfig = {} }) {
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const set = new Set(dates)
   const cells = monthGrid(month)
@@ -306,11 +317,11 @@ function PeriodCalendar({ dates, onChange, today }) {
     onChange([...next])
   }
   return (
-    <div className="max-w-xs border border-stone-200 bg-white/40 p-4">
+    <div className="max-w-sm border border-stone-200 bg-white/40 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="px-2 text-sm text-stone-500 hover:text-stone-900">‹</button>
+        <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
         <span className="font-serif text-base text-stone-900">{MONTHS[month.getMonth()]} {month.getFullYear()}</span>
-        <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="px-2 text-sm text-stone-500 hover:text-stone-900">›</button>
+        <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
       </div>
       <div className="grid grid-cols-7 gap-1">
         {DOW.map((d) => <div key={d} className="text-center text-[9px] uppercase tracking-[0.1em] text-stone-400">{d[0]}</div>)}
@@ -319,17 +330,31 @@ function PeriodCalendar({ dates, onChange, today }) {
           const inMonth = cell.getMonth() === month.getMonth()
           const on = set.has(k)
           const isTod = isSameDay(cell, today)
+          // Projected phase for this day (calculated, ignoring any manual override).
+          const ph = phaseFor(cell, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
+          const tint = inMonth && ph ? PHASE_TINT[ph.id] : undefined
+          const style = on
+            ? { backgroundColor: PHASES.menstrual.color, color: '#FAFAF7' }
+            : tint ? { backgroundColor: tint } : undefined
           return (
             <button
               key={k}
               onClick={() => toggle(k)}
-              style={on ? { backgroundColor: PHASES.menstrual.color, color: '#FAFAF7' } : undefined}
-              className={`flex aspect-square items-center justify-center rounded-full text-xs transition-colors ${on ? '' : inMonth ? 'text-stone-700 hover:bg-stone-100' : 'text-stone-300 hover:bg-stone-100'} ${isTod && !on ? 'ring-1 ring-stone-400' : ''}`}
+              style={style}
+              className={`flex aspect-square items-center justify-center rounded-full text-xs transition-colors ${on ? '' : inMonth ? 'text-stone-700 hover:brightness-95' : 'text-stone-300 hover:bg-stone-100'} ${isTod && !on ? 'ring-1 ring-stone-900' : ''}`}
             >
               {cell.getDate()}
             </button>
           )
         })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-stone-100 pt-3">
+        {PHASE_LEGEND.map((p) => (
+          <span key={p.id} className="flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] text-stone-500">
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.id === 'menstrual' ? PHASES.menstrual.color : PHASE_TINT[p.id] }} />
+            {p.label}
+          </span>
+        ))}
       </div>
     </div>
   )

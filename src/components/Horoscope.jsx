@@ -148,7 +148,7 @@ function HoroscopeCard({ data }) {
 
   return (
     <section className="mb-10">
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Today's Horoscope</h2>
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Horoscope</h2>
 
       {safe.aspects.length > 0 ? (
         <div className="mx-auto max-w-2xl text-center">
