@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
@@ -6,6 +6,24 @@ import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '.
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+
+// A period spans several contiguous days. Group marked days into runs and return
+// each run's START — those are the real "period start" (Day 1) dates.
+const dayGap = (a, b) => Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / MS_DAY)
+const runStartsOf = (days) => {
+  const sorted = [...new Set((days || []).filter(Boolean))].sort()
+  const starts = []
+  sorted.forEach((d, i) => { if (i === 0 || dayGap(sorted[i - 1], d) > 1) starts.push(d) })
+  return starts
+}
+// Day 1 = the start of the most recent period run that has already begun
+// (start ≤ today); if none has begun yet, the earliest run start.
+const anchorStart = (runStarts, todayKey) => {
+  if (!runStarts.length) return ''
+  const begun = runStarts.filter((k) => k <= todayKey)
+  const pool = begun.length ? begun : runStarts
+  return pool[pool.length - 1]
+}
 
 export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {}, subPage = 'cycle' }) {
   return (
@@ -55,26 +73,38 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const setToday = (patch) => setLogs((p) => ({ ...p, [todayKey]: { symptoms: [], flow: '', bbt: '', notes: '', ...(p[todayKey] || {}), ...patch } }))
   const toggleSymptom = (s) => { const cur = todayLog.symptoms || []; setToday({ symptoms: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] }) }
 
-  // Period-start history (drives phase + predictions; edited on the calendar).
   const history = Array.isArray(cycleConfig.history) ? cycleConfig.history : []
   const setCfg = (patch) => setCycleConfig({ ...cycleConfig, ...patch })
 
-  // Period dates — every logged period-start date (history + the current start).
-  // Editing them on the calendar re-derives lastPeriodStart (the most recent) and
-  // history (the rest), which drives phase + predictions everywhere on the site.
-  const periodDates = [...new Set([...history, start].filter(Boolean))].sort()
-  const setPeriodDates = (arr) => {
-    const sorted = [...new Set(arr.filter(Boolean))].sort()
-    if (!sorted.length) { setCfg({ lastPeriodStart: '', history: [], manualPhase: '' }); return }
-    // Day 1 = the most recent period start that isn't in the future; the rest
-    // become history (for average cycle length). This drives phase + predictions
-    // across the whole planner.
-    const notFuture = sorted.filter((k) => k <= todayKey)
-    const pool = notFuture.length ? notFuture : sorted
-    const anchor = pool[pool.length - 1]
-    const rest = sorted.filter((k) => k !== anchor).sort((a, b) => (a < b ? 1 : -1))
-    setCfg({ lastPeriodStart: anchor, history: rest, manualPhase: '' })
+  // Every marked period day (the full runs) — source of truth for the calendar.
+  // Falls back to the legacy union of history + lastPeriodStart for old data.
+  const periodDays = Array.isArray(cycleConfig.periodDays) && cycleConfig.periodDays.length
+    ? [...new Set(cycleConfig.periodDays.filter(Boolean))].sort()
+    : [...new Set([...history, start].filter(Boolean))].sort()
+
+  // Editing the calendar re-derives Day 1 from the runs' start dates and stores
+  // run starts as history (for average cycle length) — driving phase + predictions
+  // everywhere on the site.
+  const setPeriodDays = (arr) => {
+    const days = [...new Set(arr.filter(Boolean))].sort()
+    if (!days.length) { setCfg({ periodDays: [], lastPeriodStart: '', history: [], manualPhase: '' }); return }
+    const starts = runStartsOf(days)
+    const anchor = anchorStart(starts, todayKey)
+    const rest = starts.filter((k) => k !== anchor).sort((a, b) => (a < b ? 1 : -1))
+    setCfg({ periodDays: days, lastPeriodStart: anchor, history: rest, manualPhase: '' })
   }
+
+  // Self-heal legacy/incorrect data on load: Day 1 must be a period-run START.
+  useEffect(() => {
+    if (!periodDays.length) return
+    const starts = runStartsOf(periodDays)
+    const anchor = anchorStart(starts, todayKey)
+    const rest = starts.filter((k) => k !== anchor).sort((a, b) => (a < b ? 1 : -1))
+    if (anchor !== start || !Array.isArray(cycleConfig.periodDays)) {
+      setCfg({ periodDays, lastPeriodStart: anchor, history: rest })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Predictions.
   const predictions = (() => {
@@ -111,7 +141,7 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
 
         <div className="mt-5">
           <p className="kicker text-stone-400 mb-2">Period dates</p>
-          <PeriodCalendar dates={periodDates} onChange={setPeriodDates} today={today} />
+          <PeriodCalendar dates={periodDays} onChange={setPeriodDays} today={today} />
           <p className="mt-2 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1 and updates the phase above — and the whole planner.</p>
         </div>
       </section>
