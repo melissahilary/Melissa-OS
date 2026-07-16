@@ -2,10 +2,12 @@ import React, { useState } from 'react'
 import { X } from 'lucide-react'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
-import { parseKey, dateKey } from '../lib/date'
+import { parseKey, dateKey, MONTHS } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const fmtDate = (k) => { if (!k) return '—'; const d = parseKey(k); return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}` }
 const WEEK = [1, 2, 3, 4, 5, 6, 0] // Monday-first
 const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
 const PART_LABEL = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' }
@@ -155,6 +157,11 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const [start, setStart] = useState(a0.seriesStart || thisWeekDate(weekday))
   const [end, setEnd] = useState(a0.seriesEnd || '')
   const [noEnd, setNoEnd] = useState(!a0.seriesEnd)
+  // Existing workouts open read-only; the Edit button unlocks the fields.
+  const [readOnly, setReadOnly] = useState(!isNew)
+  const daysStr = usesDays(initialPattern(a0)) && Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length
+    ? [...a0.daysOfWeek].sort((x, y) => x - y).map((d) => DOW_SHORT[d]).join(', ')
+    : ''
 
   const toggleDay = (d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   const needDays = usesDays(pattern)
@@ -186,9 +193,40 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
       <div className="w-full max-w-lg bg-cream border border-stone-300 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">{isNew ? 'New Workout' : 'Workout'}</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <div className="flex items-center gap-4">
+            {readOnly && <button onClick={() => setReadOnly(false)} className="text-sm text-stone-600 hover:text-stone-900">Edit</button>}
+            <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          </div>
         </div>
 
+        {readOnly ? (
+          <div className="px-6 py-5 space-y-5">
+            <div>
+              <span className="kicker text-stone-400 mb-1.5 block">Name</span>
+              <p className="font-serif text-2xl text-stone-900">{a0.title || 'Workout'}</p>
+            </div>
+            {workoutBody(a0).trim() && (
+              <div>
+                <span className="kicker text-stone-400 mb-1.5 block">Exercises</span>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-stone-600">{workoutBody(a0)}</p>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-x-10 gap-y-4">
+              <div>
+                <span className="kicker text-stone-400 mb-1 block">Time of day</span>
+                <span className="text-sm text-stone-700">{PART_LABEL[workoutPart(a0)]}</span>
+              </div>
+              <div>
+                <span className="kicker text-stone-400 mb-1 block">Repeat</span>
+                <span className="text-sm text-stone-700">{patternLabel(a0)}{daysStr ? ` · ${daysStr}` : ''}</span>
+              </div>
+              <div>
+                <span className="kicker text-stone-400 mb-1 block">Series</span>
+                <span className="text-sm text-stone-700">{fmtDate(a0.seriesStart)} · {a0.seriesEnd ? `ends ${fmtDate(a0.seriesEnd)}` : 'no end date'}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="px-6 py-5 space-y-5">
           <div>
             <span className="kicker text-stone-400 mb-1.5 block">Name</span>
@@ -270,12 +308,19 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
             <p className="text-xs italic text-phase-menstrual">Pick a start date, at least one day, and an end date (or “No end date”).</p>
           )}
         </div>
+        )}
 
         <div className="flex items-center justify-between border-t border-stone-200 px-6 py-4">
           {isNew ? <span /> : <button onClick={onDelete} className="text-sm text-stone-400 hover:text-phase-menstrual">Delete</button>}
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-            <button onClick={submit} disabled={!canSave} className={`px-5 py-2 text-sm text-cream ${canSave ? 'bg-stone-900 hover:bg-stone-700' : 'bg-stone-300 cursor-not-allowed'}`}>Save</button>
+            {readOnly ? (
+              <button onClick={onClose} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Close</button>
+            ) : (
+              <>
+                <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
+                <button onClick={submit} disabled={!canSave} className={`px-5 py-2 text-sm text-cream ${canSave ? 'bg-stone-900 hover:bg-stone-700' : 'bg-stone-300 cursor-not-allowed'}`}>Save</button>
+              </>
+            )}
           </div>
         </div>
       </div>
