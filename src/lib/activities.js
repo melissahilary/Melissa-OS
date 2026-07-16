@@ -121,8 +121,10 @@ export const normActivity = (a) => {
   completions: a.completions && typeof a.completions === 'object' ? a.completions : {},
   details: a.details && typeof a.details === 'object' ? a.details : {},
   order: typeof a.order === 'number' ? a.order : undefined,
-  // Week interval for the 'nweeks' frequency (every N weeks).
+  // Interval + unit for the 'custom' frequency (every N days/weeks/months/years).
+  // ('nweeks' is legacy and implies a week unit.)
   interval: typeof a.interval === 'number' && a.interval > 0 ? a.interval : undefined,
+  intervalUnit: a.intervalUnit || undefined,
   linkedId: a.linkedId || null,
   }
 }
@@ -168,6 +170,26 @@ export const activityOccursOn = (a, key) => {
     const okDay = days ? days.includes(dow) : parseKey(start).getDay() === dow
     if (!okDay) return false
     return Math.ceil(d.getDate() / 7) === Math.ceil(parseKey(start).getDate() / 7)
+  }
+  // Custom — every N days / weeks / months / years from the start date.
+  if (f === 'custom') {
+    const cs = parseKey(start)
+    const n = a.interval && a.interval > 0 ? a.interval : 1
+    const unit = a.intervalUnit || 'week'
+    const dayDiff = Math.round((d.getTime() - cs.getTime()) / 86400000)
+    if (unit === 'day') return dayDiff >= 0 && dayDiff % n === 0
+    if (unit === 'week') return dayDiff >= 0 && dayDiff % (n * 7) === 0
+    if (unit === 'month') {
+      if (cs.getDate() !== d.getDate()) return false
+      const months = (d.getFullYear() - cs.getFullYear()) * 12 + (d.getMonth() - cs.getMonth())
+      return months >= 0 && months % n === 0
+    }
+    if (unit === 'year') {
+      if (cs.getDate() !== d.getDate() || cs.getMonth() !== d.getMonth()) return false
+      const years = d.getFullYear() - cs.getFullYear()
+      return years >= 0 && years % n === 0
+    }
+    return false
   }
   const s = parseKey(start)
   if (f === 'monthly') return s.getDate() === d.getDate()

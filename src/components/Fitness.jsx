@@ -15,15 +15,23 @@ const WD_CHIPS = [
 ]
 // Repeat patterns offered in the workout form.
 const PATTERNS = [
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'biweekly', label: 'Bi-weekly' },
-  { id: 'nweeks', label: 'Every # weeks' },
-  { id: 'monthlyday', label: 'Monthly' },
   { id: 'daily', label: 'Daily' },
   { id: 'weekdays', label: 'Weekdays' },
   { id: 'weekends', label: 'Weekends' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'biweekly', label: 'Bi-weekly' },
+  { id: 'monthlyday', label: 'Monthly' },
+  { id: 'quarterly', label: 'Quarterly' },
+  { id: 'custom', label: 'Custom' },
 ]
-const usesDays = (p) => p === 'weekly' || p === 'biweekly' || p === 'nweeks' || p === 'monthlyday'
+// Units for the Custom "every N ___" interval.
+const UNITS = [
+  { id: 'day', label: 'days' },
+  { id: 'week', label: 'weeks' },
+  { id: 'month', label: 'months' },
+  { id: 'year', label: 'years' },
+]
+const usesDays = (p) => p === 'weekly' || p === 'biweekly' || p === 'monthlyday'
 const isSeries = () => true
 const initialPattern = (a) => {
   const f = a.frequency
@@ -31,8 +39,9 @@ const initialPattern = (a) => {
   if (f === 'weekdays') return 'weekdays'
   if (f === 'weekends') return 'weekends'
   if (f === 'biweekly') return 'biweekly'
-  if (f === 'nweeks') return 'nweeks'
   if (f === 'monthlyday') return 'monthlyday'
+  if (f === 'quarterly') return 'quarterly'
+  if (f === 'custom' || f === 'nweeks') return 'custom'
   return 'weekly'
 }
 
@@ -49,8 +58,10 @@ const patternLabel = (a) => {
   if (f === 'weekdays') return 'Weekdays'
   if (f === 'weekends') return 'Weekends'
   if (f === 'biweekly') return 'Bi-weekly'
-  if (f === 'nweeks') return `Every ${a.interval || 1} weeks`
   if (f === 'monthlyday') return 'Monthly'
+  if (f === 'quarterly') return 'Quarterly'
+  if (f === 'nweeks') return `Every ${a.interval || 1} weeks`
+  if (f === 'custom') { const n = a.interval || 1; const u = a.intervalUnit || 'week'; return `Every ${n} ${u}${n === 1 ? '' : 's'}` }
   if (f === 'asneeded' || f === 'once') return 'One-time'
   return 'Weekly'
 }
@@ -135,31 +146,31 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const [part, setPart] = useState(workoutPart(a0))
   const [pattern, setPattern] = useState(initialPattern(a0))
   const [days, setDays] = useState(Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length ? a0.daysOfWeek : [weekday])
-  const [weeks, setWeeks] = useState(a0.interval && a0.interval > 0 ? a0.interval : 2)
+  const [num, setNum] = useState(a0.interval && a0.interval > 0 ? a0.interval : 2)
+  const [unit, setUnit] = useState(a0.intervalUnit || 'week')
   const [start, setStart] = useState(a0.seriesStart || thisWeekDate(weekday))
   const [end, setEnd] = useState(a0.seriesEnd || '')
-  const [noEnd, setNoEnd] = useState(isSeries(initialPattern(a0)) ? !a0.seriesEnd : true)
+  const [noEnd, setNoEnd] = useState(!a0.seriesEnd)
 
   const toggleDay = (d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   const needDays = usesDays(pattern)
-  // Once it repeats it's a series: start + days (when relevant) + an end choice are mandatory.
-  const seriesValid = !isSeries(pattern) || (!!start && (!needDays || days.length > 0) && (noEnd || !!end))
+  // Every schedule is a series: start + days (when relevant) + interval (Custom) +
+  // an end choice are mandatory.
+  const customValid = pattern !== 'custom' || (Number(num) >= 1 && !!unit)
+  const seriesValid = !!start && (!needDays || days.length > 0) && (noEnd || !!end) && customValid
   const canSave = (name.trim() || firstLine(text)) && seriesValid
 
   const submit = () => {
     if (!canSave) return
     const nm = name.trim() || firstLine(text)
     const base = { ...a0, type: 'protocol', title: nm, category: 'fitness', timeOfDay: [part], notes: text.trim() }
-    if (pattern === 'daily' || pattern === 'weekdays' || pattern === 'weekends') {
-      Object.assign(base, { frequency: pattern, daysOfWeek: [], interval: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
+    if (pattern === 'custom') {
+      Object.assign(base, { frequency: 'custom', daysOfWeek: [], interval: Math.max(1, Number(num) || 1), intervalUnit: unit, seriesStart: start, seriesEnd: noEnd ? '' : end })
+    } else if (usesDays(pattern)) {
+      Object.assign(base, { frequency: pattern, daysOfWeek: [...days].sort((x, y) => x - y), interval: undefined, intervalUnit: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
     } else {
-      Object.assign(base, {
-        frequency: pattern,
-        daysOfWeek: [...days].sort((x, y) => x - y),
-        interval: pattern === 'nweeks' ? Math.max(1, Number(weeks) || 1) : undefined,
-        seriesStart: start,
-        seriesEnd: noEnd ? '' : end,
-      })
+      // daily / weekdays / weekends / quarterly — no day picker, no interval.
+      Object.assign(base, { frequency: pattern, daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
     }
     onSave(base)
   }
@@ -210,11 +221,13 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
                 <button key={f.id} type="button" onClick={() => setPattern(f.id)} className={chip(pattern === f.id)}>{f.label}</button>
               ))}
             </div>
-            {pattern === 'nweeks' && (
+            {pattern === 'custom' && (
               <div className="mt-3 flex items-center gap-2 text-sm text-stone-700">
                 Every
-                <input type="number" min="1" max="52" value={weeks} onChange={(e) => setWeeks(e.target.value)} className="w-14 bg-transparent border-b border-stone-300 pb-1 text-center outline-none focus:border-stone-900" />
-                weeks
+                <input type="number" min="1" value={num} onChange={(e) => setNum(e.target.value)} className="w-14 bg-transparent border-b border-stone-300 pb-1 text-center outline-none focus:border-stone-900" />
+                <select value={unit} onChange={(e) => setUnit(e.target.value)} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900">
+                  {UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
+                </select>
               </div>
             )}
           </div>
