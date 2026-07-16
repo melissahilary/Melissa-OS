@@ -2,9 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
-import { dateKey, parseKey, addDays, MONTHS } from '../lib/date'
-import { useActivities } from '../hooks/useActivities'
-import { activityOccursOn } from '../lib/activities'
+import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '../lib/date'
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
@@ -49,7 +47,6 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const phase = phaseForConfig(cycleConfig, today)
   const cycleDay = cycleDayFor(today, start, len)
 
-  const { activities } = useActivities()
   const [logs, setLogs] = useLocalStorage('mos:cycle:logs', {})
   const [reading, setReading] = useState(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -64,31 +61,22 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const avgLen = averageCycleLength([...history, start])
   const manualPhase = cycleConfig.manualPhase || ''
 
-  // Marking a true period start resets Day 1 to today: the old start drops into
-  // history (so average cycle length re-learns) and predictions recompute.
-  const isDayOne = start === todayKey
-  const markPeriodStart = () => {
-    const merged = (start && start !== todayKey ? [...history, start] : history)
-      .filter(Boolean)
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort((a, b) => (a < b ? 1 : -1))
-    setCfg({ lastPeriodStart: todayKey, history: merged, manualPhase: '' })
-    setToday({ periodStart: true, flow: todayLog.flow && todayLog.flow !== 'Spotting' ? todayLog.flow : 'Light' })
+  // Period dates — every logged period-start date (history + the current start).
+  // Editing them on the calendar re-derives lastPeriodStart (the most recent) and
+  // history (the rest), which drives phase + predictions everywhere on the site.
+  const periodDates = [...new Set([...history, start].filter(Boolean))].sort()
+  const setPeriodDates = (arr) => {
+    const sorted = [...new Set(arr.filter(Boolean))].sort()
+    if (!sorted.length) { setCfg({ lastPeriodStart: '', history: [] }); return }
+    const latest = sorted[sorted.length - 1]
+    const rest = sorted.slice(0, -1).sort((a, b) => (a < b ? 1 : -1))
+    setCfg({ lastPeriodStart: latest, history: rest, manualPhase: '' })
   }
 
   // Hero timeline segments + today marker.
   const seg = PHASE_SEG.map((s, i) => { const next = PHASE_SEG[i + 1]; const days = (next ? next.start : len + 1) - s.start; return { ...s, days: Math.max(0, days) } })
   const markerPct = cycleDay ? Math.min(100, ((cycleDay - 0.5) / len) * 100) : null
   const energy = phase ? ENERGY[phase.id] || 0 : 0
-
-  // Load balancing — current week (Mon-Sun) item counts.
-  const monday = (() => { const d = new Date(today); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d })()
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
-  const counts = weekDates.map((d) => activities.filter((a) => a.status !== 'archived' && activityOccursOn(a, dateKey(d))).length)
-  const maxCount = Math.max(1, ...counts)
-  const order = counts.map((c, i) => ({ c, i })).sort((a, b) => b.c - a.c)
-  const heavy = new Set(order.slice(0, 2).filter((x) => x.c > 0).map((x) => x.i))
-  const light = new Set(order.slice(-2).map((x) => x.i))
 
   // Predictions.
   const predictions = (() => {
@@ -146,26 +134,6 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
         )}
       </section>
 
-      {/* LOAD BALANCING — This Week at a Glance */}
-      <section>
-        <h3 className="font-serif italic text-2xl text-stone-900 mb-4">This Week at a Glance.</h3>
-        <div className="flex items-end gap-2">
-          {weekDates.map((d, i) => {
-            const isTod = dateKey(d) === todayKey
-            const h = 8 + (counts[i] / maxCount) * 56
-            return (
-              <button key={i} onClick={() => goToDay(dateKey(d))} className="group flex flex-1 flex-col items-center gap-1.5">
-                <div className="flex h-16 items-end">
-                  <div className="w-5 transition-colors" style={{ height: `${h}px`, backgroundColor: isTod ? '#1c1917' : '#d6d3d1' }} />
-                </div>
-                <span className={`text-[10px] uppercase tracking-[0.1em] ${isTod ? 'text-stone-900' : 'text-stone-400'}`}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
-                {heavy.has(i) ? <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#C4A882' }} /> : light.has(i) ? <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#7B8B5F' }} /> : <span className="h-1.5 w-1.5" />}
-              </button>
-            )
-          })}
-        </div>
-      </section>
-
       {/* TODAY'S LOG */}
       <section className="border-t border-stone-200 pt-8">
         <p className="kicker text-stone-400 mb-5">{fmt(today)}</p>
@@ -194,13 +162,10 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
             </div>
           )}
 
-          <div className="mt-4">
-            {isDayOne ? (
-              <p className="text-sm text-stone-600">✓ Today is <span className="text-stone-900">Day 1</span> — predictions now count from here.</p>
-            ) : (
-              <button onClick={markPeriodStart} className="bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Mark today as Day 1 (period start)</button>
-            )}
-            <p className="mt-2 text-xs italic text-stone-400">Spotting is logged but won't reset your cycle. Mark Day 1 only when true flow begins.</p>
+          <div className="mt-5">
+            <p className="kicker text-stone-400 mb-2">Period dates</p>
+            <PeriodCalendar dates={periodDates} onChange={setPeriodDates} today={today} />
+            <p className="mt-2 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1 and predictions update everywhere. Spotting above is logged separately and won't reset your cycle.</p>
           </div>
         </div>
 
@@ -311,6 +276,47 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
       {reading && logs[reading] && (
         <PastEntry dateKeyStr={reading} log={logs[reading]} onClose={() => setReading(null)} />
       )}
+    </div>
+  )
+}
+
+// An inline month calendar for editing period-start dates. Tapping a day toggles
+// it; the selected days flow straight back to the cycle config.
+function PeriodCalendar({ dates, onChange, today }) {
+  const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const set = new Set(dates)
+  const cells = monthGrid(month)
+  const toggle = (k) => {
+    const next = new Set(set)
+    if (next.has(k)) next.delete(k); else next.add(k)
+    onChange([...next])
+  }
+  return (
+    <div className="max-w-xs border border-stone-200 bg-white/40 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="px-2 text-sm text-stone-500 hover:text-stone-900">‹</button>
+        <span className="font-serif text-base text-stone-900">{MONTHS[month.getMonth()]} {month.getFullYear()}</span>
+        <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="px-2 text-sm text-stone-500 hover:text-stone-900">›</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {DOW.map((d) => <div key={d} className="text-center text-[9px] uppercase tracking-[0.1em] text-stone-400">{d[0]}</div>)}
+        {cells.map((cell) => {
+          const k = dateKey(cell)
+          const inMonth = cell.getMonth() === month.getMonth()
+          const on = set.has(k)
+          const isTod = isSameDay(cell, today)
+          return (
+            <button
+              key={k}
+              onClick={() => toggle(k)}
+              style={on ? { backgroundColor: PHASES.menstrual.color, color: '#FAFAF7' } : undefined}
+              className={`flex aspect-square items-center justify-center rounded-full text-xs transition-colors ${on ? '' : inMonth ? 'text-stone-700 hover:bg-stone-100' : 'text-stone-300 hover:bg-stone-100'} ${isTod && !on ? 'ring-1 ring-stone-400' : ''}`}
+            >
+              {cell.getDate()}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

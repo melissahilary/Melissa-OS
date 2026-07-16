@@ -83,6 +83,9 @@ const SUBNAV = {
   fitness: [
     { id: 'workouts', label: 'Workouts' },
   ],
+  workout: [
+    { id: 'cycle', label: 'Cycle' },
+  ],
   mindset: [
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
