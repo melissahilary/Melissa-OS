@@ -59,10 +59,7 @@ function Workouts() {
         const items = forDay(wd)
         return (
           <section key={wd} className="border-t border-stone-200 pt-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-serif italic text-2xl text-stone-900">{DOW_LONG[wd]}</h3>
-              <button onClick={() => openNew(wd)} className="text-sm text-stone-500 hover:text-stone-900">Add workout</button>
-            </div>
+            <h3 className="font-serif italic text-2xl text-stone-900 mb-3">{DOW_LONG[wd]}</h3>
             {items.length === 0 ? (
               <p className="text-sm italic text-stone-400">Rest day.</p>
             ) : (
