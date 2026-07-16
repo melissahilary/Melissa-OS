@@ -67,10 +67,15 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const periodDates = [...new Set([...history, start].filter(Boolean))].sort()
   const setPeriodDates = (arr) => {
     const sorted = [...new Set(arr.filter(Boolean))].sort()
-    if (!sorted.length) { setCfg({ lastPeriodStart: '', history: [] }); return }
-    const latest = sorted[sorted.length - 1]
-    const rest = sorted.slice(0, -1).sort((a, b) => (a < b ? 1 : -1))
-    setCfg({ lastPeriodStart: latest, history: rest, manualPhase: '' })
+    if (!sorted.length) { setCfg({ lastPeriodStart: '', history: [], manualPhase: '' }); return }
+    // Day 1 = the most recent period start that isn't in the future; the rest
+    // become history (for average cycle length). This drives phase + predictions
+    // across the whole planner.
+    const notFuture = sorted.filter((k) => k <= todayKey)
+    const pool = notFuture.length ? notFuture : sorted
+    const anchor = pool[pool.length - 1]
+    const rest = sorted.filter((k) => k !== anchor).sort((a, b) => (a < b ? 1 : -1))
+    setCfg({ lastPeriodStart: anchor, history: rest, manualPhase: '' })
   }
 
   // Hero timeline segments + today marker.
@@ -165,7 +170,10 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
           <div className="mt-5">
             <p className="kicker text-stone-400 mb-2">Period dates</p>
             <PeriodCalendar dates={periodDates} onChange={setPeriodDates} today={today} />
-            <p className="mt-2 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1 and predictions update everywhere. Spotting above is logged separately and won't reset your cycle.</p>
+            {phase && (
+              <p className="mt-2 text-sm text-stone-600">Now: <span className="text-stone-900">{phase.name} · Day {cycleDay}</span> <span className="text-stone-400">(updates the whole planner)</span></p>
+            )}
+            <p className="mt-1 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1. Spotting above is logged separately and won't reset your cycle.</p>
           </div>
         </div>
 
