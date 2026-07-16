@@ -185,7 +185,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-lg bg-cream border border-stone-300 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
-          <span className="kicker text-stone-400">Workout</span>
+          <span className="kicker text-stone-400">{isNew ? 'New Workout' : 'Workout'}</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
         </div>
 
@@ -201,7 +201,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
             />
           </div>
           <div>
-            <span className="kicker text-stone-400 mb-1.5 block">Workout</span>
+            <span className="kicker text-stone-400 mb-1.5 block">Exercises</span>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
