@@ -30,6 +30,7 @@ const UNITS = [
   { id: 'day', label: 'days' },
   { id: 'week', label: 'weeks' },
   { id: 'month', label: 'months' },
+  { id: 'quarter', label: 'quarters' },
   { id: 'year', label: 'years' },
 ]
 const usesDays = (p) => p === 'weekly' || p === 'biweekly' || p === 'monthlyday'

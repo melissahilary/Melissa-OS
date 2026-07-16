@@ -179,10 +179,11 @@ export const activityOccursOn = (a, key) => {
     const dayDiff = Math.round((d.getTime() - cs.getTime()) / 86400000)
     if (unit === 'day') return dayDiff >= 0 && dayDiff % n === 0
     if (unit === 'week') return dayDiff >= 0 && dayDiff % (n * 7) === 0
-    if (unit === 'month') {
+    if (unit === 'month' || unit === 'quarter') {
       if (cs.getDate() !== d.getDate()) return false
       const months = (d.getFullYear() - cs.getFullYear()) * 12 + (d.getMonth() - cs.getMonth())
-      return months >= 0 && months % n === 0
+      const step = unit === 'quarter' ? n * 3 : n
+      return months >= 0 && months % step === 0
     }
     if (unit === 'year') {
       if (cs.getDate() !== d.getDate() || cs.getMonth() !== d.getMonth()) return false
