@@ -9,11 +9,30 @@ const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 const WEEK = [1, 2, 3, 4, 5, 6, 0] // Monday-first
 const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
 const PART_LABEL = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' }
-const FREQ_OPTS = [
+// Weekday chips, Monday-first (value is JS getDay()).
+const WD_CHIPS = [
+  { d: 1, l: 'M' }, { d: 2, l: 'T' }, { d: 3, l: 'W' }, { d: 4, l: 'T' }, { d: 5, l: 'F' }, { d: 6, l: 'S' }, { d: 0, l: 'S' },
+]
+// Repeat patterns offered in the workout form.
+const PATTERNS = [
   { id: 'weekly', label: 'Weekly' },
+  { id: 'biweekly', label: 'Bi-weekly' },
+  { id: 'nweeks', label: 'Every N weeks' },
+  { id: 'monthlyday', label: 'Monthly' },
   { id: 'daily', label: 'Daily' },
   { id: 'once', label: 'This week' },
 ]
+const usesDays = (p) => p === 'weekly' || p === 'biweekly' || p === 'nweeks' || p === 'monthlyday'
+const isSeries = (p) => p !== 'once'
+const initialPattern = (a) => {
+  const f = a.frequency
+  if (f === 'daily' || f === 'weekdays') return 'daily'
+  if (f === 'biweekly') return 'biweekly'
+  if (f === 'nweeks') return 'nweeks'
+  if (f === 'monthlyday') return 'monthlyday'
+  if (f === 'asneeded' || f === 'once') return 'once'
+  return 'weekly'
+}
 
 const firstLine = (t) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || 'Workout'
 const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
@@ -21,9 +40,16 @@ const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
 const workoutPart = (a) => (a.timeOfDay && a.timeOfDay[0]) || (a.details && a.details.partOfDay) || 'morning'
 // The workout body — protocol notes, falling back to the legacy event description.
 const workoutBody = (a) => a.notes || (a.details && a.details.description) || ''
-// Daily = every day, Mon–Sun. ('weekdays' is legacy — treat it as daily too.)
-const freqOf = (a) => (a.frequency === 'daily' || a.frequency === 'weekdays' ? 'daily' : isRecurring(a) ? 'weekly' : 'once')
-const freqLabel = (a) => (freqOf(a) === 'daily' ? ' · Daily' : freqOf(a) === 'weekly' ? ' · Weekly' : ' · One-time')
+// Human label for the recurrence, shown under each workout.
+const patternLabel = (a) => {
+  const f = a.frequency
+  if (f === 'daily' || f === 'weekdays') return 'Daily'
+  if (f === 'biweekly') return 'Bi-weekly'
+  if (f === 'nweeks') return `Every ${a.interval || 1} weeks`
+  if (f === 'monthlyday') return 'Monthly'
+  if (f === 'asneeded' || f === 'once') return 'One-time'
+  return 'Weekly'
+}
 // The date of the given weekday within the current week.
 const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
 // Which weekdays a recurring workout lands on.
@@ -71,7 +97,7 @@ function Workouts() {
                       {workoutBody(a).trim() && (
                         <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-stone-500">{workoutBody(a)}</p>
                       )}
-                      <p className="kicker text-stone-400 mt-2">{PART_LABEL[workoutPart(a)]}{freqLabel(a)}</p>
+                      <p className="kicker text-stone-400 mt-2">{PART_LABEL[workoutPart(a)]} · {patternLabel(a)}</p>
                     </button>
                     <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={16} /></button>
                   </div>
@@ -97,26 +123,46 @@ function Workouts() {
 
 function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const { weekday } = entry
-  const [name, setName] = useState(entry.activity.title || '')
-  const [text, setText] = useState(workoutBody(entry.activity))
-  const [part, setPart] = useState(workoutPart(entry.activity))
-  const [freq, setFreq] = useState(freqOf(entry.activity))
+  const a0 = entry.activity
+  const [name, setName] = useState(a0.title || '')
+  const [text, setText] = useState(workoutBody(a0))
+  const [part, setPart] = useState(workoutPart(a0))
+  const [pattern, setPattern] = useState(initialPattern(a0))
+  const [days, setDays] = useState(Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length ? a0.daysOfWeek : [weekday])
+  const [weeks, setWeeks] = useState(a0.interval && a0.interval > 0 ? a0.interval : 2)
+  const [start, setStart] = useState(a0.seriesStart || thisWeekDate(weekday))
+  const [end, setEnd] = useState(a0.seriesEnd || '')
+  const [noEnd, setNoEnd] = useState(isSeries(initialPattern(a0)) ? !a0.seriesEnd : true)
+
+  const toggleDay = (d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
+  const needDays = usesDays(pattern)
+  // Once it repeats it's a series: start + days (when relevant) + an end choice are mandatory.
+  const seriesValid = !isSeries(pattern) || (!!start && (!needDays || days.length > 0) && (noEnd || !!end))
+  const canSave = (name.trim() || firstLine(text)) && seriesValid
 
   const submit = () => {
+    if (!canSave) return
     const nm = name.trim() || firstLine(text)
-    if (!nm) return
-    const base = { ...entry.activity, type: 'protocol', title: nm, category: 'fitness', timeOfDay: [part], notes: text.trim() }
-    if (freq === 'daily') Object.assign(base, { frequency: 'daily', daysOfWeek: [], seriesStart: '' })
-    else if (freq === 'once') Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], seriesStart: thisWeekDate(weekday) })
-    else Object.assign(base, { frequency: 'weekly', daysOfWeek: [weekday], seriesStart: '' })
+    const base = { ...a0, type: 'protocol', title: nm, category: 'fitness', timeOfDay: [part], notes: text.trim() }
+    if (pattern === 'once') Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], interval: undefined, seriesStart: start || thisWeekDate(weekday), seriesEnd: '' })
+    else if (pattern === 'daily') Object.assign(base, { frequency: 'daily', daysOfWeek: [], interval: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
+    else Object.assign(base, {
+      frequency: pattern,
+      daysOfWeek: [...days].sort((x, y) => x - y),
+      interval: pattern === 'nweeks' ? Math.max(1, Number(weeks) || 1) : undefined,
+      seriesStart: start,
+      seriesEnd: noEnd ? '' : end,
+    })
     onSave(base)
   }
+
+  const chip = (on) => `px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-lg bg-cream border border-stone-300 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
-          <span className="kicker text-stone-400">{DOW_LONG[weekday]} workout</span>
+          <span className="kicker text-stone-400">Workout</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
         </div>
 
@@ -137,34 +183,74 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={'Squats: 4x5-8 (heavy), 2-3 min rest\nDeadlifts: 4x5 (heavy), 3 min rest\nHip thrusts: 4x8 (heavy), 90 sec rest'}
-              className="w-full min-h-[180px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900"
+              className="w-full min-h-[160px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900"
             />
           </div>
           <div>
             <span className="kicker text-stone-400 mb-2 block">Time of day</span>
             <div className="flex gap-1.5">
               {PARTS.map((p) => (
-                <button key={p.id} type="button" onClick={() => setPart(p.id)} className={`px-2.5 py-1 text-xs border transition-colors ${part === p.id ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{p.label}</button>
+                <button key={p.id} type="button" onClick={() => setPart(p.id)} className={chip(part === p.id)}>{p.label}</button>
               ))}
             </div>
           </div>
+
           <div>
             <span className="kicker text-stone-400 mb-2 block">Repeat</span>
             <div className="flex flex-wrap gap-1.5">
-              {FREQ_OPTS.map((f) => (
-                <button key={f.id} type="button" onClick={() => setFreq(f.id)} className={`px-2.5 py-1 text-xs border transition-colors ${freq === f.id ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>
-                  {f.id === 'weekly' ? `Weekly · ${DOW_LONG[weekday]}` : f.label}
-                </button>
+              {PATTERNS.map((f) => (
+                <button key={f.id} type="button" onClick={() => setPattern(f.id)} className={chip(pattern === f.id)}>{f.label}</button>
               ))}
             </div>
+            {pattern === 'nweeks' && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-stone-700">
+                Every
+                <input type="number" min="1" max="52" value={weeks} onChange={(e) => setWeeks(e.target.value)} className="w-14 bg-transparent border-b border-stone-300 pb-1 text-center outline-none focus:border-stone-900" />
+                weeks
+              </div>
+            )}
           </div>
+
+          {needDays && (
+            <div>
+              <span className="kicker text-stone-400 mb-2 block">On {pattern === 'monthlyday' ? 'weekday' : 'days'}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {WD_CHIPS.map((w) => (
+                  <button key={w.d} type="button" onClick={() => toggleDay(w.d)} className={`h-8 w-8 text-xs border transition-colors ${days.includes(w.d) ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{w.l}</button>
+                ))}
+              </div>
+              {pattern === 'monthlyday' && <p className="mt-2 text-xs italic text-stone-400">Repeats monthly on the same week-of-month as the start date (e.g. 2nd Tuesday).</p>}
+            </div>
+          )}
+
+          {isSeries(pattern) && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="kicker text-stone-400 mb-1.5 block">Starts</span>
+                <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              </div>
+              <div>
+                <span className="kicker text-stone-400 mb-1.5 block">Ends</span>
+                <label className="mb-1.5 flex items-center gap-2 text-sm text-stone-700">
+                  <input type="checkbox" checked={noEnd} onChange={(e) => setNoEnd(e.target.checked)} /> No end date
+                </label>
+                {!noEnd && (
+                  <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+                )}
+              </div>
+            </div>
+          )}
+
+          {!seriesValid && (
+            <p className="text-xs italic text-phase-menstrual">Pick a start date, at least one day, and an end date (or “No end date”).</p>
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-stone-200 px-6 py-4">
           {isNew ? <span /> : <button onClick={onDelete} className="text-sm text-stone-400 hover:text-phase-menstrual">Delete</button>}
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-            <button onClick={submit} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+            <button onClick={submit} disabled={!canSave} className={`px-5 py-2 text-sm text-cream ${canSave ? 'bg-stone-900 hover:bg-stone-700' : 'bg-stone-300 cursor-not-allowed'}`}>Save</button>
           </div>
         </div>
       </div>

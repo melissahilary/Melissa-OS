@@ -121,6 +121,8 @@ export const normActivity = (a) => {
   completions: a.completions && typeof a.completions === 'object' ? a.completions : {},
   details: a.details && typeof a.details === 'object' ? a.details : {},
   order: typeof a.order === 'number' ? a.order : undefined,
+  // Week interval for the 'nweeks' frequency (every N weeks).
+  interval: typeof a.interval === 'number' && a.interval > 0 ? a.interval : undefined,
   linkedId: a.linkedId || null,
   }
 }
@@ -154,11 +156,18 @@ export const activityOccursOn = (a, key) => {
   if (f === 'weekly' || f === '2x' || f === '3x' || f === 'specific') {
     return days ? days.includes(dow) : parseKey(start).getDay() === dow
   }
-  if (f === 'biweekly') {
+  if (f === 'biweekly' || f === 'nweeks') {
     const okDay = days ? days.includes(dow) : parseKey(start).getDay() === dow
     if (!okDay) return false
+    const n = f === 'biweekly' ? 2 : (a.interval && a.interval > 0 ? a.interval : 1)
     const weeks = Math.round((startOfWeek(d).getTime() - startOfWeek(parseKey(start)).getTime()) / (7 * 86400000))
-    return weeks % 2 === 0
+    return weeks % n === 0
+  }
+  // Monthly on a weekday — same ordinal occurrence as the start (e.g. 2nd Tuesday).
+  if (f === 'monthlyday') {
+    const okDay = days ? days.includes(dow) : parseKey(start).getDay() === dow
+    if (!okDay) return false
+    return Math.ceil(d.getDate() / 7) === Math.ceil(parseKey(start).getDate() / 7)
   }
   const s = parseKey(start)
   if (f === 'monthly') return s.getDate() === d.getDate()
