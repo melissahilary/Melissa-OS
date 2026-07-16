@@ -22,6 +22,7 @@ const PATTERNS = [
   { id: 'biweekly', label: 'Bi-weekly' },
   { id: 'monthlyday', label: 'Monthly' },
   { id: 'quarterly', label: 'Quarterly' },
+  { id: 'yearly', label: 'Yearly' },
   { id: 'custom', label: 'Custom' },
 ]
 // Units for the Custom "every N ___" interval.
@@ -41,6 +42,7 @@ const initialPattern = (a) => {
   if (f === 'biweekly') return 'biweekly'
   if (f === 'monthlyday') return 'monthlyday'
   if (f === 'quarterly') return 'quarterly'
+  if (f === 'yearly') return 'yearly'
   if (f === 'custom' || f === 'nweeks') return 'custom'
   return 'weekly'
 }
@@ -60,6 +62,7 @@ const patternLabel = (a) => {
   if (f === 'biweekly') return 'Bi-weekly'
   if (f === 'monthlyday') return 'Monthly'
   if (f === 'quarterly') return 'Quarterly'
+  if (f === 'yearly') return 'Yearly'
   if (f === 'nweeks') return `Every ${a.interval || 1} weeks`
   if (f === 'custom') { const n = a.interval || 1; const u = a.intervalUnit || 'week'; return `Every ${n} ${u}${n === 1 ? '' : 's'}` }
   if (f === 'asneeded' || f === 'once') return 'One-time'
