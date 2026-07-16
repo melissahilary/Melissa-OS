@@ -17,20 +17,22 @@ const WD_CHIPS = [
 const PATTERNS = [
   { id: 'weekly', label: 'Weekly' },
   { id: 'biweekly', label: 'Bi-weekly' },
-  { id: 'nweeks', label: 'Every N weeks' },
+  { id: 'nweeks', label: 'Every # weeks' },
   { id: 'monthlyday', label: 'Monthly' },
   { id: 'daily', label: 'Daily' },
-  { id: 'once', label: 'This week' },
+  { id: 'weekdays', label: 'Weekdays' },
+  { id: 'weekends', label: 'Weekends' },
 ]
 const usesDays = (p) => p === 'weekly' || p === 'biweekly' || p === 'nweeks' || p === 'monthlyday'
-const isSeries = (p) => p !== 'once'
+const isSeries = () => true
 const initialPattern = (a) => {
   const f = a.frequency
-  if (f === 'daily' || f === 'weekdays') return 'daily'
+  if (f === 'daily') return 'daily'
+  if (f === 'weekdays') return 'weekdays'
+  if (f === 'weekends') return 'weekends'
   if (f === 'biweekly') return 'biweekly'
   if (f === 'nweeks') return 'nweeks'
   if (f === 'monthlyday') return 'monthlyday'
-  if (f === 'asneeded' || f === 'once') return 'once'
   return 'weekly'
 }
 
@@ -43,7 +45,9 @@ const workoutBody = (a) => a.notes || (a.details && a.details.description) || ''
 // Human label for the recurrence, shown under each workout.
 const patternLabel = (a) => {
   const f = a.frequency
-  if (f === 'daily' || f === 'weekdays') return 'Daily'
+  if (f === 'daily') return 'Daily'
+  if (f === 'weekdays') return 'Weekdays'
+  if (f === 'weekends') return 'Weekends'
   if (f === 'biweekly') return 'Bi-weekly'
   if (f === 'nweeks') return `Every ${a.interval || 1} weeks`
   if (f === 'monthlyday') return 'Monthly'
@@ -54,7 +58,9 @@ const patternLabel = (a) => {
 const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
 // Which weekdays a recurring workout lands on.
 const recurWeekdays = (a) => {
-  if (a.frequency === 'daily' || a.frequency === 'weekdays') return [0, 1, 2, 3, 4, 5, 6]
+  if (a.frequency === 'daily') return [0, 1, 2, 3, 4, 5, 6]
+  if (a.frequency === 'weekdays') return [1, 2, 3, 4, 5]
+  if (a.frequency === 'weekends') return [0, 6]
   if (Array.isArray(a.daysOfWeek) && a.daysOfWeek.length) return a.daysOfWeek
   if (a.seriesStart) return [parseKey(a.seriesStart).getDay()]
   return []
@@ -144,15 +150,17 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
     if (!canSave) return
     const nm = name.trim() || firstLine(text)
     const base = { ...a0, type: 'protocol', title: nm, category: 'fitness', timeOfDay: [part], notes: text.trim() }
-    if (pattern === 'once') Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], interval: undefined, seriesStart: start || thisWeekDate(weekday), seriesEnd: '' })
-    else if (pattern === 'daily') Object.assign(base, { frequency: 'daily', daysOfWeek: [], interval: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
-    else Object.assign(base, {
-      frequency: pattern,
-      daysOfWeek: [...days].sort((x, y) => x - y),
-      interval: pattern === 'nweeks' ? Math.max(1, Number(weeks) || 1) : undefined,
-      seriesStart: start,
-      seriesEnd: noEnd ? '' : end,
-    })
+    if (pattern === 'daily' || pattern === 'weekdays' || pattern === 'weekends') {
+      Object.assign(base, { frequency: pattern, daysOfWeek: [], interval: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
+    } else {
+      Object.assign(base, {
+        frequency: pattern,
+        daysOfWeek: [...days].sort((x, y) => x - y),
+        interval: pattern === 'nweeks' ? Math.max(1, Number(weeks) || 1) : undefined,
+        seriesStart: start,
+        seriesEnd: noEnd ? '' : end,
+      })
+    }
     onSave(base)
   }
 
