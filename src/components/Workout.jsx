@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { X, ChevronDown, ChevronRight } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '../lib/date'
@@ -7,10 +7,12 @@ import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '.
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 
-export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {} }) {
+export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {}, subPage = 'cycle' }) {
   return (
     <div>
-      <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />
+      {subPage === 'settings'
+        ? <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
+        : <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
     </div>
   )
 }
@@ -49,17 +51,13 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
 
   const [logs, setLogs] = useLocalStorage('mos:cycle:logs', {})
   const [reading, setReading] = useState(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const todayLog = logs[todayKey] || { symptoms: [], flow: '', bbt: '', notes: '' }
   const setToday = (patch) => setLogs((p) => ({ ...p, [todayKey]: { symptoms: [], flow: '', bbt: '', notes: '', ...(p[todayKey] || {}), ...patch } }))
   const toggleSymptom = (s) => { const cur = todayLog.symptoms || []; setToday({ symptoms: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] }) }
 
-  // Settings / history.
+  // Period-start history (drives phase + predictions; edited on the calendar).
   const history = Array.isArray(cycleConfig.history) ? cycleConfig.history : []
   const setCfg = (patch) => setCycleConfig({ ...cycleConfig, ...patch })
-  const setHistory = (arr) => setCfg({ history: arr.filter(Boolean).sort((a, b) => (a < b ? 1 : -1)) })
-  const avgLen = averageCycleLength([...history, start])
-  const manualPhase = cycleConfig.manualPhase || ''
 
   // Period dates — every logged period-start date (history + the current start).
   // Editing them on the calendar re-derives lastPeriodStart (the most recent) and
@@ -77,11 +75,6 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
     const rest = sorted.filter((k) => k !== anchor).sort((a, b) => (a < b ? 1 : -1))
     setCfg({ lastPeriodStart: anchor, history: rest, manualPhase: '' })
   }
-
-  // Hero timeline segments + today marker.
-  const seg = PHASE_SEG.map((s, i) => { const next = PHASE_SEG[i + 1]; const days = (next ? next.start : len + 1) - s.start; return { ...s, days: Math.max(0, days) } })
-  const markerPct = cycleDay ? Math.min(100, ((cycleDay - 0.5) / len) * 100) : null
-  const energy = phase ? ENERGY[phase.id] || 0 : 0
 
   // Predictions.
   const predictions = (() => {
@@ -108,35 +101,19 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
 
   return (
     <div className="mb-10 space-y-12">
-      {/* TOP HERO — Today's Status */}
+      {/* TOP HERO — phase name + editable period calendar right beneath it */}
       <section>
         {phase ? (
-          <>
-            <p className="font-serif italic text-4xl md:text-5xl text-stone-900">{phase.name} · Day {cycleDay}</p>
-            <div className="relative mt-6">
-              <div className="flex h-8 w-full overflow-hidden rounded-sm">
-                {seg.map((s) => <div key={s.id} title={s.label} style={{ width: `${(s.days / len) * 100}%`, backgroundColor: PHASES[s.id].color }} />)}
-              </div>
-              {markerPct != null && (
-                <div className="absolute -top-1.5 flex flex-col items-center" style={{ left: `calc(${markerPct}% - 5px)` }}>
-                  <span className="block h-3 w-3 rounded-full border-2 border-cream bg-stone-900" />
-                </div>
-              )}
-            </div>
-            <div className="mt-2 flex w-full">
-              {seg.map((s) => <div key={s.id} className="text-center" style={{ width: `${(s.days / len) * 100}%` }}><span className="text-[10px] uppercase tracking-[0.12em] text-stone-400">{s.label}</span></div>)}
-            </div>
-            <div className="mt-6 flex items-center gap-3">
-              <span className="kicker text-stone-400">Energy</span>
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5].map((n) => <span key={n} className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: n <= energy ? phase.color : 'transparent', borderColor: phase.color }} />)}
-              </div>
-            </div>
-            <p className="mt-4 font-serif italic text-lg text-stone-600">{INTENTION[phase.id]}</p>
-          </>
+          <p className="font-serif italic text-4xl md:text-5xl text-stone-900">{phase.name} · Day {cycleDay}</p>
         ) : (
-          <p className="text-sm text-stone-400">Set your last period in Cycle Settings to see your status.</p>
+          <p className="font-serif italic text-2xl text-stone-500">Set your period dates to see your phase.</p>
         )}
+
+        <div className="mt-5">
+          <p className="kicker text-stone-400 mb-2">Period dates</p>
+          <PeriodCalendar dates={periodDates} onChange={setPeriodDates} today={today} />
+          <p className="mt-2 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1 and updates the phase above — and the whole planner.</p>
+        </div>
       </section>
 
       {/* TODAY'S LOG */}
@@ -166,15 +143,7 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
               <input type="time" value={todayLog.flowTime || ''} onChange={(e) => setToday({ flowTime: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
             </div>
           )}
-
-          <div className="mt-5">
-            <p className="kicker text-stone-400 mb-2">Period dates</p>
-            <PeriodCalendar dates={periodDates} onChange={setPeriodDates} today={today} />
-            {phase && (
-              <p className="mt-2 text-sm text-stone-600">Now: <span className="text-stone-900">{phase.name} · Day {cycleDay}</span> <span className="text-stone-400">(updates the whole planner)</span></p>
-            )}
-            <p className="mt-1 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1. Spotting above is logged separately and won't reset your cycle.</p>
-          </div>
+          <p className="mt-2 text-xs italic text-stone-400">Spotting is logged here but won't reset your cycle. Set true period days on the calendar up top.</p>
         </div>
 
         <div className="mb-6">
@@ -183,63 +152,9 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
         </div>
 
         <div>
-          <label className="kicker text-stone-400 mb-2 block">Notes</label>
+          <label className="kicker text-stone-400 mb-2 block">Log</label>
           <textarea value={todayLog.notes || ''} onChange={(e) => setToday({ notes: e.target.value })} placeholder="How you feel today" className="w-full min-h-[90px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" />
         </div>
-      </section>
-
-      {/* CYCLE SETTINGS — collapsible */}
-      <section className="border-t border-stone-200 pt-6">
-        <button onClick={() => setSettingsOpen((o) => !o)} className="flex w-full items-center justify-between">
-          <span className="kicker text-stone-500">Cycle Settings</span>
-          {settingsOpen ? <ChevronDown size={16} className="text-stone-400" /> : <ChevronRight size={16} className="text-stone-400" />}
-        </button>
-        {settingsOpen && (
-          <div className="mt-5">
-            <div className="flex flex-wrap items-end gap-6">
-              <div>
-                <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
-                <input type="date" value={start} onChange={(e) => setCfg({ lastPeriodStart: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-              </div>
-              <div>
-                <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
-                <input type="number" min="20" max="45" value={cycleConfig.cycleLength || 28} onChange={(e) => setCfg({ cycleLength: Number(e.target.value) })} className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <label className="kicker text-stone-400 mb-2 block">Phase</label>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button onClick={() => setCfg({ manualPhase: '' })} className={`px-2.5 py-1 text-xs border transition-colors ${!manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Use calculated phase</button>
-                <button onClick={() => setCfg({ manualPhase: manualPhase || 'follicular' })} className={`px-2.5 py-1 text-xs border transition-colors ${manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Set phase manually</button>
-                {manualPhase && (
-                  <select value={manualPhase} onChange={(e) => setCfg({ manualPhase: e.target.value })} className="ml-1 border-b border-stone-300 bg-transparent pb-1 text-sm outline-none">
-                    {Object.values(PHASES).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <div className="mb-2 flex items-center gap-3">
-                <label className="kicker text-stone-400">Period history</label>
-                {history.length >= 3 && avgLen && (
-                  <button onClick={() => setCfg({ cycleLength: avgLen })} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Avg {avgLen}d · use as length</button>
-                )}
-              </div>
-              <div className="space-y-2">
-                {history.length === 0 && <p className="text-sm italic text-stone-400">No past period dates logged.</p>}
-                {history.map((d, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <input type="date" value={d} onChange={(e) => setHistory(history.map((x, j) => (j === i ? e.target.value : x)))} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-                    <button onClick={() => setHistory(history.filter((_, j) => j !== i))} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
-                  </div>
-                ))}
-                <button onClick={() => setHistory([...history, start || todayKey])} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Add past date</button>
-              </div>
-            </div>
-          </div>
-        )}
       </section>
 
       {/* PREDICTIONS — What's Coming */}
@@ -284,6 +199,67 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
       {reading && logs[reading] && (
         <PastEntry dateKeyStr={reading} log={logs[reading]} onClose={() => setReading(null)} />
       )}
+    </div>
+  )
+}
+
+// ── Settings — its own subsection under Cycle ───────────────────────
+function CycleSettings({ cycleConfig, setCycleConfig }) {
+  const today = new Date()
+  const todayKey = dateKey(today)
+  const start = cycleConfig.lastPeriodStart || ''
+  const history = Array.isArray(cycleConfig.history) ? cycleConfig.history : []
+  const setCfg = (patch) => setCycleConfig({ ...cycleConfig, ...patch })
+  const setHistory = (arr) => setCfg({ history: arr.filter(Boolean).sort((a, b) => (a < b ? 1 : -1)) })
+  const avgLen = averageCycleLength([...history, start])
+  const manualPhase = cycleConfig.manualPhase || ''
+
+  return (
+    <div className="mb-10">
+      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-8">Settings.</h2>
+
+      <div className="flex flex-wrap items-end gap-6">
+        <div>
+          <label className="kicker text-stone-400 mb-1.5 block">Last period started</label>
+          <input type="date" value={start} onChange={(e) => setCfg({ lastPeriodStart: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+        </div>
+        <div>
+          <label className="kicker text-stone-400 mb-1.5 block">Cycle length</label>
+          <input type="number" min="20" max="45" value={cycleConfig.cycleLength || 28} onChange={(e) => setCfg({ cycleLength: Number(e.target.value) })} className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <label className="kicker text-stone-400 mb-2 block">Phase</label>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button onClick={() => setCfg({ manualPhase: '' })} className={`px-2.5 py-1 text-xs border transition-colors ${!manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Use calculated phase</button>
+          <button onClick={() => setCfg({ manualPhase: manualPhase || 'follicular' })} className={`px-2.5 py-1 text-xs border transition-colors ${manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Set phase manually</button>
+          {manualPhase && (
+            <select value={manualPhase} onChange={(e) => setCfg({ manualPhase: e.target.value })} className="ml-1 border-b border-stone-300 bg-transparent pb-1 text-sm outline-none">
+              {Object.values(PHASES).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <div className="mb-2 flex items-center gap-3">
+          <label className="kicker text-stone-400">Period history</label>
+          {history.length >= 3 && avgLen && (
+            <button onClick={() => setCfg({ cycleLength: avgLen })} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Avg {avgLen}d · use as length</button>
+          )}
+        </div>
+        <div className="space-y-2">
+          {history.length === 0 && <p className="text-sm italic text-stone-400">No past period dates logged.</p>}
+          {history.map((d, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <input type="date" value={d} onChange={(e) => setHistory(history.map((x, j) => (j === i ? e.target.value : x)))} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              <button onClick={() => setHistory(history.filter((_, j) => j !== i))} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
+            </div>
+          ))}
+          <button onClick={() => setHistory([...history, start || todayKey])} className="text-[11px] uppercase tracking-[0.16em] text-stone-400 hover:text-stone-900">Add past date</button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -85,6 +85,7 @@ const SUBNAV = {
   ],
   workout: [
     { id: 'cycle', label: 'Cycle' },
+    { id: 'settings', label: 'Settings' },
   ],
   mindset: [
     { id: 'influences', label: 'Influences' },
@@ -103,9 +104,9 @@ export default function App() {
   const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
   // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
   const menuSub = menuSubRaw === 'grocery' ? 'grocery' : 'diet'
-  // Hormone Health now has only the Cycle page (Protocols section removed).
-  const [, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'cycle')
-  const workoutSub = 'cycle'
+  // Hormones has two subpages: Cycle and Settings.
+  const [workoutSubRaw, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'cycle')
+  const workoutSub = workoutSubRaw === 'settings' ? 'settings' : 'cycle'
   const [fitnessSub, setFitnessSub] = useLocalStorage('mos:fitness:subpage', 'workouts')
   const [mindsetSub, setMindsetSub] = useLocalStorage('mos:mindset:subpage', 'influences')
   const [haircareSub, setHaircareSub] = useLocalStorage('mos:haircare:subpage', 'masks')
