@@ -54,6 +54,130 @@ const UV_ADVICE = {
 }
 const uvLabel = (n) => UV_TITLE[uvBand(n)]
 
+// ── Cycle statistics — staged so a baseline only appears once enough data exists.
+const daysBetweenKeys = (a, b) => Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / 86400000)
+const addDaysKey = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return dateKey(d) }
+const mean = (arr) => arr.reduce((s, x) => s + x, 0) / arr.length
+const fmtDay = (k) => { const d = parseKey(k); return `${MONTHS[d.getMonth()]} ${d.getDate()}` }
+const regularityLabel = (spread) => (spread <= 4 ? 'Very regular' : spread <= 7 ? 'Regular' : spread <= 9 ? 'Mostly regular' : 'Irregular')
+
+// Contiguous period runs from the marked days.
+function periodRuns(days) {
+  const sorted = [...new Set((days || []).filter(Boolean))].sort()
+  const runs = []
+  sorted.forEach((d) => {
+    const last = runs[runs.length - 1]
+    if (last && daysBetweenKeys(last[last.length - 1], d) === 1) last.push(d)
+    else runs.push([d])
+  })
+  return runs
+}
+
+// Heuristic BBT ovulation: first sustained thermal shift within a cycle window.
+function detectOvulation(startKey, endKey, logs) {
+  const temps = []
+  for (let k = startKey; k < endKey; k = addDaysKey(k, 1)) {
+    const b = logs[k] ? parseFloat(logs[k].bbt) : NaN
+    temps.push(Number.isFinite(b) ? b : null)
+  }
+  const keysList = []
+  for (let k = startKey, i = 0; i < temps.length; k = addDaysKey(k, 1), i++) keysList.push(k)
+  if (temps.filter((t) => t != null).length < 8) return null
+  for (let i = 3; i < temps.length - 1; i++) {
+    const prior = temps.slice(Math.max(0, i - 3), i).filter((v) => v != null)
+    if (prior.length < 2 || temps[i] == null) continue
+    const base = mean(prior)
+    if (temps[i] >= base + 0.3 && temps[i + 1] != null && temps[i + 1] >= base + 0.2) return keysList[i]
+  }
+  return null
+}
+
+function cycleStats({ cycleConfig, logs, today }) {
+  const todayKey = dateKey(today)
+  const periodDays = Array.isArray(cycleConfig.periodDays) && cycleConfig.periodDays.length
+    ? cycleConfig.periodDays
+    : [...(cycleConfig.history || []), cycleConfig.lastPeriodStart].filter(Boolean)
+  const runs = periodRuns(periodDays)
+  const runStarts = runs.map((r) => r[0])
+  const periodLengths = runs.map((r) => r.length)
+  const intervals = []
+  for (let i = 1; i < runStarts.length; i++) intervals.push(daysBetweenKeys(runStarts[i - 1], runStarts[i]))
+  const numPeriods = runs.length
+  const numIntervals = intervals.length
+
+  const avgCycle = numIntervals ? Math.round(mean(intervals)) : (Number(cycleConfig.cycleLength) > 0 ? Number(cycleConfig.cycleLength) : 28)
+  const avgPeriodLen = numPeriods ? Math.round(mean(periodLengths) * 10) / 10 : null
+
+  const lastStart = runStarts[runStarts.length - 1] || cycleConfig.lastPeriodStart || ''
+  const currentDay = lastStart ? daysBetweenKeys(lastStart, todayKey) + 1 : null
+  const nextPeriodKey = lastStart ? addDaysKey(lastStart, avgCycle) : null
+  const daysToNext = nextPeriodKey ? daysBetweenKeys(todayKey, nextPeriodKey) : null
+
+  const lutealLens = []
+  for (let i = 0; i < runStarts.length - 1; i++) {
+    const ov = detectOvulation(runStarts[i], runStarts[i + 1], logs)
+    if (ov) lutealLens.push(daysBetweenKeys(ov, runStarts[i + 1]))
+  }
+  const avgLuteal = lutealLens.length >= 2 ? Math.round(mean(lutealLens)) : null
+
+  const ovKey = nextPeriodKey ? addDaysKey(nextPeriodKey, -(avgLuteal || 14)) : null
+  const daysToOv = ovKey ? daysBetweenKeys(todayKey, ovKey) : null
+  const spread = numIntervals >= 1 ? Math.max(...intervals) - Math.min(...intervals) : null
+
+  return { numPeriods, numIntervals, avgCycle, avgPeriodLen, currentDay, nextPeriodKey, daysToNext, avgLuteal, lutealCount: lutealLens.length, ovKey, daysToOv, spread }
+}
+
+// Build the ordered rows for the pop-up, each with staged unlock messaging.
+function buildCycleRows(s) {
+  const rows = []
+  const { numPeriods, numIntervals, avgCycle, avgPeriodLen, currentDay, nextPeriodKey, daysToNext, avgLuteal, lutealCount, ovKey, daysToOv, spread } = s
+
+  if (currentDay != null) {
+    let value = `Day ${currentDay}`, note = ''
+    if (numIntervals >= 1) {
+      if (currentDay > avgCycle + 1) { value += ' · running long'; note = `past your ~${avgCycle}-day average` }
+      else { value += ` of ~${avgCycle}`; note = currentDay < avgCycle - 1 ? 'on track' : 'right around your average' }
+    }
+    rows.push({ label: 'This cycle', value, note })
+  } else rows.push({ label: 'This cycle', value: 'Collecting', note: 'Mark your period days to begin.' })
+
+  if (daysToNext != null && nextPeriodKey) {
+    let value
+    if (daysToNext > 1) value = `In ${daysToNext} days · ${fmtDay(nextPeriodKey)}`
+    else if (daysToNext === 1) value = `Tomorrow · ${fmtDay(nextPeriodKey)}`
+    else if (daysToNext === 0) value = 'Expected today'
+    else value = `Overdue ${Math.abs(daysToNext)} day${daysToNext === -1 ? '' : 's'}`
+    const note = numIntervals >= 1 ? (numIntervals < 3 ? 'preliminary estimate' : '') : `on a ${avgCycle}-day default until you log more`
+    rows.push({ label: 'Next period', value, note })
+  } else rows.push({ label: 'Next period', value: 'Collecting', note: 'Log a period to project this.' })
+
+  if (daysToOv != null && ovKey) {
+    let value
+    if (daysToOv >= -1 && daysToOv <= 1) value = 'Ovulating now · fertile window'
+    else if (daysToOv > 1) value = `In ${daysToOv} days · ${fmtDay(ovKey)}`
+    else value = `Passed · was ${fmtDay(ovKey)}`
+    rows.push({ label: 'Ovulation', value, note: avgLuteal ? `from your ~${avgLuteal}-day luteal phase` : 'estimated ~14 days before your period' })
+  } else rows.push({ label: 'Ovulation', value: 'Collecting', note: '' })
+
+  rows.push(numPeriods >= 1 && avgPeriodLen != null
+    ? { label: 'Average period length', value: `${avgPeriodLen} days`, note: numPeriods < 3 ? `preliminary · ${numPeriods} logged, firms up by 3` : '' }
+    : { label: 'Average period length', value: 'Collecting', note: 'Log your first full period.' })
+
+  rows.push(numIntervals >= 1
+    ? { label: 'Average cycle length', value: `${avgCycle} days`, note: numIntervals < 3 ? `preliminary · ${numIntervals} cycle${numIntervals > 1 ? 's' : ''} logged` : numIntervals < 6 ? 'solidifying' : 'trustworthy' }
+    : { label: 'Average cycle length', value: 'Collecting', note: 'Unlocks at your 2nd period — two starts make one cycle.' })
+
+  rows.push(avgLuteal != null
+    ? { label: 'Average luteal phase', value: `${avgLuteal} days`, note: lutealCount < 3 ? `early read · ${lutealCount} confirmed ovulation${lutealCount > 1 ? 's' : ''}` : 'a real hormone-health signal' }
+    : { label: 'Average luteal phase', value: 'Collecting', note: 'Needs daily BBT through 2–3 ovulations (~month 3–4).' })
+
+  rows.push(numIntervals >= 3 && spread != null
+    ? { label: 'Cycle regularity', value: `${regularityLabel(spread)} · varies ${spread} day${spread === 1 ? '' : 's'}`, note: numIntervals < 6 ? 'early — reliable at 6 cycles' : numIntervals < 12 ? 'solid' : 'clinical-grade' }
+    : { label: 'Cycle regularity', value: 'Collecting', note: 'Unlocks at 3 cycles (~month 4); reliable at 6.' })
+
+  return rows
+}
+
 // WMO weather codes → short condition text.
 const WMO = {
   0: 'Clear', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
@@ -64,18 +188,41 @@ const WMO = {
   85: 'Snow showers', 86: 'Snow showers', 95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm',
 }
 
-// Live current weather (temperature + condition) for a place, in °F.
+// Live weather for a place, in °F: current temp/condition plus today's forecast
+// (high/low, condition) and sun times (sunrise, sunset, daylight length).
 async function fetchWeather(place) {
   const loc = await geocode(place)
   if (!loc) return null
   const f = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit&timezone=auto`,
+    `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code&daily=sunrise,sunset,daylight_duration,temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&timezone=auto`,
   )
   const fj = await f.json()
   const cur = fj && fj.current
   if (!cur || cur.temperature_2m == null) return null
-  return { temp: Math.round(cur.temperature_2m), condition: WMO[cur.weather_code] || '' }
+  const d = (fj && fj.daily) || {}
+  const first = (a) => (Array.isArray(a) ? a[0] : null)
+  return {
+    temp: Math.round(cur.temperature_2m),
+    condition: WMO[cur.weather_code] || '',
+    sunrise: first(d.sunrise),
+    sunset: first(d.sunset),
+    daylight: first(d.daylight_duration),
+    high: first(d.temperature_2m_max) != null ? Math.round(first(d.temperature_2m_max)) : null,
+    low: first(d.temperature_2m_min) != null ? Math.round(first(d.temperature_2m_min)) : null,
+    dayCondition: WMO[first(d.weather_code)] || '',
+  }
 }
+
+// Format an Open-Meteo local ISO ("2026-07-18T05:57") as a 12-hour clock.
+const fmtClock = (iso) => {
+  if (!iso) return '—'
+  const hm = (iso.split('T')[1] || iso).slice(0, 5)
+  let [h, m] = hm.split(':').map(Number)
+  const ap = h >= 12 ? 'PM' : 'AM'
+  h = h % 12 || 12
+  return `${h}:${String(m).padStart(2, '0')} ${ap}`
+}
+const fmtDuration = (sec) => { if (sec == null) return '—'; const h = Math.floor(sec / 3600); const m = Math.round((sec % 3600) / 60); return `${h}h ${m}m` }
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -128,13 +275,15 @@ function TimeField({ location }) {
 }
 
 // ── Info strip — phase · date · time · weather · UV · location, one elegant row ─
-function InfoStrip({ phase, today, location, setLocation }) {
+function InfoStrip({ phase, today, location, setLocation, cycleConfig }) {
+  const [cycleOpen, setCycleOpen] = useState(false)
   const phaseDay = phase ? `${phase.name} · Day ${phase.cycleDay}` : '—'
   const dateStr = `${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`
   const Dot = () => <span className="text-stone-300">·</span>
   return (
     <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
-      <span>{phaseDay}</span>
+      <button onClick={() => setCycleOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{phaseDay}</button>
+      {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={today} onClose={() => setCycleOpen(false)} />}
       <Dot />
       <span>{dateStr}</span>
       <Dot />
@@ -154,33 +303,60 @@ function InfoStrip({ phase, today, location, setLocation }) {
   )
 }
 
-// Live current weather for the location (temperature + condition), read-only.
+// Live weather for the location; click for sun times + today's forecast.
 function WeatherField({ location }) {
   const [w, setW] = useState(null)
+  const [open, setOpen] = useState(false)
+  const place = (location || '').trim()
   useEffect(() => {
+    if (!place) { setW(null); return undefined }
     let alive = true
-    const place = (location || '').trim()
-    if (!place) {
-      setW(null)
-      return undefined
+    const load = async () => {
+      try { const out = await fetchWeather(place); if (alive) setW(out) }
+      catch { if (alive) setW(null) }
     }
-    ;(async () => {
-      try {
-        const out = await fetchWeather(place)
-        if (alive) setW(out)
-      } catch {
-        if (alive) setW(null)
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [location])
+    load()
+    const id = setInterval(load, 10 * 60 * 1000) // keep it fresh through the day
+    return () => { alive = false; clearInterval(id) }
+  }, [place])
   if (!w) return <span className="text-stone-400">—</span>
   return (
-    <span className="text-stone-700">
-      {w.temp}°{w.condition ? ` ${w.condition}` : ''}
-    </span>
+    <>
+      <button onClick={() => setOpen(true)} className="text-stone-700 hover:text-stone-900 transition-colors">
+        {w.temp}°{w.condition ? ` ${w.condition}` : ''}
+      </button>
+      {open && <WeatherPopup w={w} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+// Small pop-up: sunrise, sunset, daylight length + today's forecast.
+function WeatherPopup({ w, onClose }) {
+  const forecast = [w.high != null ? `High ${w.high}°` : null, w.low != null ? `Low ${w.low}°` : null, w.dayCondition].filter(Boolean).join(' · ')
+  const rows = [
+    ['Sunrise', fmtClock(w.sunrise)],
+    ['Sunset', fmtClock(w.sunset)],
+    ['Daylight', fmtDuration(w.daylight)],
+    ['Today', forecast || '—'],
+  ]
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex justify-end px-4 pt-3">
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
+        <div className="px-6 pb-6">
+          <div className="divide-y divide-stone-100">
+            {rows.map(([label, value]) => (
+              <div key={label} className="py-3">
+                <p className="kicker text-stone-400 mb-1">{label}</p>
+                <p className="text-sm text-stone-800">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -228,6 +404,35 @@ function UvField({ location }) {
       </button>
       {open && uv != null && <UvPopup uv={uv} onClose={() => setOpen(false)} />}
     </>
+  )
+}
+
+// Pop-up read of the cycle's stats, in an AI-OBGYN voice. Each baseline only
+// appears once enough intervals exist; otherwise it reads "Collecting".
+function CyclePopup({ cycleConfig, today, onClose }) {
+  const [logsRaw] = useLocalStorage('mos:cycle:logs', {})
+  const logs = logsRaw && typeof logsRaw === 'object' ? logsRaw : {}
+  const rows = useMemo(() => buildCycleRows(cycleStats({ cycleConfig, logs, today })), [cycleConfig, logs, today])
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-12 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-sm bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex justify-end px-4 pt-3">
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
+        <div className="px-6 pb-6">
+          <p className="mb-5 font-serif italic text-lg text-stone-600">Here's where your cycle stands —</p>
+          <div className="divide-y divide-stone-100">
+            {rows.map((r) => (
+              <div key={r.label} className="py-3">
+                <p className="kicker text-stone-400 mb-1">{r.label}</p>
+                <p className={`text-sm ${r.value === 'Collecting' ? 'italic text-stone-400' : 'text-stone-800'}`}>{r.value}</p>
+                {r.note && <p className="mt-0.5 text-xs italic text-stone-400">{r.note}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -357,7 +562,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
       </div>
 
-      <InfoStrip today={today} phase={todayPhase} location={location} setLocation={setLocation} />
+      <InfoStrip today={today} phase={todayPhase} location={location} setLocation={setLocation} cycleConfig={cycleConfig} />
 
       <Horoscope />
 
