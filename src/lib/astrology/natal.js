@@ -43,6 +43,18 @@ export const NATAL_LONGITUDES = Object.fromEntries(
   Object.entries(NATAL.placements).map(([k, [sign, deg]]) => [k, toLongitude(sign, deg)]),
 )
 
+// Natal longitudes with sign overrides for chosen points (keeps each point's
+// original degree, just swaps its sign). Used to personalize Sun/Moon/Ascendant.
+export function natalLongitudesWith(overrides = {}) {
+  const out = { ...NATAL_LONGITUDES }
+  Object.entries(overrides).forEach(([point, sign]) => {
+    if (!sign || !SIGNS.includes(sign)) return
+    const orig = NATAL.placements[point]
+    out[point] = toLongitude(sign, orig ? orig[1] : 15)
+  })
+  return out
+}
+
 export function signOf(longitude) {
   const l = ((longitude % 360) + 360) % 360
   return SIGNS[Math.floor(l / 30)]

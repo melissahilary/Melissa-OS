@@ -57,8 +57,9 @@ function separation(a, b) {
   return d
 }
 
-// Returns { positions, aspects } for the given date (defaults to now).
-export function computeTransits(date = new Date()) {
+// Returns { positions, aspects } for the given date (defaults to now). Pass a
+// natal-longitude map to aspect against a personalized chart (Sun/Moon/Rising).
+export function computeTransits(date = new Date(), natalLons = NATAL_LONGITUDES) {
   const positions = {}
   TRANSIT_BODIES.forEach((body) => {
     const lon = transitLongitude(body, date)
@@ -68,7 +69,7 @@ export function computeTransits(date = new Date()) {
   const aspects = []
   TRANSIT_BODIES.forEach((tBody) => {
     const tLon = positions[tBody].longitude
-    Object.entries(NATAL_LONGITUDES).forEach(([nPoint, nLon]) => {
+    Object.entries(natalLons).forEach(([nPoint, nLon]) => {
       const sep = separation(tLon, nLon)
       ASPECTS.forEach((asp) => {
         const orb = Math.abs(sep - asp.angle)

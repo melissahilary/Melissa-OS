@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { computeTransits } from '../lib/astrology/transits'
+import { natalLongitudesWith, SIGNS, SIGN_GLYPH } from '../lib/astrology/natal'
+
+const DEFAULT_SIGNS = { sun: 'Libra', moon: 'Taurus', rising: 'Libra' }
+const signSig = (s) => `${s.sun}|${s.moon}|${s.rising}`
 
 const INK = '#1C1C1A'
 const inkA = (a) => `rgba(28, 28, 26, ${a})`
@@ -138,25 +143,28 @@ export default function Horoscope() {
   )
 }
 
-// Editorial reading: a single italic theme + a short prose summary. Nothing else.
-function HoroscopeCard({ data }) {
+// Editorial reading: just the prose summary. The heading opens the sign editor.
+function HoroscopeCard({ data, onEdit }) {
   const safe = normalizeData(data)
-  const theme = safe.theme ? safe.theme.charAt(0).toUpperCase() + safe.theme.slice(1).replace(/[.\s]+$/, '') + '.' : ''
   const summary = safe.summary
     ? cleanMeaning(safe.summary)
     : safe.aspects.slice(0, 3).map((a) => cleanMeaning(a.meaning)).join(' ')
 
+  const Heading = onEdit ? 'button' : 'h2'
   return (
     <section className="mb-10">
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-6">Horoscope</h2>
+      <Heading
+        onClick={onEdit || undefined}
+        className={`font-serif italic text-3xl md:text-4xl text-stone-900 mb-6 ${onEdit ? 'transition-colors hover:text-stone-500' : ''}`}
+        title={onEdit ? 'Edit your Sun, Moon & Rising' : undefined}
+      >
+        Horoscope
+      </Heading>
 
       {safe.aspects.length > 0 ? (
         <div className="mx-auto max-w-2xl text-center">
-          {theme && (
-            <p className="font-serif italic text-3xl md:text-4xl leading-tight text-stone-900">{theme}</p>
-          )}
           {summary && (
-            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-stone-600">{summary}</p>
+            <p className="mx-auto max-w-xl text-base leading-relaxed text-stone-600">{summary}</p>
           )}
         </div>
       ) : (
@@ -172,24 +180,36 @@ function HoroscopeInner() {
   const today = useMemo(() => new Date(), [])
   const key = dateKey(today)
 
-  // Guard the math too — a thrown transit calc must not crash the page.
+  const [signsRaw, setSigns] = useLocalStorage('mos:astro:signs', DEFAULT_SIGNS)
+  const signs = {
+    sun: SIGNS.includes(signsRaw?.sun) ? signsRaw.sun : DEFAULT_SIGNS.sun,
+    moon: SIGNS.includes(signsRaw?.moon) ? signsRaw.moon : DEFAULT_SIGNS.moon,
+    rising: SIGNS.includes(signsRaw?.rising) ? signsRaw.rising : DEFAULT_SIGNS.rising,
+  }
+  const sig = signSig(signs)
+  const [editing, setEditing] = useState(false)
+
+  // Guard the math too — a thrown transit calc must not crash the page. The chosen
+  // Sun/Moon/Rising personalize which natal points today's transits aspect.
   const top = useMemo(() => {
     try {
-      const { aspects } = computeTransits(today)
+      const natalLons = natalLongitudesWith({ Sun: signs.sun, Moon: signs.moon, Ascendant: signs.rising })
+      const { aspects } = computeTransits(today, natalLons)
       return Array.isArray(aspects) ? aspects.slice(0, 4) : []
     } catch {
       return []
     }
-  }, [today])
+  }, [today, sig])
 
   const [cached, setCached] = useLocalStorage('mos:horoscope', null)
   const [data, setData] = useState(() => fallbackData(top))
 
   useEffect(() => {
-    // Use the cache only if it's today's AND in the new, valid shape.
+    // Use the cache only if it's today's, matches the current signs, and is valid.
     if (
       cached &&
       cached.date === key &&
+      cached.signs === sig &&
       typeof cached.theme === 'string' &&
       Array.isArray(cached.aspects) &&
       cached.aspects.length > 0 &&
@@ -210,19 +230,20 @@ function HoroscopeInner() {
       quality: qualityOf(a.aspect),
       orb: a.orb,
     }))
+    const natalContext = { sun: `${signs.sun} Sun`, moon: `${signs.moon} Moon`, rising: `${signs.rising} Rising` }
     ;(async () => {
       try {
         const res = await fetch('/api/horoscope', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date: key, aspects: payload, natal: BIG_THREE }),
+          body: JSON.stringify({ date: key, aspects: payload, natal: natalContext }),
         })
         if (!res.ok) return
         const json = await res.json()
         const next = normalizeData(json)
         if (next.aspects.length && next.theme && alive) {
           setData(next)
-          setCached({ date: key, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
+          setCached({ date: key, signs: sig, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
         }
       } catch {
         /* offline / no key — the deterministic fallback already rendered */
@@ -232,9 +253,70 @@ function HoroscopeInner() {
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, top])
+  }, [key, top, sig])
 
-  return <HoroscopeCard data={data} />
+  return (
+    <>
+      <HoroscopeCard data={data} onEdit={() => setEditing(true)} />
+      {editing && (
+        <SignsModal
+          signs={signs}
+          onSave={(next) => { setSigns(next); setEditing(false) }}
+          onClose={() => setEditing(false)}
+        />
+      )}
+    </>
+  )
+}
+
+// ── Sun / Moon / Rising editor — a pop-up in the planner's house style ──
+const BIG_THREE_ROLES = [
+  { key: 'sun', label: 'Sun', note: 'Identity' },
+  { key: 'moon', label: 'Moon', note: 'Inner world' },
+  { key: 'rising', label: 'Rising', note: 'How you show up' },
+]
+
+function SignsModal({ signs, onSave, onClose }) {
+  const [draft, setDraft] = useState(signs)
+  const set = (key, value) => setDraft((d) => ({ ...d, [key]: value }))
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-md bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
+          <span className="kicker text-stone-400">Your chart</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          <p className="text-sm text-stone-500">Set your Sun, Moon and Rising — your reading each day is drawn from these.</p>
+          {BIG_THREE_ROLES.map((r) => (
+            <div key={r.key}>
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <span className="kicker text-stone-400">{r.label}</span>
+                <span className="text-[11px] uppercase tracking-[0.14em] text-stone-300">{r.note}</span>
+              </div>
+              <div className="relative">
+                <select
+                  value={draft[r.key]}
+                  onChange={(e) => set(r.key, e.target.value)}
+                  className="w-full appearance-none bg-transparent border-b border-stone-300 pb-1.5 font-serif text-xl text-stone-900 outline-none focus:border-stone-900"
+                >
+                  {SIGNS.map((s) => <option key={s} value={s}>{SIGN_GLYPH[s]}  {s}</option>)}
+                </select>
+                <span className="pointer-events-none absolute bottom-1.5 right-1 text-stone-400">▾</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-stone-200 px-6 py-4">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
+          <button onClick={() => onSave(draft)} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // Melissa's big three — glyph + sign on one line, role in small-caps beneath.
