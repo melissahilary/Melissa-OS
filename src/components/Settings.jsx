@@ -226,7 +226,7 @@ export default function Settings() {
             <H2>Profile.</H2>
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-stone-300 bg-white/50">
-                {p.photo ? <img src={p.photo} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-lg text-stone-300">{(p.name || st.email || '?').charAt(0).toUpperCase()}</span>}
+                {p.photo ? <img src={p.photo} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-lg text-stone-300">{(p.firstName || p.name || st.email || '?').charAt(0).toUpperCase()}</span>}
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={() => photoRef.current && photoRef.current.click()} className="flex items-center gap-1.5 border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"><Upload size={13} /> Photo</button>
@@ -235,7 +235,17 @@ export default function Settings() {
               </div>
             </div>
 
-            <Field label="Name"><input value={p.name || ''} onChange={(e) => setP({ name: e.target.value })} placeholder="Melissa" className={input} /></Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="First name"><input value={p.firstName || ''} onChange={(e) => setP({ firstName: e.target.value })} placeholder="Melissa" className={input} /></Field>
+              <Field label="Last name"><input value={p.lastName || ''} onChange={(e) => setP({ lastName: e.target.value })} placeholder="Hilary" className={input} /></Field>
+            </div>
+
+            <Field label="Username">
+              <p className="text-sm text-stone-700">{p.username || 'melissa hilary'}</p>
+            </Field>
+            <Field label="Email">
+              <p className="text-sm text-stone-700">{st.email || '—'}</p>
+            </Field>
 
             <Field label="Location (for UV & weather)"><LocationField location={location} setLocation={setLocation} className={input} /></Field>
             <Field label="Time zone">
