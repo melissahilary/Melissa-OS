@@ -22,17 +22,26 @@ async function geocode(place) {
   return (gj && gj.results && gj.results[0]) || null
 }
 
-// Live UV index. Returns a rounded number, or null on failure.
-async function fetchUv(place) {
+// Hourly UV index for the location, keyed by UTC hour ("YYYY-MM-DDTHH:00") so the
+// current-hour value can be picked as the day progresses. Null on failure.
+async function fetchUvHourly(place) {
   const loc = await geocode(place)
   if (!loc) return null
   const f = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=uv_index_max&timezone=auto`,
+    `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&hourly=uv_index&timezone=GMT&forecast_days=2`,
   )
   const fj = await f.json()
-  const v = fj && fj.daily && fj.daily.uv_index_max && fj.daily.uv_index_max[0]
-  return v != null ? Math.round(v) : null
+  const times = fj && fj.hourly && fj.hourly.time
+  const vals = fj && fj.hourly && fj.hourly.uv_index
+  if (!Array.isArray(times) || !Array.isArray(vals)) return null
+  const map = {}
+  times.forEach((t, i) => { map[t] = vals[i] })
+  return map
 }
+
+// UTC-hour key matching Open-Meteo's GMT hourly timestamps.
+const utcHourKey = (d) =>
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}T${String(d.getUTCHours()).padStart(2, '0')}:00`
 
 // WMO weather codes → short condition text.
 const WMO = {
@@ -80,14 +89,22 @@ const Cursive = ({ children, className = '' }) => (
 
 // ── Info strip — phase · date · weather · UV · location, one elegant row ─
 function InfoStrip({ phase, today, location, setLocation }) {
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30 * 1000)
+    return () => clearInterval(id)
+  }, [])
   const phaseDay = phase ? `${phase.name} · Day ${phase.cycleDay}` : '—'
   const dateStr = `${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`
+  const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const Dot = () => <span className="text-stone-300">·</span>
   return (
     <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
       <span>{phaseDay}</span>
       <Dot />
       <span>{dateStr}</span>
+      <Dot />
+      <span>{timeStr}</span>
       <Dot />
       <WeatherField location={location} />
       <Dot />
@@ -133,28 +150,38 @@ function WeatherField({ location }) {
   )
 }
 
-// UV index — always pulled live for the location (never entered manually).
+// UV index — live for the location, tracking the current hour as the day goes on.
 function UvField({ location }) {
-  const [uv, setUv] = useState(null)
+  const [map, setMap] = useState(null)
+  const [tick, setTick] = useState(0)
+  const place = (location || '').trim()
+
+  // Fetch the hourly forecast on location change, and refresh every 30 minutes.
   useEffect(() => {
+    if (!place) { setMap(null); return undefined }
     let alive = true
-    const place = (location || '').trim()
-    if (!place) {
-      setUv(null)
-      return undefined
+    const load = async () => {
+      try { const m = await fetchUvHourly(place); if (alive) setMap(m) }
+      catch { if (alive) setMap(null) }
     }
-    ;(async () => {
-      try {
-        const v = await fetchUv(place)
-        if (alive) setUv(v)
-      } catch {
-        if (alive) setUv(null)
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [location])
+    load()
+    const id = setInterval(load, 30 * 60 * 1000)
+    return () => { alive = false; clearInterval(id) }
+  }, [place])
+
+  // Re-pick the current hour every minute so the value updates through the day.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const uv = useMemo(() => {
+    if (!map) return null
+    const v = map[utcHourKey(new Date())]
+    return v != null ? Math.round(v) : null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, tick])
+
   return <span className="text-stone-700">UV {uv != null ? uv : '—'}</span>
 }
 

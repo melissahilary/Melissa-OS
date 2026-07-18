@@ -289,7 +289,7 @@ function SignsModal({ signs, onSave, onClose }) {
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          <p className="text-sm text-stone-500">Set your Sun, Moon and Rising — your reading each day is drawn from these.</p>
+          <p className="text-sm text-stone-500">Set your Sun, Moon and Rising. Each day's reading is drawn from these.</p>
           {BIG_THREE_ROLES.map((r) => (
             <div key={r.key}>
               <div className="mb-1.5 flex items-baseline justify-between">
