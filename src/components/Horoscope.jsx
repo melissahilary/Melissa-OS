@@ -162,13 +162,11 @@ function HoroscopeCard({ data, onEdit }) {
       </Heading>
 
       {safe.aspects.length > 0 ? (
-        <div className="mx-auto max-w-2xl text-center">
-          {summary && (
-            <p className="mx-auto max-w-xl text-base leading-relaxed text-stone-600">{summary}</p>
-          )}
-        </div>
+        summary && (
+          <p className="max-w-2xl text-base leading-relaxed text-stone-600">{summary}</p>
+        )
       ) : (
-        <p className="py-6 text-center font-serif italic text-lg text-stone-400">
+        <p className="py-2 font-serif italic text-lg text-stone-400">
           Quiet sky today — nothing strong hitting your chart.
         </p>
       )}
