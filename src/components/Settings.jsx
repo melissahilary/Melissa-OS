@@ -102,7 +102,15 @@ export default function Settings() {
   const [confirmText, setConfirmText] = useState('')
   const [cropSrc, setCropSrc] = useState(null)
   const [cropInit, setCropInit] = useState(null)
+  const [refEmail, setRefEmail] = useState('')
+  const [refReady, setRefReady] = useState(false)
   const photoRef = useRef(null)
+
+  // Once a referral email has been saved, show the link straight away next time.
+  useEffect(() => {
+    if (p.referralEmail && !refReady) { setRefEmail(p.referralEmail); setRefReady(true) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.referralEmail])
 
   // Personal referral link, keyed to the account's username.
   const refUser = (p.username || 'melissa hilary').trim().replace(/\s+/g, '')
@@ -329,14 +337,38 @@ export default function Settings() {
           </section>
 
           <section className="max-w-lg">
-            <H2>Refer a friend.</H2>
-            <p className="mb-4 text-sm text-stone-600">Share your planner. Anyone with this link can sign up with their own email.</p>
-            <div className="flex items-center gap-2">
-              <input readOnly value={link} className="flex-1 border border-stone-300 bg-white/50 px-3 py-2 text-sm text-stone-700 outline-none" />
-              <button onClick={copyLink} className="flex shrink-0 items-center gap-1.5 bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">
-                {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-              </button>
-            </div>
+            <H2>Get paid to glow.</H2>
+            <p className="text-sm text-stone-600">Send 25% off. Earn $25 for every friend who joins.</p>
+            {!refReady ? (
+              <>
+                <p className="mt-3 text-sm text-stone-600">Enter your email to generate your link. Your $25 Visa card arrives here each time a friend subscribes.</p>
+                <div className="mt-4 flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={refEmail}
+                    onChange={(e) => setRefEmail(e.target.value)}
+                    placeholder="your email"
+                    className="flex-1 border border-stone-300 bg-white/50 px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-900"
+                  />
+                  <button
+                    onClick={() => { if (refEmail.trim()) { setP({ referralEmail: refEmail.trim() }); setRefReady(true) } }}
+                    className="shrink-0 bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700"
+                  >
+                    Get my link
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-4">
+                <p className="kicker text-stone-400 mb-2">your link — copy and send it</p>
+                <div className="flex items-center gap-2">
+                  <input readOnly value={link} className="flex-1 border border-stone-300 bg-white/50 px-3 py-2 text-sm text-stone-700 outline-none" />
+                  <button onClick={copyLink} className="flex shrink-0 items-center gap-1.5 bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">
+                    {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       )}
