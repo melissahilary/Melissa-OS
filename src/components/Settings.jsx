@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Copy, Check, LogOut, Upload, Trash2, Mail } from 'lucide-react'
+import { Copy, Check, LogOut, Upload, Trash2, Mail, X } from 'lucide-react'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
@@ -100,6 +100,8 @@ export default function Settings() {
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmText, setConfirmText] = useState('')
+  const [cropSrc, setCropSrc] = useState(null)
+  const [cropInit, setCropInit] = useState(null)
   const photoRef = useRef(null)
 
   const link = typeof window !== 'undefined' ? window.location.origin : 'https://melissa-os.vercel.app'
@@ -117,10 +119,15 @@ export default function Settings() {
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch { /* clipboard blocked */ }
   }
-  const onPhoto = (e) => {
+  // Uploading opens the cropper on a downscaled copy of the original; Editing
+  // reopens the original with the last crop so you can re-position it.
+  const onPickFile = (e) => {
     const file = e.target.files && e.target.files[0]
-    if (file) resizePhoto(file, 256, (data) => setP({ photo: data }))
+    if (file) resizePhoto(file, 1024, (data) => { setCropSrc(data); setCropInit(null) })
+    e.target.value = ''
   }
+  const editPhoto = () => { const s = p.photoOriginal || p.photo; if (s) { setCropSrc(s); setCropInit(p.photoTransform || null) } }
+  const onCropSave = (data, transform) => { setP({ photo: data, photoOriginal: cropSrc, photoTransform: transform }); setCropSrc(null) }
   const toggleHidden = (id) => setHidden((prev) => {
     const arr = Array.isArray(prev) ? prev : []
     return arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]
@@ -229,9 +236,9 @@ export default function Settings() {
                 {p.photo ? <img src={p.photo} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-lg text-stone-300">{(p.firstName || p.name || st.email || '?').charAt(0).toUpperCase()}</span>}
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => photoRef.current && photoRef.current.click()} className="flex items-center gap-1.5 border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"><Upload size={13} /> Photo</button>
-                {p.photo && <button onClick={() => setP({ photo: '' })} className="text-xs text-stone-400 hover:text-stone-700">Remove</button>}
-                <input ref={photoRef} type="file" accept="image/*" onChange={onPhoto} className="hidden" />
+                {p.photo && <button onClick={editPhoto} className="border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500">Edit</button>}
+                <button onClick={() => photoRef.current && photoRef.current.click()} className="flex items-center gap-1.5 border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"><Upload size={13} /> Upload</button>
+                <input ref={photoRef} type="file" accept="image/*" onChange={onPickFile} className="hidden" />
               </div>
             </div>
 
@@ -386,6 +393,111 @@ export default function Settings() {
           <p className="text-xs italic text-stone-400">We read every message and usually reply within a day or two.</p>
         </section>
       )}
+
+      {cropSrc && <PhotoCropper src={cropSrc} initial={cropInit} onSave={onCropSave} onClose={() => setCropSrc(null)} />}
+    </div>
+  )
+}
+
+// Circular crop / reposition editor. The image "covers" a square viewport; drag
+// to pan, slider to zoom. Save renders the framed square to a data URL (the round
+// mask is CSS on the avatar). The chosen zoom/offset is returned so a later Edit
+// can restore it.
+function PhotoCropper({ src, initial, onSave, onClose }) {
+  const V = 288
+  const O = 512
+  const [img, setImg] = useState(null)
+  const [zoom, setZoom] = useState(initial && initial.zoom ? initial.zoom : 1)
+  const [pos, setPos] = useState(initial ? { x: initial.x, y: initial.y } : { x: 0, y: 0 })
+  const drag = useRef(null)
+
+  const clampWith = (image, p, z) => {
+    if (!image) return p
+    const dispW = image.w * image.base * z
+    const dispH = image.h * image.base * z
+    return { x: Math.min(0, Math.max(V - dispW, p.x)), y: Math.min(0, Math.max(V - dispH, p.y)) }
+  }
+
+  useEffect(() => {
+    const im = new Image()
+    im.onload = () => {
+      const base = Math.max(V / im.naturalWidth, V / im.naturalHeight)
+      const image = { el: im, w: im.naturalWidth, h: im.naturalHeight, base }
+      setImg(image)
+      if (initial) setPos(clampWith(image, { x: initial.x, y: initial.y }, initial.zoom || 1))
+      else {
+        const dispW = image.w * base
+        const dispH = image.h * base
+        setPos({ x: (V - dispW) / 2, y: (V - dispH) / 2 })
+      }
+    }
+    im.src = src
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src])
+
+  const onZoom = (z1) => {
+    if (img) {
+      const f0 = img.base * zoom
+      const f1 = img.base * z1
+      const ipx = (V / 2 - pos.x) / f0
+      const ipy = (V / 2 - pos.y) / f0
+      setPos(clampWith(img, { x: V / 2 - ipx * f1, y: V / 2 - ipy * f1 }, z1))
+    }
+    setZoom(z1)
+  }
+
+  const onDown = (e) => { drag.current = { sx: e.clientX, sy: e.clientY, px: pos.x, py: pos.y }; try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* noop */ } }
+  const onMove = (e) => { if (!drag.current) return; setPos(clampWith(img, { x: drag.current.px + (e.clientX - drag.current.sx), y: drag.current.py + (e.clientY - drag.current.sy) }, zoom)) }
+  const onUp = () => { drag.current = null }
+
+  const save = () => {
+    if (!img) return
+    const canvas = document.createElement('canvas')
+    canvas.width = O; canvas.height = O
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, O, O)
+    const k = O / V
+    ctx.drawImage(img.el, pos.x * k, pos.y * k, img.w * img.base * zoom * k, img.h * img.base * zoom * k)
+    onSave(canvas.toDataURL('image/jpeg', 0.9), { zoom, x: pos.x, y: pos.y })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-sm bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+          <span className="kicker text-stone-400">Profile photo</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+        </div>
+        <div className="px-6 py-6">
+          <div
+            className="relative mx-auto touch-none select-none overflow-hidden rounded-md bg-stone-100"
+            style={{ width: V, height: V, cursor: 'grab' }}
+            onPointerDown={onDown}
+            onPointerMove={onMove}
+            onPointerUp={onUp}
+            onPointerCancel={onUp}
+          >
+            {img && (
+              <img
+                src={src}
+                alt=""
+                draggable={false}
+                style={{ position: 'absolute', left: pos.x, top: pos.y, width: img.w * img.base * zoom, height: img.h * img.base * zoom, maxWidth: 'none' }}
+              />
+            )}
+            <div className="pointer-events-none absolute inset-0 rounded-full" style={{ boxShadow: '0 0 0 9999px rgba(28,25,23,0.5)', border: '2px solid rgba(255,255,255,0.9)' }} />
+          </div>
+          <p className="mt-3 text-center text-xs italic text-stone-400">Drag to reposition.</p>
+          <div className="mt-4 flex items-center gap-3">
+            <span className="kicker text-stone-400">Zoom</span>
+            <input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(e) => onZoom(Number(e.target.value))} className="flex-1 accent-stone-900" />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 border-t border-stone-200 px-6 py-4">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
+          <button onClick={save} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+        </div>
+      </div>
     </div>
   )
 }
