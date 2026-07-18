@@ -420,7 +420,6 @@ function CyclePopup({ cycleConfig, today, onClose }) {
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
         <div className="px-6 pb-6">
-          <p className="mb-5 font-serif italic text-lg text-stone-600">Here's where your cycle stands —</p>
           <div className="divide-y divide-stone-100">
             {rows.map((r) => (
               <div key={r.label} className="py-3">

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
@@ -35,6 +36,7 @@ import Spirituality from './components/Spirituality'
 import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
 import Audit from './components/Audit'
+import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
 
@@ -95,11 +97,16 @@ const SUBNAV = {
 
 export default function App() {
   const [active, setActive] = useLocalStorage('mos:active', 'today')
-  // Redirect away from any removed section.
+  // Sections the user has hidden in Settings (data is kept; nav is just tidied).
+  const [hiddenRaw] = useLocalStorage('mos:settings:hidden', [])
+  const hidden = Array.isArray(hiddenRaw) ? hiddenRaw : []
+  const visiblePillars = PILLARS.filter((p) => !hidden.includes(p.id))
+  // Redirect away from any removed or hidden section.
   useEffect(() => {
-    const valid = new Set(['today', 'dream', ...PILLARS.map((p) => p.id)])
-    if (!valid.has(active)) setActive('today')
-  }, [active, setActive])
+    const valid = new Set(['today', 'dream', 'settings', ...PILLARS.map((p) => p.id)])
+    if (!valid.has(active) || hidden.includes(active)) setActive('today')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, setActive, hiddenRaw])
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
   const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
   // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
@@ -195,7 +202,8 @@ export default function App() {
 
   const isToday = active === 'today'
   const isDream = active === 'dream'
-  const isPillar = !isToday && !isDream
+  const isSettings = active === 'settings'
+  const isPillar = !isToday && !isDream && !isSettings
 
   const goToday = () => setActive('today')
   const ActivePillar = isPillar ? PILLAR_COMPONENTS[active] : null
@@ -220,7 +228,7 @@ export default function App() {
               setCollapsed={setCollapsed}
               setActive={setActive}
               setDreamPage={setDreamPage}
-              pillars={PILLARS}
+              pillars={visiblePillars}
               active={active}
             />
           ) : (
@@ -238,11 +246,21 @@ export default function App() {
               )}
 
               {isToday && (
-                <SidebarToday setActive={setActive} setDreamPage={setDreamPage} pillars={PILLARS} />
+                <SidebarToday setActive={setActive} setDreamPage={setDreamPage} pillars={visiblePillars} />
               )}
 
               {isDream && (
                 <SidebarDream goToday={goToday} dreamPage={dreamPage} setDreamPage={setDreamPage} />
+              )}
+
+              {isSettings && (
+                <button
+                  type="button"
+                  onClick={goToday}
+                  className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
+                >
+                  <ChevronLeft size={16} /> Back to Today
+                </button>
               )}
 
               {isPillar && (
@@ -284,6 +302,7 @@ export default function App() {
             {isPillar && ActivePillar && (
               <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
             )}
+            {isSettings && <Settings />}
             <Footer />
           </div>
         </main>
@@ -385,6 +404,16 @@ function SidebarToday({ setActive, setDreamPage, pillars }) {
             )
           })}
         </nav>
+      </div>
+      <div className="border-t border-stone-200 pt-5">
+        <button
+          type="button"
+          onClick={() => setActive('settings')}
+          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-100 transition-colors"
+        >
+          <SettingsIcon size={16} className="shrink-0" />
+          <span>Settings</span>
+        </button>
       </div>
     </div>
   )

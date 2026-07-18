@@ -136,3 +136,25 @@ export async function signIn(email) {
 export async function signOut() {
   return supabase.auth.signOut()
 }
+// Change the account email — Supabase emails a confirmation to the new address.
+export async function updateEmail(email) {
+  return supabase.auth.updateUser({ email }, { emailRedirectTo: window.location.origin })
+}
+
+// Every stored key/value — used for the full data export.
+export function all() {
+  const out = {}
+  cache.forEach((v, k) => { out[k] = v })
+  return out
+}
+
+// Permanently delete all planner data for the account (irreversible).
+export async function wipeAll() {
+  if (user) {
+    try { await supabase.from(TABLE).delete().eq('user_id', user.id) } catch (e) { console.warn('[mos] wipe error', e) }
+  }
+  const keys = [...cache.keys()]
+  cache.clear()
+  keys.forEach((k) => notify(k))
+  notifyAllKnown()
+}
