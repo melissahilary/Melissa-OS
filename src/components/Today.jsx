@@ -231,19 +231,16 @@ function UvField({ location }) {
   )
 }
 
-// Small pop-up with the current UV band + its sun-protection guidance.
+// Small pop-up with just the sun-protection guidance for the current UV band.
 function UvPopup({ uv, onClose }) {
-  const band = uvBand(uv)
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
-          <span className="kicker text-stone-400">UV Index</span>
+        <div className="flex justify-end px-4 pt-3">
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
-        <div className="px-5 py-5">
-          <p className="font-serif italic text-2xl text-stone-900">UV {uv} · {UV_TITLE[band]}</p>
-          <p className="mt-3 text-sm leading-relaxed text-stone-600">{UV_ADVICE[band]}</p>
+        <div className="px-6 pb-6">
+          <p className="text-base leading-relaxed text-stone-700">{UV_ADVICE[uvBand(uv)]}</p>
         </div>
       </div>
     </div>
