@@ -563,7 +563,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       <Horoscope />
 
       <div className="pt-10">
-      <h2 className="mb-8 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>My Schedule.</h2>
+      <h2 className="mb-8 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>schedule</h2>
 
       <Calendar
         view={calView}
