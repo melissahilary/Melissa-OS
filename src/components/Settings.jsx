@@ -189,17 +189,6 @@ export default function Settings() {
             <button onClick={() => store.signOut()} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-700"><LogOut size={14} /> Sign out</button>
           </section>
 
-          <section className="max-w-lg">
-            <H2>Refer a friend.</H2>
-            <p className="mb-4 text-sm text-stone-600">Share your planner. Anyone with this link can sign up with their own email.</p>
-            <div className="flex items-center gap-2">
-              <input readOnly value={link} className="flex-1 border border-stone-300 bg-white/50 px-3 py-2 text-sm text-stone-700 outline-none" />
-              <button onClick={copyLink} className="flex shrink-0 items-center gap-1.5 bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">
-                {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-              </button>
-            </div>
-          </section>
-
           <section className="max-w-lg space-y-5">
             <H2>Data.</H2>
             <div>
@@ -304,20 +293,33 @@ export default function Settings() {
 
       {/* ── PLAN & SUBSCRIPTION ─────────────────────────────────── */}
       {tab === 'plan' && (
-        <section className="max-w-lg space-y-6">
-          <H2>Plan & Subscription.</H2>
-          <div className="border border-stone-300 bg-white/40 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="kicker text-stone-400">Current plan</p>
-                <p className="mt-1 font-serif text-2xl text-stone-900">Personal</p>
+        <div className="space-y-14">
+          <section className="max-w-lg space-y-6">
+            <H2>Plan & Subscription.</H2>
+            <div className="border border-stone-300 bg-white/40 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="kicker text-stone-400">Current plan</p>
+                  <p className="mt-1 font-serif text-2xl text-stone-900">Personal</p>
+                </div>
+                <span className="rounded-full bg-stone-900 px-3 py-1 text-xs text-cream">Active</span>
               </div>
-              <span className="rounded-full bg-stone-900 px-3 py-1 text-xs text-cream">Active</span>
+              <p className="mt-4 text-sm text-stone-600">Your private planner — every section, unlimited entries, cloud-synced across your devices. No billing, nothing to renew.</p>
             </div>
-            <p className="mt-4 text-sm text-stone-600">Your private planner — every section, unlimited entries, cloud-synced across your devices. No billing, nothing to renew.</p>
-          </div>
-          <p className="text-xs italic text-stone-400">This is a personal planner built for you. There's nothing to upgrade or pay for.</p>
-        </section>
+            <p className="text-xs italic text-stone-400">This is a personal planner built for you. There's nothing to upgrade or pay for.</p>
+          </section>
+
+          <section className="max-w-lg">
+            <H2>Refer a friend.</H2>
+            <p className="mb-4 text-sm text-stone-600">Share your planner. Anyone with this link can sign up with their own email.</p>
+            <div className="flex items-center gap-2">
+              <input readOnly value={link} className="flex-1 border border-stone-300 bg-white/50 px-3 py-2 text-sm text-stone-700 outline-none" />
+              <button onClick={copyLink} className="flex shrink-0 items-center gap-1.5 bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">
+                {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* ── NOTIFICATION ────────────────────────────────────────── */}
