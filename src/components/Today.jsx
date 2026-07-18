@@ -249,8 +249,9 @@ const ckPt = (r, deg) => [CK_C + r * Math.sin((deg * Math.PI) / 180), CK_C - r *
 const CK_DOTS = Array.from({ length: 60 }, (_, i) => ckPt(63, i * 6))
 const CK_BATONS = Array.from({ length: 12 }, (_, i) => { const a = i * 30; const [x1, y1] = ckPt(90, a); const [x2, y2] = ckPt(76, a); return { x1, y1, x2, y2 } })
 
-// Read the wall-clock hour/minute/second in a given IANA time zone. Sub-second
-// smoothness comes from the millisecond field (identical across time zones).
+// Read the wall-clock hour/minute/second in a given IANA time zone. Seconds are
+// whole numbers, so the second hand advances one real second per tick (one full
+// revolution every 60 seconds — the same speed as any accurate clock).
 function timePartsIn(date, tz) {
   let h = date.getHours(); let m = date.getMinutes(); let s = date.getSeconds()
   if (tz) {
@@ -260,17 +261,17 @@ function timePartsIn(date, tz) {
       h = get('hour') % 24; m = get('minute'); s = get('second')
     } catch { /* fall back to local */ }
   }
-  return { h, m, s: s + date.getMilliseconds() / 1000 }
+  return { h, m, s }
 }
 
-// A living analog clock, shown under the title. Ticks continuously (smooth sweep)
-// and reads the chosen location's time zone.
+// A living analog clock, shown under the title. Ticks once per second (like a
+// quartz wall clock) and reads the chosen location's time zone.
 function Clock({ location }) {
   const [now, setNow] = useState(new Date())
   const [tz, setTz] = useState(null)
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 250)
+    const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -294,14 +295,9 @@ function Clock({ location }) {
   const [sx, sy] = ckPt(72, secDeg)
   const [stx, sty] = ckPt(-16, secDeg) // short tail on the second hand
 
-  const opts = { hour: 'numeric', minute: '2-digit' }
-  if (tz) { opts.timeZone = tz; opts.timeZoneName = 'short' }
-  let timeStr
-  try { timeStr = now.toLocaleTimeString('en-US', opts) } catch { timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
-
   return (
     <div className="mt-4 flex flex-col items-center">
-      <svg viewBox="0 0 200 200" className="h-28 w-28 md:h-32 md:w-32" role="img" aria-label={`Current time ${timeStr}`}>
+      <svg viewBox="0 0 200 200" className="h-28 w-28 md:h-32 md:w-32" role="img" aria-label="Clock">
         <circle cx="100" cy="100" r="98" fill="none" stroke="#d6d3d1" strokeWidth="2" />
         <circle cx="100" cy="100" r="94" fill="#ffffff" stroke="#e7e5e4" strokeWidth="1" />
         {CK_DOTS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.1" fill="#a8a29e" />)}
@@ -311,7 +307,6 @@ function Clock({ location }) {
         <line x1={stx} y1={sty} x2={sx} y2={sy} stroke="#1c1917" strokeWidth="1" strokeLinecap="round" />
         <circle cx="100" cy="100" r="3.5" fill="#1c1917" />
       </svg>
-      <p className="mt-2 text-xs tracking-[0.18em] uppercase text-stone-400 tabular-nums">{timeStr}</p>
     </div>
   )
 }
