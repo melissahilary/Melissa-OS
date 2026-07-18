@@ -121,7 +121,6 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
       <section className="mt-8 border-t border-stone-200 pt-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-serif italic text-2xl text-stone-900">{longDate(parseKey(selectedKey))}</h3>
-          <button onClick={() => openNew(selectedKey)} className="text-sm text-stone-500 hover:text-stone-900">Add</button>
         </div>
         {dayItems.length === 0 ? (
           <p className="text-sm italic text-stone-400">Nothing scheduled.</p>
