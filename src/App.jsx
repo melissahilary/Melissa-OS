@@ -95,7 +95,8 @@ const SUBNAV = {
     { id: 'monthly', label: 'Monthly' },
   ],
   fitness: [
-    { id: 'workouts', label: 'Workouts' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
   ],
   workout: [
     { id: 'cycle', label: 'Cycle' },

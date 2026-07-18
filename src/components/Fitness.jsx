@@ -83,8 +83,10 @@ const recurWeekdays = (a) => {
   return []
 }
 
-export default function Fitness() {
-  return <Workouts />
+export default function Fitness({ subPage, cycleConfig }) {
+  return subPage === 'monthly'
+    ? <CategoryCalendar category="fitness" cycleConfig={cycleConfig} noun="Workout" />
+    : <Workouts />
 }
 
 // ── Workouts — a Monday–Sunday weekly schedule. Each workout is a ritual
