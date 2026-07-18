@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { computeTransits } from '../lib/astrology/transits'
-import { natalLongitudesWith, SIGNS, SIGN_GLYPH } from '../lib/astrology/natal'
+import { natalLongitudesWith, SIGNS } from '../lib/astrology/natal'
 
 const DEFAULT_SIGNS = { sun: 'Libra', moon: 'Taurus', rising: 'Libra' }
 const signSig = (s) => `${s.sun}|${s.moon}|${s.rising}`
@@ -302,7 +302,7 @@ function SignsModal({ signs, onSave, onClose }) {
                   onChange={(e) => set(r.key, e.target.value)}
                   className="w-full appearance-none bg-transparent border-b border-stone-300 pb-1.5 font-serif text-xl text-stone-900 outline-none focus:border-stone-900"
                 >
-                  {SIGNS.map((s) => <option key={s} value={s}>{SIGN_GLYPH[s]}  {s}</option>)}
+                  {SIGNS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <span className="pointer-events-none absolute bottom-1.5 right-1 text-stone-400">▾</span>
               </div>
