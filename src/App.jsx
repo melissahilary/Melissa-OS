@@ -35,7 +35,6 @@ import Aesthetics from './components/Aesthetics'
 import Spirituality from './components/Spirituality'
 import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
-import Audit from './components/Audit'
 import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import { AccountDot } from './components/shared/AccountPanel'
@@ -52,7 +51,6 @@ const PILLARS = [
   { id: 'diagnostics', label: 'Diagnostics', icon: FlaskConical },
   { id: 'relationship', label: 'Relationships', icon: Heart },
   { id: 'spirituality', label: 'Spirituality', icon: Sun },
-  { id: 'audit', label: 'Audit', icon: ClipboardList },
 ]
 
 const PILLAR_COMPONENTS = {
@@ -67,7 +65,6 @@ const PILLAR_COMPONENTS = {
   diagnostics: Diagnostics,
   relationship: Relationship,
   spirituality: Spirituality,
-  audit: Audit,
 }
 
 // Category sub-navigation shown when inside a section.
@@ -297,7 +294,7 @@ export default function App() {
         {/* ── Main content ────────────────────────────────────── */}
         <main className="flex-1 overflow-x-hidden px-6 py-8 md:px-10 lg:px-12">
           <div className="mx-auto max-w-5xl">
-            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} />}
+            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setWorkoutSub('cycle') }} />}
             {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
             {isPillar && ActivePillar && (
               <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />

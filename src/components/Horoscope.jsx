@@ -153,13 +153,16 @@ function HoroscopeCard({ data, onEdit }) {
   const Heading = onEdit ? 'button' : 'h2'
   return (
     <section className="mb-10">
-      <Heading
-        onClick={onEdit || undefined}
-        className={`font-serif italic text-3xl md:text-4xl text-stone-900 mb-6 ${onEdit ? 'transition-colors hover:text-stone-500' : ''}`}
-        title={onEdit ? 'Edit your Sun, Moon & Rising' : undefined}
-      >
-        Horoscope
-      </Heading>
+      <div className="mb-6 text-center">
+        <Heading
+          onClick={onEdit || undefined}
+          style={{ fontFamily: "'Pinyon Script', cursive" }}
+          className={`text-4xl md:text-5xl leading-tight text-stone-900 ${onEdit ? 'transition-colors hover:text-stone-500' : ''}`}
+          title={onEdit ? 'Edit your Sun, Moon & Rising' : undefined}
+        >
+          Horoscope
+        </Heading>
+      </div>
 
       {safe.aspects.length > 0 ? (
         summary && (

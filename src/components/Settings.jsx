@@ -3,6 +3,7 @@ import { Copy, Check, LogOut, Upload, Trash2 } from 'lucide-react'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
+import LocationField from './shared/LocationField'
 import { SIGNS } from '../lib/astrology/natal'
 import { PHASES } from '../lib/cycle'
 
@@ -19,7 +20,6 @@ const SECTIONS = [
   { id: 'diagnostics', label: 'Diagnostics' },
   { id: 'relationship', label: 'Relationships' },
   { id: 'spirituality', label: 'Spirituality' },
-  { id: 'audit', label: 'Audit' },
 ]
 
 const TZ_LIST = (() => {
@@ -161,7 +161,7 @@ export default function Settings() {
           {msg && <p className="mt-2 text-sm text-stone-600">{msg}</p>}
         </Field>
 
-        <Field label="Location (for UV & weather)"><input value={location || ''} onChange={(e) => setLocation(e.target.value)} placeholder="Alameda" className={input} /></Field>
+        <Field label="Location (for UV & weather)"><LocationField location={location} setLocation={setLocation} className={input} /></Field>
         <Field label="Time zone">
           <select value={p.timezone || ''} onChange={(e) => setP({ timezone: e.target.value })} className={`${input} appearance-none`}>
             <option value="">Auto (from location)</option>

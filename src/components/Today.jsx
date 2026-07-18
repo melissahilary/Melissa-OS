@@ -14,18 +14,12 @@ import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { useActivities } from '../hooks/useActivities'
 import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity } from '../lib/activities'
-
-// Geocode a place name to coordinates via Open-Meteo (no key, CORS-friendly).
-async function geocode(place) {
-  const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1`)
-  const gj = await g.json()
-  return (gj && gj.results && gj.results[0]) || null
-}
+import LocationField, { resolveCoords, locKey } from './shared/LocationField'
 
 // Hourly UV index for the location, keyed by UTC hour ("YYYY-MM-DDTHH:00") so the
 // current-hour value can be picked as the day progresses. Null on failure.
-async function fetchUvHourly(place) {
-  const loc = await geocode(place)
+async function fetchUvHourly(location) {
+  const loc = await resolveCoords(location)
   if (!loc) return null
   const f = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&hourly=uv_index&timezone=GMT&forecast_days=2`,
@@ -190,8 +184,8 @@ const WMO = {
 
 // Live weather for a place, in °F: current temp/condition plus today's forecast
 // (high/low, condition) and sun times (sunrise, sunset, daylight length).
-async function fetchWeather(place) {
-  const loc = await geocode(place)
+async function fetchWeather(location) {
+  const loc = await resolveCoords(location)
   if (!loc) return null
   const f = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code&daily=sunrise,sunset,daylight_duration,temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&timezone=auto`,
@@ -250,7 +244,6 @@ const Cursive = ({ children, className = '' }) => (
 function TimeField({ location }) {
   const [now, setNow] = useState(new Date())
   const [tz, setTz] = useState(null)
-  const place = (location || '').trim()
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30 * 1000)
@@ -258,14 +251,15 @@ function TimeField({ location }) {
   }, [])
 
   useEffect(() => {
-    if (!place) { setTz(null); return undefined }
+    if (!location) { setTz(null); return undefined }
     let alive = true
     ;(async () => {
-      try { const loc = await geocode(place); if (alive) setTz(loc && loc.timezone ? loc.timezone : null) }
+      try { const loc = await resolveCoords(location); if (alive) setTz(loc && loc.timezone ? loc.timezone : null) }
       catch { if (alive) setTz(null) }
     })()
     return () => { alive = false }
-  }, [place])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locKey(location)])
 
   const opts = { hour: 'numeric', minute: '2-digit' }
   if (tz) { opts.timeZone = tz; opts.timeZoneName = 'short' }
@@ -275,7 +269,7 @@ function TimeField({ location }) {
 }
 
 // ── Info strip — phase · date · time · weather · UV · location, one elegant row ─
-function InfoStrip({ phase, today, location, setLocation, cycleConfig }) {
+function InfoStrip({ phase, today, location, setLocation, cycleConfig, goToCycle }) {
   const [cycleOpen, setCycleOpen] = useState(false)
   const phaseDay = phase ? `${phase.name} · Day ${phase.cycleDay}` : '—'
   const dateStr = `${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`
@@ -283,7 +277,7 @@ function InfoStrip({ phase, today, location, setLocation, cycleConfig }) {
   return (
     <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
       <button onClick={() => setCycleOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{phaseDay}</button>
-      {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={today} onClose={() => setCycleOpen(false)} />}
+      {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={today} onEdit={goToCycle} onClose={() => setCycleOpen(false)} />}
       <Dot />
       <span>{dateStr}</span>
       <Dot />
@@ -293,11 +287,10 @@ function InfoStrip({ phase, today, location, setLocation, cycleConfig }) {
       <Dot />
       <UvField location={location} />
       <Dot />
-      <input
-        value={location || ''}
-        onChange={(e) => setLocation(e.target.value)}
-        placeholder="Location"
-        className="w-28 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
+      <LocationField
+        location={location}
+        setLocation={setLocation}
+        className="w-32 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
       />
     </div>
   )
@@ -307,18 +300,18 @@ function InfoStrip({ phase, today, location, setLocation, cycleConfig }) {
 function WeatherField({ location }) {
   const [w, setW] = useState(null)
   const [open, setOpen] = useState(false)
-  const place = (location || '').trim()
   useEffect(() => {
-    if (!place) { setW(null); return undefined }
+    if (!location) { setW(null); return undefined }
     let alive = true
     const load = async () => {
-      try { const out = await fetchWeather(place); if (alive) setW(out) }
+      try { const out = await fetchWeather(location); if (alive) setW(out) }
       catch { if (alive) setW(null) }
     }
     load()
     const id = setInterval(load, 10 * 60 * 1000) // keep it fresh through the day
     return () => { alive = false; clearInterval(id) }
-  }, [place])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locKey(location)])
   if (!w) return <span className="text-stone-400">—</span>
   return (
     <>
@@ -364,20 +357,20 @@ function WeatherPopup({ w, onClose }) {
 function UvField({ location }) {
   const [map, setMap] = useState(null)
   const [tick, setTick] = useState(0)
-  const place = (location || '').trim()
 
   // Fetch the hourly forecast on location change, and refresh every 30 minutes.
   useEffect(() => {
-    if (!place) { setMap(null); return undefined }
+    if (!location) { setMap(null); return undefined }
     let alive = true
     const load = async () => {
-      try { const m = await fetchUvHourly(place); if (alive) setMap(m) }
+      try { const m = await fetchUvHourly(location); if (alive) setMap(m) }
       catch { if (alive) setMap(null) }
     }
     load()
     const id = setInterval(load, 30 * 60 * 1000)
     return () => { alive = false; clearInterval(id) }
-  }, [place])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locKey(location)])
 
   // Re-pick the current hour every minute so the value updates through the day.
   useEffect(() => {
@@ -409,7 +402,7 @@ function UvField({ location }) {
 
 // Pop-up read of the cycle's stats, in an AI-OBGYN voice. Each baseline only
 // appears once enough intervals exist; otherwise it reads "Collecting".
-function CyclePopup({ cycleConfig, today, onClose }) {
+function CyclePopup({ cycleConfig, today, onEdit, onClose }) {
   const [logsRaw] = useLocalStorage('mos:cycle:logs', {})
   const logs = logsRaw && typeof logsRaw === 'object' ? logsRaw : {}
   const rows = useMemo(() => buildCycleRows(cycleStats({ cycleConfig, logs, today })), [cycleConfig, logs, today])
@@ -424,11 +417,14 @@ function CyclePopup({ cycleConfig, today, onClose }) {
             {rows.map((r) => (
               <div key={r.label} className="py-3">
                 <p className="kicker text-stone-400 mb-1">{r.label}</p>
-                <p className={`text-sm ${r.value === 'Collecting' ? 'italic text-stone-400' : 'text-stone-800'}`}>{r.value}</p>
+                <p className={`text-sm ${r.value === 'Collecting' ? 'text-stone-400' : 'text-stone-800'}`}>{r.value}</p>
                 {r.note && <p className="mt-0.5 text-xs text-stone-400">{r.note}</p>}
               </div>
             ))}
           </div>
+          {onEdit && (
+            <button onClick={() => { onEdit(); onClose() }} className="mt-5 w-full bg-stone-900 px-4 py-2.5 text-sm text-cream hover:bg-stone-700">Edit my cycle</button>
+          )}
         </div>
       </div>
     </div>
@@ -452,7 +448,7 @@ function UvPopup({ uv, onClose }) {
   )
 }
 
-export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay }) {
+export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
@@ -562,12 +558,12 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
       </div>
 
-      <InfoStrip today={today} phase={todayPhase} location={location} setLocation={setLocation} cycleConfig={cycleConfig} />
+      <InfoStrip today={today} phase={todayPhase} location={location} setLocation={setLocation} cycleConfig={cycleConfig} goToCycle={goToCycle} />
 
       <Horoscope />
 
       <div className="pt-10">
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-8">My Schedule.</h2>
+      <h2 className="mb-8 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>My Schedule.</h2>
 
       <Calendar
         view={calView}
@@ -1059,7 +1055,7 @@ function TodayNotes() {
 
   return (
     <section className="mb-14">
-      <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900 mb-4">Today's Notes.</h2>
+      <h2 className="mb-4 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>Today's Notes.</h2>
 
       <div className="mb-6 flex items-center gap-2">
         <input
