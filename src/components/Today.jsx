@@ -43,6 +43,9 @@ async function fetchUvHourly(place) {
 const utcHourKey = (d) =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}T${String(d.getUTCHours()).padStart(2, '0')}:00`
 
+// UV exposure category name by index. 0–2 low · 3–5 moderate · 6–7 high · 8+ very high.
+const uvLabel = (n) => (n <= 2 ? 'low' : n <= 5 ? 'moderate' : n <= 7 ? 'high' : 'very high')
+
 // WMO weather codes → short condition text.
 const WMO = {
   0: 'Clear', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
@@ -182,7 +185,7 @@ function UvField({ location }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tick])
 
-  return <span className="text-stone-700">UV {uv != null ? uv : '—'}</span>
+  return <span className="text-stone-700">UV {uv != null ? `${uv} ${uvLabel(uv)}` : '—'}</span>
 }
 
 export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay }) {
