@@ -38,7 +38,7 @@ export default function ReferralLanding({ username }) {
 
         <p className="mt-6 text-base leading-relaxed text-stone-600">
           Face masks, hair oiling, hormone panels, GHK-Cu, pilates, botox, therapy,
-          date night. You&apos;re already doing all of it. This is where it finally lives.
+          date night. You&apos;re already doing all of it. This is how the girls keep up.
         </p>
 
         <a
