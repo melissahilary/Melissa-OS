@@ -43,8 +43,16 @@ async function fetchUvHourly(place) {
 const utcHourKey = (d) =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}T${String(d.getUTCHours()).padStart(2, '0')}:00`
 
-// UV exposure category name by index. 0–2 low · 3–5 moderate · 6–7 high · 8+ very high.
-const uvLabel = (n) => (n <= 2 ? 'low' : n <= 5 ? 'moderate' : n <= 7 ? 'high' : 'very high')
+// UV exposure band by index. 0–2 low · 3–5 moderate · 6–7 high · 8+ very high.
+const uvBand = (n) => (n <= 2 ? 'low' : n <= 5 ? 'moderate' : n <= 7 ? 'high' : 'very high')
+const UV_TITLE = { low: 'Low', moderate: 'Moderate', high: 'High', 'very high': 'Very High' }
+const UV_ADVICE = {
+  low: 'SPF on face and hands',
+  moderate: 'SPF everywhere, hat outdoors',
+  high: 'SPF, hat, UPF gloves driving',
+  'very high': 'SPF, hat, UPF gloves, UV umbrella',
+}
+const uvLabel = (n) => UV_TITLE[uvBand(n)]
 
 // WMO weather codes → short condition text.
 const WMO = {
@@ -208,7 +216,38 @@ function UvField({ location }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tick])
 
-  return <span className="text-stone-700">UV {uv != null ? `${uv} ${uvLabel(uv)}` : '—'}</span>
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        onClick={() => uv != null && setOpen(true)}
+        disabled={uv == null}
+        className={`text-stone-700 ${uv != null ? 'hover:text-stone-900 transition-colors' : ''}`}
+      >
+        UV {uv != null ? `${uv} ${uvLabel(uv)}` : '—'}
+      </button>
+      {open && uv != null && <UvPopup uv={uv} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+// Small pop-up with the current UV band + its sun-protection guidance.
+function UvPopup({ uv, onClose }) {
+  const band = uvBand(uv)
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
+          <span className="kicker text-stone-400">UV Index</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
+        <div className="px-5 py-5">
+          <p className="font-serif italic text-2xl text-stone-900">UV {uv} · {UV_TITLE[band]}</p>
+          <p className="mt-3 text-sm leading-relaxed text-stone-600">{UV_ADVICE[band]}</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay }) {
