@@ -425,7 +425,7 @@ function CyclePopup({ cycleConfig, today, onClose }) {
               <div key={r.label} className="py-3">
                 <p className="kicker text-stone-400 mb-1">{r.label}</p>
                 <p className={`text-sm ${r.value === 'Collecting' ? 'italic text-stone-400' : 'text-stone-800'}`}>{r.value}</p>
-                {r.note && <p className="mt-0.5 text-xs italic text-stone-400">{r.note}</p>}
+                {r.note && <p className="mt-0.5 text-xs text-stone-400">{r.note}</p>}
               </div>
             ))}
           </div>
