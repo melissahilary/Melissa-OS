@@ -73,7 +73,8 @@ const SUBNAV = {
     { id: 'treatments', label: 'Treatments' },
   ],
   haircare: [
-    { id: 'masks', label: 'Masks' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
   ],
   menu: [
     { id: 'diet', label: 'Diet' },
@@ -113,7 +114,8 @@ export default function App() {
   const workoutSub = workoutSubRaw === 'settings' ? 'settings' : 'cycle'
   const [fitnessSub, setFitnessSub] = useLocalStorage('mos:fitness:subpage', 'workouts')
   const [mindsetSub, setMindsetSub] = useLocalStorage('mos:mindset:subpage', 'influences')
-  const [haircareSub, setHaircareSub] = useLocalStorage('mos:haircare:subpage', 'masks')
+  const [haircareSubRaw, setHaircareSub] = useLocalStorage('mos:haircare:subpage', 'weekly')
+  const haircareSub = haircareSubRaw === 'monthly' ? 'monthly' : 'weekly'
   const [bodycareSub, setBodycareSub] = useLocalStorage('mos:bodycare:subpage', 'treatments')
 
   // One-time migration: fold the old per-day meal plan into the unified meal store.
