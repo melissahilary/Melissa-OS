@@ -3,13 +3,20 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
+import CategoryCalendar from './shared/CategoryCalendar'
 import { dateKey } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-// ── Diagnostics — a running log of labs and health markers. Each row is a marker
-// with its latest result and the date it was taken.
-export default function Diagnostics() {
+export default function Diagnostics({ subPage, cycleConfig }) {
+  return subPage === 'monthly'
+    ? <CategoryCalendar category="diagnostics" cycleConfig={cycleConfig} noun="Test" />
+    : <DiagnosticsLog />
+}
+
+// ── Diagnostics log — a running list of labs and health markers. Each row is a
+// marker with its latest result and the date it was taken.
+function DiagnosticsLog() {
   const [stored, setItems] = useLocalStorage('mos:diagnostics', [])
   const items = Array.isArray(stored) ? stored : []
   const [draft, setDraft] = useState('')

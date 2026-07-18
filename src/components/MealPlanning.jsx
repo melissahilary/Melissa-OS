@@ -8,6 +8,7 @@ import InlineText from './shared/InlineText'
 import { AddMealForm } from './shared/MealSlots'
 import { MEAL_SLOTS, slotMeta } from '../lib/meals'
 import { useRegisterAdd } from './shared/AddButton'
+import CategoryCalendar from './shared/CategoryCalendar'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, FREQUENCIES } from '../lib/activities'
 import ActivityForm from './shared/ActivityForm'
@@ -46,7 +47,9 @@ const PHASE_FILTERS = [
 export default function MealPlanning({ cycleConfig = {}, subPage = 'diet' }) {
   return (
     <div>
-      {subPage === 'grocery' ? <GroceryList /> : <Diet />}
+      {subPage === 'monthly' ? <CategoryCalendar category="nutrition" cycleConfig={cycleConfig} noun="Meal" />
+        : subPage === 'grocery' ? <GroceryList />
+          : <Diet />}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, phaseFor, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '../lib/date'
+import CategoryCalendar from './shared/CategoryCalendar'
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
@@ -28,9 +29,11 @@ const anchorStart = (runStarts, todayKey) => {
 export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {}, subPage = 'cycle' }) {
   return (
     <div>
-      {subPage === 'settings'
-        ? <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
-        : <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
+      {subPage === 'monthly'
+        ? <CategoryCalendar category="hormones" cycleConfig={cycleConfig} noun="Item" />
+        : subPage === 'settings'
+          ? <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
+          : <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
     </div>
   )
 }

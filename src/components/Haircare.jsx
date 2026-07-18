@@ -4,24 +4,20 @@ import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
 import { parseKey, dateKey } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
+import CategoryCalendar from './shared/CategoryCalendar'
 
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const WEEK = [1, 2, 3, 4, 5, 6, 0] // Monday-first
-const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'evening', label: 'Evening' }]
 const PART_LABEL = { morning: 'Morning', evening: 'Evening' }
-const ordinal = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]) }
 
 const firstLine = (t) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || 'Mask'
 const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
 const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
 const maskPart = (a) => ((a.timeOfDay || []).includes('evening') ? 'evening' : 'morning')
-// A stable date whose day-of-month is D (used to anchor a monthly recurrence).
-const monthDayKey = (d) => dateKey(new Date(new Date().getFullYear(), 0, Math.min(31, Math.max(1, d))))
-const dayOfMonth = (a) => (a.seriesStart ? parseKey(a.seriesStart).getDate() : 1)
 
-export default function Haircare({ subPage }) {
-  return subPage === 'monthly' ? <Monthly /> : <Weekly />
+export default function Haircare({ subPage, cycleConfig }) {
+  return subPage === 'monthly' ? <CategoryCalendar category="haircare" cycleConfig={cycleConfig} noun="Item" /> : <Weekly />
 }
 
 // ── Weekly — a Monday–Sunday schedule. Each item is a Haircare ritual protocol
@@ -64,53 +60,6 @@ function Weekly() {
 
       {editing && (
         <WeeklyForm entry={editing} isNew={!activities.some((x) => x.id === editing.activity.id)} onSave={save} onDelete={() => { remove(editing.activity.id); setEditing(null) }} onClose={() => setEditing(null)} />
-      )}
-    </div>
-  )
-}
-
-// ── Monthly — add to any day of the month. Each item is a Haircare ritual protocol
-// that repeats monthly on its day, so it lands on the calendar on that date.
-function Monthly() {
-  const { activities, add, update, remove } = useActivities()
-  const [editing, setEditing] = useState(null)
-
-  const items = activities.filter((a) => a.type === 'protocol' && a.category === 'haircare' && a.frequency === 'monthly' && a.status !== 'archived')
-  const forDay = (d) => items.filter((a) => dayOfMonth(a) === d)
-
-  const openNew = (d) => setEditing({ day: d, activity: blankActivity('protocol', { category: 'haircare', frequency: 'monthly', timeOfDay: ['morning'], seriesStart: monthDayKey(d) }) })
-  const openEdit = (a) => setEditing({ day: dayOfMonth(a), activity: a })
-  const save = (a) => { if (activities.some((x) => x.id === a.id)) update(a.id, a); else add(a); setEditing(null) }
-
-  useRegisterAdd(() => openNew(Math.min(31, new Date().getDate())), [])
-
-  return (
-    <div className="mb-10">
-      <p className="kicker text-stone-400 mb-4">Repeats every month on its day.</p>
-      <div className="divide-y divide-stone-100">
-        {DAYS.map((d) => {
-          const dayItems = forDay(d)
-          return (
-            <div key={d} className="flex items-start gap-3 py-2.5">
-              <span className="w-14 shrink-0 pt-0.5 text-sm tabular-nums text-stone-400">{ordinal(d)}</span>
-              <div className="min-w-0 flex-1 space-y-1">
-                {dayItems.length === 0 ? (
-                  <span className="text-xs italic text-stone-300">—</span>
-                ) : dayItems.map((a) => (
-                  <div key={a.id} className="group flex items-center gap-2">
-                    <button onClick={() => openEdit(a)} className="min-w-0 flex-1 truncate text-left text-sm text-stone-700">{a.title || 'Item'} <span className="text-stone-400">· {PART_LABEL[maskPart(a)]}</span></button>
-                    <button onClick={() => remove(a.id)} className="shrink-0 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={13} /></button>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => openNew(d)} className="shrink-0 text-xs text-stone-400 hover:text-stone-900">Add</button>
-            </div>
-          )
-        })}
-      </div>
-
-      {editing && (
-        <MonthlyForm entry={editing} isNew={!activities.some((x) => x.id === editing.activity.id)} onSave={save} onDelete={() => { remove(editing.activity.id); setEditing(null) }} onClose={() => setEditing(null)} />
       )}
     </div>
   )
@@ -195,28 +144,3 @@ function WeeklyForm({ entry, isNew, onSave, onDelete, onClose }) {
   )
 }
 
-function MonthlyForm({ entry, isNew, onSave, onDelete, onClose }) {
-  const [name, setName] = useState(entry.activity.title || '')
-  const [text, setText] = useState(entry.activity.notes || '')
-  const [part, setPart] = useState(maskPart(entry.activity))
-  const [day, setDay] = useState(entry.day || 1)
-
-  const submit = () => {
-    const nm = name.trim() || firstLine(text)
-    if (!nm) return
-    onSave({ ...entry.activity, title: nm, category: 'haircare', timeOfDay: [part], frequency: 'monthly', daysOfWeek: [], seriesStart: monthDayKey(day), notes: text.trim() })
-  }
-
-  return (
-    <FormShell title={`${ordinal(day)} · monthly`} isNew={isNew} onDelete={onDelete} onClose={onClose} submit={submit}>
-      <NameDetails name={name} setName={setName} text={text} setText={setText} part={part} setPart={setPart} />
-      <div>
-        <span className="kicker text-stone-400 mb-2 block">Day of month</span>
-        <select value={day} onChange={(e) => setDay(Number(e.target.value))} className="appearance-none border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900">
-          {DAYS.map((d) => <option key={d} value={d}>{ordinal(d)}</option>)}
-        </select>
-        <p className="mt-2 text-xs italic text-stone-400">Repeats on the {ordinal(day)} of every month.</p>
-      </div>
-    </FormShell>
-  )
-}

@@ -4,11 +4,13 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import InlineText from './shared/InlineText'
+import CategoryCalendar from './shared/CategoryCalendar'
 import { dateKey, parseKey, longDate, isSameDay } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-export default function Mindset({ subPage }) {
+export default function Mindset({ subPage, cycleConfig }) {
+  if (subPage === 'monthly') return <CategoryCalendar category="mindset" cycleConfig={cycleConfig} noun="Practice" />
   if (subPage === 'journal') return <Journal />
   return <Influences />
 }

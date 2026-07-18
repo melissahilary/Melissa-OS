@@ -43,7 +43,7 @@ export function subscribeStatus(cb) {
   return () => statusSubs.delete(cb)
 }
 export function getStatus() {
-  return { phase, email: user ? user.email : '' }
+  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '' }
 }
 
 // ── read / write ────────────────────────────────────────────────────

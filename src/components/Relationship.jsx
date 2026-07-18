@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { parseKey, longDate } from '../lib/date'
 import SectionTitle from './shared/SectionTitle'
+import CategoryCalendar from './shared/CategoryCalendar'
 import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -12,7 +13,13 @@ const focusAdd = (ref) => {
   if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }
 }
 
-export default function Relationship() {
+export default function Relationship({ subPage, cycleConfig }) {
+  return subPage === 'monthly'
+    ? <CategoryCalendar category="relationship" cycleConfig={cycleConfig} noun="Plan" />
+    : <RelationshipOverview />
+}
+
+function RelationshipOverview() {
   const rootRef = useRef(null)
   const [data, setData] = useLocalStorage('mos:rel', {
     anniversary: '',

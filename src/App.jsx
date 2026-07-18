@@ -69,16 +69,30 @@ const PILLAR_COMPONENTS = {
 
 // Category sub-navigation shown when inside a section.
 const SUBNAV = {
-  bodycare: [
-    { id: 'treatments', label: 'Treatments' },
+  skincare: [
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
   ],
   haircare: [
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+  ],
+  aesthetics: [
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+  ],
+  bodycare: [
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+  ],
+  spirituality: [
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
   ],
   menu: [
     { id: 'diet', label: 'Diet' },
     { id: 'grocery', label: "What's In My Fridge" },
+    { id: 'monthly', label: 'Monthly' },
   ],
   fitness: [
     { id: 'workouts', label: 'Workouts' },
@@ -86,10 +100,20 @@ const SUBNAV = {
   workout: [
     { id: 'cycle', label: 'Cycle' },
     { id: 'settings', label: 'Settings' },
+    { id: 'monthly', label: 'Monthly' },
+  ],
+  diagnostics: [
+    { id: 'log', label: 'Log' },
+    { id: 'monthly', label: 'Monthly' },
   ],
   mindset: [
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
+    { id: 'monthly', label: 'Monthly' },
+  ],
+  relationship: [
+    { id: 'overview', label: 'Relationships' },
+    { id: 'monthly', label: 'Monthly' },
   ],
 }
 
@@ -106,17 +130,10 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, setActive, hiddenRaw])
   const [dreamPage, setDreamPage] = useLocalStorage('mos:dream:active', 'goals')
-  const [menuSubRaw, setMenuSub] = useLocalStorage('mos:menu:subpage', 'diet')
-  // 'Schedule' was renamed to 'Diet'; coerce any stale stored value.
-  const menuSub = menuSubRaw === 'grocery' ? 'grocery' : 'diet'
-  // Hormones has two subpages: Cycle and Settings.
-  const [workoutSubRaw, setWorkoutSub] = useLocalStorage('mos:workout:subpage', 'cycle')
-  const workoutSub = workoutSubRaw === 'settings' ? 'settings' : 'cycle'
-  const [fitnessSub, setFitnessSub] = useLocalStorage('mos:fitness:subpage', 'workouts')
-  const [mindsetSub, setMindsetSub] = useLocalStorage('mos:mindset:subpage', 'influences')
-  const [haircareSubRaw, setHaircareSub] = useLocalStorage('mos:haircare:subpage', 'weekly')
-  const haircareSub = haircareSubRaw === 'monthly' ? 'monthly' : 'weekly'
-  const [bodycareSub, setBodycareSub] = useLocalStorage('mos:bodycare:subpage', 'treatments')
+  // One store for every section's active subpage; validated against SUBNAV below.
+  const [subsRaw, setSubs] = useLocalStorage('mos:subpages', {})
+  const subs = subsRaw && typeof subsRaw === 'object' ? subsRaw : {}
+  const setSub = (pillar, id) => setSubs((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [pillar]: id }))
 
   // One-time migration: fold the old per-day meal plan into the unified meal store.
   const [meals, setMeals] = useLocalStorage('mos:meals', [])
@@ -209,8 +226,10 @@ export default function App() {
   const activePillarMeta = PILLARS.find((p) => p.id === active)
 
   // The sub-page value + setter for whichever pillar is active.
-  const activeSub = active === 'bodycare' ? bodycareSub : active === 'haircare' ? haircareSub : active === 'menu' ? menuSub : active === 'fitness' ? fitnessSub : active === 'mindset' ? mindsetSub : active === 'workout' ? workoutSub : null
-  const setActiveSub = active === 'bodycare' ? setBodycareSub : active === 'haircare' ? setHaircareSub : active === 'menu' ? setMenuSub : active === 'fitness' ? setFitnessSub : active === 'mindset' ? setMindsetSub : active === 'workout' ? setWorkoutSub : () => {}
+  const activeSub = SUBNAV[active]
+    ? (SUBNAV[active].some((s) => s.id === subs[active]) ? subs[active] : SUBNAV[active][0].id)
+    : null
+  const setActiveSub = (id) => setSub(active, id)
 
   return (
     <AddProvider>
@@ -296,7 +315,7 @@ export default function App() {
         {/* ── Main content ────────────────────────────────────── */}
         <main className="flex-1 overflow-x-hidden px-6 py-8 md:px-10 lg:px-12">
           <div className="mx-auto max-w-5xl">
-            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setWorkoutSub('cycle') }} />}
+            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
             {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
             {isPillar && ActivePillar && (
               <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
