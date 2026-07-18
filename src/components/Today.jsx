@@ -444,7 +444,8 @@ function UvPopup({ uv, onClose }) {
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
         <div className="px-6 pb-6">
-          <p className="text-base leading-relaxed text-stone-700">{UV_ADVICE[uvBand(uv)]}</p>
+          <p className="kicker text-stone-400 mb-1">Sun protection</p>
+          <p className="text-sm text-stone-800">{UV_ADVICE[uvBand(uv)]}</p>
         </div>
       </div>
     </div>
