@@ -17,6 +17,21 @@ const partOf = (a) => {
 }
 const firstLine = (t, fallback) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || fallback
 
+// Calendar occurrence check. A weekly / weekdays / weekends ritual with no end
+// date is ongoing — it should land on EVERY matching weekday across the whole
+// calendar, not just from the day it was created. Those frequencies recur purely
+// by weekday, so we drop the start floor for them (still honoring any end date).
+const occursOnCal = (a, k) => {
+  const f = a.frequency
+  if (!a.seriesEnd && (f === 'weekly' || f === 'weekdays' || f === 'weekends')) {
+    const dows = f === 'weekly'
+      ? (Array.isArray(a.daysOfWeek) && a.daysOfWeek.length ? a.daysOfWeek : (a.seriesStart ? [parseKey(a.seriesStart).getDay()] : []))
+      : a.daysOfWeek
+    return activityOccursOn({ ...a, seriesStart: '', daysOfWeek: dows }, k)
+  }
+  return activityOccursOn(a, k)
+}
+
 // The full recurrence set — matches the Fitness workout form so every Monthly
 // subsection offers the same options.
 const PATTERNS = [
@@ -78,7 +93,7 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
     () => activities.filter((a) => a.type === 'protocol' && a.category === category && a.status !== 'archived'),
     [activities, category],
   )
-  const forDay = (k) => items.filter((a) => activityOccursOn(a, k))
+  const forDay = (k) => items.filter((a) => occursOnCal(a, k))
   const beforeSignup = (k) => signupKey && k < signupKey
 
   const signupYear = signupKey ? parseKey(signupKey).getFullYear() : today.getFullYear() - 1
@@ -235,9 +250,15 @@ function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, onClose }
     } else if (pattern === 'custom') {
       Object.assign(base, { frequency: 'custom', daysOfWeek: [], interval: Math.max(1, Number(num) || 1), intervalUnit: unit, seriesStart: startK, seriesEnd: noEnd ? '' : end })
     } else if (usesDays(pattern)) {
-      Object.assign(base, { frequency: pattern, daysOfWeek: [...days].sort((x, y) => x - y), interval: undefined, intervalUnit: undefined, seriesStart: startK, seriesEnd: noEnd ? '' : end })
+      // Weekly with no end date is ongoing — leave the start empty so it recurs on
+      // every matching weekday across the calendar (bi-weekly keeps its anchor).
+      const ongoing = pattern === 'weekly' && noEnd
+      Object.assign(base, { frequency: pattern, daysOfWeek: [...days].sort((x, y) => x - y), interval: undefined, intervalUnit: undefined, seriesStart: ongoing ? '' : startK, seriesEnd: noEnd ? '' : end })
     } else {
-      Object.assign(base, { frequency: pattern, daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: startK, seriesEnd: noEnd ? '' : end })
+      // Daily / weekdays / weekends / monthly / quarterly / yearly. Weekday-based
+      // ongoing patterns don't need a start floor.
+      const ongoing = (pattern === 'weekdays' || pattern === 'weekends') && noEnd
+      Object.assign(base, { frequency: pattern, daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: ongoing ? '' : startK, seriesEnd: noEnd ? '' : end })
     }
     onSave(base)
   }
