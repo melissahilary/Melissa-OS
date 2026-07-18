@@ -239,14 +239,15 @@ const Cursive = ({ children, className = '' }) => (
   </span>
 )
 
-// Live clock in the location's time zone (with its abbreviation). Falls back to
-// the device's local time until a location resolves.
-function TimeField({ location }) {
+// A live, ticking clock (seconds) in the location's time zone, with a breathing
+// dot. Always shows the real current time — locked, even when a past/future day
+// is selected below.
+function Clock({ location }) {
   const [now, setNow] = useState(new Date())
   const [tz, setTz] = useState(null)
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30 * 1000)
+    const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -261,27 +262,39 @@ function TimeField({ location }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locKey(location)])
 
-  const opts = { hour: 'numeric', minute: '2-digit' }
+  const opts = { hour: 'numeric', minute: '2-digit', second: '2-digit' }
   if (tz) { opts.timeZone = tz; opts.timeZoneName = 'short' }
   let timeStr
-  try { timeStr = now.toLocaleTimeString('en-US', opts) } catch { timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
-  return <span className="text-stone-700">{timeStr}</span>
+  try { timeStr = now.toLocaleTimeString('en-US', opts) } catch { timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }) }
+  return (
+    <p className="mt-2 flex items-center justify-center gap-2 text-sm tracking-wide text-stone-500">
+      <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-phase-menstrual" />
+      <span className="tabular-nums">{timeStr}</span>
+    </p>
+  )
 }
 
-// ── Info strip — phase · date · time · weather · UV · location, one elegant row ─
-function InfoStrip({ phase, today, location, setLocation, cycleConfig, goToCycle }) {
+// ── Info strip — phase · date · weather · UV · location, one elegant row. The date
+// is a button that opens a calendar to view any day; a reset returns to today.
+function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycleConfig, goToCycle }) {
   const [cycleOpen, setCycleOpen] = useState(false)
+  const [dateOpen, setDateOpen] = useState(false)
+  const todayKey = dateKey(today)
+  const selected = parseKey(selectedKey)
+  const phase = phaseForConfig(cycleConfig, selected)
   const phaseDay = phase ? `${phase.name} · Day ${phase.cycleDay}` : '—'
-  const dateStr = `${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`
+  const dateStr = `${MONTHS[selected.getMonth()]} ${selected.getDate()}, ${selected.getFullYear()}`
   const Dot = () => <span className="text-stone-300">·</span>
   return (
     <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
       <button onClick={() => setCycleOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{phaseDay}</button>
-      {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={today} onEdit={goToCycle} onClose={() => setCycleOpen(false)} />}
+      {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={selected} onEdit={goToCycle} onClose={() => setCycleOpen(false)} />}
       <Dot />
-      <span>{dateStr}</span>
-      <Dot />
-      <TimeField location={location} />
+      <button onClick={() => setDateOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{dateStr}</button>
+      {selectedKey !== todayKey && (
+        <button onClick={() => onPickDay(todayKey)} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">Reset to today</button>
+      )}
+      {dateOpen && <DatePopup value={selectedKey} today={today} cycleConfig={cycleConfig} onPick={(k) => { onPickDay(k); setDateOpen(false) }} onClose={() => setDateOpen(false)} />}
       <Dot />
       <WeatherField location={location} />
       <Dot />
@@ -292,6 +305,43 @@ function InfoStrip({ phase, today, location, setLocation, cycleConfig, goToCycle
         setLocation={setLocation}
         className="w-32 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
       />
+    </div>
+  )
+}
+
+// Calendar pop-up (planner popup style) to jump the viewed day to any date.
+function DatePopup({ value, today, cycleConfig, onPick, onClose }) {
+  const [month, setMonth] = useState(new Date(parseKey(value).getFullYear(), parseKey(value).getMonth(), 1))
+  const cells = monthGrid(month)
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="px-2 text-base text-stone-500 hover:text-stone-900">‹</button>
+          <span className="font-serif text-base text-stone-900">{MONTHS[month.getMonth()]} {month.getFullYear()}</span>
+          <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="px-2 text-base text-stone-500 hover:text-stone-900">›</button>
+        </div>
+        <div className="px-4 py-4">
+          <div className="grid grid-cols-7 gap-1">
+            {DOW.map((d) => <div key={d} className="text-center text-[9px] uppercase tracking-[0.1em] text-stone-400">{d[0]}</div>)}
+            {cells.map((cell) => {
+              const k = dateKey(cell)
+              const inMonth = cell.getMonth() === month.getMonth()
+              const isSel = k === value
+              const isTod = isSameDay(cell, today)
+              return (
+                <button
+                  key={k}
+                  onClick={() => onPick(k)}
+                  className={`flex aspect-square items-center justify-center rounded-full text-xs transition-colors ${isSel ? 'bg-stone-900 text-cream' : inMonth ? 'text-stone-700 hover:bg-stone-100' : 'text-stone-300 hover:bg-stone-100'} ${isTod && !isSel ? 'ring-1 ring-stone-400' : ''}`}
+                >
+                  {cell.getDate()}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -556,9 +606,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       {/* Page title — centered at the very top of the main content */}
       <div className="mb-6 text-center">
         <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
+        <Clock location={location} />
       </div>
 
-      <InfoStrip today={today} phase={todayPhase} location={location} setLocation={setLocation} cycleConfig={cycleConfig} goToCycle={goToCycle} />
+      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} goToCycle={goToCycle} />
 
       <Horoscope />
 
