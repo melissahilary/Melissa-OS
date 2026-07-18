@@ -90,16 +90,39 @@ const Cursive = ({ children, className = '' }) => (
   </span>
 )
 
-// ── Info strip — phase · date · weather · UV · location, one elegant row ─
-function InfoStrip({ phase, today, location, setLocation }) {
+// Live clock in the location's time zone (with its abbreviation). Falls back to
+// the device's local time until a location resolves.
+function TimeField({ location }) {
   const [now, setNow] = useState(new Date())
+  const [tz, setTz] = useState(null)
+  const place = (location || '').trim()
+
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30 * 1000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    if (!place) { setTz(null); return undefined }
+    let alive = true
+    ;(async () => {
+      try { const loc = await geocode(place); if (alive) setTz(loc && loc.timezone ? loc.timezone : null) }
+      catch { if (alive) setTz(null) }
+    })()
+    return () => { alive = false }
+  }, [place])
+
+  const opts = { hour: 'numeric', minute: '2-digit' }
+  if (tz) { opts.timeZone = tz; opts.timeZoneName = 'short' }
+  let timeStr
+  try { timeStr = now.toLocaleTimeString('en-US', opts) } catch { timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
+  return <span className="text-stone-700">{timeStr}</span>
+}
+
+// ── Info strip — phase · date · time · weather · UV · location, one elegant row ─
+function InfoStrip({ phase, today, location, setLocation }) {
   const phaseDay = phase ? `${phase.name} · Day ${phase.cycleDay}` : '—'
   const dateStr = `${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`
-  const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const Dot = () => <span className="text-stone-300">·</span>
   return (
     <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
@@ -107,7 +130,7 @@ function InfoStrip({ phase, today, location, setLocation }) {
       <Dot />
       <span>{dateStr}</span>
       <Dot />
-      <span>{timeStr}</span>
+      <TimeField location={location} />
       <Dot />
       <WeatherField location={location} />
       <Dot />
