@@ -104,7 +104,9 @@ export default function Settings() {
   const [cropInit, setCropInit] = useState(null)
   const photoRef = useRef(null)
 
-  const link = typeof window !== 'undefined' ? window.location.origin : 'https://melissa-os.vercel.app'
+  // Personal referral link, keyed to the account's username.
+  const refUser = (p.username || 'melissa hilary').trim().replace(/\s+/g, '')
+  const link = `https://share.agirlinglow.com/${refUser}`
 
   const changeEmail = async () => {
     const e = email.trim()
