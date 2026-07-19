@@ -72,13 +72,13 @@ const qualityOf = (asp) =>
     : asp === 'trine' || asp === 'sextile'
       ? 'flow'
       : 'focus'
-const REL = { friction: 'are at odds', flow: 'are in sync', focus: 'come together' }
+const REL = { friction: 'are refining each other', flow: 'move in beautiful harmony', focus: 'gather into one' }
 const TAIL = {
-  friction: "Don't force it, just say what you mean plainly.",
-  flow: "Lean into it; it's working for you.",
-  focus: 'Keep it simple and direct.',
+  friction: 'Let it move through you with ease, that softness is your magnetism.',
+  flow: 'Lean in, it is already turning to meet you.',
+  focus: 'Stay soft and clear, and let what you want come to you.',
 }
-const THEME = { friction: 'say it plainly', flow: 'go after it', focus: 'keep it simple' }
+const THEME = { friction: 'soft power', flow: 'effortless magnetism', focus: 'quiet focus' }
 
 // A valid wheel aspect has all four string fields.
 const isValidAspect = (a) =>
@@ -165,11 +165,11 @@ function HoroscopeCard({ data, onEdit }) {
 
       {safe.aspects.length > 0 ? (
         summary && (
-          <p className="mx-auto max-w-2xl text-center text-base leading-relaxed text-stone-600">{summary}</p>
+          <p className="mx-auto max-w-2xl text-center text-base leading-relaxed" style={{ color: inkA(0.66) }}>{summary}</p>
         )
       ) : (
-        <p className="py-2 text-center font-serif italic text-lg text-stone-400">
-          Quiet sky today — nothing strong hitting your chart.
+        <p className="py-2 text-center font-serif italic text-lg" style={{ color: inkA(0.4) }}>
+          A quiet sky today. Let your presence do the work.
         </p>
       )}
     </section>
