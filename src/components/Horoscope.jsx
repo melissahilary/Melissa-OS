@@ -8,6 +8,10 @@ import { natalLongitudesWith, SIGNS } from '../lib/astrology/natal'
 const DEFAULT_SIGNS = { sun: 'Libra', moon: 'Taurus', rising: 'Libra' }
 const signSig = (s) => `${s.sun}|${s.moon}|${s.rising}`
 
+// Bump this whenever the reading VOICE changes so any reading cached under the
+// old voice is discarded and re-fetched fresh (the cache is otherwise per-day).
+const VOICE = 'goddess-1'
+
 const INK = '#1C1C1A'
 const inkA = (a) => `rgba(28, 28, 26, ${a})`
 
@@ -210,6 +214,7 @@ function HoroscopeInner() {
       cached &&
       cached.date === key &&
       cached.signs === sig &&
+      cached.voice === VOICE &&
       typeof cached.theme === 'string' &&
       Array.isArray(cached.aspects) &&
       cached.aspects.length > 0 &&
@@ -243,7 +248,7 @@ function HoroscopeInner() {
         const next = normalizeData(json)
         if (next.aspects.length && next.theme && alive) {
           setData(next)
-          setCached({ date: key, signs: sig, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
+          setCached({ date: key, signs: sig, voice: VOICE, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
         }
       } catch {
         /* offline / no key — the deterministic fallback already rendered */

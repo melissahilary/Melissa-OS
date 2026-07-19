@@ -622,7 +622,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-  const [calView, setCalView] = useState('day') // 'day' (Today) | 'week' | 'month'
+  const [calView, setCalView] = useState('month') // 'day' (Today) | 'week' | 'month' — Schedule opens on the month; click a day to populate the day view
 
   // Arriving from another page with a specific day → open it in TODAY view.
   useEffect(() => {
