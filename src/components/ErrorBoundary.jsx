@@ -3,15 +3,15 @@ import * as store from '../lib/dataStore'
 
 // Catches any render error so the app never shows a blank white screen. Offers a
 // reload, and a "reset" that clears the remembered section/subpage in case a
-// specific view is the thing failing — then reloads onto a clean Today.
+// specific view is failing — then reloads onto a clean Today.
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { failed: false }
+    this.state = { failed: false, message: '', stack: '' }
   }
 
-  static getDerivedStateFromError() {
-    return { failed: true }
+  static getDerivedStateFromError(error) {
+    return { failed: true, message: String(error && error.message || error), stack: String(error && error.stack || '') }
   }
 
   componentDidCatch(error) {
@@ -25,7 +25,6 @@ export default class ErrorBoundary extends React.Component {
       store.set('mos:subpages', {})
       store.set('mos:sidebar:collapsed', false)
     } catch { /* ignore */ }
-    // Give the debounced save a moment to flush, then reload onto Today.
     setTimeout(() => window.location.reload(), 700)
   }
 
@@ -33,7 +32,7 @@ export default class ErrorBoundary extends React.Component {
     if (!this.state.failed) return this.props.children
     return (
       <div className="flex min-h-screen items-center justify-center bg-cream px-6">
-        <div className="w-full max-w-sm text-center">
+        <div className="w-full max-w-lg text-center">
           <h1 className="font-serif italic text-3xl text-stone-900">Something didn&apos;t load right.</h1>
           <p className="mt-3 text-sm leading-relaxed text-stone-500">
             Your data is safe. This is usually fixed by reloading.
@@ -42,6 +41,12 @@ export default class ErrorBoundary extends React.Component {
             <button onClick={() => window.location.reload()} className="bg-stone-900 px-5 py-2.5 text-sm text-cream hover:bg-stone-700">Reload</button>
             <button onClick={this.reset} className="border border-stone-300 px-5 py-2.5 text-sm text-stone-600 hover:border-stone-500">Reset to Today</button>
           </div>
+          {this.state.message && (
+            <pre className="mx-auto mt-8 max-h-48 max-w-full overflow-auto whitespace-pre-wrap break-words rounded border border-stone-200 bg-white/60 p-3 text-left text-[11px] leading-relaxed text-stone-500">
+{this.state.message}
+{this.state.stack ? '\n' + this.state.stack.split('\n').slice(0, 6).join('\n') : ''}
+            </pre>
+          )}
         </div>
       </div>
     )
