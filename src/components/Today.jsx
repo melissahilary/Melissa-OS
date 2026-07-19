@@ -622,11 +622,14 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-  const [calView, setCalView] = useState('month') // 'day' (Today) | 'week' | 'month' — Schedule opens on the month; click a day to populate the day view
 
-  // Arriving from another page with a specific day → open it in TODAY view.
+  // Arriving from another page with a specific day → select it and show its month.
   useEffect(() => {
-    if (pendingDay) { setSelectedKey(pendingDay); setCalView('day'); clearPendingDay() }
+    if (pendingDay) {
+      setSelectedKey(pendingDay)
+      setCalMonth(new Date(parseKey(pendingDay).getFullYear(), parseKey(pendingDay).getMonth(), 1))
+      clearPendingDay()
+    }
   }, [pendingDay, clearPendingDay])
 
   const todayPhase = useMemo(
@@ -734,7 +737,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // Universal Add on the home page → choose a section, then open its form.
   useRegisterAdd(() => setHomeAdd(true), [])
 
-  const pickDay = (k) => { setSelectedKey(k); setCalView('day') }
+  const pickDay = (k) => { setSelectedKey(k); setCalMonth(new Date(parseKey(k).getFullYear(), parseKey(k).getMonth(), 1)) }
 
   return (
     <div>
@@ -749,11 +752,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       <Horoscope />
 
       <div className="pt-10">
-      <h2 className="mb-8 font-serif text-3xl text-stone-900">Schedule</h2>
-
       <Calendar
-        view={calView}
-        setView={setCalView}
         calMonth={calMonth}
         setCalMonth={setCalMonth}
         selectedKey={selectedKey}
@@ -808,11 +807,6 @@ const PHASE_LEGEND = [
   { id: 'ovulation', label: 'Ovulatory' },
   { id: 'luteal', label: 'Luteal' },
 ]
-const VIEW_TABS = [
-  { id: 'day', label: 'Today' },
-  { id: 'week', label: 'Week' },
-  { id: 'month', label: 'Month' },
-]
 // Phase-aware one-liner shown under the AGENDA header.
 const PHASE_AGENDA_HINT = {
   follicular: 'Good day for new tasks and deep focus.',
@@ -822,76 +816,92 @@ const PHASE_AGENDA_HINT = {
 }
 
 // ── Calendar ───────────────────────────────────────────────────────
-function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
-  const [fromWeek, setFromWeek] = useState(false) // TODAY view reached from week
-  const openDay = (k) => { setFromWeek(true); onPickDay(k) }
+// A full month grid with prev/next month navigation; clicking a day expands the
+// whole day's plan (routine, nourishment, agenda) below the grid.
+function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
   const cells = monthGrid(calMonth)
-  const anchorDate = parseKey(selectedKey)
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = parseKey(selectedKey)
-    d.setDate(d.getDate() - d.getDay() + i)
-    return d
-  })
-  const shiftAnchor = (days) => {
-    const d = parseKey(selectedKey)
-    d.setDate(d.getDate() + days)
-    setSelectedKey(dateKey(d))
-  }
-
-  const goPrev = () => {
-    if (view === 'month') setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))
-    else shiftAnchor(view === 'week' ? -7 : -1)
-  }
-  const goNext = () => {
-    if (view === 'month') setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))
-    else shiftAnchor(view === 'week' ? 7 : 1)
-  }
-  const goToday = () => {
-    setCalMonth(new Date(today.getFullYear(), today.getMonth(), 1))
-    setSelectedKey(dateKey(today))
-  }
-  const notToday = selectedKey !== dateKey(today)
-  const periodLabel =
-    view === 'month'
-      ? `${MONTHS[calMonth.getMonth()]} ${calMonth.getFullYear()}`
-      : view === 'week'
-        ? `Week of ${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getDate()}`
-        : `${DOW[anchorDate.getDay()]}, ${MONTHS[anchorDate.getMonth()]} ${anchorDate.getDate()}`
+  const goPrev = () => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))
+  const goNext = () => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))
+  const selected = parseKey(selectedKey)
 
   return (
     <section className="mb-12">
-      {/* Nav: Prev far left · view toggle centered · Next far right */}
-      <div className="my-4 grid grid-cols-3 items-center">
-        <div className="flex min-w-0 items-center gap-2 justify-self-start">
-          <button onClick={goPrev} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
-          {notToday && (
-            <span className="hidden truncate text-xs text-stone-400 sm:inline">
-              Viewing {longDate(anchorDate)}.{' '}
-              <button onClick={goToday} className="underline underline-offset-2 hover:text-stone-700">Back to today</button>
-            </span>
-          )}
-        </div>
-        <div className="flex justify-center gap-1">
-          {VIEW_TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => { setFromWeek(false); setView(t.id) }}
-              className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition-colors ${view === t.id ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <button onClick={goNext} className="justify-self-end px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
-      </div>
-      <div className="mb-5 mt-6 flex items-center justify-center gap-3">
-        {view === 'day' && fromWeek && (
-          <button onClick={() => { setFromWeek(false); setView('week') }} className="text-xs text-stone-400 hover:text-stone-900">← Week</button>
-        )}
-        <h3 className="whitespace-nowrap text-center font-serif text-2xl text-stone-900">{periodLabel}</h3>
+      {/* Month nav: ‹ Month Year › */}
+      <div className="mb-5 flex items-center justify-between">
+        <button onClick={goPrev} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
+        <h3 className="whitespace-nowrap text-center font-serif text-2xl text-stone-900">{MONTHS[calMonth.getMonth()]} {calMonth.getFullYear()}</h3>
+        <button onClick={goNext} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
       </div>
 
-      {view === 'day' && (
+      {/* Month grid */}
+      <div className="grid grid-cols-7 border-l border-t border-stone-200">
+        {DOW.map((d) => (
+          <div key={d} className="border-b border-r border-stone-200 px-2 py-1.5 text-center kicker text-stone-400">
+            {d[0]}
+          </div>
+        ))}
+        {cells.map((cell) => {
+          const key = dateKey(cell)
+          const inMonth = cell.getMonth() === calMonth.getMonth()
+          const isSel = key === selectedKey
+          const isTod = isSameDay(cell, today)
+          const holiday = holidayFor(cell)
+          const dayEvents = eventsFor(key)
+          const phase = phaseForConfig(cycleConfig, cell)
+          const tint = phase ? PHASE_TINT[phase.id] : undefined
+          return (
+            <div
+              key={key}
+              style={tint ? { backgroundColor: tint } : undefined}
+              className={`group relative min-h-[78px] border-b border-r border-stone-200 px-1.5 py-1 text-left transition-colors ${
+                inMonth ? '' : 'text-stone-300'
+              } ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
+            >
+              <button onClick={() => onPickDay(key)} className="block w-full text-left">
+                <span
+                  className={`inline-flex h-6 w-6 items-center justify-center text-xs ${
+                    isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'
+                  }`}
+                >
+                  {cell.getDate()}
+                </span>
+              </button>
+
+              {holiday && (
+                <p className="mt-0.5 truncate text-[9px] uppercase tracking-wide text-stone-400">{holiday}</p>
+              )}
+
+              <div className="mt-0.5 space-y-0.5">
+                {dayEvents.slice(0, 2).map((ev) => (
+                  <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1 text-left">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
+                    <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
+                      {ev.title || 'Untitled'}
+                    </span>
+                  </button>
+                ))}
+                {dayEvents.length > 2 && (
+                  <button onClick={() => onPickDay(key)} className="text-[9px] text-stone-400 hover:text-stone-700">+{dayEvents.length - 2} more</button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Cycle phase legend */}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+        {PHASE_LEGEND.map((p) => (
+          <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
+            {p.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Selected day — expands into everything planned that day */}
+      <div className="mt-10 border-t border-stone-200 pt-6">
+        <h3 className="mb-6 text-center font-serif text-2xl text-stone-900">{longDate(selected)}</h3>
         <DayColumns
           events={eventsFor(selectedKey)}
           rituals={ritualsFor(selectedKey)}
@@ -907,98 +917,7 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
           onToggle={onToggle}
           onOpen={onOpen}
         />
-      )}
-
-      {view === 'month' && (
-        <>
-          <div className="grid grid-cols-7 border-l border-t border-stone-200">
-            {DOW.map((d) => (
-              <div key={d} className="border-b border-r border-stone-200 px-2 py-1.5 text-center kicker text-stone-400">
-                {d[0]}
-              </div>
-            ))}
-            {cells.map((cell) => {
-              const key = dateKey(cell)
-              const inMonth = cell.getMonth() === calMonth.getMonth()
-              const isSel = key === selectedKey
-              const isTod = isSameDay(cell, today)
-              const holiday = holidayFor(cell)
-              const dayEvents = eventsFor(key)
-              const phase = phaseForConfig(cycleConfig, cell)
-              const tint = phase ? PHASE_TINT[phase.id] : undefined
-              return (
-                <div
-                  key={key}
-                  style={tint ? { backgroundColor: tint } : undefined}
-                  className={`group relative min-h-[78px] border-b border-r border-stone-200 px-1.5 py-1 text-left transition-colors ${
-                    inMonth ? '' : 'text-stone-300'
-                  } ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
-                >
-                  <button onClick={() => onPickDay(key)} className="block w-full text-left">
-                    <span
-                      className={`inline-flex h-6 w-6 items-center justify-center text-xs ${
-                        isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'
-                      }`}
-                    >
-                      {cell.getDate()}
-                    </span>
-                  </button>
-
-                  {holiday && (
-                    <p className="mt-0.5 truncate text-[9px] uppercase tracking-wide text-stone-400">{holiday}</p>
-                  )}
-
-                  <div className="mt-0.5 space-y-0.5">
-                    {dayEvents.slice(0, 2).map((ev) => (
-                      <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1 text-left">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
-                        <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
-                          {ev.title || 'Untitled'}
-                        </span>
-                      </button>
-                    ))}
-                    {dayEvents.length > 2 && (
-                      <button onClick={() => onPickDay(key)} className="text-[9px] text-stone-400 hover:text-stone-700">+{dayEvents.length - 2} more</button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          {/* Cycle phase legend */}
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-            {PHASE_LEGEND.map((p) => (
-              <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
-                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
-                {p.label}
-              </span>
-            ))}
-          </div>
-        </>
-      )}
-
-      {view === 'week' && (
-        <div className="grid grid-cols-7 items-stretch gap-2 md:gap-4">
-          {weekDays.map((d) => {
-            const key = dateKey(d)
-            const isTod = isSameDay(d, today)
-            const more = () => openDay(key)
-            const ritual = dedupeById(ritualsFor(key)).map((r) => ({ id: r.id, label: r.title || 'Untitled', done: r.done }))
-            const nourish = mealsFor(key).map((m) => ({ id: m.id, label: m.name }))
-            const agenda = dedupeById(eventsFor(key).sort(byTime)).map((a) => ({ id: a.id, label: a.title || 'Untitled', done: a.done }))
-            return (
-              <div key={key} className="min-w-0 border-t border-stone-300 pt-2">
-                <button onClick={more} className={`mb-2 block w-full truncate text-left kicker hover:text-stone-900 ${isTod ? 'text-stone-900' : 'text-stone-500'}`}>{DOW[d.getDay()]} {d.getDate()}</button>
-                <WeekSection label="Ritual" variant="ritual" items={ritual} onToggle={onToggle} onMore={more} />
-                <div className="my-2 border-t border-stone-100" />
-                <WeekSection label="Nourish" variant="nourish" items={nourish} onMore={more} />
-                <div className="my-2 border-t border-stone-100" />
-                <WeekSection label="Agenda" variant="agenda" items={agenda} onToggle={onToggle} onMore={more} />
-              </div>
-            )
-          })}
-        </div>
-      )}
+      </div>
     </section>
   )
 }
@@ -1006,36 +925,6 @@ function Calendar({ view, setView, calMonth, setCalMonth, selectedKey, setSelect
 const dedupeById = (arr) => {
   const seen = new Set()
   return arr.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)))
-}
-
-// One compact week-view section: fixed height, up to 3 items, then a +N more link.
-function WeekSection({ label, variant, items, onToggle, onMore }) {
-  const shown = items.slice(0, 3)
-  return (
-    <div className="min-w-0">
-      <p className="mb-1 text-[9px] font-normal uppercase tracking-[0.14em] text-stone-400">{label}</p>
-      <div className="min-h-[76px]">
-        {items.length === 0 ? (
-          <p className="text-xs italic text-stone-300">nothing</p>
-        ) : (
-          <div className="space-y-1">
-            {shown.map((it, idx) => (
-              <div key={it.id} className="flex items-center gap-1.5">
-                {variant === 'agenda' && <span className="shrink-0 text-[10px] tabular-nums text-stone-400">{idx + 1}</span>}
-                <span className={`min-w-0 flex-1 truncate text-xs ${variant === 'nourish' ? 'italic text-stone-500' : it.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
-                  {it.label}
-                </span>
-                {variant !== 'nourish' && <Checkbox checked={it.done} onClick={() => onToggle(it.id)} size={13} />}
-              </div>
-            ))}
-            {items.length > 3 && (
-              <button onClick={onMore} className="text-[10px] text-stone-400 hover:text-stone-700">+{items.length - 3} more</button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
 }
 
 // Sort events by manual order (drag), falling back to time.

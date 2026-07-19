@@ -42,10 +42,9 @@ what to avoid.
 Rules:
 - "theme": 2-3 words, lowercase, the through-line of the day (e.g. "soft power").
   No punctuation except an optional ending period.
-- "summary": ONE cohesive paragraph of 3-4 sentences, second person, in the
-  goddess voice above. Vary sentence length. It should read as one radiant,
-  unified thought — magnetic, peaceful, effortless — that leaves her lifted and
-  clear about where her life force wants to move today. End on lift.
+- "summary": EXACTLY ONE sentence — no more, no less. A single radiant,
+  self-contained line, second person, in the goddess voice above: magnetic,
+  peaceful, effortless, and lifting. One sentence only, ending in a single period.
 - "aspects": echo back the aspects you are given, preserving "from", "to", and
   "type" EXACTLY as provided. Add "meaning": exactly ONE sentence, second person
   ("you"), specific to that pairing, empowering, and DIFFERENT from every other

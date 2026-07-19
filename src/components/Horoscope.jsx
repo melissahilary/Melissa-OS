@@ -10,7 +10,7 @@ const signSig = (s) => `${s.sun}|${s.moon}|${s.rising}`
 
 // Bump this whenever the reading VOICE changes so any reading cached under the
 // old voice is discarded and re-fetched fresh (the cache is otherwise per-day).
-const VOICE = 'goddess-1'
+const VOICE = 'goddess-2'
 
 const INK = '#1C1C1A'
 const inkA = (a) => `rgba(28, 28, 26, ${a})`
@@ -107,8 +107,13 @@ const cleanMeaning = (m) => (m || '').replace(/\s*[—–]\s*/g, ', ')
 // flight and whenever it is unavailable or malformed.
 function fallbackData(top) {
   const list = Array.isArray(top) ? top : []
+  const q0 = list.length ? qualityOf(list[0].aspect) : null
+  const summary = list.length
+    ? `Your ${DOMAIN[list[0].transit] || meaningOf(list[0].transit)} and ${DOMAIN[list[0].natal] || meaningOf(list[0].natal)} ${REL[q0]} today.`
+    : ''
   return {
     theme: list.length ? THEME[qualityOf(list[0].aspect)] || '' : '',
+    summary,
     aspects: list.map((a) => {
       const q = qualityOf(a.aspect)
       return {
