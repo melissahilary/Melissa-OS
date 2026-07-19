@@ -4,6 +4,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { parseKey, longDate } from '../lib/date'
 import SectionTitle from './shared/SectionTitle'
 import CategoryCalendar from './shared/CategoryCalendar'
+import CategoryWeekly from './shared/CategoryWeekly'
 import { useRegisterAdd } from './shared/AddButton'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -14,9 +15,9 @@ const focusAdd = (ref) => {
 }
 
 export default function Relationship({ subPage, cycleConfig }) {
-  return subPage === 'monthly'
-    ? <CategoryCalendar category="relationship" cycleConfig={cycleConfig} noun="Plan" />
-    : <RelationshipOverview />
+  if (subPage === 'monthly') return <CategoryCalendar category="relationship" cycleConfig={cycleConfig} noun="Plan" />
+  if (subPage === 'weekly') return <CategoryWeekly category="relationship" noun="Plan" />
+  return <RelationshipOverview />
 }
 
 function RelationshipOverview() {

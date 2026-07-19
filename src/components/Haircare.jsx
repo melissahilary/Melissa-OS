@@ -5,6 +5,7 @@ import { blankActivity } from '../lib/activities'
 import { parseKey, dateKey } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 import CategoryCalendar from './shared/CategoryCalendar'
+import CategoryWeekly from './shared/CategoryWeekly'
 
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const WEEK = [1, 2, 3, 4, 5, 6, 0] // Monday-first
@@ -17,7 +18,7 @@ const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() 
 const maskPart = (a) => ((a.timeOfDay || []).includes('evening') ? 'evening' : 'morning')
 
 export default function Haircare({ subPage, cycleConfig }) {
-  return subPage === 'monthly' ? <CategoryCalendar category="haircare" cycleConfig={cycleConfig} noun="Item" /> : <Weekly />
+  return subPage === 'monthly' ? <CategoryCalendar category="haircare" cycleConfig={cycleConfig} noun="Item" /> : <CategoryWeekly category="haircare" noun="Item" />
 }
 
 // ── Weekly — a Monday–Sunday schedule. Each item is a Haircare ritual protocol

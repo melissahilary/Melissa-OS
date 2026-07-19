@@ -9,6 +9,7 @@ import { AddMealForm } from './shared/MealSlots'
 import { MEAL_SLOTS, slotMeta } from '../lib/meals'
 import { useRegisterAdd } from './shared/AddButton'
 import CategoryCalendar from './shared/CategoryCalendar'
+import CategoryWeekly from './shared/CategoryWeekly'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, FREQUENCIES } from '../lib/activities'
 import ActivityForm from './shared/ActivityForm'
@@ -48,8 +49,9 @@ export default function MealPlanning({ cycleConfig = {}, subPage = 'diet' }) {
   return (
     <div>
       {subPage === 'monthly' ? <CategoryCalendar category="nutrition" cycleConfig={cycleConfig} noun="Meal" />
-        : subPage === 'grocery' ? <GroceryList />
-          : <Diet />}
+        : subPage === 'weekly' ? <CategoryWeekly category="nutrition" noun="Meal" />
+          : subPage === 'grocery' ? <GroceryList />
+            : <Diet />}
     </div>
   )
 }

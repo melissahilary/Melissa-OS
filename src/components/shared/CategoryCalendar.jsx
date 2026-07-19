@@ -8,8 +8,8 @@ import { phaseForConfig, PHASES } from '../../lib/cycle'
 import { useRegisterAdd } from './AddButton'
 
 const PHASE_TINT = { menstrual: '#F4DEDE', follicular: '#E4EDE1', ovulation: '#F2E7CF', luteal: '#E4E0EC' }
-const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
-const partOf = (a) => {
+export const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
+export const partOf = (a) => {
   const t = a.timeOfDay || []
   if (t.includes('evening')) return 'evening'
   if (t.includes('afternoon')) return 'afternoon'
@@ -21,7 +21,7 @@ const firstLine = (t, fallback) => (t || '').split('\n').map((s) => s.trim()).fi
 // date is ongoing — it should land on EVERY matching weekday across the whole
 // calendar, not just from the day it was created. Those frequencies recur purely
 // by weekday, so we drop the start floor for them (still honoring any end date).
-const occursOnCal = (a, k) => {
+export const occursOnCal = (a, k) => {
   const f = a.frequency
   if (!a.seriesEnd && (f === 'weekly' || f === 'weekdays' || f === 'weekends')) {
     const dows = f === 'weekly'
@@ -219,7 +219,7 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
   )
 }
 
-function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, onClose }) {
+export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, onClose }) {
   const dayKey = entry.dayKey
   const a0 = entry.activity
   const [name, setName] = useState(a0.title || '')

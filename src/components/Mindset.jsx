@@ -5,12 +5,14 @@ import { useRegisterAdd } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import InlineText from './shared/InlineText'
 import CategoryCalendar from './shared/CategoryCalendar'
+import CategoryWeekly from './shared/CategoryWeekly'
 import { dateKey, parseKey, longDate, isSameDay } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 export default function Mindset({ subPage, cycleConfig }) {
   if (subPage === 'monthly') return <CategoryCalendar category="mindset" cycleConfig={cycleConfig} noun="Practice" />
+  if (subPage === 'weekly') return <CategoryWeekly category="mindset" noun="Practice" />
   if (subPage === 'journal') return <Journal />
   return <Influences />
 }

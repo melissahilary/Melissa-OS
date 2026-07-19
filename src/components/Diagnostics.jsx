@@ -4,14 +4,15 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
 import CategoryCalendar from './shared/CategoryCalendar'
+import CategoryWeekly from './shared/CategoryWeekly'
 import { dateKey } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 export default function Diagnostics({ subPage, cycleConfig }) {
-  return subPage === 'monthly'
-    ? <CategoryCalendar category="diagnostics" cycleConfig={cycleConfig} noun="Test" />
-    : <DiagnosticsLog />
+  if (subPage === 'monthly') return <CategoryCalendar category="diagnostics" cycleConfig={cycleConfig} noun="Test" />
+  if (subPage === 'weekly') return <CategoryWeekly category="diagnostics" noun="Test" />
+  return <DiagnosticsLog />
 }
 
 // ── Diagnostics log — a running list of labs and health markers. Each row is a

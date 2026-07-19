@@ -4,6 +4,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, phaseFor, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '../lib/date'
 import CategoryCalendar from './shared/CategoryCalendar'
+import CategoryWeekly from './shared/CategoryWeekly'
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
@@ -31,9 +32,11 @@ export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, g
     <div>
       {subPage === 'monthly'
         ? <CategoryCalendar category="hormones" cycleConfig={cycleConfig} noun="Item" />
-        : subPage === 'settings'
-          ? <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
-          : <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
+        : subPage === 'weekly'
+          ? <CategoryWeekly category="hormones" noun="Item" />
+          : subPage === 'settings'
+            ? <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
+            : <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
     </div>
   )
 }

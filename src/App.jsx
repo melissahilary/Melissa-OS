@@ -90,6 +90,7 @@ const SUBNAV = {
     { id: 'monthly', label: 'Monthly' },
   ],
   menu: [
+    { id: 'weekly', label: 'Weekly' },
     { id: 'diet', label: 'Diet' },
     { id: 'grocery', label: "What's In My Fridge" },
     { id: 'monthly', label: 'Monthly' },
@@ -99,20 +100,24 @@ const SUBNAV = {
     { id: 'monthly', label: 'Monthly' },
   ],
   workout: [
+    { id: 'weekly', label: 'Weekly' },
     { id: 'cycle', label: 'Cycle' },
     { id: 'settings', label: 'Settings' },
     { id: 'monthly', label: 'Monthly' },
   ],
   diagnostics: [
+    { id: 'weekly', label: 'Weekly' },
     { id: 'log', label: 'Log' },
     { id: 'monthly', label: 'Monthly' },
   ],
   mindset: [
+    { id: 'weekly', label: 'Weekly' },
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
     { id: 'monthly', label: 'Monthly' },
   ],
   relationship: [
+    { id: 'weekly', label: 'Weekly' },
     { id: 'overview', label: 'Relationships' },
     { id: 'monthly', label: 'Monthly' },
   ],
