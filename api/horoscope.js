@@ -42,9 +42,12 @@ what to avoid.
 Rules:
 - "theme": 2-3 words, lowercase, the through-line of the day (e.g. "soft power").
   No punctuation except an optional ending period.
-- "summary": EXACTLY ONE sentence — no more, no less. A single radiant,
-  self-contained line, second person, in the goddess voice above: magnetic,
-  peaceful, effortless, and lifting. One sentence only, ending in a single period.
+- "summary": EXACTLY THREE sentences — no more, no less. Each sentence is a
+  DISTINCT telling of the day: a different facet or angle (for example a
+  different area of life — love, work, body, spirit, money, creativity — or a
+  different lens on the same energy), never restating the others. Second person,
+  in the goddess voice above: magnetic, peaceful, effortless, and lifting. Three
+  sentences, each ending in a period.
 - "aspects": echo back the aspects you are given, preserving "from", "to", and
   "type" EXACTLY as provided. Add "meaning": exactly ONE sentence, second person
   ("you"), specific to that pairing, empowering, and DIFFERENT from every other
