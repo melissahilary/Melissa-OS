@@ -41,12 +41,6 @@ export default class ErrorBoundary extends React.Component {
             <button onClick={() => window.location.reload()} className="bg-stone-900 px-5 py-2.5 text-sm text-cream hover:bg-stone-700">Reload</button>
             <button onClick={this.reset} className="border border-stone-300 px-5 py-2.5 text-sm text-stone-600 hover:border-stone-500">Reset to Today</button>
           </div>
-          {this.state.message && (
-            <pre className="mx-auto mt-8 max-h-48 max-w-full overflow-auto whitespace-pre-wrap break-words rounded border border-stone-200 bg-white/60 p-3 text-left text-[11px] leading-relaxed text-stone-500">
-{this.state.message}
-{this.state.stack ? '\n' + this.state.stack.split('\n').slice(0, 6).join('\n') : ''}
-            </pre>
-          )}
         </div>
       </div>
     )

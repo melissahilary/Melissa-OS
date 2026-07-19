@@ -4,6 +4,7 @@ import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
 import { parseKey, dateKey, MONTHS } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
+import CategoryCalendar from './shared/CategoryCalendar'
 
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
