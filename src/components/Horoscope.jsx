@@ -159,7 +159,7 @@ function HoroscopeCard({ data, onEdit }) {
           className={`font-serif text-3xl text-stone-900 ${onEdit ? 'transition-colors hover:text-stone-500' : ''}`}
           title={onEdit ? 'Edit your Sun, Moon & Rising' : undefined}
         >
-          horoscope
+          Horoscope
         </Heading>
       </div>
 

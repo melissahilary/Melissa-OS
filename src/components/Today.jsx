@@ -651,7 +651,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       <Horoscope />
 
       <div className="pt-10">
-      <h2 className="mb-8 font-serif text-3xl text-stone-900">schedule</h2>
+      <h2 className="mb-8 font-serif text-3xl text-stone-900">Schedule</h2>
 
       <Calendar
         view={calView}
