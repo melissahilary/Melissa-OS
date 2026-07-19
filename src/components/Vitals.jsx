@@ -63,11 +63,13 @@ const SAMPLE = {
   bp: { sys: 118, dia: 76, time: '8:14 am', flag: 'normal' },
 }
 
+// Everything starts unconnected — no live data or connections yet. Each metric
+// shows a Connect button; goals are set after connecting (except glucose).
 const DEFAULT = {
-  sleep: { device: 'oura', goalMin: 480 },
-  water: { device: 'manual', goalOz: 80 },
-  steps: { device: 'apple', goalSteps: 10000 },
-  glucose: { device: 'dexcom' },
+  sleep: { device: null },
+  water: { device: null },
+  steps: { device: null },
+  glucose: { device: null },
   bp: { device: null },
   waterLog: { date: '', oz: 0 },
 }
@@ -123,14 +125,18 @@ export default function Vitals() {
           ) : <Connect onClick={() => setConnecting('sleep')} />}
         </Cell>
 
-        {/* WATER — the one she logs */}
+        {/* WATER — the one she logs, once connected */}
         <Cell metric="water" v={v} onConnect={() => setConnecting('water')} onOpen={() => setPopover('water')}>
-          <Value num={waterOz} unit="oz" />
-          {v.water.goalOz
-            ? <Fill value={pct(waterOz, v.water.goalOz)} />
-            : <SetGoal onClick={() => setGoalEditing('water')} />}
-          <button onClick={(e) => { e.stopPropagation(); logWater(8) }} className="mt-1.5 text-left text-sm italic text-stone-500 hover:text-stone-900">+ log a glass</button>
-          {goalEditing === 'water' && <Stepper label="oz" value={v.water.goalOz || 80} min={20} max={160} step={8} onDone={(n) => { patch('water', { goalOz: n }); setGoalEditing(null) }} />}
+          {v.water.device ? (
+            <>
+              <Value num={waterOz} unit="oz" />
+              {v.water.goalOz
+                ? <Fill value={pct(waterOz, v.water.goalOz)} />
+                : <SetGoal onClick={() => setGoalEditing('water')} />}
+              <button onClick={(e) => { e.stopPropagation(); logWater(8) }} className="mt-1.5 text-left text-sm italic text-stone-500 hover:text-stone-900">+ log a glass</button>
+              {goalEditing === 'water' && <Stepper label="oz" value={v.water.goalOz || 80} min={20} max={160} step={8} onDone={(n) => { patch('water', { goalOz: n }); setGoalEditing(null) }} />}
+            </>
+          ) : <Connect onClick={() => setConnecting('water')} />}
         </Cell>
 
         {/* STEPS */}
