@@ -183,7 +183,8 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const a0 = entry.activity
   const [name, setName] = useState(a0.title || '')
   const [text, setText] = useState(workoutBody(a0))
-  const [part, setPart] = useState(workoutPart(a0))
+  const [parts, setParts] = useState(Array.isArray(a0.timeOfDay) && a0.timeOfDay.length ? a0.timeOfDay : [workoutPart(a0)])
+  const togglePart = (id) => setParts((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
   const [pattern, setPattern] = useState(initialPattern(a0))
   const [days, setDays] = useState(Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length ? a0.daysOfWeek : [weekday])
   const [num, setNum] = useState(a0.interval && a0.interval > 0 ? a0.interval : 2)
@@ -208,7 +209,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
   const submit = () => {
     if (!canSave) return
     const nm = name.trim() || firstLine(text)
-    const base = { ...a0, type: 'protocol', title: nm, category: 'fitness', timeOfDay: [part], notes: text.trim() }
+    const base = { ...a0, type: 'protocol', title: nm, category: 'fitness', timeOfDay: parts.length ? parts : ['morning'], notes: text.trim() }
     if (pattern === 'custom') {
       Object.assign(base, { frequency: 'custom', daysOfWeek: [], interval: Math.max(1, Number(num) || 1), intervalUnit: unit, seriesStart: start, seriesEnd: noEnd ? '' : end })
     } else if (usesDays(pattern)) {
@@ -248,7 +249,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
             <div className="flex flex-wrap gap-x-10 gap-y-4">
               <div>
                 <span className="kicker text-stone-400 mb-1 block">Time of day</span>
-                <span className="text-sm text-stone-700">{PART_LABEL[workoutPart(a0)]}</span>
+                <span className="text-sm text-stone-700">{(Array.isArray(a0.timeOfDay) && a0.timeOfDay.length ? a0.timeOfDay : [workoutPart(a0)]).map((p) => PART_LABEL[p]).join(', ')}</span>
               </div>
               <div>
                 <span className="kicker text-stone-400 mb-1 block">Repeat</span>
@@ -285,9 +286,10 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
             <span className="kicker text-stone-400 mb-2 block">Time of day</span>
             <div className="flex gap-1.5">
               {PARTS.map((p) => (
-                <button key={p.id} type="button" onClick={() => setPart(p.id)} className={chip(part === p.id)}>{p.label}</button>
+                <button key={p.id} type="button" onClick={() => togglePart(p.id)} className={chip(parts.includes(p.id))}>{p.label}</button>
               ))}
             </div>
+            <p className="mt-1.5 text-xs italic text-stone-400">Pick one or more.</p>
           </div>
 
           <div>

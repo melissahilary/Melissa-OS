@@ -13,7 +13,8 @@ import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { useActivities } from '../hooks/useActivities'
-import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity } from '../lib/activities'
+import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf } from '../lib/activities'
+import { moonInfo } from '../lib/moon'
 import LocationField, { resolveCoords, locKey } from './shared/LocationField'
 
 // Hourly UV index for the location, keyed by UTC hour ("YYYY-MM-DDTHH:00") so the
@@ -327,6 +328,8 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycle
       <button onClick={() => setCycleOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{phaseDay}</button>
       {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={selected} onEdit={goToCycle} onClose={() => setCycleOpen(false)} />}
       <Dot />
+      <MoonField />
+      <Dot />
       <button onClick={() => setDateOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{dateStr}</button>
       {selectedKey !== todayKey && (
         <button onClick={() => onPickDay(todayKey)} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">Reset to today</button>
@@ -535,6 +538,85 @@ function UvPopup({ uv, onClose }) {
   )
 }
 
+// A little moon that draws its real illuminated shape. `angle` is the phase angle
+// (0 new · 90 first quarter · 180 full · 270 third quarter); the lit limb sits on
+// the right while waxing, the left while waning — a soft carved terminator between.
+function MoonGlyph({ angle, size = 16 }) {
+  const R = 50, C = 60
+  const a = ((angle % 360) + 360) % 360
+  const f = (1 - Math.cos((a * Math.PI) / 180)) / 2 // illuminated fraction
+  const waxing = a < 180
+  const dark = '#57534e', lit = '#FAF9F4'
+  const rx = R * Math.abs(Math.cos(Math.PI * f))
+  const litSemi = waxing
+    ? `M ${C},${C - R} A ${R},${R} 0 0 1 ${C},${C + R} Z` // right half
+    : `M ${C},${C - R} A ${R},${R} 0 0 0 ${C},${C + R} Z` // left half
+  const ellipseFill = f < 0.5 ? dark : lit
+  return (
+    <svg viewBox="0 0 120 120" width={size} height={size} className="inline-block shrink-0" aria-hidden="true">
+      <circle cx={C} cy={C} r={R} fill={dark} />
+      {f > 0.002 && <path d={litSemi} fill={lit} />}
+      {f > 0.002 && Math.abs(f - 0.5) > 0.002 && <ellipse cx={C} cy={C} rx={rx} ry={R} fill={ellipseFill} />}
+      <circle cx={C} cy={C} r={R} fill="none" stroke="#c9c5bd" strokeWidth="2" />
+    </svg>
+  )
+}
+
+// Today's moon in the info strip — its shape + name, recomputed live. Click for
+// the current symbol and the next new / full moons.
+function MoonField() {
+  const [info, setInfo] = useState(() => moonInfo(new Date()))
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    const id = setInterval(() => setInfo(moonInfo(new Date())), 60 * 60 * 1000) // hourly
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className="flex items-center gap-1.5 text-stone-600 hover:text-stone-900 transition-colors">
+        <MoonGlyph angle={info.angle} size={15} />
+        {info.phase.name}
+      </button>
+      {open && <MoonPopup info={info} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+// Pop-up: the current moon symbol + name up top, then when the next new and full
+// moons arrive (date + how far off).
+function MoonPopup({ info, onClose }) {
+  const fmt = (d) => {
+    if (!d) return '—'
+    const days = Math.round((d.getTime() - Date.now()) / 86400000)
+    const rel = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`
+    return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${rel}`
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex justify-end px-4 pt-3">
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
+        <div className="px-6 pb-6">
+          <div className="mb-5 flex flex-col items-center">
+            <MoonGlyph angle={info.angle} size={72} />
+            <p className="mt-3 font-serif text-xl text-stone-900">{info.phase.name}</p>
+            <p className="kicker text-stone-400 mt-1">{Math.round(info.fraction * 100)}% illuminated</p>
+          </div>
+          <div className="divide-y divide-stone-100 border-t border-stone-100">
+            {[['Next full moon', fmt(info.nextFull)], ['Next new moon', fmt(info.nextNew)]].map(([label, value]) => (
+              <div key={label} className="py-3">
+                <p className="kicker text-stone-400 mb-1">{label}</p>
+                <p className="text-sm text-stone-800">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
@@ -563,32 +645,38 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const active = (a, k) => a.status !== 'archived' && activityOccursOn(a, k)
 
   // AGENDA — calendar events + Appointments protocols + anything explicitly
-  // tagged "During the Day" (daySection === 'day'), by part of day.
+  // tagged "During the Day", by part of day. The agenda is one chronological
+  // list, so an event shows once (its primary part orders it).
   const dayEvents = (k) => {
     const out = []
     activities.forEach((a) => {
       if (!active(a, k)) return
       if (a.type === 'event') {
-        out.push({ id: a.id, title: a.title, part: a.details.partOfDay || 'morning', time: a.details.time || '', done: isDoneOn(a, k), order: a.order })
-      } else if (a.type === 'protocol' && (a.daySection === 'day' || (!a.daySection && SECTION_CATS.agenda.includes(a.category)))) {
-        const parts = a.daySection === 'day' ? ['afternoon'] : partsOfActivity(a)
-        parts.forEach((part) => out.push({ id: a.id, title: a.title, part, time: '', done: isDoneOn(a, k), order: a.order }))
+        out.push({ id: a.id, title: a.title, part: eventPartsOf(a)[0], time: a.details.time || '', done: isDoneOn(a, k), order: a.order })
+      } else if (a.type === 'protocol') {
+        const secs = daySectionsOf(a)
+        if (secs.includes('day')) {
+          out.push({ id: a.id, title: a.title, part: 'afternoon', time: '', done: isDoneOn(a, k), order: a.order })
+        } else if (!secs.length && SECTION_CATS.agenda.includes(a.category)) {
+          partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, time: '', done: isDoneOn(a, k), order: a.order }))
+        }
       }
     })
     return out
   }
 
   // RITUAL — Skincare/Facial/Haircare/Body/Aesthetics/Treatments/Wellness protocols.
-  // An explicit daySection overrides the time-of-day placement: 'morning' → Morning
-  // Routine, 'night' → Evening Routine, 'day' → routed to Agenda above instead.
+  // Explicit day-sections override the time-of-day placement and can be multiple:
+  // 'morning' → Morning Routine, 'night' → Evening Routine (both → shows in each),
+  // 'day' → routed to the Agenda above instead.
   const dayRituals = (k) => {
     const out = []
     activities.forEach((a) => {
       if (a.type !== 'protocol' || !SECTION_CATS.ritual.includes(a.category) || !active(a, k)) return
-      const sec = a.daySection
-      if (sec === 'day') return
-      if (sec === 'morning' || sec === 'night') {
-        out.push({ id: a.id, title: a.title, part: sec === 'night' ? 'evening' : 'morning', done: isDoneOn(a, k), order: a.order })
+      const secs = daySectionsOf(a)
+      if (secs.length) {
+        if (secs.includes('morning')) out.push({ id: a.id, title: a.title, part: 'morning', done: isDoneOn(a, k), order: a.order })
+        if (secs.includes('night')) out.push({ id: a.id, title: a.title, part: 'evening', done: isDoneOn(a, k), order: a.order })
         return
       }
       partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, done: isDoneOn(a, k), order: a.order }))
@@ -624,7 +712,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const moveEventToPart = (id, part) => {
     const a = activities.find((x) => x.id === id)
     if (!a) return
-    if (a.type === 'event') updateDetails(id, { partOfDay: part })
+    if (a.type === 'event') updateDetails(id, { partOfDay: part, parts: [part] })
     else update(id, { timeOfDay: [part] })
   }
 

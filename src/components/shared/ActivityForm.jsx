@@ -32,6 +32,13 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
   const toggleArr = (k, v) => setDraft((d) => ({ ...d, [k]: (d[k] || []).includes(v) ? d[k].filter((x) => x !== v) : [...(d[k] || []), v] }))
   const toggleDay = (n) => setDraft((d) => ({ ...d, daysOfWeek: (d.daysOfWeek || []).includes(n) ? d.daysOfWeek.filter((x) => x !== n) : [...(d.daysOfWeek || []), n] }))
   const setWeekdays = () => setDraft((d) => ({ ...d, daysOfWeek: [1, 2, 3, 4, 5] }))
+  const eventParts = (d) => (Array.isArray(d.details.parts) && d.details.parts.length ? d.details.parts : (d.details.partOfDay ? [d.details.partOfDay] : ['morning']))
+  const toggleEventPart = (id) => setDraft((d) => {
+    const cur = eventParts(d)
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
+    const parts = next.length ? next : ['morning']
+    return { ...d, details: { ...d.details, parts, partOfDay: parts[0] } }
+  })
 
   const t = draft.type
   const TYPE_LABEL = { event: 'Event', meal_item: 'Meal item', supplement: 'Supplement', protocol: 'Protocol' }[t]
@@ -132,10 +139,11 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 <span className={labelCls}>Part of Day</span>
                 <div className="flex flex-wrap gap-1.5">
                   {PARTS.map((o) => {
-                    const on = (draft.details.partOfDay || 'morning') === o.id
-                    return <button key={o.id} type="button" onClick={() => setD('partOfDay', o.id)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{o.label}</button>
+                    const on = eventParts(draft).includes(o.id)
+                    return <button key={o.id} type="button" onClick={() => toggleEventPart(o.id)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{o.label}</button>
                   })}
                 </div>
+                <p className="mt-1.5 text-xs italic text-stone-400">Pick one or more.</p>
               </div>
               <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
                 <div><span className={labelCls}>Time</span><input type="time" value={draft.details.time || ''} onChange={(e) => setD('time', e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>

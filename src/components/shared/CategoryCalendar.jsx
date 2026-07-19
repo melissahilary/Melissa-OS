@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import * as store from '../../lib/dataStore'
 import { useActivities } from '../../hooks/useActivities'
-import { blankActivity, activityOccursOn } from '../../lib/activities'
+import { blankActivity, activityOccursOn, daySectionsOf } from '../../lib/activities'
 import { dateKey, parseKey, monthGrid, MONTHS, DOW, isSameDay, longDate } from '../../lib/date'
 import { phaseForConfig, PHASES } from '../../lib/cycle'
 import { useRegisterAdd } from './AddButton'
@@ -65,9 +65,12 @@ const DAY_SECTIONS = [
   { id: 'day', label: 'During the Day' },
   { id: 'night', label: 'Night Time Routine' },
 ]
-const defaultSection = (a) => (a.daySection === 'morning' || a.daySection === 'day' || a.daySection === 'night'
-  ? a.daySection
-  : (partOf(a) === 'evening' ? 'night' : partOf(a) === 'afternoon' ? 'day' : 'morning'))
+const defaultSections = (a) => {
+  const s = daySectionsOf(a)
+  if (s.length) return s
+  const p = partOf(a)
+  return [p === 'evening' ? 'night' : p === 'afternoon' ? 'day' : 'morning']
+}
 // Each section maps to a part of day so the weekly/monthly views still group it.
 const SECTION_TOD = { morning: 'morning', day: 'afternoon', night: 'evening' }
 const initialPattern = (a) => {
@@ -236,7 +239,8 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
   const a0 = entry.activity
   const [name, setName] = useState(a0.title || '')
   const [text, setText] = useState(a0.notes || '')
-  const [section, setSection] = useState(defaultSection(a0))
+  const [sections, setSections] = useState(defaultSections(a0))
+  const toggleSection = (id) => setSections((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
   const [pattern, setPattern] = useState(initialPattern(a0))
   const [days, setDays] = useState(Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length ? a0.daysOfWeek : [parseKey(dayKey).getDay()])
   const [num, setNum] = useState(a0.interval && a0.interval > 0 ? a0.interval : 2)
@@ -250,13 +254,14 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
   const needDays = usesDays(pattern)
   const customValid = pattern !== 'custom' || (Number(num) >= 1 && !!unit)
   const seriesValid = !!start && (!needDays || days.length > 0) && (!recurring || noEnd || !!end) && customValid
-  const canSave = (name.trim() || firstLine(text, '')) && seriesValid
+  const canSave = (name.trim() || firstLine(text, '')) && seriesValid && sections.length > 0
 
   const submit = () => {
     if (!canSave) return
     const nm = name.trim() || firstLine(text, noun)
     const startK = start || dayKey
-    const base = { ...a0, title: nm, category, daySection: section, timeOfDay: [SECTION_TOD[section]], notes: text.trim() }
+    const tod = [...new Set(sections.map((s) => SECTION_TOD[s]))]
+    const base = { ...a0, title: nm, category, daySections: sections, daySection: undefined, timeOfDay: tod, notes: text.trim() }
     if (pattern === 'once') {
       Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: startK, seriesEnd: '' })
     } else if (pattern === 'custom') {
@@ -297,9 +302,10 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
             <span className="kicker text-stone-400 mb-2 block">Type of Event</span>
             <div className="flex flex-wrap gap-1.5">
               {DAY_SECTIONS.map((s) => (
-                <button key={s.id} type="button" onClick={() => setSection(s.id)} className={chip(section === s.id)}>{s.label}</button>
+                <button key={s.id} type="button" onClick={() => toggleSection(s.id)} className={chip(sections.includes(s.id))}>{s.label}</button>
               ))}
             </div>
+            <p className="mt-1.5 text-xs italic text-stone-400">Pick one or more — it appears in each.</p>
           </div>
 
           <div>

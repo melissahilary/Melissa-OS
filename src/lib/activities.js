@@ -112,10 +112,12 @@ export const normActivity = (a) => {
   timeOfDay,
   frequency: a.frequency || 'daily',
   daysOfWeek: Array.isArray(a.daysOfWeek) ? a.daysOfWeek : [],
-  // Which Today section this item lands in: 'morning' (Morning Routine),
-  // 'day' (Agenda, the middle), or 'night' (Evening Routine). Empty = infer
-  // from category + time of day (legacy behavior).
-  daySection: a.daySection === 'morning' || a.daySection === 'day' || a.daySection === 'night' ? a.daySection : '',
+  // Which Today section(s) this item lands in — any combination of 'morning'
+  // (Morning Routine), 'day' (Agenda, the middle) and 'night' (Evening Routine).
+  // Empty = infer from category + time of day (legacy). Migrates the old single
+  // `daySection` string into the array.
+  daySections: (Array.isArray(a.daySections) ? a.daySections : (a.daySection ? [a.daySection] : []))
+    .filter((s) => s === 'morning' || s === 'day' || s === 'night'),
   seriesStart: a.seriesStart || '',
   seriesEnd: a.seriesEnd || '',
   status: a.status || 'active',
@@ -205,6 +207,22 @@ export const activityOccursOn = (a, key) => {
 
 export const isDoneOn = (a, key) => !!(a.completions && a.completions[key])
 export const partOf = (a) => (a.type === 'event' ? a.details?.partOfDay || 'morning' : null)
+
+// The Today section(s) an item is explicitly assigned to (empty if none).
+const DAY_SECTION_IDS = ['morning', 'day', 'night']
+export const daySectionsOf = (a) => {
+  const arr = Array.isArray(a.daySections) ? a.daySections : (a.daySection ? [a.daySection] : [])
+  return arr.filter((s) => DAY_SECTION_IDS.includes(s))
+}
+// An event's part(s) of day — the multi-select `details.parts`, falling back to
+// the legacy single `details.partOfDay`.
+const PART_IDS = ['morning', 'afternoon', 'evening']
+export const eventPartsOf = (a) => {
+  const d = a.details || {}
+  const arr = Array.isArray(d.parts) && d.parts.length ? d.parts : (d.partOfDay ? [d.partOfDay] : ['morning'])
+  const out = arr.filter((p) => PART_IDS.includes(p))
+  return out.length ? out : ['morning']
+}
 
 // Map a meal/supplement activity into the shape MealSlots renders.
 export const toMealShape = (a) => ({
