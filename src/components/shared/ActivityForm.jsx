@@ -3,7 +3,7 @@ import { X, Trash2 } from 'lucide-react'
 import {
   FREQUENCIES, PARTS, ACTIVITY_CATEGORIES, PHASE_OPTS, WEEKDAYS, NO_DAYS_FREQ, blankActivity,
 } from '../../lib/activities'
-import { MEAL_SLOTS } from '../../lib/meals'
+import { MEAL_SLOTS, RECIPE_TAGS } from '../../lib/meals'
 import { PHASES } from '../../lib/cycle'
 
 const STATUS = [
@@ -93,6 +93,27 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
     </div>
   )
 
+  const toggleTag = (tag) => setDraft((d) => {
+    const cur = Array.isArray(d.details.tags) ? d.details.tags : []
+    return { ...d, details: { ...d.details, tags: cur.includes(tag) ? cur.filter((x) => x !== tag) : [...cur, tag] } }
+  })
+  const Tags = (
+    <div>
+      <span className={labelCls}>Tags</span>
+      <div className="flex flex-wrap gap-1.5">
+        {RECIPE_TAGS.map((tag) => {
+          const on = (draft.details.tags || []).includes(tag)
+          return (
+            <button key={tag} type="button" onClick={() => toggleTag(tag)} className="px-2.5 py-1 text-xs border transition-colors"
+              style={on ? { backgroundColor: '#1c1917', color: '#FAFAF7', borderColor: '#1c1917' } : { borderColor: '#d6d3d1', color: '#57534e' }}>
+              {tag}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xl bg-cream border border-stone-300 shadow-2xl">
@@ -134,6 +155,8 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 </select>
               </div>
               <label className="flex items-center gap-2 text-sm text-stone-700"><input type="checkbox" checked={!!draft.details.beverage} onChange={(e) => setD('beverage', e.target.checked)} /> Beverage</label>
+              <div><span className={labelCls}>Ingredients</span><textarea value={draft.details.ingredients || ''} onChange={(e) => setD('ingredients', e.target.value)} placeholder="One per line, or comma-separated — these feed Today's Ingredients" className="w-full min-h-[70px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" /></div>
+              {Tags}
               <div><span className={labelCls}>Cycle phase</span><Chips value={draft.phase} options={PHASE_OPTS} onToggle={(v) => toggleArr('phase', v)} colored /></div>
               {Scheduling}
             </>
@@ -150,6 +173,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 </div>
               </div>
               {TimeOfDay}
+              {Tags}
               {Scheduling}
               <div><span className={labelCls}>Cycle length</span><input value={draft.details.cycleLength || ''} onChange={(e) => setD('cycleLength', e.target.value)} placeholder="e.g. 8 weeks on, 4 off" className={lineCls} /></div>
               <div><span className={labelCls}>Stack notes</span><textarea value={draft.details.stackNotes || ''} onChange={(e) => setD('stackNotes', e.target.value)} className="w-full min-h-[70px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" /></div>

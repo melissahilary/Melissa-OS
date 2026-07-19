@@ -2,9 +2,9 @@ import React, { useState } from 'react'
 import { X } from 'lucide-react'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
-import { parseKey, dateKey, MONTHS } from '../lib/date'
+import { parseKey, dateKey, addDays, MONTHS, MONTHS_SHORT, isSameDay } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
-import CategoryCalendar from './shared/CategoryCalendar'
+import CategoryCalendar, { occursOnCal } from './shared/CategoryCalendar'
 
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -95,9 +95,23 @@ export default function Fitness({ subPage, cycleConfig }) {
 function Workouts() {
   const { activities, add, update, remove } = useActivities()
   const [editing, setEditing] = useState(null) // { weekday, activity }
+  const today = new Date()
+  const todayKey = dateKey(today)
+  const [anchorKey, setAnchorKey] = useState(todayKey)
+
+  // Monday of the viewed week → the seven day dates.
+  const anchor = parseKey(anchorKey)
+  const monday = addDays(anchor, -((anchor.getDay() + 6) % 7))
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+  const sunday = days[6]
+  const shiftWeek = (n) => setAnchorKey(dateKey(addDays(anchor, n * 7)))
+  const weekLabel = monday.getMonth() === sunday.getMonth()
+    ? `${MONTHS_SHORT[monday.getMonth()]} ${monday.getDate()}–${sunday.getDate()}`
+    : `${MONTHS_SHORT[monday.getMonth()]} ${monday.getDate()} – ${MONTHS_SHORT[sunday.getMonth()]} ${sunday.getDate()}`
+  const isThisWeek = dateKey(monday) === dateKey(addDays(today, -((today.getDay() + 6) % 7)))
 
   const workouts = activities.filter((a) => a.type === 'protocol' && a.category === 'fitness' && a.status !== 'archived')
-  const forDay = (wd) => workouts.filter((a) => (isRecurring(a) ? recurWeekdays(a).includes(wd) : a.seriesStart && parseKey(a.seriesStart).getDay() === wd))
+  const forDay = (d) => workouts.filter((a) => occursOnCal(a, dateKey(d)))
 
   const openNew = (wd) => setEditing({ weekday: wd, activity: blankActivity('protocol', { category: 'fitness', frequency: 'weekly', daysOfWeek: [wd], timeOfDay: ['morning'] }) })
   const openEdit = (a) => setEditing({ weekday: (a.daysOfWeek || [])[0] != null ? a.daysOfWeek[0] : (a.seriesStart ? parseKey(a.seriesStart).getDay() : 1), activity: a })
@@ -106,12 +120,28 @@ function Workouts() {
   useRegisterAdd(() => openNew(new Date().getDay()), [])
 
   return (
-    <div className="mb-10 space-y-6">
-      {WEEK.map((wd) => {
-        const items = forDay(wd)
+    <div className="mb-10">
+      {/* Week navigation — prev · range + jump-to-date · next */}
+      <div className="mb-6 flex items-center justify-between gap-2">
+        <button onClick={() => shiftWeek(-1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <span className="font-serif text-lg text-stone-900 whitespace-nowrap">{weekLabel}</span>
+          {!isThisWeek && <button onClick={() => setAnchorKey(todayKey)} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">This week</button>}
+          <input type="date" value={anchorKey} onChange={(e) => e.target.value && setAnchorKey(e.target.value)} className="bg-transparent border-b border-stone-200 pb-0.5 text-xs text-stone-500 outline-none focus:border-stone-900" />
+        </div>
+        <button onClick={() => shiftWeek(1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
+      </div>
+
+      <div className="space-y-6">
+      {days.map((d) => {
+        const items = forDay(d)
+        const isTod = isSameDay(d, today)
         return (
-          <section key={wd} className="border-t border-stone-200 pt-4">
-            <h3 className="font-serif italic text-2xl text-stone-900 mb-3">{DOW_LONG[wd]}</h3>
+          <section key={dateKey(d)} className="border-t border-stone-200 pt-4">
+            <h3 className={`font-serif italic text-2xl mb-3 ${isTod ? 'text-stone-900' : 'text-stone-800'}`}>
+              {DOW_LONG[d.getDay()]}
+              <span className="ml-2 text-base not-italic text-stone-400">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
+            </h3>
             {items.length === 0 ? (
               <p className="text-sm italic text-stone-400">Rest day.</p>
             ) : (
@@ -133,6 +163,7 @@ function Workouts() {
           </section>
         )
       })}
+      </div>
 
       {editing && (
         <WorkoutForm

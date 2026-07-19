@@ -23,6 +23,9 @@ export const MEAL_SLOTS = [
   { id: 'bed', label: 'Before Bed', part: 'evening', supps: true },
 ]
 
+// Tags a recipe can carry — used to tag items in the editor and filter the library.
+export const RECIPE_TAGS = ['Supplement', 'Beverage', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Follicular', 'Ovulatory', 'Luteal', 'Menstrual']
+
 export const slotsForPart = (partId) => MEAL_SLOTS.filter((s) => s.part === partId)
 export const slotMeta = (id) => MEAL_SLOTS.find((s) => s.id === id) || { id, label: id, part: 'morning', supps: false }
 export const timeOfDayForSlot = (id) => slotMeta(id).part

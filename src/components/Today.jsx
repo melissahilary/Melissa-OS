@@ -562,25 +562,35 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   const active = (a, k) => a.status !== 'archived' && activityOccursOn(a, k)
 
-  // AGENDA — calendar events + Fitness/Appointments protocols, by part of day.
+  // AGENDA — calendar events + Appointments protocols + anything explicitly
+  // tagged "During the Day" (daySection === 'day'), by part of day.
   const dayEvents = (k) => {
     const out = []
     activities.forEach((a) => {
       if (!active(a, k)) return
       if (a.type === 'event') {
         out.push({ id: a.id, title: a.title, part: a.details.partOfDay || 'morning', time: a.details.time || '', done: isDoneOn(a, k), order: a.order })
-      } else if (a.type === 'protocol' && SECTION_CATS.agenda.includes(a.category)) {
-        partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, time: '', done: isDoneOn(a, k), order: a.order }))
+      } else if (a.type === 'protocol' && (a.daySection === 'day' || (!a.daySection && SECTION_CATS.agenda.includes(a.category)))) {
+        const parts = a.daySection === 'day' ? ['afternoon'] : partsOfActivity(a)
+        parts.forEach((part) => out.push({ id: a.id, title: a.title, part, time: '', done: isDoneOn(a, k), order: a.order }))
       }
     })
     return out
   }
 
   // RITUAL — Skincare/Facial/Haircare/Body/Aesthetics/Treatments/Wellness protocols.
+  // An explicit daySection overrides the time-of-day placement: 'morning' → Morning
+  // Routine, 'night' → Evening Routine, 'day' → routed to Agenda above instead.
   const dayRituals = (k) => {
     const out = []
     activities.forEach((a) => {
       if (a.type !== 'protocol' || !SECTION_CATS.ritual.includes(a.category) || !active(a, k)) return
+      const sec = a.daySection
+      if (sec === 'day') return
+      if (sec === 'morning' || sec === 'night') {
+        out.push({ id: a.id, title: a.title, part: sec === 'night' ? 'evening' : 'morning', done: isDoneOn(a, k), order: a.order })
+        return
+      }
       partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, done: isDoneOn(a, k), order: a.order }))
     })
     return out

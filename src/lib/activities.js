@@ -112,6 +112,10 @@ export const normActivity = (a) => {
   timeOfDay,
   frequency: a.frequency || 'daily',
   daysOfWeek: Array.isArray(a.daysOfWeek) ? a.daysOfWeek : [],
+  // Which Today section this item lands in: 'morning' (Morning Routine),
+  // 'day' (Agenda, the middle), or 'night' (Evening Routine). Empty = infer
+  // from category + time of day (legacy behavior).
+  daySection: a.daySection === 'morning' || a.daySection === 'day' || a.daySection === 'night' ? a.daySection : '',
   seriesStart: a.seriesStart || '',
   seriesEnd: a.seriesEnd || '',
   status: a.status || 'active',
