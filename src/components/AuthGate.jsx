@@ -24,10 +24,27 @@ export default function AuthGate({ children }) {
   return children
 }
 
+// Splash while the session resolves. If it's still loading after a few seconds,
+// something is stuck (flaky network to the backend) — offer a way out instead of
+// spinning forever, so the app never looks like it "won't load".
 function Splash() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setSlow(true), 8000)
+    return () => clearTimeout(id)
+  }, [])
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cream">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-cream px-6 text-center">
       <Cursive className="text-4xl text-stone-400">Melissa's Digital Planner</Cursive>
+      {slow && (
+        <div>
+          <p className="text-sm text-stone-500">Taking longer than usual to load.</p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button onClick={() => window.location.reload()} className="bg-stone-900 px-5 py-2.5 text-sm text-cream hover:bg-stone-700">Reload</button>
+            <button onClick={() => store.signOut()} className="border border-stone-300 px-5 py-2.5 text-sm text-stone-600 hover:border-stone-500">Sign in again</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
