@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Calendar } from 'lucide-react'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity } from '../../lib/activities'
-import { dateKey, parseKey, addDays, DOW_LONG, MONTHS_SHORT, isSameDay } from '../../lib/date'
+import { dateKey, parseKey, addDays, DOW_LONG, MONTHS, MONTHS_SHORT, isSameDay } from '../../lib/date'
 import { useRegisterAdd } from './AddButton'
 import { DayItemForm, PARTS, partOf, occursOnCal } from './CategoryCalendar'
 
@@ -22,10 +22,8 @@ export default function CategoryWeekly({ category, noun = 'Item' }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
   const sunday = days[6]
   const shiftWeek = (n) => setAnchorKey(dateKey(addDays(anchor, n * 7)))
-  const weekLabel = monday.getMonth() === sunday.getMonth()
-    ? `${MONTHS_SHORT[monday.getMonth()]} ${monday.getDate()}–${sunday.getDate()}`
-    : `${MONTHS_SHORT[monday.getMonth()]} ${monday.getDate()} – ${MONTHS_SHORT[sunday.getMonth()]} ${sunday.getDate()}`
-  const isThisWeek = dateKey(monday) === dateKey(addDays(today, -((today.getDay() + 6) % 7)))
+  const fullDay = (d) => `${DOW_LONG[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  const weekLabel = `${fullDay(monday)} - ${fullDay(sunday)}`
 
   const items = activities.filter((a) => a.type === 'protocol' && a.category === category && a.status !== 'archived')
   const forDay = (k) => items.filter((a) => occursOnCal(a, k))
@@ -40,10 +38,12 @@ export default function CategoryWeekly({ category, noun = 'Item' }) {
       {/* Week navigation — prev · range + jump-to-date · next */}
       <div className="mb-6 flex items-center justify-between gap-2">
         <button onClick={() => shiftWeek(-1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-          <span className="font-serif text-lg text-stone-900 whitespace-nowrap">{weekLabel}</span>
-          {!isThisWeek && <button onClick={() => setAnchorKey(todayKey)} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">This week</button>}
-          <input type="date" value={anchorKey} onChange={(e) => e.target.value && setAnchorKey(e.target.value)} className="bg-transparent border-b border-stone-200 pb-0.5 text-xs text-stone-500 outline-none focus:border-stone-900" />
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <span className="font-serif text-lg text-stone-900">{weekLabel}</span>
+          <label className="relative inline-flex cursor-pointer items-center text-stone-400 hover:text-stone-900">
+            <Calendar size={16} />
+            <input type="date" value={anchorKey} onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()} onChange={(e) => e.target.value && setAnchorKey(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+          </label>
         </div>
         <button onClick={() => shiftWeek(1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
       </div>

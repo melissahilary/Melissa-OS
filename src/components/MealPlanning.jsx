@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Pencil, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Pencil, ChevronDown, ChevronRight, Calendar } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
@@ -10,7 +10,7 @@ import { useRegisterAdd } from './shared/AddButton'
 import CategoryCalendar from './shared/CategoryCalendar'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, FREQUENCIES, activityOccursOn } from '../lib/activities'
-import { dateKey, parseKey, addDays, DOW, DOW_LONG, MONTHS_SHORT, isSameDay } from '../lib/date'
+import { dateKey, parseKey, addDays, DOW, DOW_LONG, MONTHS, isSameDay } from '../lib/date'
 import ActivityForm from './shared/ActivityForm'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -68,10 +68,8 @@ function NutritionWeekly() {
   const week = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
   const sunday = week[6]
   const shiftWeek = (n) => setSelKey(dateKey(addDays(sel, n * 7)))
-  const weekLabel = monday.getMonth() === sunday.getMonth()
-    ? `${MONTHS_SHORT[monday.getMonth()]} ${monday.getDate()}–${sunday.getDate()}`
-    : `${MONTHS_SHORT[monday.getMonth()]} ${monday.getDate()} – ${MONTHS_SHORT[sunday.getMonth()]} ${sunday.getDate()}`
-  const isThisWeek = dateKey(monday) === dateKey(addDays(today, -((today.getDay() + 6) % 7)))
+  const fullDay = (d) => `${DOW_LONG[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  const weekLabel = `${fullDay(monday)} - ${fullDay(sunday)}`
 
   const recurring = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived')
   const dayItems = recurring.filter((a) => activityOccursOn(a, selKey))
@@ -92,10 +90,12 @@ function NutritionWeekly() {
         {/* Week navigation — prev · range + jump-to-date · next */}
         <div className="mb-4 flex items-center justify-between gap-2">
           <button onClick={() => shiftWeek(-1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <span className="font-serif text-lg text-stone-900 whitespace-nowrap">{weekLabel}</span>
-            {!isThisWeek && <button onClick={() => setSelKey(dateKey(today))} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">This week</button>}
-            <input type="date" value={selKey} onChange={(e) => e.target.value && setSelKey(e.target.value)} className="bg-transparent border-b border-stone-200 pb-0.5 text-xs text-stone-500 outline-none focus:border-stone-900" />
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            <span className="font-serif text-lg text-stone-900">{weekLabel}</span>
+            <label className="relative inline-flex cursor-pointer items-center text-stone-400 hover:text-stone-900">
+              <Calendar size={16} />
+              <input type="date" value={selKey} onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()} onChange={(e) => e.target.value && setSelKey(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+            </label>
           </div>
           <button onClick={() => shiftWeek(1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
         </div>

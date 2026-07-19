@@ -67,7 +67,9 @@ const DAY_SECTIONS = [
 ]
 const defaultSection = (a) => (a.daySection === 'morning' || a.daySection === 'day' || a.daySection === 'night'
   ? a.daySection
-  : (partOf(a) === 'evening' ? 'night' : 'morning'))
+  : (partOf(a) === 'evening' ? 'night' : partOf(a) === 'afternoon' ? 'day' : 'morning'))
+// Each section maps to a part of day so the weekly/monthly views still group it.
+const SECTION_TOD = { morning: 'morning', day: 'afternoon', night: 'evening' }
 const initialPattern = (a) => {
   const f = a.frequency
   if (f === 'daily') return 'daily'
@@ -235,7 +237,6 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
   const [name, setName] = useState(a0.title || '')
   const [text, setText] = useState(a0.notes || '')
   const [section, setSection] = useState(defaultSection(a0))
-  const [part, setPart] = useState(partOf(a0))
   const [pattern, setPattern] = useState(initialPattern(a0))
   const [days, setDays] = useState(Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length ? a0.daysOfWeek : [parseKey(dayKey).getDay()])
   const [num, setNum] = useState(a0.interval && a0.interval > 0 ? a0.interval : 2)
@@ -255,7 +256,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
     if (!canSave) return
     const nm = name.trim() || firstLine(text, noun)
     const startK = start || dayKey
-    const base = { ...a0, title: nm, category, daySection: section, timeOfDay: [part], notes: text.trim() }
+    const base = { ...a0, title: nm, category, daySection: section, timeOfDay: [SECTION_TOD[section]], notes: text.trim() }
     if (pattern === 'once') {
       Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: startK, seriesEnd: '' })
     } else if (pattern === 'custom') {
@@ -293,18 +294,10 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
             <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Notes…" className="w-full min-h-[100px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900" />
           </div>
           <div>
-            <span className="kicker text-stone-400 mb-2 block">Agenda item type</span>
+            <span className="kicker text-stone-400 mb-2 block">Type of Event</span>
             <div className="flex flex-wrap gap-1.5">
               {DAY_SECTIONS.map((s) => (
                 <button key={s.id} type="button" onClick={() => setSection(s.id)} className={chip(section === s.id)}>{s.label}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <span className="kicker text-stone-400 mb-2 block">Time of day</span>
-            <div className="flex gap-1.5">
-              {PARTS.map((p) => (
-                <button key={p.id} type="button" onClick={() => setPart(p.id)} className={chip(part === p.id)}>{p.label}</button>
               ))}
             </div>
           </div>
