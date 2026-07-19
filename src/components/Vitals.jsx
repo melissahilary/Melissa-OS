@@ -43,13 +43,14 @@ const DEVICES = {
   withings: { name: 'Withings', mark: 'pulse' },
   manual: { name: 'Logged by hand', mark: 'plus' },
 }
-// Which devices can feed each metric.
-const CANDIDATES = {
-  sleep: ['oura', 'whoop', 'apple', 'garmin', 'eight', 'fitbit'],
-  water: ['manual', 'apple'],
-  steps: ['apple', 'garmin', 'whoop', 'oura', 'fitbit'],
-  glucose: ['dexcom', 'levels', 'lingo', 'stelo'],
-  bp: ['omron', 'withings', 'apple'],
+// Everything connects through Apple Health, the hub. `works` lists the devices
+// that feed that metric into Health; `manual` allows hand entry (never glucose).
+const CONNECT = {
+  sleep: { works: ['Oura', 'Whoop', 'Apple Watch', 'Garmin', 'Fitbit', 'Eight Sleep'], manual: true },
+  water: { works: [], manual: true },
+  steps: { works: ['Apple Watch', 'Oura', 'Whoop', 'Garmin', 'Fitbit'], manual: true },
+  glucose: { works: ['Stelo', 'Dexcom', 'Freestyle Libre', 'Lingo'], manual: false },
+  bp: { works: ['Omron', 'Withings', 'QardioArm'], manual: true },
 }
 
 // Representative "today" readings (placeholders until live sync). Water is live.
@@ -236,25 +237,42 @@ function Stepper({ label, value, min, max, step, onDone }) {
   )
 }
 
-// Connect dropdown — the metric's candidate wearables, each with its mark.
-function ConnectModal({ metric, current, onPick, onClose }) {
+// Connect prompt — everything flows through Apple Health; a "Works with" line of
+// compatible devices, one Connect action, and (except glucose) manual entry.
+function ConnectModal({ metric, onPick, onClose }) {
+  const cfg = CONNECT[metric]
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
-          <span className="kicker text-stone-400">Connect {LABEL[metric]}</span>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-sm bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex items-center justify-between px-6 pt-4">
+          <span className="flex items-center gap-2 kicker text-stone-400"><Mark mark="heart" /> Apple Health</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
-        <div className="py-2">
-          {CANDIDATES[metric].map((d) => (
-            <button key={d} onClick={() => onPick(d)} className={`flex w-full items-center gap-3 px-5 py-2.5 text-left text-sm hover:bg-stone-100 ${current === d ? 'text-stone-900' : 'text-stone-600'}`}>
-              <Mark mark={DEVICES[d].mark} />
-              <span className="flex-1">{DEVICES[d].name}</span>
-              {current === d && <span className="kicker text-stone-400">connected</span>}
-            </button>
-          ))}
+        <div className="px-6 pb-6 pt-3">
+          <p className="font-serif text-2xl text-stone-900">{LABEL[metric]} <span className="text-stone-400">· via Apple Health</span></p>
+          {cfg.works.length > 0 && (
+            <p className="mt-3 text-sm text-stone-500">
+              Works with:{' '}
+              {cfg.works.map((d, i) => (
+                <React.Fragment key={d}>
+                  {i > 0 && <span className="text-stone-300"> · </span>}
+                  <span className="font-medium text-stone-800">{d}</span>
+                </React.Fragment>
+              ))}
+            </p>
+          )}
+          {cfg.works.length > 0 && (
+            <p className="my-5 border-y py-3 text-xs italic" style={{ borderColor: 'rgba(0,0,0,0.07)', color: '#55504A' }}>
+              First, make sure your device's app is set to write to Apple Health.
+            </p>
+          )}
+          <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 ${cfg.works.length > 0 ? '' : 'mt-6'}`}>
+            <button onClick={() => onPick('apple')} className="bg-stone-900 px-6 py-2.5 text-sm text-cream hover:bg-stone-700">Connect</button>
+            {cfg.manual && (
+              <button onClick={() => onPick('manual')} className="text-sm italic text-stone-500 hover:text-stone-900">· or enter manually</button>
+            )}
+          </div>
         </div>
-        {metric === 'glucose' && <p className="border-t border-stone-100 px-5 py-3 text-xs italic text-stone-400">A continuous glucose sensor, read every few minutes. No manual entry.</p>}
       </div>
     </div>
   )
