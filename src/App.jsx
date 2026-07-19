@@ -235,11 +235,11 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <div className="mx-auto flex max-w-[1400px] flex-col lg:flex-row">
-        {/* ── Sidebar ─────────────────────────────────────────── */}
+      <div className="mx-auto flex max-w-[1400px] flex-col md:flex-row">
+        {/* ── Sidebar — pinned to the side on iPad & desktop (md+), a top bar on phones ── */}
         <aside
-          className={`lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-stone-200 py-8 transition-all ${
-            collapsed ? 'lg:w-[76px] px-3' : 'lg:w-[320px] px-7'
+          className={`md:sticky md:top-0 md:h-screen md:shrink-0 md:overflow-y-auto border-b md:border-b-0 md:border-r border-stone-200 py-8 transition-all ${
+            collapsed ? 'md:w-[76px] px-3' : 'md:w-[300px] lg:w-[320px] px-7'
           }`}
         >
           {collapsed ? (
@@ -390,7 +390,7 @@ function SidebarToday({ setActive, setDreamPage, pillars }) {
   return (
     <div className="space-y-7">
       <div>
-        <p className="kicker text-stone-400 mb-3">What I'm focused on.</p>
+        <p className="kicker text-stone-400 mb-3">My Life In Glow</p>
         <nav className="space-y-1">
           <button
             type="button"
