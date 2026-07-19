@@ -109,7 +109,20 @@ function fallbackData(top) {
   const list = Array.isArray(top) ? top : []
   const tell = (a) =>
     `Your ${DOMAIN[a.transit] || meaningOf(a.transit)} and ${DOMAIN[a.natal] || meaningOf(a.natal)} ${REL[qualityOf(a.aspect)]} today.`
-  const summary = list.slice(0, 3).map(tell).join(' ')
+  // Collapse tellings that would read the same: reciprocal aspects (e.g. Moon↔Venus)
+  // and any pair mapping to the same two life areas map to one distinct sentence.
+  const seen = new Set()
+  const tellings = []
+  for (const a of list) {
+    const domA = DOMAIN[a.transit] || meaningOf(a.transit)
+    const domB = DOMAIN[a.natal] || meaningOf(a.natal)
+    const key = [domA, domB].sort().join('|') + '|' + qualityOf(a.aspect)
+    if (seen.has(key)) continue
+    seen.add(key)
+    tellings.push(tell(a))
+    if (tellings.length === 3) break
+  }
+  const summary = tellings.join(' ')
   return {
     theme: list.length ? THEME[qualityOf(list[0].aspect)] || '' : '',
     summary,
