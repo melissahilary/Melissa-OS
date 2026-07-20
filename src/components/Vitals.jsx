@@ -24,6 +24,9 @@ const DEVICES = {
   apple: { name: 'Apple Health', mark: 'heart' },
   manual: { name: 'Entered by hand', mark: 'plus' },
 }
+// Any device id we don't recognize (e.g. a wearable connected in an older build,
+// like 'oura' or 'dexcom') is treated as connected via Apple Health.
+const dev = (id) => DEVICES[id] || DEVICES.apple
 
 // Everything connects through Apple Health, the hub. `works` lists the devices
 // that feed that metric into Health; `manual` allows hand entry (never glucose).
@@ -148,7 +151,7 @@ function Cell({ metric, device, full, onOpen, onConnect, children }) {
       onClick={device ? onOpen : undefined}
       className={`group relative flex flex-col items-start border-b border-stone-200 px-4 py-4 text-left transition-colors md:border-b-0 md:border-l md:first:border-l-0 ${full ? 'col-span-2 md:col-span-1' : ''} ${device ? 'cursor-pointer' : 'opacity-70'}`}
     >
-      <div className="mb-2 h-4">{device ? <Mark mark={DEVICES[device].mark} /> : null}</div>
+      <div className="mb-2 h-4">{device ? <Mark mark={dev(device).mark} /> : null}</div>
       <span className="kicker text-stone-400">{LABEL[metric]}</span>
       <div className="mt-1 w-full">
         {device ? children : <Connect onClick={onConnect} />}
@@ -229,7 +232,7 @@ function VitalPopover({ metric, v, waterOz, sleepMin, stepsVal, bpVal, onLogWate
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
-          <span className="flex items-center gap-2 kicker text-stone-400">{device && <Mark mark={DEVICES[device].mark} />}{device ? DEVICES[device].name : LABEL[metric]}</span>
+          <span className="flex items-center gap-2 kicker text-stone-400">{device && <Mark mark={dev(device).mark} />}{device ? dev(device).name : LABEL[metric]}</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
         <div className="px-6 pb-6 pt-3">
