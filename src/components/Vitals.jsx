@@ -94,7 +94,7 @@ export default function Vitals() {
               <Value num={fmtSleep(sleepMin)} />
               {v.sleep.goalMin ? <Fill value={pct(sleepMin, v.sleep.goalMin)} /> : null}
             </>
-          ) : <Empty device={v.sleep.device} onEnter={() => setPopover('sleep')} />}
+          ) : <Empty device={v.sleep.device} onEnter={() => setPopover('sleep')} onConnect={() => setConnecting('sleep')} />}
         </Cell>
 
         {/* WATER — the one she logs */}
@@ -111,17 +111,17 @@ export default function Vitals() {
               <Value num={stepsVal.toLocaleString()} />
               {v.steps.goalSteps ? <Fill value={pct(stepsVal, v.steps.goalSteps)} /> : null}
             </>
-          ) : <Empty device={v.steps.device} onEnter={() => setPopover('steps')} />}
+          ) : <Empty device={v.steps.device} onEnter={() => setPopover('steps')} onConnect={() => setConnecting('steps')} />}
         </Cell>
 
         {/* GLUCOSE — CGM only, no manual, no data until it syncs */}
         <Cell metric="glucose" device={v.glucose.device} full onOpen={() => setPopover('glucose')} onConnect={() => setConnecting('glucose')}>
-          <Empty device={v.glucose.device} />
+          <Empty device={v.glucose.device} onConnect={() => setConnecting('glucose')} />
         </Cell>
 
         {/* BLOOD PRESSURE — spot reading, no fill line */}
         <Cell metric="bp" device={v.bp.device} onOpen={() => setPopover('bp')} onConnect={() => setConnecting('bp')}>
-          {bpVal ? <Value num={`${bpVal.sys}/${bpVal.dia}`} /> : <Empty device={v.bp.device} onEnter={() => setPopover('bp')} />}
+          {bpVal ? <Value num={`${bpVal.sys}/${bpVal.dia}`} /> : <Empty device={v.bp.device} onEnter={() => setPopover('bp')} onConnect={() => setConnecting('bp')} />}
         </Cell>
       </div>
 
@@ -168,12 +168,13 @@ function Value({ num, unit }) {
     </div>
   )
 }
-// Connected, but nothing to show yet. Manual metrics offer hand entry; synced ones wait.
-function Empty({ device, onEnter }) {
+// Nothing to show yet. Manual metrics offer hand entry; otherwise a Connect
+// button that reopens that vital's connect prompt.
+function Empty({ device, onEnter, onConnect }) {
   if (device === 'manual' && onEnter) {
     return <button onClick={(e) => { e.stopPropagation(); onEnter() }} className="mt-1 text-sm italic text-stone-500 hover:text-stone-900">+ add today</button>
   }
-  return <p className="mt-1 text-sm italic text-stone-300">no data yet</p>
+  return <Connect onClick={onConnect} />
 }
 const Connect = ({ onClick }) => (
   <button onClick={(e) => { e.stopPropagation(); onClick() }} className="mt-1 rounded-full border border-stone-300 px-3 py-1 text-xs uppercase tracking-[0.14em] text-stone-500 hover:border-stone-900 hover:text-stone-900">connect</button>
