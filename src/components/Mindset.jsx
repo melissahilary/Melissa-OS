@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
@@ -17,28 +17,52 @@ export default function Mindset({ subPage, cycleConfig }) {
   return <Influences />
 }
 
-// ── Journal — one diary entry per day. Navigate day by day; today opens by
-// default. Each day's writing autosaves under its date.
+// A day's writing is a list of titled entries. Older days saved a single string,
+// which we read as one untitled entry (and rewrite as a list on first edit).
+const normDay = (raw, key) => {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string' && raw.trim()) return [{ id: `${key}#legacy`, title: '', body: raw }]
+  return []
+}
+const entryHasContent = (e) => (e.title || '').trim() || (e.body || '').trim()
+
+// ── Journal — multiple titled entries per day. Navigate day by day; today opens
+// by default. Every title and body autosaves under its date.
 function Journal() {
   const today = new Date()
   const [entries, setEntries] = useLocalStorage('mos:mindset:journal', {})
   const store = entries && typeof entries === 'object' ? entries : {}
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
-  const text = store[selectedKey] || ''
-
-  const shift = (days) => { const d = parseKey(selectedKey); d.setDate(d.getDate() + days); setSelectedKey(dateKey(d)) }
-  const write = (val) => setEntries((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [selectedKey]: val }))
   const isToday = isSameDay(selected, today)
 
-  // Past entries with content, most recent first (excluding the open day).
+  const dayList = normDay(store[selectedKey], selectedKey)
+  // Always show at least one editable entry; its stable id lets it persist on the
+  // first keystroke without the field remounting (and losing focus).
+  const display = dayList.length ? dayList : [{ id: `${selectedKey}#1`, title: '', body: '' }]
+
+  const shift = (days) => { const d = parseKey(selectedKey); d.setDate(d.getDate() + days); setSelectedKey(dateKey(d)) }
+  const setDay = (updater) => setEntries((prev) => {
+    const p = prev && typeof prev === 'object' ? prev : {}
+    const cur = normDay(p[selectedKey], selectedKey)
+    return { ...p, [selectedKey]: typeof updater === 'function' ? updater(cur) : updater }
+  })
+  const updateEntry = (id, patch) => setDay((cur) => (cur.some((e) => e.id === id)
+    ? cur.map((e) => (e.id === id ? { ...e, ...patch } : e))
+    : [...cur, { id, title: '', body: '', ...patch }]))
+  const addEntry = () => setDay((cur) => [...cur, { id: uid(), title: '', body: '' }])
+  const removeEntry = (id) => setDay((cur) => cur.filter((e) => e.id !== id))
+
+  useRegisterAdd(() => addEntry(), [selectedKey])
+
+  // Past days that hold any content, most recent first (excluding the open day).
   const past = Object.keys(store)
-    .filter((k) => k !== selectedKey && (store[k] || '').trim())
+    .filter((k) => k !== selectedKey && normDay(store[k], k).some(entryHasContent))
     .sort((a, b) => b.localeCompare(a))
 
   return (
     <div className="mb-12">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <button onClick={() => shift(-1)} className="px-2 text-sm text-stone-500 hover:text-stone-900">Prev</button>
         <div className="text-center">
           <h3 className="font-serif italic text-2xl text-stone-900">{longDate(selected)}</h3>
@@ -47,23 +71,46 @@ function Journal() {
         <button onClick={() => shift(1)} className="px-2 text-sm text-stone-500 hover:text-stone-900">Next</button>
       </div>
 
-      <textarea
-        value={text}
-        onChange={(e) => write(e.target.value)}
-        placeholder="Dear diary…"
-        className="block w-full min-h-[45vh] resize-y bg-white/40 border border-stone-200 px-5 py-4 font-serif text-lg leading-relaxed text-stone-800 placeholder-stone-300 outline-none focus:border-stone-900"
-      />
+      <div className="space-y-5">
+        {display.map((e) => (
+          <div key={e.id} className="group relative border border-stone-200 bg-white/40 focus-within:border-stone-400">
+            {dayList.length > 1 && (
+              <button onClick={() => removeEntry(e.id)} className="absolute right-2 top-2.5 z-10 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100" title="Delete entry"><X size={15} /></button>
+            )}
+            <input
+              value={e.title}
+              onChange={(ev) => updateEntry(e.id, { title: ev.target.value })}
+              placeholder="Title"
+              className="w-full bg-transparent px-5 pt-4 pb-1 pr-9 font-serif text-2xl text-stone-900 placeholder-stone-300 outline-none"
+            />
+            <textarea
+              value={e.body}
+              onChange={(ev) => updateEntry(e.id, { body: ev.target.value })}
+              placeholder="Dear diary…"
+              className="block w-full min-h-[26vh] resize-y bg-transparent px-5 pb-4 font-serif text-lg leading-relaxed text-stone-800 placeholder-stone-300 outline-none"
+            />
+          </div>
+        ))}
+      </div>
+
+      <button onClick={addEntry} className="mt-4 flex items-center gap-1.5 text-sm italic text-stone-500 hover:text-stone-900">
+        <Plus size={14} /> New entry
+      </button>
 
       {past.length > 0 && (
-        <div className="mt-8">
+        <div className="mt-10">
           <p className="kicker text-stone-400 mb-3">Past entries</p>
           <div className="divide-y divide-stone-100">
-            {past.map((k) => (
-              <button key={k} onClick={() => setSelectedKey(k)} className="block w-full py-3 text-left">
-                <p className="kicker text-stone-400">{longDate(parseKey(k))}</p>
-                <p className="mt-1 line-clamp-1 text-sm text-stone-600">{store[k].trim()}</p>
-              </button>
-            ))}
+            {past.map((k) => {
+              const list = normDay(store[k], k).filter(entryHasContent)
+              const first = list[0]
+              return (
+                <button key={k} onClick={() => setSelectedKey(k)} className="block w-full py-3 text-left">
+                  <p className="kicker text-stone-400">{longDate(parseKey(k))}{list.length > 1 ? ` · ${list.length} entries` : ''}</p>
+                  <p className="mt-1 line-clamp-1 text-sm text-stone-600">{(first.title || '').trim() || (first.body || '').trim()}</p>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
