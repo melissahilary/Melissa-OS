@@ -8,6 +8,7 @@ import {
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
 import Vitals from './Vitals'
+import MonthGrid from './shared/MonthGrid'
 import { AddMealForm } from './shared/MealSlots'
 import { slotMeta } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
@@ -824,85 +825,20 @@ const PHASE_AGENDA_HINT = {
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
 function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
-  const cells = monthGrid(calMonth)
-  const goPrev = () => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))
-  const goNext = () => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))
   const selected = parseKey(selectedKey)
 
   return (
     <section className="mb-12">
-      {/* Month nav: ‹ Month Year › */}
-      <div className="mb-5 flex items-center justify-between">
-        <button onClick={goPrev} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
-        <h3 className="whitespace-nowrap text-center font-serif text-2xl text-stone-900">{MONTHS[calMonth.getMonth()]} {calMonth.getFullYear()}</h3>
-        <button onClick={goNext} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
-      </div>
-
-      {/* Month grid */}
-      <div className="grid grid-cols-7 border-l border-t border-stone-200">
-        {DOW.map((d) => (
-          <div key={d} className="border-b border-r border-stone-200 px-2 py-1.5 text-center kicker text-stone-400">
-            {d[0]}
-          </div>
-        ))}
-        {cells.map((cell) => {
-          const key = dateKey(cell)
-          const inMonth = cell.getMonth() === calMonth.getMonth()
-          const isSel = key === selectedKey
-          const isTod = isSameDay(cell, today)
-          const holiday = holidayFor(cell)
-          const dayEvents = eventsFor(key)
-          const phase = phaseForConfig(cycleConfig, cell)
-          const tint = phase ? PHASE_TINT[phase.id] : undefined
-          return (
-            <div
-              key={key}
-              style={tint ? { backgroundColor: tint } : undefined}
-              className={`group relative min-h-[78px] border-b border-r border-stone-200 px-1.5 py-1 text-left transition-colors ${
-                inMonth ? '' : 'text-stone-300'
-              } ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
-            >
-              <button onClick={() => onPickDay(key)} className="block w-full text-left">
-                <span
-                  className={`inline-flex h-6 w-6 items-center justify-center text-xs ${
-                    isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'
-                  }`}
-                >
-                  {cell.getDate()}
-                </span>
-              </button>
-
-              {holiday && (
-                <p className="mt-0.5 truncate text-[9px] uppercase tracking-wide text-stone-400">{holiday}</p>
-              )}
-
-              <div className="mt-0.5 space-y-0.5">
-                {dayEvents.slice(0, 2).map((ev) => (
-                  <button key={ev.id} onClick={() => onOpen(ev.id)} className="flex w-full items-center gap-1 text-left">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
-                    <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>
-                      {ev.title || 'Untitled'}
-                    </span>
-                  </button>
-                ))}
-                {dayEvents.length > 2 && (
-                  <button onClick={() => onPickDay(key)} className="text-[9px] text-stone-400 hover:text-stone-700">+{dayEvents.length - 2} more</button>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Cycle phase legend */}
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-        {PHASE_LEGEND.map((p) => (
-          <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
-            {p.label}
-          </span>
-        ))}
-      </div>
+      <MonthGrid
+        month={calMonth}
+        setMonth={setCalMonth}
+        selectedKey={selectedKey}
+        onPickDay={onPickDay}
+        today={today}
+        cycleConfig={cycleConfig}
+        itemsForDay={eventsFor}
+        onOpenItem={onOpen}
+      />
 
       {/* Selected day — expands into everything planned that day */}
       <div className="mt-10 border-t border-stone-200 pt-6">

@@ -6,6 +6,7 @@ import { blankActivity, activityOccursOn, daySectionsOf } from '../../lib/activi
 import { dateKey, parseKey, monthGrid, MONTHS, DOW, isSameDay, longDate } from '../../lib/date'
 import { phaseForConfig, PHASES } from '../../lib/cycle'
 import { useRegisterAdd } from './AddButton'
+import MonthGrid from './MonthGrid'
 
 const PHASE_TINT = { menstrual: '#F4DEDE', follicular: '#E4EDE1', ovulation: '#F2E7CF', luteal: '#E4E0EC' }
 export const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
@@ -131,60 +132,17 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
 
   return (
     <div className="mb-10">
-      {/* Month navigation */}
-      <div className="mb-4 flex items-center justify-between">
-        <button onClick={() => !atFloor && shift(-1)} disabled={atFloor} className={`px-3 py-1 text-base ${atFloor ? 'text-stone-200' : 'text-stone-500 hover:text-stone-900'}`}>‹</button>
-        <div className="flex items-center gap-2">
-          <select value={month.getMonth()} onChange={(e) => setYM(month.getFullYear(), Number(e.target.value))} className="appearance-none bg-transparent font-serif text-lg text-stone-900 outline-none">
-            {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
-          </select>
-          <select value={month.getFullYear()} onChange={(e) => setYM(Number(e.target.value), month.getMonth())} className="appearance-none bg-transparent font-serif text-lg text-stone-900 outline-none">
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-        <button onClick={() => shift(1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
-      </div>
-
-      {/* Grid */}
-      <div className="grid grid-cols-7 border-l border-t border-stone-200">
-        {DOW.map((d) => <div key={d} className="border-b border-r border-stone-200 px-1 py-1.5 text-center kicker text-stone-400">{d[0]}</div>)}
-        {cells.map((cell) => {
-          const k = dateKey(cell)
-          const inMonth = cell.getMonth() === month.getMonth()
-          const locked = beforeSignup(k)
-          const isSel = k === selectedKey
-          const isTod = isSameDay(cell, today)
-          const phase = phaseForConfig(cycleConfig, cell)
-          const tint = phase ? PHASE_TINT[phase.id] : undefined
-          const count = inMonth && !locked ? forDay(k).length : 0
-          return (
-            <button
-              key={k}
-              onClick={() => !locked && setSelectedKey(k)}
-              disabled={locked}
-              style={inMonth && !locked && tint ? { backgroundColor: tint } : undefined}
-              className={`relative min-h-[62px] border-b border-r border-stone-200 px-1.5 py-1 text-left align-top transition-colors ${locked ? 'bg-stone-50 text-stone-300' : inMonth ? 'text-stone-700 hover:brightness-95' : 'text-stone-300'} ${isSel && !locked ? 'ring-1 ring-inset ring-stone-900' : ''}`}
-            >
-              <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'rounded-full bg-stone-900 text-cream' : ''}`}>{cell.getDate()}</span>
-              {count > 0 && (
-                <span className="mt-1 flex flex-wrap gap-0.5">
-                  {Array.from({ length: Math.min(count, 4) }).map((_, i) => <span key={i} className="h-1 w-1 rounded-full bg-stone-500" />)}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Phase legend */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-        {['menstrual', 'follicular', 'ovulation', 'luteal'].map((id) => (
-          <span key={id} className="flex items-center gap-1 text-[9px] uppercase tracking-[0.12em] text-stone-500">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: id === 'menstrual' ? PHASES.menstrual.color : PHASE_TINT[id] }} />
-            {id === 'ovulation' ? 'Ovulatory' : id.charAt(0).toUpperCase() + id.slice(1)}
-          </span>
-        ))}
-      </div>
+      <MonthGrid
+        month={month}
+        setMonth={setMonth}
+        selectedKey={selectedKey}
+        onPickDay={setSelectedKey}
+        today={today}
+        cycleConfig={cycleConfig}
+        floorMonth={signupMonthStart}
+        itemsForDay={(k) => forDay(k).map((a) => ({ id: a.id, title: a.title || noun }))}
+        onOpenItem={(id) => { const a = items.find((x) => x.id === id); if (a) openEdit(a) }}
+      />
 
       {/* Selected day detail */}
       <section className="mt-8 border-t border-stone-200 pt-5">
