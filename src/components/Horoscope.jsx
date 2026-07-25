@@ -15,6 +15,19 @@ const VOICE = 'goddess-3'
 const INK = '#1C1C1A'
 const inkA = (a) => `rgba(28, 28, 26, ${a})`
 
+// Classical (Chaldean) planetary ruler of each weekday — a fixed function of the
+// day, no ephemeris needed. Indexed by Date.getDay() (0 = Sunday). Trailing
+// U+FE0E keeps ♀/♂ as glyphs, not emoji.
+const PLANETARY_DAYS = [
+  { day: 'Sunday', planet: 'Sun', glyph: '☉', energy: 'Vitality, self, and confidence. Shine, rest into your own center, and do what lights you up.' },
+  { day: 'Monday', planet: 'Moon', glyph: '☽', energy: 'Emotion, intuition, and home. Feel, nurture, and tend to your inner world and your body.' },
+  { day: 'Tuesday', planet: 'Mars', glyph: '♂︎', energy: 'Drive, courage, and action. Train hard, take the bold step, assert yourself, and cut what needs cutting.' },
+  { day: 'Wednesday', planet: 'Mercury', glyph: '☿︎', energy: 'Mind, communication, and exchange. Write, call, learn, and handle the details and admin.' },
+  { day: 'Thursday', planet: 'Jupiter', glyph: '♃︎', energy: 'Expansion, abundance, and luck. Grow, say yes, be generous, and aim a little bigger.' },
+  { day: 'Friday', planet: 'Venus', glyph: '♀︎', energy: 'Love, beauty, and pleasure. Adorn yourself, connect, make something beautiful, and let yourself enjoy.' },
+  { day: 'Saturday', planet: 'Saturn', glyph: '♄︎', energy: 'Discipline, structure, and mastery. Do the deep work, hold your boundaries, finish things, then truly rest.' },
+]
+
 // Irregular decorative scatter around the wheel's outer edge (fixed, not random).
 const SCATTER = [
   { deg: 12, r: 116, mark: '✦', o: 0.5, size: 5 },
@@ -171,10 +184,13 @@ function HoroscopeCard({ data, onEdit }) {
     ? cleanMeaning(safe.summary)
     : safe.aspects.slice(0, 3).map((a) => cleanMeaning(a.meaning)).join(' ')
 
+  const [planetOpen, setPlanetOpen] = useState(false)
+  const ruler = PLANETARY_DAYS[new Date().getDay()]
+
   const Heading = onEdit ? 'button' : 'h2'
   return (
     <section className="mb-10">
-      <div className="mb-4 text-center">
+      <div className="mb-4 flex flex-col items-center">
         <Heading
           onClick={onEdit || undefined}
           className={`kicker text-stone-400 ${onEdit ? 'transition-colors hover:text-stone-700' : ''}`}
@@ -182,7 +198,16 @@ function HoroscopeCard({ data, onEdit }) {
         >
           Your Horoscope
         </Heading>
+        <button
+          onClick={() => setPlanetOpen(true)}
+          title={`${ruler.day} · ${ruler.planet}`}
+          className="mt-1.5 text-2xl leading-none text-stone-500 transition-colors hover:text-stone-900"
+          style={{ fontFamily: "'Georgia', serif", fontVariantEmoji: 'text' }}
+        >
+          {ruler.glyph}
+        </button>
       </div>
+      {planetOpen && <PlanetPopup ruler={ruler} onClose={() => setPlanetOpen(false)} />}
 
       {safe.aspects.length > 0 ? (
         summary && (
@@ -194,6 +219,27 @@ function HoroscopeCard({ data, onEdit }) {
         </p>
       )}
     </section>
+  )
+}
+
+// Today's ruling planet + the day's energy, in the planner's pop-up style.
+function PlanetPopup({ ruler, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex justify-end px-4 pt-3">
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+        </div>
+        <div className="px-6 pb-6">
+          <div className="mb-4 flex flex-col items-center text-center">
+            <span className="text-4xl leading-none text-stone-800" style={{ fontFamily: "'Georgia', serif", fontVariantEmoji: 'text' }}>{ruler.glyph}</span>
+            <p className="mt-3 font-serif text-2xl text-stone-900">{ruler.planet}</p>
+            <p className="kicker text-stone-400 mt-1">{ruler.day}'s planet</p>
+          </div>
+          <p className="border-t border-stone-100 pt-4 text-sm leading-relaxed text-stone-600">{ruler.energy}</p>
+        </div>
+      </div>
+    </div>
   )
 }
 
