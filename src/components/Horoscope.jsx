@@ -19,13 +19,13 @@ const inkA = (a) => `rgba(28, 28, 26, ${a})`
 // day, no ephemeris needed. Indexed by Date.getDay() (0 = Sunday). Trailing
 // U+FE0E keeps ♀/♂ as glyphs, not emoji.
 const PLANETARY_DAYS = [
-  { day: 'Sunday', planet: 'Sun', glyph: '☉', energy: 'Vitality, self, and confidence. Shine, rest into your own center, and do what lights you up.' },
-  { day: 'Monday', planet: 'Moon', glyph: '☽', energy: 'Emotion, intuition, and home. Feel, nurture, and tend to your inner world and your body.' },
-  { day: 'Tuesday', planet: 'Mars', glyph: '♂︎', energy: 'Drive, courage, and action. Train hard, take the bold step, assert yourself, and cut what needs cutting.' },
-  { day: 'Wednesday', planet: 'Mercury', glyph: '☿︎', energy: 'Mind, communication, and exchange. Write, call, learn, and handle the details and admin.' },
-  { day: 'Thursday', planet: 'Jupiter', glyph: '♃︎', energy: 'Expansion, abundance, and luck. Grow, say yes, be generous, and aim a little bigger.' },
-  { day: 'Friday', planet: 'Venus', glyph: '♀︎', energy: 'Love, beauty, and pleasure. Adorn yourself, connect, make something beautiful, and let yourself enjoy.' },
-  { day: 'Saturday', planet: 'Saturn', glyph: '♄︎', energy: 'Discipline, structure, and mastery. Do the deep work, hold your boundaries, finish things, then truly rest.' },
+  { day: 'Sunday', planet: 'Sun', glyph: '☉', energy: 'Vitality, self, confidence, visibility. Shine, rest into your own center, do what lights you up.' },
+  { day: 'Monday', planet: 'Moon', glyph: '☽', energy: 'Emotion, intuition, home, receptivity. Feel, nurture, tend to your inner world and your body.' },
+  { day: 'Tuesday', planet: 'Mars', glyph: '♂︎', energy: 'Drive, courage, action. Train hard, tackle the bold thing, assert, cut what needs cutting.' },
+  { day: 'Wednesday', planet: 'Mercury', glyph: '☿︎', energy: 'Mind, communication, exchange. Write, call, learn, run errands, handle admin and details.' },
+  { day: 'Thursday', planet: 'Jupiter', glyph: '♃︎', energy: 'Expansion, abundance, luck. Grow, say yes, be generous, aim bigger, network, invest in yourself.' },
+  { day: 'Friday', planet: 'Venus', glyph: '♀︎', energy: 'Love, beauty, pleasure. Self-care, romance, art, adorn yourself, connect, enjoy.' },
+  { day: 'Saturday', planet: 'Saturn', glyph: '♄︎', energy: 'Discipline, structure, mastery. Deep work, boundaries, organize, finish things, then truly rest.' },
 ]
 
 // Irregular decorative scatter around the wheel's outer edge (fixed, not random).
