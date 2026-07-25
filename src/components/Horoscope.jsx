@@ -264,7 +264,9 @@ function HoroscopeInner() {
   const today = useMemo(() => new Date(), [])
   const key = dateKey(today)
 
-  const [signsRaw, setSigns] = useLocalStorage('mos:astro:signs', DEFAULT_SIGNS)
+  // The chart editor is a "try it on" tool — it lives in ephemeral state, so a page
+  // reload always returns to Melissa's real chart (the defaults).
+  const [signsRaw, setSigns] = useState(DEFAULT_SIGNS)
   const signs = {
     sun: SIGNS.includes(signsRaw?.sun) ? signsRaw.sun : DEFAULT_SIGNS.sun,
     moon: SIGNS.includes(signsRaw?.moon) ? signsRaw.moon : DEFAULT_SIGNS.moon,
@@ -340,7 +342,11 @@ function HoroscopeInner() {
         const next = normalizeData(json)
         if (next.aspects.length && next.theme && alive) {
           setData(next)
-          setCached({ date: key, signs: sig, voice: VOICE, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
+          // Only persist the reading for the real chart, so a "try it on" combo
+          // never overwrites the daily reading that loads on refresh.
+          if (sig === signSig(DEFAULT_SIGNS)) {
+            setCached({ date: key, signs: sig, voice: VOICE, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
+          }
         }
       } catch {
         /* offline / no key — the deterministic fallback already rendered */
