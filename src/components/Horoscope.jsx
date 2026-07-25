@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
@@ -287,10 +287,16 @@ function HoroscopeInner() {
 
   const [cached, setCached] = useLocalStorage('mos:horoscope', null)
   const [data, setData] = useState(() => fallbackData(top))
+  const [refresh, setRefresh] = useState(0) // bumped on Save to re-pull the reading
+  const lastRefresh = useRef(0)
 
   useEffect(() => {
+    // A Save forces a fresh pull past the daily cache; a normal render uses cache.
+    const forced = refresh !== lastRefresh.current
+    lastRefresh.current = refresh
     // Use the cache only if it's today's, matches the current signs, and is valid.
     if (
+      !forced &&
       cached &&
       cached.date === key &&
       cached.signs === sig &&
@@ -304,7 +310,13 @@ function HoroscopeInner() {
       return undefined
     }
 
-    setData(fallbackData(top))
+    // No matching cache. Keep whatever accurate reading is already on screen; only
+    // fall to the deterministic reading if nothing is displayed yet. This is what
+    // prevents the backup from ever replacing a good reading (e.g. editing offline).
+    setData((prev) => {
+      const cur = normalizeData(prev)
+      return cur.summary || cur.aspects.length ? prev : fallbackData(top)
+    })
     if (!top.length) return undefined
 
     let alive = true
@@ -338,7 +350,7 @@ function HoroscopeInner() {
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, top, sig])
+  }, [key, top, sig, refresh])
 
   return (
     <>
@@ -346,7 +358,7 @@ function HoroscopeInner() {
       {editing && (
         <SignsModal
           signs={signs}
-          onSave={(next) => { setSigns(next); setEditing(false) }}
+          onSave={(next) => { setSigns(next); setRefresh((n) => n + 1); setEditing(false) }}
           onClose={() => setEditing(false)}
         />
       )}
