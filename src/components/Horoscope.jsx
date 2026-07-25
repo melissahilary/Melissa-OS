@@ -118,23 +118,40 @@ const cleanMeaning = (m) => (m || '').replace(/\s*[—–]\s*/g, ', ')
 
 // Deterministic JSON built from the real aspects — used while the API call is in
 // flight and whenever it is unavailable or malformed.
+const dom = (p) => DOMAIN[p] || meaningOf(p) || 'energy'
+// Varied phrasings so the offline reading never repeats its shape; indexed 0..2
+// so three tellings each read differently. Goddess voice, always affirmative.
+const TELL = {
+  flow: [
+    (a, b) => `Your ${a} and your ${b} move together with ease today.`,
+    (a, b) => `There is a soft harmony between your ${a} and your ${b}.`,
+    (a, b) => `Your ${a} lends its grace to your ${b}.`,
+  ],
+  friction: [
+    (a, b) => `Your ${a} and your ${b} are refining one another, and your power sharpens there.`,
+    (a, b) => `A quiet tension between your ${a} and your ${b} is inviting you to grow.`,
+    (a, b) => `Where your ${a} meets your ${b}, something in you is being made stronger.`,
+  ],
+  focus: [
+    (a, b) => `Your ${a} and your ${b} draw into a single focus today.`,
+    (a, b) => `Your ${a} and your ${b} align, pulling your attention to one clear thing.`,
+    (a, b) => `Your ${a} and your ${b} come together with real intention.`,
+  ],
+}
+
 function fallbackData(top) {
   const list = Array.isArray(top) ? top : []
-  const tell = (a) =>
-    `Your ${DOMAIN[a.transit] || meaningOf(a.transit)} and ${DOMAIN[a.natal] || meaningOf(a.natal)} ${REL[qualityOf(a.aspect)]} today.`
-  // Collapse tellings that would read the same: reciprocal aspects (e.g. Moon↔Venus)
-  // and any pair mapping to the same two life areas map to one distinct sentence.
+  // One telling per transiting planet, so the subject (and opening) varies each
+  // sentence instead of repeating "Your emotions and…".
   const seen = new Set()
-  const tellings = []
+  const picks = []
   for (const a of list) {
-    const domA = DOMAIN[a.transit] || meaningOf(a.transit)
-    const domB = DOMAIN[a.natal] || meaningOf(a.natal)
-    const key = [domA, domB].sort().join('|') + '|' + qualityOf(a.aspect)
-    if (seen.has(key)) continue
-    seen.add(key)
-    tellings.push(tell(a))
-    if (tellings.length === 3) break
+    if (seen.has(a.transit)) continue
+    seen.add(a.transit)
+    picks.push(a)
+    if (picks.length === 3) break
   }
+  const tellings = picks.map((a, i) => TELL[qualityOf(a.aspect)][i % 3](dom(a.transit), dom(a.natal)))
   const summary = tellings.join(' ')
   return {
     theme: list.length ? THEME[qualityOf(list[0].aspect)] || '' : '',
