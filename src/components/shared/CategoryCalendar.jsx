@@ -17,6 +17,14 @@ export const partOf = (a) => {
   return 'morning'
 }
 const firstLine = (t, fallback) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || fallback
+// "14:30" → "2:30 PM"; empty/invalid → ''
+const fmtTime = (t) => {
+  if (!t || !/^\d{1,2}:\d{2}$/.test(t)) return ''
+  const [h, m] = t.split(':').map(Number)
+  const ap = h < 12 ? 'AM' : 'PM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${ap}`
+}
 
 // Calendar occurrence check. A weekly / weekdays / weekends ritual with no end
 // date is ongoing — it should land on EVERY matching weekday across the whole
@@ -154,7 +162,9 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
         ) : (
           <div className="space-y-5">
             {PARTS.map((pt) => {
-              const list = dayItems.filter((a) => partOf(a) === pt.id)
+              const list = dayItems
+                .filter((a) => partOf(a) === pt.id)
+                .sort((a, b) => (a.details?.time || '99:99').localeCompare(b.details?.time || '99:99'))
               if (!list.length) return null
               return (
                 <div key={pt.id}>
@@ -163,7 +173,10 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
                     {list.map((a) => (
                       <div key={a.id} className="group flex items-start gap-3 border border-stone-200 bg-white/40 px-4 py-2.5">
                         <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
-                          <p className="text-sm text-stone-800">{a.title || noun}</p>
+                          <p className="text-sm text-stone-800">
+                            {fmtTime(a.details?.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtTime(a.details?.time)}</span>}
+                            {a.title || noun}
+                          </p>
                           {a.notes && a.notes.trim() && <p className="mt-0.5 whitespace-pre-line text-xs leading-relaxed text-stone-500">{a.notes}</p>}
                         </button>
                         <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={15} /></button>
@@ -206,6 +219,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
   const [start, setStart] = useState(a0.seriesStart || dayKey)
   const [end, setEnd] = useState(a0.seriesEnd || '')
   const [noEnd, setNoEnd] = useState(!a0.seriesEnd)
+  const [time, setTime] = useState(a0.details?.time || '')
 
   const toggleDay = (d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   const recurring = pattern !== 'once'
@@ -219,7 +233,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
     const nm = name.trim() || firstLine(text, noun)
     const startK = start || dayKey
     const tod = [...new Set(sections.map((s) => SECTION_TOD[s]))]
-    const base = { ...a0, title: nm, category, daySections: sections, daySection: undefined, timeOfDay: tod, notes: text.trim() }
+    const base = { ...a0, title: nm, category, daySections: sections, daySection: undefined, timeOfDay: tod, notes: text.trim(), details: { ...(a0.details || {}), time: time || '' } }
     if (pattern === 'once') {
       Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: startK, seriesEnd: '' })
     } else if (pattern === 'custom') {
@@ -255,6 +269,14 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
           <div>
             <span className="kicker text-stone-400 mb-1.5 block">Details</span>
             <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Notes…" className="w-full min-h-[100px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900" />
+          </div>
+          <div>
+            <span className="kicker text-stone-400 mb-1.5 block">Time</span>
+            <div className="flex items-center gap-3">
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              {time && <button type="button" onClick={() => setTime('')} className="text-xs text-stone-400 hover:text-stone-700">clear</button>}
+            </div>
+            <p className="mt-1.5 text-xs italic text-stone-400">Add a time to schedule an appointment; leave blank for an all-day item.</p>
           </div>
           <div>
             <span className="kicker text-stone-400 mb-2 block">Type of Event</span>

@@ -333,7 +333,7 @@ function SubNav({ items, activeId, onPick }) {
             <button
               key={s.id}
               onClick={() => onPick(s.id)}
-              className={`relative whitespace-nowrap py-3 font-serif text-[15px] italic transition-colors ${
+              className={`relative whitespace-nowrap py-3 font-serif text-[15px] transition-colors ${
                 activeId === s.id ? 'text-stone-900' : 'text-stone-400 hover:text-stone-700'
               }`}
             >
@@ -372,7 +372,7 @@ function DreamSubNav({ dreamPage, setDreamPage, onExit }) {
       onDrop={draggable ? () => onDrop(id) : undefined}
       onDragEnd={draggable ? () => setDragId(null) : undefined}
       onClick={() => setDreamPage(id)}
-      className={`relative whitespace-nowrap py-3 font-serif text-[15px] italic transition-colors ${
+      className={`relative whitespace-nowrap py-3 font-serif text-[15px] transition-colors ${
         dreamPage === id ? 'text-stone-900' : 'text-stone-400 hover:text-stone-700'
       } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === id ? 'opacity-40' : ''}`}
     >
