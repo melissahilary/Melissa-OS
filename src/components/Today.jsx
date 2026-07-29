@@ -678,13 +678,14 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     const out = []
     activities.forEach((a) => {
       if (a.type !== 'protocol' || !SECTION_CATS.ritual.includes(a.category) || !active(a, k)) return
+      const block = a.details?.block
       const secs = daySectionsOf(a)
       if (secs.length) {
-        if (secs.includes('morning')) out.push({ id: a.id, title: a.title, part: 'morning', done: isDoneOn(a, k), order: a.order })
-        if (secs.includes('night')) out.push({ id: a.id, title: a.title, part: 'evening', done: isDoneOn(a, k), order: a.order })
+        if (secs.includes('morning')) out.push({ id: a.id, title: a.title, part: 'morning', block, done: isDoneOn(a, k), order: a.order })
+        if (secs.includes('night')) out.push({ id: a.id, title: a.title, part: 'evening', block, done: isDoneOn(a, k), order: a.order })
         return
       }
-      partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, done: isDoneOn(a, k), order: a.order }))
+      partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, block, done: isDoneOn(a, k), order: a.order }))
     })
     return out
   }
@@ -720,6 +721,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     if (a.type === 'event') updateDetails(id, { partOfDay: part, parts: [part] })
     else update(id, { timeOfDay: [part] })
   }
+  // Move a routine task into one of the five day-flow blocks (persisted).
+  const moveTaskToBlock = (id, block) => updateDetails(id, { block })
 
   const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
 
@@ -776,6 +779,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onRemoveMeal={removeMeal}
         onReorder={setOrder}
         onMovePart={moveEventToPart}
+        onMoveTaskBlock={moveTaskToBlock}
         onToggle={toggleEvent}
         onOpen={(id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }}
       />
@@ -824,7 +828,7 @@ const PHASE_AGENDA_HINT = {
 // ── Calendar ───────────────────────────────────────────────────────
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
-function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onToggle, onOpen }) {
+function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onToggle, onOpen }) {
   const selected = parseKey(selectedKey)
 
   return (
@@ -844,17 +848,12 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
       <div className="mt-10 border-t border-stone-200 pt-6">
         <h3 className="mb-6 text-center font-serif text-2xl text-stone-900">{longDate(selected)}</h3>
         <DayColumns
-          events={eventsFor(selectedKey)}
           rituals={ritualsFor(selectedKey)}
           dateKeyStr={selectedKey}
           meals={mealsFor(selectedKey)}
-          carry={carry}
-          onCompleteCarry={onCompleteCarry}
-          agendaHint={agendaHint}
           onAddMeal={onAddMeal}
           onRemoveMeal={onRemoveMeal}
-          onReorder={onReorder}
-          onMovePart={onMovePart}
+          onMoveTaskBlock={onMoveTaskBlock}
           onToggle={onToggle}
           onOpen={onOpen}
         />
@@ -882,13 +881,13 @@ const sortEvents = (a, b) => {
 // rows match by exact slot so a supp lives in exactly one block.
 const NOURISH_BLOCKS = [
   {
-    top: 'Upon Waking', sub: 'Empty Stomach', rows: [
+    id: 'waking', top: 'Upon Waking', sub: 'Empty Stomach', rows: [
       { kind: 'food', slot: 'empty', label: 'Food' },
       { kind: 'supp', slot: 'empty', label: 'Supplements' },
     ],
   },
   {
-    top: 'Morning', sub: 'Breakfast', rows: [
+    id: 'morning', top: 'Morning', sub: 'Breakfast', rows: [
       { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
       { kind: 'food', slot: 'drink', label: 'Drink' },
       { kind: 'food', slot: 'snack', label: 'Snack' },
@@ -896,25 +895,33 @@ const NOURISH_BLOCKS = [
     ],
   },
   {
-    top: 'Afternoon', sub: 'Lunch', rows: [
+    id: 'afternoon', top: 'Afternoon', sub: 'Lunch', rows: [
       { kind: 'food', slot: 'lunch', label: 'Lunch' },
       { kind: 'food', slot: 'snack2', label: 'Snack' },
       { kind: 'supp', slot: 'lunch', label: 'Supplements' },
     ],
   },
   {
-    top: 'Evening', sub: 'Dinner', rows: [
+    id: 'evening', top: 'Evening', sub: 'Dinner', rows: [
       { kind: 'food', slot: 'dinner', label: 'Dinner' },
       { kind: 'supp', slot: 'dinner', label: 'Supplements' },
     ],
   },
   {
-    top: 'Before Bed', sub: 'Empty Stomach', rows: [
+    id: 'bed', top: 'Before Bed', sub: 'Empty Stomach', rows: [
       { kind: 'food', slot: 'bed', label: 'Food' },
       { kind: 'supp', slot: 'bed', label: 'Supplements' },
     ],
   },
 ]
+
+// The five day-flow blocks, in order. A routine task lives in exactly one block;
+// its default block comes from its part of day, and Melissa can nudge it to any
+// other block (persisted on the activity as details.block).
+const BLOCK_ORDER = NOURISH_BLOCKS.map((b) => b.id)
+const PART_TO_BLOCK = { morning: 'morning', afternoon: 'afternoon', evening: 'evening' }
+const effectiveBlock = (r) =>
+  r.block && BLOCK_ORDER.includes(r.block) ? r.block : (PART_TO_BLOCK[r.part] || 'morning')
 
 // Agenda order: manual drag order wins; otherwise morning→evening, then time.
 const PART_RANK = { morning: 0, afternoon: 1, evening: 2 }
@@ -977,64 +984,48 @@ function Collapsible({ label, open, onToggle, children }) {
   )
 }
 
-// ── TODAY view body — a single daily flow ──
-// Morning Routine · Nourishment (full day) · Agenda (once) · Evening Routine.
-function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onCompleteCarry, agendaHint, onAddMeal, onRemoveMeal, onReorder, onToggle, onOpen }) {
-  const [collapsed, setCollapsed] = useState({})
-  const toggleSec = (k) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))
-  const isOpen = (k) => !collapsed[k]
-
-  const morningRituals = dedupeById(rituals.filter((r) => r.part === 'morning' || r.part === 'afternoon')).sort(sortEvents)
-  const eveningRituals = dedupeById(rituals.filter((r) => r.part === 'evening')).sort(sortEvents)
-  const agenda = dedupeById(events).sort(agendaSort)
-
+// ── TODAY view body — one swipeable day flow ──
+// The whole day is a single carousel of five time-blocks (Upon Waking … Before
+// Bed). Each block gathers what happens then: the tasks to achieve, the food,
+// the supplements. Arrows/dots move between blocks; a task can be nudged to any
+// block so it sits with the right moment.
+function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onToggle, onOpen }) {
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      {/* MORNING ROUTINE */}
-      <Collapsible label="Morning Routine" open={isOpen('ritual:morning')} onToggle={() => toggleSec('ritual:morning')}>
-        <OrderedList items={morningRituals} emptyText="Nothing yet." onToggle={onToggle} onOpen={onOpen} onReorder={onReorder} />
-      </Collapsible>
-
-      {/* NOURISHMENT — the full day, one swipeable time-block at a time */}
-      <Collapsible label="Nourishment" open={isOpen('nourishment')} onToggle={() => toggleSec('nourishment')}>
-        <NourishCarousel meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
-      </Collapsible>
-
-      {/* AGENDA — one list for the whole day */}
-      <Collapsible label="Agenda" open={isOpen('agenda')} onToggle={() => toggleSec('agenda')}>
-        {agendaHint && <p className="mb-2 text-xs italic text-stone-400">{agendaHint}</p>}
-        {carry.length > 0 && (
-          <div className="mb-2 space-y-1.5">
-            {carry.slice(0, 3).map((it) => (
-              <div key={`carry-${it.id}`} className="flex items-center gap-2">
-                <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-300">yesterday</span>
-                <span className="flex-1 text-sm italic text-stone-400">{it.title || 'Untitled'}</span>
-                <Checkbox checked={false} onClick={() => onCompleteCarry(it.id)} />
-              </div>
-            ))}
-            {carry.length > 3 && <p className="text-[10px] italic text-stone-300">+{carry.length - 3} more from yesterday</p>}
-          </div>
-        )}
-        <OrderedList items={agenda} emptyText="Nothing scheduled." onToggle={onToggle} onOpen={onOpen} onReorder={onReorder} />
-      </Collapsible>
-
-      {/* EVENING ROUTINE */}
-      <Collapsible label="Evening Routine" open={isOpen('ritual:evening')} onToggle={() => toggleSec('ritual:evening')}>
-        <OrderedList items={eveningRituals} emptyText="Nothing yet." onToggle={onToggle} onOpen={onOpen} onReorder={onReorder} />
-      </Collapsible>
+    <div className="mx-auto max-w-2xl">
+      <DayFlow
+        rituals={rituals || []}
+        meals={meals}
+        dateKeyStr={dateKeyStr}
+        onAdd={onAddMeal}
+        onRemove={onRemoveMeal}
+        onMoveTaskBlock={onMoveTaskBlock}
+        onToggle={onToggle}
+        onOpen={onOpen}
+      />
     </div>
   )
 }
 
-// One swipeable time-block; arrows/dots move between the five blocks.
-function NourishCarousel({ meals, dateKeyStr, onAdd, onRemove }) {
+// A single day-flow block: the tasks to achieve then, followed by its food and
+// supplement rows. Arrows/dots move between the five blocks.
+function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onToggle, onOpen }) {
   const [i, setI] = useState(0)
   const n = NOURISH_BLOCKS.length
   const block = NOURISH_BLOCKS[i]
   const go = (d) => setI((x) => Math.max(0, Math.min(n - 1, x + d)))
+  const tasks = dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
+
+  // Nudge a task to an adjacent block and follow it there, so it visibly lands.
+  const moveTask = (id, dir) => {
+    const ni = Math.max(0, Math.min(n - 1, i + dir))
+    if (ni === i) return
+    onMoveTaskBlock(id, BLOCK_ORDER[ni])
+    setI(ni)
+  }
+
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <button onClick={() => go(-1)} disabled={i === 0} className={`px-2 py-1 text-lg ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
         <div className="text-center leading-tight">
           <p className="kicker text-stone-400">{block.top}</p>
@@ -1043,22 +1034,48 @@ function NourishCarousel({ meals, dateKeyStr, onAdd, onRemove }) {
         <button onClick={() => go(1)} disabled={i === n - 1} className={`px-2 py-1 text-lg ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
       </div>
 
-      <div className="min-h-[92px] space-y-3">
+      <div className="min-h-[92px] space-y-4">
+        {tasks.length > 0 && (
+          <div>
+            <p className="kicker text-stone-400 mb-1.5">To Achieve</p>
+            <div className="space-y-1.5">
+              {tasks.map((t) => (
+                <TaskRow key={t.id} task={t} blockIndex={i} lastIndex={n - 1} onToggle={onToggle} onOpen={onOpen} onMove={(dir) => moveTask(t.id, dir)} />
+              ))}
+            </div>
+          </div>
+        )}
+
         {block.rows.map((row) => (
           <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
         ))}
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-1.5">
+      <div className="mt-5 flex items-center justify-center gap-1.5">
         {NOURISH_BLOCKS.map((b, idx) => (
           <button
-            key={b.top}
+            key={b.id}
             onClick={() => setI(idx)}
             aria-label={`${b.top} · ${b.sub}`}
             className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-4 bg-stone-700' : 'w-1.5 bg-stone-300 hover:bg-stone-400'}`}
           />
         ))}
       </div>
+    </div>
+  )
+}
+
+// A task within a day-flow block: check it off, tap to edit, or nudge it to the
+// previous/next block with the hairline ‹ › marks.
+function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove }) {
+  return (
+    <div className="group flex items-center gap-2">
+      <button onClick={() => onOpen(task.id)} className={`flex-1 text-left text-sm ${task.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{task.title || 'Untitled'}</button>
+      <div className="flex items-center gap-0.5">
+        <button onClick={() => onMove(-1)} disabled={blockIndex === 0} aria-label="Move to earlier block" className={`px-1 text-sm ${blockIndex === 0 ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}>‹</button>
+        <button onClick={() => onMove(1)} disabled={blockIndex === lastIndex} aria-label="Move to later block" className={`px-1 text-sm ${blockIndex === lastIndex ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}>›</button>
+      </div>
+      <Checkbox checked={task.done} onClick={() => onToggle(task.id)} />
     </div>
   )
 }
