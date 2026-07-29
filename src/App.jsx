@@ -241,267 +241,148 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <div className="mx-auto flex max-w-[1400px] flex-col md:flex-row">
-        {/* ── Sidebar — pinned to the side on iPad & desktop (md+), a top bar on phones ── */}
-        <aside
-          className={`md:sticky md:top-0 md:h-screen md:shrink-0 md:overflow-y-auto border-b md:border-b-0 md:border-r border-stone-200 py-8 transition-all ${
-            collapsed ? 'md:w-[76px] px-3' : 'md:w-[300px] lg:w-[320px] px-7'
-          }`}
-        >
-          {collapsed ? (
-            <CollapsedRail
-              setCollapsed={setCollapsed}
-              setActive={setActive}
-              setDreamPage={setDreamPage}
-              pillars={visiblePillars}
-              active={active}
-            />
-          ) : (
-            <>
-              {isToday && (
-                <div className="mb-6 flex justify-end">
-                  <button
-                    onClick={() => setCollapsed(true)}
-                    className="text-stone-400 hover:text-stone-900"
-                    title="Collapse sidebar"
-                  >
-                    <PanelLeftClose size={18} />
-                  </button>
-                </div>
-              )}
+      <TopNav
+        active={active}
+        pillars={visiblePillars}
+        onGoToday={goToday}
+        onGoDream={() => { setActive('dream'); setDreamPage('goals') }}
+        onGoPillar={(id) => setActive(id)}
+        onGoSettings={() => setActive('settings')}
+      />
 
-              {isToday && (
-                <SidebarToday setActive={setActive} setDreamPage={setDreamPage} pillars={visiblePillars} />
-              )}
+      {/* Contextual second row — the active section's sub-pages */}
+      {isPillar && SUBNAV[active] && (
+        <SubNav items={SUBNAV[active]} activeId={activeSub} onPick={setActiveSub} />
+      )}
+      {isDream && <DreamSubNav dreamPage={dreamPage} setDreamPage={setDreamPage} />}
 
-              {isDream && (
-                <SidebarDream goToday={goToday} dreamPage={dreamPage} setDreamPage={setDreamPage} />
-              )}
-
-              {isSettings && (
-                <button
-                  type="button"
-                  onClick={goToday}
-                  className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
-                >
-                  <ChevronLeft size={16} /> Back to Today
-                </button>
-              )}
-
-              {isPillar && (
-                <div className="space-y-6">
-                  <button
-                    type="button"
-                    onClick={goToday}
-                    className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
-                  >
-                    <ChevronLeft size={16} /> Back to Today
-                  </button>
-                  {SUBNAV[active] && (
-                    <nav className="space-y-1 border-t border-stone-200 pt-5">
-                      <p className="kicker text-stone-400 mb-2">{activePillarMeta?.label}</p>
-                      {SUBNAV[active].map((s) => (
-                        <button
-                          key={s.id}
-                          onClick={() => setActiveSub(s.id)}
-                          className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
-                            activeSub === s.id ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
-                          }`}
-                        >
-                          {s.label}
-                        </button>
-                      ))}
-                    </nav>
-                  )}
-                </div>
-              )}
-            </>
+      {/* ── Main content ────────────────────────────────────── */}
+      <main className="overflow-x-hidden px-6 py-10 md:px-10 lg:px-12">
+        <div className="mx-auto max-w-5xl">
+          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
+          {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
+          {isPillar && ActivePillar && (
+            <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
           )}
-        </aside>
-
-        {/* ── Main content ────────────────────────────────────── */}
-        <main className="flex-1 overflow-x-hidden px-6 py-8 md:px-10 lg:px-12">
-          <div className="mx-auto max-w-5xl">
-            {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
-            {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
-            {isPillar && ActivePillar && (
-              <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
-            )}
-            {isSettings && <Settings />}
-            <Footer />
-          </div>
-        </main>
-      </div>
+          {isSettings && <Settings />}
+          <Footer />
+        </div>
+      </main>
     </div>
     </AddProvider>
   )
 }
 
-// ── Collapsed icon rail ─────────────────────────────────────────────
-function CollapsedRail({ setCollapsed, setActive, setDreamPage, pillars, active }) {
+// ── Top navigation bar ──────────────────────────────────────────────
+// A slim wordmark row over a horizontally-scrollable strip of sections. The
+// active section is inked with a hairline underline; the rest stay quiet.
+function TopNav({ active, pillars, onGoToday, onGoDream, onGoPillar, onGoSettings }) {
+  const links = [
+    { id: 'today', label: 'Today', onClick: onGoToday, on: active === 'today' },
+    { id: 'dream', label: 'Manifestations', onClick: onGoDream, on: active === 'dream' },
+    ...pillars.map((p) => ({ id: p.id, label: p.label, onClick: () => onGoPillar(p.id), on: active === p.id })),
+  ]
   return (
-    <div className="flex flex-col items-center gap-1">
-      <button onClick={() => setCollapsed(false)} className="mb-1 text-stone-400 hover:text-stone-900" title="Expand sidebar">
-        <PanelLeftOpen size={18} />
-      </button>
-      <div className="mb-3"><AccountDot /></div>
-
-      <RailButton icon={CalendarDays} label="Today" active={active === 'today'} onClick={() => setActive('today')} />
-      <RailButton
-        icon={Sparkles}
-        label="Manifestations"
-        active={active === 'dream'}
-        onClick={() => {
-          setActive('dream')
-          setDreamPage('goals')
-        }}
-      />
-
-      <div className="my-2 h-px w-6 bg-stone-200" />
-
-      {pillars.map((p) => {
-        const ready = p.ready !== false
-        return (
-          <RailButton
-            key={p.id}
-            icon={p.icon}
-            label={p.label}
-            active={active === p.id}
-            disabled={!ready}
-            onClick={() => ready && setActive(p.id)}
-          />
-        )
-      })}
-    </div>
-  )
-}
-
-function RailButton({ icon: Icon, label, active, disabled, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      className={`flex h-10 w-10 items-center justify-center transition-colors ${
-        active ? 'bg-stone-900 text-cream' : disabled ? 'text-stone-300' : 'text-stone-600 hover:bg-stone-100'
-      }`}
-    >
-      <Icon size={18} />
-    </button>
-  )
-}
-
-// ── Sidebar: default (Today selected) ──────────────────────────────
-function SidebarToday({ setActive, setDreamPage, pillars }) {
-  return (
-    <div className="space-y-7">
-      <div>
-        <p className="kicker text-stone-400 mb-3">My Life In Glow</p>
-        <nav className="space-y-1">
-          <button
-            type="button"
-            onClick={() => {
-              setActive('dream')
-              setDreamPage('goals')
-            }}
-            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-100 transition-colors"
-          >
-            <Sparkles size={16} className="shrink-0" />
-            <span>Manifestations</span>
+    <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
+      <div className="mx-auto max-w-[1400px] px-6 md:px-10">
+        <div className="flex items-center justify-between pt-3.5 pb-2">
+          <button onClick={onGoToday} className="leading-none text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>
+            <span className="text-[26px]">Melissa</span>
           </button>
-          {pillars.map((p) => {
-            const Icon = p.icon
-            const ready = p.ready !== false
-            return (
-              <button
-                key={p.id}
-                type="button"
-                disabled={!ready}
-                onClick={() => ready && setActive(p.id)}
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
-                  ready ? 'text-stone-700 hover:bg-stone-100' : 'cursor-not-allowed text-stone-300'
-                }`}
-              >
-                <Icon size={16} className="shrink-0" />
-                <span>{p.label}</span>
-                {!ready && <span className="kicker ml-auto text-stone-300">soon</span>}
-              </button>
-            )
-          })}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onGoSettings}
+              title="Settings"
+              className={`transition-colors ${active === 'settings' ? 'text-stone-900' : 'text-stone-400 hover:text-stone-900'}`}
+            >
+              <SettingsIcon size={17} />
+            </button>
+            <AccountDot />
+          </div>
+        </div>
+
+        <nav className="no-scrollbar -mb-px flex items-center gap-x-4 overflow-x-auto lg:gap-x-5 xl:justify-between">
+          {links.map((l) => (
+            <button
+              key={l.id}
+              onClick={l.onClick}
+              className={`whitespace-nowrap border-b-2 pb-2.5 pt-0.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                l.on ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-700'
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
         </nav>
       </div>
-      <div className="border-t border-stone-200 pt-5">
-        <button
-          type="button"
-          onClick={() => setActive('settings')}
-          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-100 transition-colors"
-        >
-          <SettingsIcon size={16} className="shrink-0" />
-          <span>Settings</span>
-        </button>
+    </header>
+  )
+}
+
+// ── Contextual sub-navigation (a section's sub-pages) ───────────────
+function SubNav({ items, activeId, onPick }) {
+  return (
+    <div className="border-b border-stone-200 bg-cream">
+      <div className="mx-auto max-w-[1400px] px-6 md:px-10">
+        <nav className="no-scrollbar flex items-center gap-7 overflow-x-auto">
+          {items.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => onPick(s.id)}
+              className={`relative whitespace-nowrap py-3 font-serif text-[15px] italic transition-colors ${
+                activeId === s.id ? 'text-stone-900' : 'text-stone-400 hover:text-stone-700'
+              }`}
+            >
+              {s.label}
+              {activeId === s.id && <span className="absolute inset-x-0 -bottom-px h-px bg-stone-900" />}
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   )
 }
 
-// ── Sidebar: Manifestations focused mode ───────────────────────────
-function SidebarDream({ goToday, dreamPage, setDreamPage }) {
+// Manifestations sub-pages — fixed pages first, then the drag-reorderable set.
+function DreamSubNav({ dreamPage, setDreamPage }) {
   const [order, setOrder] = useLocalStorage('mos:dream:order', DREAM_REORDER)
-  const [dragId, setDragId] = React.useState(null)
-
-  // Reconcile saved order with the canonical reorderable set (handles added/removed pages).
+  const [dragId, setDragId] = useState(null)
   const reorderIds = [
     ...order.filter((id) => DREAM_REORDER.includes(id)),
     ...DREAM_REORDER.filter((id) => !order.includes(id)),
   ]
   const labelOf = (id) => DREAM_PAGES.find((p) => p.id === id)?.label || id
-
   const onDrop = (targetId) => {
     if (!dragId || dragId === targetId) return
     const next = reorderIds.filter((id) => id !== dragId)
     const at = next.indexOf(targetId)
     next.splice(at, 0, dragId)
-    setOrder(next)
-    setDragId(null)
+    setOrder(next); setDragId(null)
   }
-
-  const NavButton = ({ id, draggable }) => (
+  const Tab = ({ id, draggable }) => (
     <button
-      type="button"
       draggable={draggable}
       onDragStart={draggable ? () => setDragId(id) : undefined}
       onDragOver={draggable ? (e) => e.preventDefault() : undefined}
       onDrop={draggable ? () => onDrop(id) : undefined}
       onDragEnd={draggable ? () => setDragId(null) : undefined}
       onClick={() => setDreamPage(id)}
-      className={`block w-full px-3 py-2.5 text-left text-sm transition-colors ${
-        dreamPage === id ? 'bg-stone-900 text-cream' : 'text-stone-700 hover:bg-stone-100'
+      className={`relative whitespace-nowrap py-3 font-serif text-[15px] italic transition-colors ${
+        dreamPage === id ? 'text-stone-900' : 'text-stone-400 hover:text-stone-700'
       } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === id ? 'opacity-40' : ''}`}
     >
       {labelOf(id)}
+      {dreamPage === id && <span className="absolute inset-x-0 -bottom-px h-px bg-stone-900" />}
     </button>
   )
-
   return (
-    <div className="space-y-6">
-      <button
-        type="button"
-        onClick={goToday}
-        className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
-      >
-        <ChevronLeft size={16} /> Back to Today
-      </button>
-
-      <h2 className="font-serif italic text-2xl leading-none text-stone-900">Manifestations</h2>
-
-      <nav className="space-y-1">
-        {DREAM_FIXED.map((id) => (
-          <NavButton key={id} id={id} draggable={false} />
-        ))}
-        {reorderIds.map((id) => (
-          <NavButton key={id} id={id} draggable />
-        ))}
-      </nav>
+    <div className="border-b border-stone-200 bg-cream">
+      <div className="mx-auto max-w-[1400px] px-6 md:px-10">
+        <nav className="no-scrollbar flex items-center gap-7 overflow-x-auto">
+          {DREAM_FIXED.map((id) => <Tab key={id} id={id} draggable={false} />)}
+          {reorderIds.map((id) => <Tab key={id} id={id} draggable />)}
+        </nav>
+      </div>
     </div>
   )
 }

@@ -47,6 +47,14 @@ body {
   background: transparent;
 }
 
+/* Horizontal nav strips scroll without a visible scrollbar */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Inputs inherit the page typography and stay quiet until focused */
 input,
 textarea,
