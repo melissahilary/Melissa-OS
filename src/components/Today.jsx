@@ -877,20 +877,43 @@ const sortEvents = (a, b) => {
   return byTime(a, b)
 }
 
-// The full day's nourishment slots, in order. Supplement rows aggregate every
-// supp-item in that part; the representative slot is used when adding one.
-const NOURISH_SLOTS = [
-  { kind: 'food', slot: 'empty', label: 'Empty Stomach' },
-  { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
-  { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
-  { kind: 'food', slot: 'snack', label: 'Snack' },
-  { kind: 'food', slot: 'lunch', label: 'Lunch' },
-  { kind: 'supp', slot: 'lunch', label: 'Supplements' },
-  { kind: 'food', slot: 'snack2', label: 'Snack' },
-  { kind: 'food', slot: 'dinner', label: 'Dinner' },
-  { kind: 'supp', slot: 'dinner', label: 'Supplements' },
-  { kind: 'food', slot: 'bed', label: 'Before Bed' },
-  { kind: 'food', slot: 'drink', label: 'Drink' },
+// The day's nourishment, grouped into five swipeable time-blocks. Each block has
+// a two-part badge (time · meal) and its own food + supplement rows. Supplement
+// rows match by exact slot so a supp lives in exactly one block.
+const NOURISH_BLOCKS = [
+  {
+    top: 'Upon Waking', sub: 'Empty Stomach', rows: [
+      { kind: 'food', slot: 'empty', label: 'Food' },
+      { kind: 'supp', slot: 'empty', label: 'Supplements' },
+    ],
+  },
+  {
+    top: 'Morning', sub: 'Breakfast', rows: [
+      { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
+      { kind: 'food', slot: 'drink', label: 'Drink' },
+      { kind: 'food', slot: 'snack', label: 'Snack' },
+      { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
+    ],
+  },
+  {
+    top: 'Afternoon', sub: 'Lunch', rows: [
+      { kind: 'food', slot: 'lunch', label: 'Lunch' },
+      { kind: 'food', slot: 'snack2', label: 'Snack' },
+      { kind: 'supp', slot: 'lunch', label: 'Supplements' },
+    ],
+  },
+  {
+    top: 'Evening', sub: 'Dinner', rows: [
+      { kind: 'food', slot: 'dinner', label: 'Dinner' },
+      { kind: 'supp', slot: 'dinner', label: 'Supplements' },
+    ],
+  },
+  {
+    top: 'Before Bed', sub: 'Empty Stomach', rows: [
+      { kind: 'food', slot: 'bed', label: 'Food' },
+      { kind: 'supp', slot: 'bed', label: 'Supplements' },
+    ],
+  },
 ]
 
 // Agenda order: manual drag order wins; otherwise morning→evening, then time.
@@ -972,13 +995,9 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
         <OrderedList items={morningRituals} emptyText="Nothing yet." onToggle={onToggle} onOpen={onOpen} onReorder={onReorder} />
       </Collapsible>
 
-      {/* NOURISHMENT — the full day */}
+      {/* NOURISHMENT — the full day, one swipeable time-block at a time */}
       <Collapsible label="Nourishment" open={isOpen('nourishment')} onToggle={() => toggleSec('nourishment')}>
-        <div className="space-y-3">
-          {NOURISH_SLOTS.map((sec) => (
-            <MealSection key={sec.label} section={sec} part={slotMeta(sec.slot).part} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
-          ))}
-        </div>
+        <NourishCarousel meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} />
       </Collapsible>
 
       {/* AGENDA — one list for the whole day */}
@@ -1007,13 +1026,46 @@ function DayColumns({ events, rituals, dateKeyStr, meals, carry = [], onComplete
   )
 }
 
-function MealSection({ section, part, meals, dateKeyStr, onAdd, onRemove }) {
-  const [adding, setAdding] = useState(false)
-  const items = (meals || []).filter((m) =>
-    section.kind === 'supp'
-      ? m.kind === 'supp' && slotMeta(m.slot).part === part
-      : m.kind === 'food' && m.slot === section.slot,
+// One swipeable time-block; arrows/dots move between the five blocks.
+function NourishCarousel({ meals, dateKeyStr, onAdd, onRemove }) {
+  const [i, setI] = useState(0)
+  const n = NOURISH_BLOCKS.length
+  const block = NOURISH_BLOCKS[i]
+  const go = (d) => setI((x) => Math.max(0, Math.min(n - 1, x + d)))
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <button onClick={() => go(-1)} disabled={i === 0} className={`px-2 py-1 text-lg ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
+        <div className="text-center leading-tight">
+          <p className="kicker text-stone-400">{block.top}</p>
+          <p className="font-serif text-lg text-stone-800">{block.sub}</p>
+        </div>
+        <button onClick={() => go(1)} disabled={i === n - 1} className={`px-2 py-1 text-lg ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
+      </div>
+
+      <div className="min-h-[92px] space-y-3">
+        {block.rows.map((row) => (
+          <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-center gap-1.5">
+        {NOURISH_BLOCKS.map((b, idx) => (
+          <button
+            key={b.top}
+            onClick={() => setI(idx)}
+            aria-label={`${b.top} · ${b.sub}`}
+            className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-4 bg-stone-700' : 'w-1.5 bg-stone-300 hover:bg-stone-400'}`}
+          />
+        ))}
+      </div>
+    </div>
   )
+}
+
+function MealSection({ section, meals, dateKeyStr, onAdd, onRemove }) {
+  const [adding, setAdding] = useState(false)
+  const items = (meals || []).filter((m) => m.kind === section.kind && m.slot === section.slot)
   return (
     <div>
       <p className="kicker text-stone-400 mb-1.5">{section.label}</p>
