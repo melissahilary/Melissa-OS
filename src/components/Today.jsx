@@ -1067,7 +1067,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
           {addingTask ? (
             <AddTaskForm onCancel={() => setAddingTask(false)} onSave={(title) => { onAddTask(block.id, title); setAddingTask(false) }} />
           ) : (
-            <button onClick={() => setAddingTask(true)} className="text-sm italic hover:text-stone-700 transition-colors" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>add to‑do</button>
+            <AddRow label="add to‑do" onClick={() => setAddingTask(true)} />
           )}
         </div>
       </div>
@@ -1087,16 +1087,28 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 }
 
 // A task within a day-flow block: check it off, tap to edit, or nudge it to the
-// previous/next block with the hairline ‹ › marks (which surface on hover).
+// previous/next block with the hairline ‹ › marks (which surface on hover). The
+// leading checkbox sits in a fixed gutter so its label aligns with every other
+// row in the block, tasks and nutrition alike.
 function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove }) {
   return (
     <div className="group flex items-center gap-3 py-0.5">
-      <Checkbox checked={task.done} onClick={() => onToggle(task.id)} />
+      <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={task.done} onClick={() => onToggle(task.id)} /></span>
       <button onClick={() => onOpen(task.id)} className={`flex-1 text-left text-sm ${task.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{task.title || 'Untitled'}</button>
-      <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
         <button onClick={() => onMove(-1)} disabled={blockIndex === 0} aria-label="Move to earlier block" className={`px-1 text-sm ${blockIndex === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
         <button onClick={() => onMove(1)} disabled={blockIndex === lastIndex} aria-label="Move to later block" className={`px-1 text-sm ${blockIndex === lastIndex ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
       </div>
+    </div>
+  )
+}
+
+// Inline "add …" affordance, indented to sit in the shared text column.
+function AddRow({ label, onClick }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-4 shrink-0" />
+      <button onClick={onClick} className="text-sm italic hover:text-stone-700 transition-colors" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>{label}</button>
     </div>
   )
 }
@@ -1106,46 +1118,55 @@ function AddTaskForm({ onCancel, onSave }) {
   const [val, setVal] = useState('')
   const commit = () => { const t = val.trim(); if (t) onSave(t); else onCancel() }
   return (
-    <input
-      autoFocus
-      value={val}
-      onChange={(e) => setVal(e.target.value)}
-      onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel() }}
-      onBlur={commit}
-      placeholder="A to‑do for this block…"
-      className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
-    />
+    <div className="flex items-center gap-3">
+      <span className="w-4 shrink-0" />
+      <input
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel() }}
+        onBlur={commit}
+        placeholder="A to‑do for this block…"
+        className="flex-1 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
+      />
+    </div>
   )
 }
 
+// Nutrition rows — same list language as the tasks: one text column, a quiet
+// remove mark on hover, no checkbox (nutrition is never "achieved").
 function MealSection({ section, meals, dateKeyStr, onAdd, onRemove }) {
   const [adding, setAdding] = useState(false)
   const items = (meals || []).filter((m) => m.kind === section.kind && m.slot === section.slot)
   return (
     <div>
-      <p className="kicker text-stone-400 mb-1.5">{section.label}</p>
+      <p className="kicker text-stone-400 mb-2">{section.label}</p>
       {items.length > 0 && (
-        <div className="mb-1.5 flex flex-wrap gap-1.5">
+        <div className="mb-1 space-y-0.5">
           {items.map((m) => (
-            <span key={m.id} className="group inline-flex items-center gap-1 border border-stone-300 bg-white/50 px-2 py-0.5 text-xs text-stone-700">
-              {m.name}
-              <button onClick={() => onRemove(m.id)} className="text-stone-400 transition-colors hover:text-stone-700"><X size={11} /></button>
-            </span>
+            <div key={m.id} className="group flex items-center gap-3 py-0.5">
+              <span className="w-4 shrink-0" />
+              <span className="flex-1 text-sm text-stone-700">{m.name}</span>
+              <button onClick={() => onRemove(m.id)} aria-label="Remove" className="shrink-0 px-1 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={13} /></button>
+            </div>
           ))}
         </div>
       )}
       {adding ? (
-        <AddMealForm
-          slot={slotMeta(section.slot)}
-          kind={section.kind}
-          dateKeyStr={dateKeyStr}
-          onCancel={() => setAdding(false)}
-          onSave={(item) => { onAdd({ ...item, slot: section.slot, kind: section.kind }); setAdding(false) }}
-        />
+        <div className="flex items-start gap-3">
+          <span className="w-4 shrink-0" />
+          <div className="flex-1">
+            <AddMealForm
+              slot={slotMeta(section.slot)}
+              kind={section.kind}
+              dateKeyStr={dateKeyStr}
+              onCancel={() => setAdding(false)}
+              onSave={(item) => { onAdd({ ...item, slot: section.slot, kind: section.kind }); setAdding(false) }}
+            />
+          </div>
+        </div>
       ) : (
-        <button onClick={() => setAdding(true)} className="text-sm italic hover:text-stone-700 transition-colors" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>
-          {section.kind === 'supp' ? 'add supplement' : 'add food'}
-        </button>
+        <AddRow label={section.kind === 'supp' ? 'add supplement' : 'add food'} onClick={() => setAdding(true)} />
       )}
     </div>
   )
