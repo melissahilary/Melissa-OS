@@ -723,6 +723,13 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   }
   // Move a routine task into one of the five day-flow blocks (persisted).
   const moveTaskToBlock = (id, block) => updateDetails(id, { block })
+  // Add a quick to-do to a specific block on the selected day (a daily ritual
+  // pinned to that block; edit it later to change how often it repeats).
+  const addTask = (block, title) =>
+    add(blankActivity('protocol', {
+      title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
+      timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block },
+    }))
 
   const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
 
@@ -780,6 +787,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onReorder={setOrder}
         onMovePart={moveEventToPart}
         onMoveTaskBlock={moveTaskToBlock}
+        onAddTask={addTask}
         onToggle={toggleEvent}
         onOpen={(id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }}
       />
@@ -828,7 +836,7 @@ const PHASE_AGENDA_HINT = {
 // ── Calendar ───────────────────────────────────────────────────────
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
-function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onToggle, onOpen }) {
+function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   const selected = parseKey(selectedKey)
 
   return (
@@ -854,6 +862,7 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
           onAddMeal={onAddMeal}
           onRemoveMeal={onRemoveMeal}
           onMoveTaskBlock={onMoveTaskBlock}
+          onAddTask={onAddTask}
           onToggle={onToggle}
           onOpen={onOpen}
         />
@@ -920,6 +929,8 @@ const NOURISH_BLOCKS = [
 // other block (persisted on the activity as details.block).
 const BLOCK_ORDER = NOURISH_BLOCKS.map((b) => b.id)
 const PART_TO_BLOCK = { morning: 'morning', afternoon: 'afternoon', evening: 'evening' }
+// The part of day a block belongs to — used when a new to-do is created in it.
+const BLOCK_PART = { waking: 'morning', morning: 'morning', afternoon: 'afternoon', evening: 'evening', bed: 'evening' }
 const effectiveBlock = (r) =>
   r.block && BLOCK_ORDER.includes(r.block) ? r.block : (PART_TO_BLOCK[r.part] || 'morning')
 
@@ -989,9 +1000,9 @@ function Collapsible({ label, open, onToggle, children }) {
 // Bed). Each block gathers what happens then: the tasks to achieve, the food,
 // the supplements. Arrows/dots move between blocks; a task can be nudged to any
 // block so it sits with the right moment.
-function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onToggle, onOpen }) {
+function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-md">
       <DayFlow
         rituals={rituals || []}
         meals={meals}
@@ -999,6 +1010,7 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
         onAdd={onAddMeal}
         onRemove={onRemoveMeal}
         onMoveTaskBlock={onMoveTaskBlock}
+        onAddTask={onAddTask}
         onToggle={onToggle}
         onOpen={onOpen}
       />
@@ -1006,13 +1018,14 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
   )
 }
 
-// A single day-flow block: the tasks to achieve then, followed by its food and
-// supplement rows. Arrows/dots move between the five blocks.
-function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onToggle, onOpen }) {
+// A single day-flow block: its nutrition (food + supplements) first, then the
+// tasks to achieve then. Arrows/dots move between the five blocks.
+function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   const [i, setI] = useState(0)
+  const [addingTask, setAddingTask] = useState(false)
   const n = NOURISH_BLOCKS.length
   const block = NOURISH_BLOCKS[i]
-  const go = (d) => setI((x) => Math.max(0, Math.min(n - 1, x + d)))
+  const jump = (idx) => { setI(Math.max(0, Math.min(n - 1, idx))); setAddingTask(false) }
   const tasks = dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
 
   // Nudge a task to an adjacent block and follow it there, so it visibly lands.
@@ -1025,37 +1038,45 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <button onClick={() => go(-1)} disabled={i === 0} className={`px-2 py-1 text-lg ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
+      {/* Two-part badge, flanked by the block arrows */}
+      <div className="mb-6 flex items-center justify-between">
+        <button onClick={() => jump(i - 1)} disabled={i === 0} className={`px-2 py-1 text-lg ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
         <div className="text-center leading-tight">
           <p className="kicker text-stone-400">{block.top}</p>
-          <p className="font-serif text-lg text-stone-800">{block.sub}</p>
+          <p className="font-serif text-xl text-stone-800">{block.sub}</p>
         </div>
-        <button onClick={() => go(1)} disabled={i === n - 1} className={`px-2 py-1 text-lg ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
+        <button onClick={() => jump(i + 1)} disabled={i === n - 1} className={`px-2 py-1 text-lg ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
       </div>
 
-      <div className="min-h-[92px] space-y-4">
-        {tasks.length > 0 && (
-          <div>
-            <p className="kicker text-stone-400 mb-1.5">To Achieve</p>
-            <div className="space-y-1.5">
+      <div className="min-h-[120px] space-y-5">
+        {/* Nutrition first */}
+        {block.rows.map((row) => (
+          <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
+        ))}
+
+        {/* Then the tasks to achieve — always shown, blank is fine */}
+        <div>
+          <p className="kicker text-stone-400 mb-2">To Achieve</p>
+          {tasks.length > 0 && (
+            <div className="mb-2 space-y-0.5">
               {tasks.map((t) => (
                 <TaskRow key={t.id} task={t} blockIndex={i} lastIndex={n - 1} onToggle={onToggle} onOpen={onOpen} onMove={(dir) => moveTask(t.id, dir)} />
               ))}
             </div>
-          </div>
-        )}
-
-        {block.rows.map((row) => (
-          <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
-        ))}
+          )}
+          {addingTask ? (
+            <AddTaskForm onCancel={() => setAddingTask(false)} onSave={(title) => { onAddTask(block.id, title); setAddingTask(false) }} />
+          ) : (
+            <button onClick={() => setAddingTask(true)} className="text-sm italic hover:text-stone-700 transition-colors" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>add to‑do</button>
+          )}
+        </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-1.5">
+      <div className="mt-6 flex items-center justify-center gap-1.5">
         {NOURISH_BLOCKS.map((b, idx) => (
           <button
             key={b.id}
-            onClick={() => setI(idx)}
+            onClick={() => jump(idx)}
             aria-label={`${b.top} · ${b.sub}`}
             className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-4 bg-stone-700' : 'w-1.5 bg-stone-300 hover:bg-stone-400'}`}
           />
@@ -1066,17 +1087,34 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 }
 
 // A task within a day-flow block: check it off, tap to edit, or nudge it to the
-// previous/next block with the hairline ‹ › marks.
+// previous/next block with the hairline ‹ › marks (which surface on hover).
 function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove }) {
   return (
-    <div className="group flex items-center gap-2">
-      <button onClick={() => onOpen(task.id)} className={`flex-1 text-left text-sm ${task.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{task.title || 'Untitled'}</button>
-      <div className="flex items-center gap-0.5">
-        <button onClick={() => onMove(-1)} disabled={blockIndex === 0} aria-label="Move to earlier block" className={`px-1 text-sm ${blockIndex === 0 ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}>‹</button>
-        <button onClick={() => onMove(1)} disabled={blockIndex === lastIndex} aria-label="Move to later block" className={`px-1 text-sm ${blockIndex === lastIndex ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}>›</button>
-      </div>
+    <div className="group flex items-center gap-3 py-0.5">
       <Checkbox checked={task.done} onClick={() => onToggle(task.id)} />
+      <button onClick={() => onOpen(task.id)} className={`flex-1 text-left text-sm ${task.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{task.title || 'Untitled'}</button>
+      <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <button onClick={() => onMove(-1)} disabled={blockIndex === 0} aria-label="Move to earlier block" className={`px-1 text-sm ${blockIndex === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
+        <button onClick={() => onMove(1)} disabled={blockIndex === lastIndex} aria-label="Move to later block" className={`px-1 text-sm ${blockIndex === lastIndex ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
+      </div>
     </div>
+  )
+}
+
+// Inline "add to-do" for a day-flow block — a quiet single-line entry.
+function AddTaskForm({ onCancel, onSave }) {
+  const [val, setVal] = useState('')
+  const commit = () => { const t = val.trim(); if (t) onSave(t); else onCancel() }
+  return (
+    <input
+      autoFocus
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel() }}
+      onBlur={commit}
+      placeholder="A to‑do for this block…"
+      className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
+    />
   )
 }
 
