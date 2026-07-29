@@ -155,7 +155,10 @@ export const activityOccursOn = (a, key) => {
   if (a.seriesEnd && key > a.seriesEnd) return false
   const f = a.frequency || 'daily'
   if (f === 'daily') return true
-  if (f === 'asneeded' || f === 'once') return key === start
+  // A one-time event is a single day, unless it carries an end date — then it is
+  // a multi-day span and lands on every day from start through end (the range
+  // guards above already bound both ends).
+  if (f === 'asneeded' || f === 'once') return a.seriesStart && a.seriesEnd ? true : key === start
   const d = parseKey(key)
   const dow = d.getDay()
   if (f === 'weekdays') return dow >= 1 && dow <= 5

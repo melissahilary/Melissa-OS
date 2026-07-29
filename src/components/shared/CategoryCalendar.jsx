@@ -235,7 +235,10 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
     const tod = [...new Set(sections.map((s) => SECTION_TOD[s]))]
     const base = { ...a0, title: nm, category, daySections: sections, daySection: undefined, timeOfDay: tod, notes: text.trim(), details: { ...(a0.details || {}), time: time || '' } }
     if (pattern === 'once') {
-      Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: startK, seriesEnd: '' })
+      // A one-time event can span multiple days: keep the end date only if it's
+      // on or after the start; otherwise it's a single day.
+      const spanEnd = end && end >= startK ? end : ''
+      Object.assign(base, { frequency: 'asneeded', daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: startK, seriesEnd: spanEnd })
     } else if (pattern === 'custom') {
       Object.assign(base, { frequency: 'custom', daysOfWeek: [], interval: Math.max(1, Number(num) || 1), intervalUnit: unit, seriesStart: startK, seriesEnd: noEnd ? '' : end })
     } else if (usesDays(pattern)) {
@@ -305,6 +308,20 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
               </div>
             )}
           </div>
+
+          {pattern === 'once' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="kicker text-stone-400 mb-1.5 block">Starts</span>
+                <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              </div>
+              <div>
+                <span className="kicker text-stone-400 mb-1.5 block">Ends</span>
+                <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+                <p className="mt-1.5 text-xs italic text-stone-400">Leave blank for a single day; set a later date for a multi-day event.</p>
+              </div>
+            </div>
+          )}
 
           {needDays && (
             <div>
