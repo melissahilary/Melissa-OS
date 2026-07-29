@@ -245,16 +245,19 @@ export default function App() {
         active={active}
         pillars={visiblePillars}
         onGoToday={goToday}
-        onGoDream={() => { setActive('dream'); setDreamPage('goals') }}
         onGoPillar={(id) => setActive(id)}
-        onGoSettings={() => setActive('settings')}
       />
 
-      {/* Contextual second row — the active section's sub-pages */}
+      {/* Contextual second row — the active section's sub-pages. Mindset also
+          carries Manifestations, which opens into its own page set below. */}
       {isPillar && SUBNAV[active] && (
-        <SubNav items={SUBNAV[active]} activeId={activeSub} onPick={setActiveSub} />
+        <SubNav
+          items={active === 'mindset' ? [...SUBNAV.mindset, { id: '__manifest', label: 'Manifestations' }] : SUBNAV[active]}
+          activeId={activeSub}
+          onPick={(id) => { if (id === '__manifest') { setActive('dream'); setDreamPage('goals') } else setActiveSub(id) }}
+        />
       )}
-      {isDream && <DreamSubNav dreamPage={dreamPage} setDreamPage={setDreamPage} />}
+      {isDream && <DreamSubNav dreamPage={dreamPage} setDreamPage={setDreamPage} onExit={() => setActive('mindset')} />}
 
       {/* ── Main content ────────────────────────────────────── */}
       <main className="overflow-x-hidden px-6 py-10 md:px-10 lg:px-12">
@@ -268,40 +271,40 @@ export default function App() {
           <Footer />
         </div>
       </main>
+
+      {/* Floating Settings — bottom-left, opposite the Add button */}
+      <button
+        onClick={() => setActive('settings')}
+        title="Settings"
+        aria-label="Settings"
+        className="fixed bottom-6 left-6 z-40 flex h-11 w-11 items-center justify-center shadow-lg transition-opacity hover:opacity-90"
+        style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7', borderRadius: '9999px' }}
+      >
+        <SettingsIcon size={18} />
+      </button>
     </div>
     </AddProvider>
   )
 }
 
 // ── Top navigation bar ──────────────────────────────────────────────
-// A slim wordmark row over a horizontally-scrollable strip of sections. The
-// active section is inked with a hairline underline; the rest stay quiet.
-function TopNav({ active, pillars, onGoToday, onGoDream, onGoPillar, onGoSettings }) {
+// A single horizontally-scrollable strip of sections with the account dot at
+// the end. The active section is inked with a hairline underline; the rest stay
+// quiet. Manifestations lives inside Mindset, so it keeps Mindset inked.
+function TopNav({ active, pillars, onGoToday, onGoPillar }) {
   const links = [
     { id: 'today', label: 'Today', onClick: onGoToday, on: active === 'today' },
-    { id: 'dream', label: 'Manifestations', onClick: onGoDream, on: active === 'dream' },
-    ...pillars.map((p) => ({ id: p.id, label: p.label, onClick: () => onGoPillar(p.id), on: active === p.id })),
+    ...pillars.map((p) => ({
+      id: p.id,
+      label: p.label,
+      onClick: () => onGoPillar(p.id),
+      on: active === p.id || (p.id === 'mindset' && active === 'dream'),
+    })),
   ]
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
-      <div className="mx-auto max-w-[1400px] px-6 md:px-10">
-        <div className="flex items-center justify-between pt-3.5 pb-2">
-          <button onClick={onGoToday} className="leading-none text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>
-            <span className="text-[26px]">Melissa</span>
-          </button>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onGoSettings}
-              title="Settings"
-              className={`transition-colors ${active === 'settings' ? 'text-stone-900' : 'text-stone-400 hover:text-stone-900'}`}
-            >
-              <SettingsIcon size={17} />
-            </button>
-            <AccountDot />
-          </div>
-        </div>
-
-        <nav className="no-scrollbar -mb-px flex items-center gap-x-4 overflow-x-auto lg:gap-x-5 xl:justify-between">
+      <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 md:px-10">
+        <nav className="no-scrollbar -mb-px flex flex-1 items-center gap-x-4 overflow-x-auto pt-3 lg:gap-x-5 xl:justify-between">
           {links.map((l) => (
             <button
               key={l.id}
@@ -314,6 +317,7 @@ function TopNav({ active, pillars, onGoToday, onGoDream, onGoPillar, onGoSetting
             </button>
           ))}
         </nav>
+        <div className="shrink-0 pb-1.5 pt-3"><AccountDot /></div>
       </div>
     </header>
   )
@@ -344,7 +348,8 @@ function SubNav({ items, activeId, onPick }) {
 }
 
 // Manifestations sub-pages — fixed pages first, then the drag-reorderable set.
-function DreamSubNav({ dreamPage, setDreamPage }) {
+// Manifestations sits inside Mindset, so a quiet label anchors the context.
+function DreamSubNav({ dreamPage, setDreamPage, onExit }) {
   const [order, setOrder] = useLocalStorage('mos:dream:order', DREAM_REORDER)
   const [dragId, setDragId] = useState(null)
   const reorderIds = [
@@ -377,8 +382,17 @@ function DreamSubNav({ dreamPage, setDreamPage }) {
   )
   return (
     <div className="border-b border-stone-200 bg-cream">
-      <div className="mx-auto max-w-[1400px] px-6 md:px-10">
-        <nav className="no-scrollbar flex items-center gap-7 overflow-x-auto">
+      <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 md:px-10">
+        <button
+          onClick={onExit}
+          className="flex shrink-0 items-center gap-1 text-stone-400 transition-colors hover:text-stone-900"
+          title="Back to Mindset"
+        >
+          <ChevronLeft size={14} />
+          <span className="kicker">Mindset</span>
+        </button>
+        <span className="h-4 w-px shrink-0 bg-stone-200" />
+        <nav className="no-scrollbar flex flex-1 items-center gap-7 overflow-x-auto">
           {DREAM_FIXED.map((id) => <Tab key={id} id={id} draggable={false} />)}
           {reorderIds.map((id) => <Tab key={id} id={id} draggable />)}
         </nav>
