@@ -72,7 +72,7 @@ const usesDays = (p) => p === 'weekly' || p === 'biweekly'
 const DAY_SECTIONS = [
   { id: 'waking', label: 'Empty Stomach' },
   { id: 'morning', label: 'Morning' },
-  { id: 'day', label: 'Afternoon' },
+  { id: 'day', label: 'Daytime' },
   { id: 'night', label: 'Evening' },
   { id: 'bed', label: 'Before Bed' },
 ]

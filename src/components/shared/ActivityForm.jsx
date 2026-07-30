@@ -199,6 +199,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
               </div>
               <div><span className={labelCls}>Phase</span><Chips value={draft.phase} options={PHASE_OPTS} onToggle={(v) => toggleArr('phase', v)} colored /></div>
               {TimeOfDay}
+              <div><span className={labelCls}>Time (optional)</span><input type="time" value={draft.details.time || ''} onChange={(e) => setD('time', e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
               {Scheduling}
               <div><span className={labelCls}>Status</span>
                 <select value={draft.status} onChange={(e) => set('status', e.target.value)} className={lineCls}>

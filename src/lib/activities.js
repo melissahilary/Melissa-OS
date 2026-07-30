@@ -216,7 +216,7 @@ export const partOf = (a) => (a.type === 'event' ? a.details?.partOfDay || 'morn
 export const DAY_SECTIONS = [
   { id: 'waking', label: 'Empty Stomach', part: 'morning' },
   { id: 'morning', label: 'Morning', part: 'morning' },
-  { id: 'day', label: 'Afternoon', part: 'afternoon' },
+  { id: 'day', label: 'Daytime', part: 'afternoon' },
   { id: 'night', label: 'Evening', part: 'evening' },
   { id: 'bed', label: 'Before Bed', part: 'evening' },
 ]
