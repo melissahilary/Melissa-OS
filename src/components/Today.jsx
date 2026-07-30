@@ -1099,9 +1099,22 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
         </div>
 
         <div className="min-h-[150px] space-y-7">
-          {/* To Do — only on to-do slides */}
+          {/* Nourishment — meal slides, plus the supplements on Empty Stomach / Before Bed.
+              Rendered first so the To Do below never sits above these section titles. */}
+          {block.mealRows.length > 0 && (
+            <div className="space-y-5">
+              {block.mealRows.map((row) => (
+                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
+              ))}
+            </div>
+          )}
+
+          {/* To Do — only on to-do slides. On slides that also carry nourishment
+              (Empty Stomach / Before Bed) it gets its own title so it reads as a
+              peer section beneath Food / Supplements, not untitled content above them. */}
           {isTodo && (
             <div>
+              {block.mealRows.length > 0 && <p className="kicker text-stone-400 mb-2">To Do</p>}
               {tasks.length > 0 && (
                 <div className="mb-2 space-y-0.5">
                   {tasks.map((t) => (
@@ -1114,15 +1127,6 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
               ) : (
                 <AddRow label="add to‑do" onClick={() => setAddingTask(true)} />
               )}
-            </div>
-          )}
-
-          {/* Nourishment — meal slides, plus the supplements on Empty Stomach / Before Bed */}
-          {block.mealRows.length > 0 && (
-            <div className="space-y-5">
-              {block.mealRows.map((row) => (
-                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
-              ))}
             </div>
           )}
         </div>
