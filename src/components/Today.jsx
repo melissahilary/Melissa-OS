@@ -1104,7 +1104,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
           {block.mealRows.length > 0 && (
             <div className="space-y-5">
               {block.mealRows.map((row) => (
-                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
+                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} onPause={onPause} />
               ))}
             </div>
           )}
@@ -1199,7 +1199,7 @@ function AddTaskForm({ onCancel, onSave }) {
 
 // Nutrition rows — same list language as the tasks: one text column, a quiet
 // remove mark on hover, no checkbox (nutrition is never "achieved").
-function MealSection({ section, meals, dateKeyStr, onAdd, onRemove }) {
+function MealSection({ section, meals, dateKeyStr, onAdd, onRemove, onPause }) {
   const [adding, setAdding] = useState(false)
   const items = (meals || []).filter((m) => m.kind === section.kind && m.slot === section.slot)
   return (
@@ -1211,7 +1211,10 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onRemove }) {
             <div key={m.id} className="group flex items-center gap-3 py-0.5">
               <span className="w-4 shrink-0" />
               <span className="flex-1 text-sm text-stone-700">{m.name}</span>
-              <button onClick={() => onRemove(m.id)} aria-label="Remove" className="shrink-0 px-1 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={13} /></button>
+              <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                {onPause && <button onClick={() => onPause(m.id)} aria-label="Pause — park off Today" title="Pause — park off Today" className="px-1 text-stone-400 hover:text-stone-900"><Pause size={13} /></button>}
+                <button onClick={() => onRemove(m.id)} aria-label="Remove" className="px-1 text-stone-300 hover:text-stone-700"><X size={13} /></button>
+              </div>
             </div>
           ))}
         </div>

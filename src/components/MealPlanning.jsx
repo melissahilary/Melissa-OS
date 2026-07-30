@@ -107,7 +107,7 @@ function NutritionWeekly() {
                   <span className="ml-2 text-base not-italic text-stone-400">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
                 </h3>
                 <div className="space-y-3">
-                  {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={items} dayKey={k} onAdd={addItem} onRemove={remove} />)}
+                  {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={items} dayKey={k} onAdd={addItem} onRemove={remove} onResume={(id) => update(id, { status: 'active' })} />)}
                 </div>
               </section>
             )
@@ -204,7 +204,7 @@ function TodaysIngredients() {
   )
 }
 
-function DietSlotRow({ row, meals, dayKey, onAdd, onRemove }) {
+function DietSlotRow({ row, meals, dayKey, onAdd, onRemove, onResume }) {
   const [adding, setAdding] = useState(false)
   const items = meals.filter((a) =>
     row.kind === 'supp'
@@ -216,9 +216,11 @@ function DietSlotRow({ row, meals, dayKey, onAdd, onRemove }) {
       <span className="kicker w-32 shrink-0 text-stone-400">{row.label}</span>
       <div className="flex flex-1 flex-wrap items-center gap-1.5">
         {items.map((a) => (
-          <span key={a.id} className="inline-flex items-center gap-1.5 border border-stone-300 bg-white/50 px-2 py-0.5 text-xs text-stone-700">
+          <span key={a.id} className={`inline-flex items-center gap-1.5 border border-stone-300 bg-white/50 px-2 py-0.5 text-xs text-stone-700 ${a.status === 'paused' ? 'opacity-60' : ''}`}>
             {a.title}
-            <span className="text-[9px] uppercase tracking-[0.1em] text-stone-400">{FREQ_LABEL[a.frequency] || a.frequency}</span>
+            {a.status === 'paused'
+              ? <button onClick={() => onResume && onResume(a.id)} title="Resume — bring back to Today" className="text-[9px] uppercase tracking-[0.1em] text-stone-400 hover:text-stone-900">paused · resume</button>
+              : <span className="text-[9px] uppercase tracking-[0.1em] text-stone-400">{FREQ_LABEL[a.frequency] || a.frequency}</span>}
             <button onClick={() => onRemove(a.id)} className="text-stone-400 hover:text-stone-700"><X size={11} /></button>
           </span>
         ))}
