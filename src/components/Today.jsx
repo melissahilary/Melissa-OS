@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Trash2, ChevronDown, ChevronRight, Pause } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig, PHASES } from '../lib/cycle'
 import {
@@ -647,7 +647,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   const isNew = (a) => !activities.some((x) => x.id === a.id)
 
-  const active = (a, k) => a.status !== 'archived' && activityOccursOn(a, k)
+  // Paused items are parked off Today (they still show, tagged, in their section).
+  const active = (a, k) => a.status !== 'archived' && a.status !== 'paused' && activityOccursOn(a, k)
 
   // AGENDA — calendar events + Appointments protocols + anything explicitly
   // tagged "During the Day", by part of day. The agenda is one chronological
@@ -739,6 +740,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   }
   // Move a routine task into one of the five day-flow blocks (persisted).
   const moveTaskToBlock = (id, block) => updateDetails(id, { block })
+  // Park an item off Today — it stays in its section, tagged "paused".
+  const pauseItem = (id) => update(id, { status: 'paused' })
   // Add a quick to-do to a specific block on the selected day (a daily ritual
   // pinned to that block; edit it later to change how often it repeats).
   const addTask = (block, title) =>
@@ -820,6 +823,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onMovePart={moveEventToPart}
         onMoveTaskBlock={moveTaskToBlock}
         onAddTask={addTask}
+        onPause={pauseItem}
         onToggle={toggleEvent}
         onOpen={(id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }}
       />
@@ -868,7 +872,7 @@ const PHASE_AGENDA_HINT = {
 // ── Calendar ───────────────────────────────────────────────────────
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
-function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
+function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
   const selected = parseKey(selectedKey)
 
   return (
@@ -895,6 +899,7 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
           onRemoveMeal={onRemoveMeal}
           onMoveTaskBlock={onMoveTaskBlock}
           onAddTask={onAddTask}
+          onPause={onPause}
           onToggle={onToggle}
           onOpen={onOpen}
         />
@@ -1036,7 +1041,7 @@ const fmtApptTime = (t) => {
 // A swipeable carousel of the day's slides. Meals are their own slides
 // (nourishment only); to-dos live in their own time slides (Empty Stomach →
 // Before Bed). The dots move between them.
-function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
+function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
   return (
     <div className="mx-auto max-w-2xl">
       <DayFlow
@@ -1047,6 +1052,7 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
         onRemove={onRemoveMeal}
         onMoveTaskBlock={onMoveTaskBlock}
         onAddTask={onAddTask}
+        onPause={onPause}
         onToggle={onToggle}
         onOpen={onOpen}
       />
@@ -1059,7 +1065,7 @@ const DAY_CARD = 'rounded-2xl border border-stone-200/80 bg-white/50 p-6 shadow-
 
 // One carousel slide — a meal (nourishment) or a to-do block. A couple of to-do
 // blocks also carry the supplements taken then. Arrows/dots move between slides.
-function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
+function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
   const [i, setI] = useState(0)
   const [addingTask, setAddingTask] = useState(false)
   const n = DAY_BLOCKS.length
@@ -1099,7 +1105,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
               {tasks.length > 0 && (
                 <div className="mb-2 space-y-0.5">
                   {tasks.map((t) => (
-                    <TaskRow key={t.id} task={t} blockIndex={todoIndex} lastIndex={BLOCK_ORDER.length - 1} onToggle={onToggle} onOpen={onOpen} onMove={(dir) => moveTask(t.id, dir)} />
+                    <TaskRow key={t.id} task={t} blockIndex={todoIndex} lastIndex={BLOCK_ORDER.length - 1} onToggle={onToggle} onOpen={onOpen} onMove={(dir) => moveTask(t.id, dir)} onPause={() => onPause(t.id)} />
                   ))}
                 </div>
               )}
@@ -1141,7 +1147,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 // previous/next block with the hairline ‹ › marks (which surface on hover). The
 // leading checkbox sits in a fixed gutter so its label aligns with every other
 // row in the block, tasks and nutrition alike.
-function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove }) {
+function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove, onPause }) {
   return (
     <div className="group flex items-center gap-3 py-0.5">
       <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={task.done} onClick={() => onToggle(task.id)} /></span>
@@ -1152,6 +1158,7 @@ function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove }) {
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
         <button onClick={() => onMove(-1)} disabled={blockIndex === 0} aria-label="Move to earlier block" className={`px-1 text-sm ${blockIndex === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
         <button onClick={() => onMove(1)} disabled={blockIndex === lastIndex} aria-label="Move to later block" className={`px-1 text-sm ${blockIndex === lastIndex ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
+        {onPause && <button onClick={onPause} aria-label="Pause — park off Today" title="Pause — park off Today" className="px-1 text-stone-400 hover:text-stone-900"><Pause size={13} /></button>}
       </div>
     </div>
   )

@@ -173,14 +173,16 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
                   <p className="kicker text-stone-400 mb-2">{pt.label}</p>
                   <div className="space-y-2">
                     {list.map((a) => (
-                      <div key={a.id} className="group flex items-start gap-3 border border-stone-200 bg-white/40 px-4 py-2.5">
+                      <div key={a.id} className={`group flex items-start gap-3 border border-stone-200 bg-white/40 px-4 py-2.5 ${a.status === 'paused' ? 'opacity-60' : ''}`}>
                         <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
                           <p className="text-sm text-stone-800">
                             {fmtTime(a.details?.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtTime(a.details?.time)}</span>}
                             {a.title || noun}
+                            {a.status === 'paused' && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.14em] text-stone-400 border border-stone-300 px-1.5 py-0.5">paused</span>}
                           </p>
                           {a.notes && a.notes.trim() && <p className="mt-0.5 whitespace-pre-line text-xs leading-relaxed text-stone-500">{a.notes}</p>}
                         </button>
+                        {a.status === 'paused' && <button onClick={() => update(a.id, { status: 'active' })} title="Resume — bring back to Today" className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-400 hover:text-stone-900">resume</button>}
                         <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={15} /></button>
                       </div>
                     ))}
