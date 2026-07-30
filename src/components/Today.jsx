@@ -670,24 +670,37 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     return out
   }
 
-  // RITUAL — Skincare/Facial/Haircare/Body/Aesthetics/Treatments/Wellness protocols.
-  // Explicit day-sections override the time-of-day placement and can be multiple:
-  // 'morning' → Morning Routine, 'night' → Evening Routine (both → shows in each),
-  // 'day' → routed to the Agenda above instead.
+  // TASKS — every section's protocols become "To Achieve" items in the day flow,
+  // so anything scheduled in any section (Skincare, Mindset, Relationships,
+  // Diagnostics, Hormones, …) carries into the main view. Meals/supplements have
+  // their own nourishment carousel and appointments live on the calendar, so both
+  // are excluded here. Day-section placement: morning → Upon Waking/Morning,
+  // day → Afternoon, night → Evening (an item may carry more than one).
   const dayRituals = (k) => {
     const out = []
     activities.forEach((a) => {
-      if (a.type !== 'protocol' || !SECTION_CATS.ritual.includes(a.category) || !active(a, k)) return
+      if (a.type !== 'protocol' || !active(a, k)) return
+      if (SECTION_CATS.nourishment.includes(a.category) || SECTION_CATS.agenda.includes(a.category)) return
       const block = a.details?.block
       const secs = daySectionsOf(a)
       if (secs.length) {
         if (secs.includes('morning')) out.push({ id: a.id, title: a.title, part: 'morning', block, done: isDoneOn(a, k), order: a.order })
+        if (secs.includes('day')) out.push({ id: a.id, title: a.title, part: 'afternoon', block, done: isDoneOn(a, k), order: a.order })
         if (secs.includes('night')) out.push({ id: a.id, title: a.title, part: 'evening', block, done: isDoneOn(a, k), order: a.order })
         return
       }
       partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, block, done: isDoneOn(a, k), order: a.order }))
     })
     return out
+  }
+
+  // The main month grid previews everything scheduled that day — appointments/
+  // events plus every section's tasks — as one deduped list.
+  const dayGridItems = (k) => {
+    const seen = new Set()
+    return [...dayEvents(k), ...dayRituals(k)]
+      .filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)))
+      .map((a) => ({ id: a.id, title: a.title, done: a.done }))
   }
 
   // NOURISHMENT — meal items + supplements for a day, shaped for the slots.
@@ -775,7 +788,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         setSelectedKey={setSelectedKey}
         today={today}
         cycleConfig={cycleConfig}
-        eventsFor={dayEvents}
+        eventsFor={dayGridItems}
         ritualsFor={dayRituals}
         mealsFor={dayMeals}
         carry={carryForward}
