@@ -1055,7 +1055,7 @@ const fmtApptTime = (t) => {
 // block's Routine — so the day fills the width and reads clearly.
 function DayColumns({ rituals, schedule, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   return (
-    <div className="mx-auto max-w-3xl space-y-10">
+    <div className="mx-auto max-w-3xl space-y-6">
       <DaySchedule items={schedule || []} onToggle={onToggle} onOpen={onOpen} />
       <DayFlow
         rituals={rituals || []}
@@ -1072,30 +1072,40 @@ function DayColumns({ rituals, schedule, dateKeyStr, meals, onAddMeal, onRemoveM
   )
 }
 
-// The day's appointments — timed first, then untimed — as a simple schedule.
+// Soft framed card used for both the Schedule and each time-block.
+const DAY_CARD = 'rounded-2xl border border-stone-200/80 bg-white/50 p-6 shadow-sm md:p-8'
+
+// The day's appointments — timed first, then untimed — drawn as a slim timeline.
 function DaySchedule({ items, onToggle, onOpen }) {
   return (
-    <div>
-      <p className="kicker text-stone-400 mb-3">Schedule</p>
+    <div className={DAY_CARD}>
+      <div className="mb-5 flex items-baseline justify-between">
+        <h4 className="font-serif text-xl text-stone-900">Schedule</h4>
+        {items.length > 0 && <span className="kicker text-stone-400">{items.length} {items.length === 1 ? 'thing' : 'things'}</span>}
+      </div>
       {items.length === 0 ? (
-        <p className="text-sm italic text-stone-300">Nothing scheduled — add an Appointment from the ＋ button.</p>
+        <p className="text-sm italic text-stone-300">Nothing scheduled — add an Appointment from the ＋.</p>
       ) : (
-        <div className="divide-y divide-stone-100">
-          {items.map((it) => (
-            <div key={it.id} className="group flex items-center gap-4 py-2">
-              <span className="w-20 shrink-0 font-serif text-sm tabular-nums text-stone-500">{fmtApptTime(it.time) || '—'}</span>
-              <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{it.title || 'Untitled'}</button>
-              <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
-            </div>
-          ))}
+        <div className="relative pl-5">
+          <span className="absolute bottom-2 left-1 top-2 w-px bg-stone-200" />
+          <div className="space-y-3.5">
+            {items.map((it) => (
+              <div key={it.id} className="group relative flex items-center gap-4">
+                <span className="absolute -left-[15px] top-1.5 h-2 w-2 rounded-full border border-stone-300 bg-cream" />
+                <span className="w-20 shrink-0 font-serif text-sm tabular-nums text-stone-500">{fmtApptTime(it.time) || '—'}</span>
+                <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{it.title || 'Untitled'}</button>
+                <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-// A single time-block: Nourishment on the left, that block's Routine on the
-// right. Arrows/dots move between the five blocks; a task nudges between blocks.
+// A single time-block card: an elegant header, then Nourishment | Routine split
+// by a hairline. Arrows/dots move between the five blocks.
 function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   const [i, setI] = useState(0)
   const [addingTask, setAddingTask] = useState(false)
@@ -1114,52 +1124,55 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 
   return (
     <div>
-      {/* Two-part badge, flanked by the block arrows */}
-      <div className="mb-6 flex items-center justify-between">
-        <button onClick={() => jump(i - 1)} disabled={i === 0} className={`px-2 py-1 text-lg ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
-        <div className="text-center leading-tight">
-          <p className="kicker text-stone-400">{block.top}</p>
-          <p className="font-serif text-xl text-stone-800">{block.sub}</p>
-        </div>
-        <button onClick={() => jump(i + 1)} disabled={i === n - 1} className={`px-2 py-1 text-lg ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
-      </div>
-
-      <div className="grid min-h-[160px] gap-x-12 gap-y-8 md:grid-cols-2">
-        {/* Nourishment */}
-        <div>
-          <p className="kicker text-stone-400 mb-3 border-b border-stone-100 pb-1.5">Nourishment</p>
-          <div className="space-y-5">
-            {block.rows.map((row) => (
-              <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
-            ))}
+      <div className={DAY_CARD}>
+        {/* Elegant block header — eyebrow, serif, a small centred rule — flanked by arrows */}
+        <div className="mb-7 flex items-center justify-between">
+          <button onClick={() => jump(i - 1)} disabled={i === 0} className={`px-2 py-1 text-xl ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
+          <div className="text-center leading-tight">
+            <p className="kicker text-stone-400">{block.top}</p>
+            <p className="mt-1 font-serif text-2xl text-stone-900">{block.sub}</p>
+            <span className="mx-auto mt-3 block h-px w-8 bg-stone-300" />
           </div>
+          <button onClick={() => jump(i + 1)} disabled={i === n - 1} className={`px-2 py-1 text-xl ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
         </div>
 
-        {/* Routine — this block's checklist */}
-        <div>
-          <p className="kicker text-stone-400 mb-3 border-b border-stone-100 pb-1.5">Routine</p>
-          {tasks.length > 0 && (
-            <div className="mb-2 space-y-0.5">
-              {tasks.map((t) => (
-                <TaskRow key={t.id} task={t} blockIndex={i} lastIndex={n - 1} onToggle={onToggle} onOpen={onOpen} onMove={(dir) => moveTask(t.id, dir)} />
+        <div className="grid min-h-[150px] gap-y-8 md:grid-cols-2 md:gap-y-0 md:divide-x md:divide-stone-200/70">
+          {/* Nourishment */}
+          <div className="md:pr-10">
+            <p className="kicker mb-4 text-stone-400">Nourishment</p>
+            <div className="space-y-5">
+              {block.rows.map((row) => (
+                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
               ))}
             </div>
-          )}
-          {addingTask ? (
-            <AddTaskForm onCancel={() => setAddingTask(false)} onSave={(title) => { onAddTask(block.id, title); setAddingTask(false) }} />
-          ) : (
-            <AddRow label="add to‑do" onClick={() => setAddingTask(true)} />
-          )}
+          </div>
+
+          {/* Routine — this block's checklist */}
+          <div className="md:pl-10">
+            <p className="kicker mb-4 text-stone-400">Routine</p>
+            {tasks.length > 0 && (
+              <div className="mb-2 space-y-0.5">
+                {tasks.map((t) => (
+                  <TaskRow key={t.id} task={t} blockIndex={i} lastIndex={n - 1} onToggle={onToggle} onOpen={onOpen} onMove={(dir) => moveTask(t.id, dir)} />
+                ))}
+              </div>
+            )}
+            {addingTask ? (
+              <AddTaskForm onCancel={() => setAddingTask(false)} onSave={(title) => { onAddTask(block.id, title); setAddingTask(false) }} />
+            ) : (
+              <AddRow label="add to‑do" onClick={() => setAddingTask(true)} />
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-center gap-1.5">
+      <div className="mt-5 flex items-center justify-center gap-1.5">
         {NOURISH_BLOCKS.map((b, idx) => (
           <button
             key={b.id}
             onClick={() => jump(idx)}
             aria-label={`${b.top} · ${b.sub}`}
-            className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-4 bg-stone-700' : 'w-1.5 bg-stone-300 hover:bg-stone-400'}`}
+            className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-5 bg-stone-700' : 'w-1.5 bg-stone-300 hover:bg-stone-400'}`}
           />
         ))}
       </div>
