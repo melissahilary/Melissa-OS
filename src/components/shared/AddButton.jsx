@@ -27,11 +27,11 @@ export function AddChooser({ options, onPick, onClose, recommended }) {
           <span className="kicker text-stone-400">Add to your day</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
-        <div className="space-y-2">
+        <div className="max-h-[64vh] space-y-2 overflow-y-auto">
           {(options || []).map((o) => (
             <button key={o.id} onClick={() => onPick(o.id)} className={`${base} ${recommended === o.id ? 'border-stone-900' : 'border-stone-300'}`}>
               <span className="font-serif text-lg">{o.label}</span>
-              <span className="block text-xs text-stone-500">{o.blurb}</span>
+              {o.blurb && <span className="block text-xs text-stone-500">{o.blurb}</span>}
             </button>
           ))}
         </div>

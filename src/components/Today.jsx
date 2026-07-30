@@ -679,17 +679,23 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const dayRituals = (k) => {
     const out = []
     activities.forEach((a) => {
-      if (a.type !== 'protocol' || !active(a, k)) return
-      if (SECTION_CATS.nourishment.includes(a.category) || SECTION_CATS.agenda.includes(a.category)) return
+      if (!active(a, k)) return
+      // Food + supplements live in the Nourishment carousel, not the checklist.
+      if (a.type === 'meal_item' || a.type === 'supplement') return
       const block = a.details?.block
+      const push = (part) => out.push({ id: a.id, title: a.title, part, block, done: isDoneOn(a, k), order: a.order })
+      // Events carry their part(s) of day directly.
+      if (a.type === 'event') { [...new Set(eventPartsOf(a))].forEach(push); return }
+      // Protocols: explicit day-sections win (morning / day → afternoon / night),
+      // otherwise fall back to their time-of-day parts.
       const secs = daySectionsOf(a)
       if (secs.length) {
-        if (secs.includes('morning')) out.push({ id: a.id, title: a.title, part: 'morning', block, done: isDoneOn(a, k), order: a.order })
-        if (secs.includes('day')) out.push({ id: a.id, title: a.title, part: 'afternoon', block, done: isDoneOn(a, k), order: a.order })
-        if (secs.includes('night')) out.push({ id: a.id, title: a.title, part: 'evening', block, done: isDoneOn(a, k), order: a.order })
+        if (secs.includes('morning')) push('morning')
+        if (secs.includes('day')) push('afternoon')
+        if (secs.includes('night')) push('evening')
         return
       }
-      partsOfActivity(a).forEach((part) => out.push({ id: a.id, title: a.title, part, block, done: isDoneOn(a, k), order: a.order }))
+      partsOfActivity(a).forEach(push)
     })
     return out
   }
@@ -746,17 +752,33 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
 
-  // The TODAY-view add chooser routes by section → the right type + categories.
-  const SECTION_ADD = {
-    ritual: { label: 'Ritual', blurb: 'Skincare, hair, body, fitness, treatments', type: 'protocol', allowed: SECTION_CATS.ritual, overrides: { category: 'skincare', timeOfDay: ['morning'] } },
-    nourishment: { label: 'Nourishment', blurb: 'Food, drink, supplements', type: 'meal_item', allowed: null, overrides: { details: { slot: 'breakfast', beverage: false } } },
-    agenda: { label: 'Agenda', blurb: 'Events, appointments', type: 'event', allowed: null, overrides: { seriesStart: selectedKey, frequency: 'asneeded', details: { partOfDay: 'morning' } } },
-  }
+  // The TODAY-view add chooser adds straight into a specific category, so a new
+  // item lands in that section (and carries into Today). Nutrition adds a meal;
+  // Appointment adds a timed event; everything else adds that category's task.
+  const ADD_SECTIONS = [
+    { id: 'mindset', label: 'Mindset', type: 'protocol', category: 'mindset' },
+    { id: 'skincare', label: 'Skincare', type: 'protocol', category: 'skincare' },
+    { id: 'haircare', label: 'Haircare', type: 'protocol', category: 'haircare' },
+    { id: 'aesthetics', label: 'Aesthetics', type: 'protocol', category: 'aesthetics' },
+    { id: 'body', label: 'Bodycare', type: 'protocol', category: 'body' },
+    { id: 'fitness', label: 'Fitness', type: 'protocol', category: 'fitness' },
+    { id: 'nutrition', label: 'Nutrition', type: 'meal_item', category: 'nutrition' },
+    { id: 'hormones', label: 'Hormones', type: 'protocol', category: 'hormones' },
+    { id: 'diagnostics', label: 'Diagnostics', type: 'protocol', category: 'diagnostics' },
+    { id: 'relationship', label: 'Relationships', type: 'protocol', category: 'relationship' },
+    { id: 'spirituality', label: 'Spirituality', type: 'protocol', category: 'spirituality' },
+    { id: 'appointments', label: 'Appointment', type: 'event', category: 'appointments' },
+  ]
   const pickSection = (id) => {
-    const s = SECTION_ADD[id]
+    const s = ADD_SECTIONS.find((x) => x.id === id)
+    if (!s) return
     setHomeAdd(false)
-    setFormAllowed(s.allowed)
-    setEditing(blankActivity(s.type, s.overrides))
+    setFormAllowed([s.category])
+    const overrides =
+      s.type === 'meal_item' ? { category: s.category, details: { slot: 'breakfast', beverage: false } }
+        : s.type === 'event' ? { category: s.category, seriesStart: selectedKey, frequency: 'asneeded', details: { partOfDay: 'morning' } }
+          : { category: s.category, timeOfDay: ['morning'] }
+    setEditing(blankActivity(s.type, overrides))
   }
 
   // Universal Add on the home page → choose a section, then open its form.
@@ -810,7 +832,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
       {homeAdd && (
         <AddChooser
-          options={Object.entries(SECTION_ADD).map(([id, s]) => ({ id, label: s.label, blurb: s.blurb }))}
+          options={ADD_SECTIONS.map((s) => ({ id: s.id, label: s.label }))}
           onPick={pickSection}
           onClose={() => setHomeAdd(false)}
         />

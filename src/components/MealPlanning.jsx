@@ -10,7 +10,7 @@ import { useRegisterAdd } from './shared/AddButton'
 import CategoryCalendar from './shared/CategoryCalendar'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, FREQUENCIES, activityOccursOn } from '../lib/activities'
-import { dateKey, parseKey, addDays, DOW, DOW_LONG, MONTHS, isSameDay } from '../lib/date'
+import { dateKey, parseKey, addDays, DOW, DOW_LONG, MONTHS, MONTHS_SHORT, isSameDay } from '../lib/date'
 import ActivityForm from './shared/ActivityForm'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -72,7 +72,6 @@ function NutritionWeekly() {
   const weekLabel = `${fullDay(monday)} - ${fullDay(sunday)}`
 
   const recurring = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived')
-  const dayItems = recurring.filter((a) => activityOccursOn(a, selKey))
 
   const addItem = (m) =>
     add(blankActivity(m.kind === 'supp' ? 'supplement' : 'meal_item', {
@@ -97,28 +96,24 @@ function NutritionWeekly() {
           <button onClick={() => shiftWeek(1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
         </div>
 
-        {/* Day picker — Mon–Sun */}
-        <div className="mb-8 grid grid-cols-7 gap-1.5">
+        {/* Each day of the week, stacked — its full flow, slot by slot */}
+        <div className="space-y-8">
           {week.map((d) => {
             const k = dateKey(d)
-            const on = k === selKey
+            const items = recurring.filter((a) => activityOccursOn(a, k))
             const isTod = isSameDay(d, today)
             return (
-              <button
-                key={k}
-                onClick={() => setSelKey(k)}
-                className={`flex flex-col items-center gap-1 border py-2 transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}
-              >
-                <span className="text-[9px] uppercase tracking-[0.14em]">{DOW[d.getDay()][0]}</span>
-                <span className={`flex h-7 w-7 items-center justify-center text-sm tabular-nums ${!on && isTod ? 'rounded-full bg-stone-900 text-cream' : ''}`}>{d.getDate()}</span>
-              </button>
+              <section key={k} className="border-t border-stone-200 pt-4">
+                <h3 className={`mb-3 font-serif italic text-2xl ${isTod ? 'text-stone-900' : 'text-stone-800'}`}>
+                  {DOW_LONG[d.getDay()]}
+                  <span className="ml-2 text-base not-italic text-stone-400">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
+                </h3>
+                <div className="space-y-3">
+                  {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={items} dayKey={k} onAdd={addItem} onRemove={remove} />)}
+                </div>
+              </section>
             )
           })}
-        </div>
-
-        <p className="kicker text-stone-400 mb-4">{DOW_LONG[sel.getDay()]}</p>
-        <div className="space-y-3">
-          {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={dayItems} dayKey={selKey} onAdd={addItem} onRemove={remove} />)}
         </div>
       </section>
 
