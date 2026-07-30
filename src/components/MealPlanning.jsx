@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Pencil, ChevronDown, ChevronRight, Calendar } from 'lucide-react'
+import { X, Pencil, ChevronDown, ChevronRight, Calendar, Share2, Check, CircleCheck, CircleAlert, CircleX, CirclePause } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
@@ -84,9 +84,6 @@ function NutritionWeekly() {
   return (
     <div className="mb-10">
       <section>
-        <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900">Your Protocol.</h2>
-        <p className="kicker text-stone-400 mt-1 mb-6">What you eat, day by day</p>
-
         {/* Week navigation — prev · range + jump-to-date · next */}
         <div className="mb-4 flex items-center justify-between gap-2">
           <button onClick={() => shiftWeek(-1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
@@ -244,36 +241,58 @@ function DietSlotRow({ row, meals, dayKey, onAdd, onRemove }) {
   )
 }
 
-function FilterCap({ label, on, onClick }) {
+// Soft cycle-phase colours for the filter dots.
+const PHASE_DOT = { Follicular: '#8A9E8A', Ovulatory: '#C4A882', Luteal: '#A89BB8', Menstrual: '#C4959A' }
+const CYCLE_TAGS = ['Follicular', 'Ovulatory', 'Luteal', 'Menstrual']
+
+// One labelled row of filter chips — quiet tracked-caps that ink + underline
+// when active, with an optional colour dot. No boxes.
+function FilterGroup({ label, items, active, onPick }) {
+  if (!items.length) return null
   return (
-    <button onClick={onClick} className={`text-[11px] uppercase tracking-[0.18em] transition-colors ${on ? 'text-stone-900 font-medium' : 'text-stone-400 hover:text-stone-700'}`} style={on ? { textDecoration: 'underline', textUnderlineOffset: '5px', textDecorationColor: '#a8a29e' } : undefined}>
-      {label}
-    </button>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      <span className="kicker w-16 shrink-0 text-stone-300">{label}</span>
+      {items.map((it) => {
+        const on = active === it.id
+        return (
+          <button
+            key={it.id}
+            onClick={() => onPick(it.id)}
+            className={`flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] transition-colors ${on ? 'font-medium text-stone-900' : 'text-stone-400 hover:text-stone-700'}`}
+            style={on ? { textDecoration: 'underline', textUnderlineOffset: '5px', textDecorationColor: '#a8a29e' } : undefined}
+          >
+            {it.dot && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: it.dot }} />}
+            {it.label}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
 function RecipeLibrary({ activities, onOpen }) {
   const [tagF, setTagF] = useState(null)
+  const [freqF, setFreqF] = useState(null)
   const recipes = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived')
-  const filtered = recipes.filter((a) => !tagF || tagsOf(a).includes(tagF))
+  const typeTags = RECIPE_TAGS.filter((t) => !CYCLE_TAGS.includes(t))
+  const freqs = FREQUENCIES.map((f) => f.id).filter((id) => recipes.some((a) => a.frequency === id))
+  const filtered = recipes.filter((a) => (!tagF || tagsOf(a).includes(tagF)) && (!freqF || a.frequency === freqF))
   return (
     <section>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900">Your Recipes.</h2>
-          <p className="kicker text-stone-400 mt-1">Your kitchen library</p>
-        </div>
+      <div className="mb-6 flex items-center justify-end">
         <span className="text-sm text-stone-400">{filtered.length}</span>
       </div>
 
-      <div className="my-6 flex flex-wrap gap-x-4 gap-y-1.5 border-y border-stone-100 py-3">
-        {RECIPE_TAGS.map((t) => <FilterCap key={t} label={t} on={tagF === t} onClick={() => setTagF(tagF === t ? null : t)} />)}
+      <div className="mb-8 space-y-3 border-y border-stone-100 py-4">
+        <FilterGroup label="Type" items={typeTags.map((t) => ({ id: t, label: t }))} active={tagF} onPick={(id) => setTagF(tagF === id ? null : id)} />
+        <FilterGroup label="Cycle" items={CYCLE_TAGS.map((t) => ({ id: t, label: t, dot: PHASE_DOT[t] }))} active={tagF} onPick={(id) => setTagF(tagF === id ? null : id)} />
+        <FilterGroup label="Often" items={freqs.map((id) => ({ id, label: FREQ_LABEL[id] || id }))} active={freqF} onPick={(id) => setFreqF(freqF === id ? null : id)} />
       </div>
 
       {filtered.length === 0 ? (
         <p className="font-serif italic text-lg text-stone-400">No recipes yet.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((a) => <RecipeCard key={a.id} a={a} onOpen={() => onOpen(a)} />)}
         </div>
       )}
@@ -281,38 +300,38 @@ function RecipeLibrary({ activities, onOpen }) {
   )
 }
 
+// A recipe reads as a clean line — title first, a quiet slot · frequency beneath.
+// No notes, no boxes.
 function RecipeCard({ a, onOpen }) {
-  const preview = (a.notes || '').split('\n').find((l) => l.trim()) || ''
-  const tags = tagsOf(a)
   return (
-    <button onClick={onOpen} className="flex flex-col items-start border border-stone-200 bg-white/40 p-4 text-left transition-shadow hover:shadow-md">
+    <button onClick={onOpen} className="flex flex-col items-start rounded-md px-3 py-3 text-left transition-colors hover:bg-white/60">
       <h3 className="font-serif text-xl text-stone-900">{a.title || 'Untitled'}</h3>
-      {preview ? (
-        <p className="mt-1 line-clamp-1 text-sm text-stone-500">{preview}</p>
-      ) : (
-        <p className="mt-1 text-sm italic text-stone-300">No notes yet.</p>
-      )}
-      {tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
-          {tags.map((t) => <span key={t} className="border border-stone-200 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.1em] text-stone-500">{t}</span>)}
-        </div>
-      )}
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <span className="kicker text-stone-400">{slotMeta(a.details.slot || 'breakfast').label}</span>
-        <span className="text-[10px] uppercase tracking-[0.1em] text-stone-400">{FREQ_LABEL[a.frequency] || a.frequency}</span>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 text-stone-400">
+        <span className="kicker">{slotMeta(a.details.slot || 'breakfast').label}</span>
+        <span className="text-stone-300">·</span>
+        <span className="kicker">{FREQ_LABEL[a.frequency] || a.frequency}</span>
       </div>
     </button>
   )
 }
 
 // Muted status tones: a soft full-row tint + a stronger left border.
-const STATUS_BORDER = { 'need to buy': '#C4959A', 'running low': '#C4A882', 'in stock': '#8A9E8A' }
-const STATUS_BG = { 'need to buy': '#F9EDEE', 'running low': '#FAF5EE', 'in stock': '#EFF4EF' }
+// Legacy items stored "need to buy"; read it as the new "out of stock".
+const normStatus = (s) => (s === 'need to buy' ? 'out of stock' : s || '')
+const STATUS_BORDER = { 'out of stock': '#C4959A', 'need to buy': '#C4959A', 'running low': '#C4A882', 'in stock': '#8A9E8A', paused: '#D6D3D1' }
+const STATUS_BG = { 'out of stock': '#F9EDEE', 'need to buy': '#F9EDEE', 'running low': '#FAF5EE', 'in stock': '#EFF4EF', paused: 'transparent' }
+// Clickable status symbols, in the order shown on each row.
+const STATUS_OPTS = [
+  { id: 'in stock', label: 'In stock', icon: CircleCheck, color: '#6f8a6f' },
+  { id: 'running low', label: 'Running low', icon: CircleAlert, color: '#b8964e' },
+  { id: 'out of stock', label: 'Out of stock', icon: CircleX, color: '#b06b72' },
+  { id: 'paused', label: 'Paused', icon: CirclePause, color: '#a8a29e' },
+]
 const FRIDGE_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'in stock', label: 'In Stock' },
   { id: 'running low', label: 'Running Low' },
-  { id: 'need to buy', label: 'Need to Buy' },
+  { id: 'out of stock', label: 'Out of Stock' },
 ]
 
 // ── What's In My Fridge ──
@@ -324,11 +343,37 @@ function GroceryList() {
   const [pausedOpen, setPausedOpen] = useState(false)
 
   useRegisterAdd(() => setAdding(true), [])
+  const [copied, setCopied] = useState(false)
 
   // Paused items live in their own dropdown — kept out of the working list.
-  const paused = items.filter((i) => i.status === 'paused')
-  const active = items.filter((i) => i.status !== 'paused')
-  const visible = filter === 'all' ? active : active.filter((i) => i.status === filter)
+  const paused = items.filter((i) => normStatus(i.status) === 'paused')
+  const active = items.filter((i) => normStatus(i.status) !== 'paused')
+  const visible = filter === 'all' ? active : active.filter((i) => normStatus(i.status) === filter)
+
+  // Build a plain-text shopping list — the things to buy (out of stock + running
+  // low), grouped by aisle; falls back to the whole list if nothing's flagged.
+  const buildListText = () => {
+    const toBuy = active.filter((i) => ['out of stock', 'running low'].includes(normStatus(i.status)))
+    const list = toBuy.length ? toBuy : active
+    if (!list.length) return ''
+    const groups = {}
+    list.forEach((i) => { const c = categorize(i.name) || 'Other'; (groups[c] = groups[c] || []).push(i) })
+    const cats = [...GROCERY_CATEGORIES, ...Object.keys(groups).filter((c) => !GROCERY_CATEGORIES.includes(c))]
+    const out = ['Grocery List']
+    cats.forEach((cat) => {
+      const g = groups[cat]
+      if (!g || !g.length) return
+      out.push('', cat.toUpperCase())
+      g.forEach((i) => out.push(`• ${i.name}${i.qty ? ` (${i.qty})` : ''}`))
+    })
+    return out.join('\n')
+  }
+  const shareList = async () => {
+    const text = buildListText()
+    if (!text) return
+    if (navigator.share) { try { await navigator.share({ title: 'Grocery List', text }) } catch { /* cancelled */ } return }
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { /* ignore */ }
+  }
 
   const add = (draft) => {
     if (!draft.name.trim()) return
@@ -341,30 +386,40 @@ function GroceryList() {
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
   const update = (id, patch) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))
 
-  const Row = (item) => (
-    <div key={item.id} className="group flex items-center gap-3 py-2.5 pl-3" style={{ borderLeft: `3px solid ${STATUS_BORDER[item.status] || 'transparent'}`, backgroundColor: STATUS_BG[item.status] || 'transparent' }}>
-      <div className="flex flex-1 items-center gap-1.5">
-        <button onClick={() => setPopup({ variant: 'grocery', itemName: item.name, initial: item.notes, onSave: (notes) => { update(item.id, { notes }); setPopup(null) } })} className={`shrink-0 ${hasNotes(item.notes) ? 'text-stone-500' : 'text-stone-300 opacity-0 group-hover:opacity-100'}`} title="Notes">
-          <Pencil size={11} />
-        </button>
-        <InlineText value={item.name} onChange={(name) => update(item.id, { name })} className="text-sm text-stone-800 bg-transparent outline-none" />
+  const Row = (item) => {
+    const st = normStatus(item.status)
+    return (
+      <div key={item.id} className="group flex items-center gap-3 py-2.5 pl-3" style={{ borderLeft: `3px solid ${STATUS_BORDER[st] || 'transparent'}`, backgroundColor: STATUS_BG[st] || 'transparent' }}>
+        <div className="flex flex-1 items-center gap-1.5">
+          <button onClick={() => setPopup({ variant: 'grocery', itemName: item.name, initial: item.notes, onSave: (notes) => { update(item.id, { notes }); setPopup(null) } })} className={`shrink-0 ${hasNotes(item.notes) ? 'text-stone-500' : 'text-stone-300 opacity-0 group-hover:opacity-100'}`} title="Notes">
+            <Pencil size={11} />
+          </button>
+          <InlineText value={item.name} onChange={(name) => update(item.id, { name })} className="text-sm text-stone-800 bg-transparent outline-none" />
+        </div>
+        {item.qty && <span className="text-sm text-stone-500 tabular-nums">{item.qty}</span>}
+        {item.store && <span className="kicker text-stone-400">{item.store}</span>}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {STATUS_OPTS.map((s) => {
+            const on = st === s.id
+            const Icon = s.icon
+            return (
+              <button key={s.id} onClick={() => update(item.id, { status: on ? '' : s.id })} title={s.label} aria-label={s.label} className={`transition-colors ${on ? '' : 'text-stone-300 hover:text-stone-500'}`} style={on ? { color: s.color } : undefined}>
+                <Icon size={17} strokeWidth={1.75} />
+              </button>
+            )
+          })}
+        </div>
+        <button onClick={() => remove(item.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={14} /></button>
       </div>
-      <select value={item.status || ''} onChange={(e) => update(item.id, { status: e.target.value })} className="bg-transparent text-xs text-stone-500 outline-none">
-        <option value="">status</option>
-        <option value="need to buy">need to buy</option>
-        <option value="running low">running low</option>
-        <option value="in stock">in stock</option>
-        <option value="paused">paused</option>
-      </select>
-      {item.qty && <span className="text-sm text-stone-500 tabular-nums">{item.qty}</span>}
-      {item.store && <span className="kicker text-stone-400">{item.store}</span>}
-      <button onClick={() => remove(item.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={14} /></button>
-    </div>
-  )
+    )
+  }
 
   return (
     <section className="mb-10">
-      <header className="mb-4 flex items-center justify-end">
+      <header className="mb-4 flex items-center justify-between">
+        <button onClick={shareList} disabled={!active.length} className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-stone-500 transition-colors hover:text-stone-900 disabled:opacity-40 disabled:hover:text-stone-500">
+          {copied ? <><Check size={13} /> Copied</> : <><Share2 size={13} /> Share list</>}
+        </button>
         <span className="text-sm text-stone-400">{active.length} on the list</span>
       </header>
 
@@ -434,9 +489,9 @@ function GroceryAddModal({ onClose, onSave }) {
           <div className="flex flex-wrap gap-4">
             <select value={draft.status} onChange={(e) => set('status', e.target.value)} className="border-b border-stone-300 bg-transparent pb-1 text-sm text-stone-600 outline-none">
               <option value="">status</option>
-              <option value="need to buy">need to buy</option>
-              <option value="running low">running low</option>
               <option value="in stock">in stock</option>
+              <option value="running low">running low</option>
+              <option value="out of stock">out of stock</option>
               <option value="paused">paused</option>
             </select>
             <input value={draft.qty} onChange={(e) => set('qty', e.target.value)} placeholder="Qty" className="w-16 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
