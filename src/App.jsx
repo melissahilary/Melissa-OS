@@ -248,10 +248,10 @@ export default function App() {
       />
 
       {/* Contextual second row — the active section's sub-pages. Mindset also
-          carries Manifestations, which opens into its own page set below. */}
+          carries Dream Planning, which opens into its own page set below. */}
       {isPillar && SUBNAV[active] && (
         <SubNav
-          items={active === 'mindset' ? [...SUBNAV.mindset, { id: '__manifest', label: 'Manifestations' }] : SUBNAV[active]}
+          items={active === 'mindset' ? [...SUBNAV.mindset, { id: '__manifest', label: 'Dream Planning' }] : SUBNAV[active]}
           activeId={activeSub}
           onPick={(id) => { if (id === '__manifest') { setActive('dream'); setDreamPage('goals') } else setActiveSub(id) }}
         />
@@ -289,7 +289,7 @@ export default function App() {
 // ── Top navigation bar ──────────────────────────────────────────────
 // A single horizontally-scrollable strip of sections with the account dot at
 // the end. The active section is inked with a hairline underline; the rest stay
-// quiet. Manifestations lives inside Mindset, so it keeps Mindset inked.
+// quiet. Dream Planning lives inside Mindset, so it keeps Mindset inked.
 function TopNav({ active, pillars, onGoToday, onGoPillar }) {
   const links = [
     { id: 'today', label: 'Today', onClick: onGoToday, on: active === 'today' },
@@ -346,8 +346,8 @@ function SubNav({ items, activeId, onPick }) {
   )
 }
 
-// Manifestations sub-pages — fixed pages first, then the drag-reorderable set.
-// Manifestations sits inside Mindset, so a quiet label anchors the context.
+// Dream Planning sub-pages — fixed pages first, then the drag-reorderable set.
+// Dream Planning sits inside Mindset, so a quiet label anchors the context.
 function DreamSubNav({ dreamPage, setDreamPage, onExit }) {
   const [order, setOrder] = useLocalStorage('mos:dream:order', DREAM_REORDER)
   const [dragId, setDragId] = useState(null)

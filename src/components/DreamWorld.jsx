@@ -14,7 +14,7 @@ const focusAdd = (ref) => {
   if (el) { el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }
 }
 
-// Full set of Manifestations subsections (Overview removed).
+// Full set of Dream Planning subsections (Overview removed).
 export const DREAM_PAGES = [
   { id: 'goals', label: 'Goals' },
   { id: 'week', label: 'Dream Week' },
