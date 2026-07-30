@@ -681,16 +681,15 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     activities.forEach((a) => {
       if (a.type !== 'protocol' || !active(a, k)) return
       if (a.category === 'appointments') return // appointments → Schedule
-      const block = a.details?.block
-      const push = (part) => out.push({ id: a.id, title: a.title, part, block, done: isDoneOn(a, k), order: a.order })
+      const moved = a.details?.block
+      const add = (part, blk) => out.push({ id: a.id, title: a.title, part, block: moved || blk, done: isDoneOn(a, k), order: a.order })
       const secs = daySectionsOf(a)
       if (secs.length) {
-        if (secs.includes('morning')) push('morning')
-        if (secs.includes('day')) push('afternoon')
-        if (secs.includes('night')) push('evening')
+        // The five time-of-day sections map straight onto the day-flow blocks.
+        secs.forEach((s) => { const blk = SECTION_BLOCK[s]; if (blk) add(BLOCK_PART[blk], blk) })
         return
       }
-      partsOfActivity(a).forEach(push)
+      partsOfActivity(a).forEach((part) => add(part))
     })
     return out
   }
@@ -944,14 +943,12 @@ const NOURISH_BLOCKS = [
     id: 'morning', top: 'Morning', sub: 'Breakfast', rows: [
       { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
       { kind: 'food', slot: 'drink', label: 'Drink' },
-      { kind: 'food', slot: 'snack', label: 'Snack' },
       { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
     ],
   },
   {
     id: 'afternoon', top: 'Afternoon', sub: 'Lunch', rows: [
       { kind: 'food', slot: 'lunch', label: 'Lunch' },
-      { kind: 'food', slot: 'snack2', label: 'Snack' },
       { kind: 'supp', slot: 'lunch', label: 'Supplements' },
     ],
   },
@@ -976,6 +973,8 @@ const BLOCK_ORDER = NOURISH_BLOCKS.map((b) => b.id)
 const PART_TO_BLOCK = { morning: 'morning', afternoon: 'afternoon', evening: 'evening' }
 // The part of day a block belongs to — used when a new to-do is created in it.
 const BLOCK_PART = { waking: 'morning', morning: 'morning', afternoon: 'afternoon', evening: 'evening', bed: 'evening' }
+// A time-of-day section id (waking/morning/day/night/bed) → its day-flow block.
+const SECTION_BLOCK = { waking: 'waking', morning: 'morning', day: 'afternoon', night: 'evening', bed: 'bed' }
 const effectiveBlock = (r) =>
   r.block && BLOCK_ORDER.includes(r.block) ? r.block : (PART_TO_BLOCK[r.part] || 'morning')
 

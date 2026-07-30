@@ -117,7 +117,7 @@ export const normActivity = (a) => {
   // Empty = infer from category + time of day (legacy). Migrates the old single
   // `daySection` string into the array.
   daySections: (Array.isArray(a.daySections) ? a.daySections : (a.daySection ? [a.daySection] : []))
-    .filter((s) => s === 'morning' || s === 'day' || s === 'night'),
+    .filter((s) => s === 'waking' || s === 'morning' || s === 'day' || s === 'night' || s === 'bed'),
   seriesStart: a.seriesStart || '',
   seriesEnd: a.seriesEnd || '',
   status: a.status || 'active',
@@ -211,8 +211,18 @@ export const activityOccursOn = (a, key) => {
 export const isDoneOn = (a, key) => !!(a.completions && a.completions[key])
 export const partOf = (a) => (a.type === 'event' ? a.details?.partOfDay || 'morning' : null)
 
+// The five time-of-day sections anything can be scheduled into — the same blocks
+// as the Today day-flow — with the part of day each rolls up to (for grouping).
+export const DAY_SECTIONS = [
+  { id: 'waking', label: 'Empty Stomach', part: 'morning' },
+  { id: 'morning', label: 'Morning', part: 'morning' },
+  { id: 'day', label: 'Afternoon', part: 'afternoon' },
+  { id: 'night', label: 'Evening', part: 'evening' },
+  { id: 'bed', label: 'Before Bed', part: 'evening' },
+]
+export const sectionToPart = (id) => (DAY_SECTIONS.find((s) => s.id === id) || { part: 'morning' }).part
 // The Today section(s) an item is explicitly assigned to (empty if none).
-const DAY_SECTION_IDS = ['morning', 'day', 'night']
+const DAY_SECTION_IDS = DAY_SECTIONS.map((s) => s.id)
 export const daySectionsOf = (a) => {
   const arr = Array.isArray(a.daySections) ? a.daySections : (a.daySection ? [a.daySection] : [])
   return arr.filter((s) => DAY_SECTION_IDS.includes(s))

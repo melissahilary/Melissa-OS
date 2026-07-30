@@ -70,9 +70,11 @@ const usesDays = (p) => p === 'weekly' || p === 'biweekly'
 
 // Which part of the Today page an item lands in.
 const DAY_SECTIONS = [
-  { id: 'morning', label: 'Morning Routine' },
-  { id: 'day', label: 'During the Day' },
-  { id: 'night', label: 'Night Time Routine' },
+  { id: 'waking', label: 'Empty Stomach' },
+  { id: 'morning', label: 'Morning' },
+  { id: 'day', label: 'Afternoon' },
+  { id: 'night', label: 'Evening' },
+  { id: 'bed', label: 'Before Bed' },
 ]
 const defaultSections = (a) => {
   const s = daySectionsOf(a)
@@ -81,7 +83,7 @@ const defaultSections = (a) => {
   return [p === 'evening' ? 'night' : p === 'afternoon' ? 'day' : 'morning']
 }
 // Each section maps to a part of day so the weekly/monthly views still group it.
-const SECTION_TOD = { morning: 'morning', day: 'afternoon', night: 'evening' }
+const SECTION_TOD = { waking: 'morning', morning: 'morning', day: 'afternoon', night: 'evening', bed: 'evening' }
 const initialPattern = (a) => {
   const f = a.frequency
   if (f === 'daily') return 'daily'

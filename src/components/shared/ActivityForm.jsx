@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import {
   FREQUENCIES, PARTS, ACTIVITY_CATEGORIES, PHASE_OPTS, WEEKDAYS, NO_DAYS_FREQ, blankActivity,
+  DAY_SECTIONS, sectionToPart,
 } from '../../lib/activities'
 import { MEAL_SLOTS, RECIPE_TAGS } from '../../lib/meals'
 import { PHASES } from '../../lib/cycle'
@@ -96,7 +97,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
   const TimeOfDay = (
     <div>
       <span className={labelCls}>Time of Day</span>
-      <Chips value={draft.timeOfDay} options={PARTS} onToggle={(v) => toggleArr('timeOfDay', v)} />
+      <Chips value={draft.daySections} options={DAY_SECTIONS} onToggle={(v) => toggleArr('daySections', v)} />
     </div>
   )
 
@@ -219,7 +220,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
           )}
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-            <button onClick={() => onSave({ ...draft, title: (draft.title || '').trim() || `Untitled ${TYPE_LABEL.toLowerCase()}` })} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+            <button onClick={() => { const secs = Array.isArray(draft.daySections) ? draft.daySections : []; const tod = secs.length ? [...new Set(secs.map(sectionToPart))] : draft.timeOfDay; onSave({ ...draft, timeOfDay: tod, title: (draft.title || '').trim() || `Untitled ${TYPE_LABEL.toLowerCase()}` }) }} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
           </div>
         </div>
       </div>
