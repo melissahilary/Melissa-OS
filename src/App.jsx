@@ -91,9 +91,9 @@ const SUBNAV = {
   ],
   menu: [
     { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
     { id: 'recipes', label: 'Recipes' },
     { id: 'grocery', label: "What's In My Fridge" },
-    { id: 'monthly', label: 'Monthly' },
   ],
   fitness: [
     { id: 'weekly', label: 'Weekly' },
@@ -101,25 +101,25 @@ const SUBNAV = {
   ],
   workout: [
     { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
     { id: 'cycle', label: 'Cycle' },
     { id: 'settings', label: 'Settings' },
-    { id: 'monthly', label: 'Monthly' },
   ],
   diagnostics: [
     { id: 'weekly', label: 'Weekly' },
-    { id: 'log', label: 'Log' },
     { id: 'monthly', label: 'Monthly' },
+    { id: 'log', label: 'Log' },
   ],
   mindset: [
     { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
-    { id: 'monthly', label: 'Monthly' },
   ],
   relationship: [
     { id: 'weekly', label: 'Weekly' },
-    { id: 'overview', label: 'Relationships' },
     { id: 'monthly', label: 'Monthly' },
+    { id: 'overview', label: 'Relationships' },
   ],
 }
 
