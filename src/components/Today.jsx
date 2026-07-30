@@ -1120,7 +1120,6 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
           {/* Nourishment — meal slides, plus the supplements on Empty Stomach / Before Bed */}
           {block.mealRows.length > 0 && (
             <div className="space-y-5">
-              {isTodo && <p className="kicker text-stone-300">Supplements &amp; drinks</p>}
               {block.mealRows.map((row) => (
                 <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
               ))}
