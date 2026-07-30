@@ -55,6 +55,21 @@ body {
   display: none;
 }
 
+/* Row actions (pause / move / remove): always visible on touch devices — which
+   have no hover — and quietly revealed on hover for pointer/desktop devices. */
+.hover-reveal {
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hover-reveal {
+    opacity: 0;
+  }
+  .group:hover .hover-reveal {
+    opacity: 1;
+  }
+}
+
 /* Inputs inherit the page typography and stay quiet until focused */
 input,
 textarea,

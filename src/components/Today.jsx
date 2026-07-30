@@ -1158,7 +1158,7 @@ function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove, onPaus
         {fmtApptTime(task.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtApptTime(task.time)}</span>}
         {task.title || 'Untitled'}
       </button>
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="hover-reveal flex shrink-0 items-center gap-0.5">
         <button onClick={() => onMove(-1)} disabled={blockIndex === 0} aria-label="Move to earlier block" className={`px-1 text-sm ${blockIndex === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
         <button onClick={() => onMove(1)} disabled={blockIndex === lastIndex} aria-label="Move to later block" className={`px-1 text-sm ${blockIndex === lastIndex ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
         {onPause && <button onClick={onPause} aria-label="Pause — park off Today" title="Pause — park off Today" className="px-1 text-stone-400 hover:text-stone-900"><Pause size={13} /></button>}
@@ -1211,7 +1211,7 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onRemove, onPause }) {
             <div key={m.id} className="group flex items-center gap-3 py-0.5">
               <span className="w-4 shrink-0" />
               <span className="flex-1 text-sm text-stone-700">{m.name}</span>
-              <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="hover-reveal flex shrink-0 items-center gap-0.5">
                 {onPause && <button onClick={() => onPause(m.id)} aria-label="Pause — park off Today" title="Pause — park off Today" className="px-1 text-stone-400 hover:text-stone-900"><Pause size={13} /></button>}
                 <button onClick={() => onRemove(m.id)} aria-label="Remove" className="px-1 text-stone-300 hover:text-stone-700"><X size={13} /></button>
               </div>
