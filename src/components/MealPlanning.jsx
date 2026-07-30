@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X, Pencil, ChevronDown, ChevronRight, Calendar, Share2, Check, CircleCheck, CircleAlert, CircleX, CirclePause } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
@@ -7,7 +7,8 @@ import InlineText from './shared/InlineText'
 import { AddMealForm } from './shared/MealSlots'
 import { MEAL_SLOTS, slotMeta, RECIPE_TAGS } from '../lib/meals'
 import { useRegisterAdd } from './shared/AddButton'
-import CategoryCalendar from './shared/CategoryCalendar'
+import MonthGrid from './shared/MonthGrid'
+import * as store from '../lib/dataStore'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, FREQUENCIES, activityOccursOn } from '../lib/activities'
 import { dateKey, parseKey, addDays, DOW, DOW_LONG, MONTHS, MONTHS_SHORT, isSameDay } from '../lib/date'
@@ -38,7 +39,7 @@ const DIET_ROWS = [
 export default function MealPlanning({ cycleConfig = {}, subPage = 'weekly' }) {
   return (
     <div>
-      {subPage === 'monthly' ? <CategoryCalendar category="nutrition" cycleConfig={cycleConfig} noun="Meal" />
+      {subPage === 'monthly' ? <NutritionMonthly cycleConfig={cycleConfig} />
         : subPage === 'ingredients' ? <TodaysIngredients />
           : subPage === 'recipes' ? <Recipes />
             : subPage === 'grocery' ? <GroceryList />
@@ -107,11 +108,79 @@ function NutritionWeekly() {
                   <span className="ml-2 text-base not-italic text-stone-400">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
                 </h3>
                 <div className="space-y-3">
-                  {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={items} dayKey={k} onAdd={addItem} onRemove={remove} onResume={(id) => update(id, { status: 'active' })} />)}
+                  {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={items} dayKey={k} onAdd={addItem} onOpen={(a) => setEditing(a)} onResume={(id) => update(id, { status: 'active' })} />)}
                 </div>
               </section>
             )
           })}
+        </div>
+      </section>
+
+      {editing && (
+        <ActivityForm
+          activity={editing}
+          isNew={!activities.some((x) => x.id === editing.id)}
+          onSave={saveItem}
+          onDelete={() => { remove(editing.id); setEditing(null) }}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Monthly — the cycle calendar; pick any day to see that day's full menu ──
+// The month grid carries the cycle-phase tints; tapping a day drops its whole
+// nourishment flow (empty stomach → drink) below, in the same quiet language as
+// the Weekly, so each day reads like a little Today menu.
+function NutritionMonthly({ cycleConfig = {} }) {
+  const { activities, add, update, remove } = useActivities()
+  const today = new Date()
+  const [st, setSt] = useState(store.getStatus())
+  useEffect(() => store.subscribeStatus(setSt), [])
+  const signupKey = st.createdAt ? dateKey(new Date(st.createdAt)) : ''
+  const signupMonthStart = signupKey ? new Date(parseKey(signupKey).getFullYear(), parseKey(signupKey).getMonth(), 1) : null
+
+  const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const [selectedKey, setSelectedKey] = useState(dateKey(today))
+  const [editing, setEditing] = useState(null)
+
+  const meals = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived')
+  const forDay = (k) => meals.filter((a) => activityOccursOn(a, k))
+
+  const newItem = () => blankActivity('meal_item', { details: { slot: 'breakfast', beverage: false } })
+  useRegisterAdd(() => setEditing(newItem()), [])
+  const addItem = (m) =>
+    add(blankActivity(m.kind === 'supp' ? 'supplement' : 'meal_item', {
+      title: m.name, frequency: m.frequency || 'daily', daysOfWeek: m.days || [], seriesStart: m.startDate || '',
+      details: m.kind === 'supp' ? { slot: m.slot, dose: '', unit: 'mg' } : { slot: m.slot, beverage: m.slot === 'drink' },
+    }))
+  const saveItem = (a) => { if (activities.some((x) => x.id === a.id)) update(a.id, a); else add(a); setEditing(null) }
+
+  const selD = parseKey(selectedKey)
+  const dayItems = forDay(selectedKey)
+
+  return (
+    <div className="mb-10">
+      <MonthGrid
+        month={month}
+        setMonth={setMonth}
+        selectedKey={selectedKey}
+        onPickDay={setSelectedKey}
+        today={today}
+        cycleConfig={cycleConfig}
+        floorMonth={signupMonthStart}
+        itemsForDay={(k) => forDay(k).map((a) => ({ id: a.id, title: a.title || 'Meal' }))}
+      />
+
+      {/* The picked day's full menu, slot by slot */}
+      <section className="mt-8 border-t border-stone-200 pt-5">
+        <h3 className="mb-4 font-serif italic text-2xl text-stone-900">
+          {DOW_LONG[selD.getDay()]}
+          <span className="ml-2 text-base not-italic text-stone-400">{MONTHS[selD.getMonth()]} {selD.getDate()}</span>
+        </h3>
+        <div className="space-y-3">
+          {DIET_ROWS.map((row, i) => <DietSlotRow key={i} row={row} meals={dayItems} dayKey={selectedKey} onAdd={addItem} onOpen={(a) => setEditing(a)} onResume={(id) => update(id, { status: 'active' })} />)}
         </div>
       </section>
 
@@ -204,7 +273,10 @@ function TodaysIngredients() {
   )
 }
 
-function DietSlotRow({ row, meals, dayKey, onAdd, onRemove, onResume }) {
+// One slot's flow for a day — a quiet, editorial line of item names (no boxes, no
+// repeated cadence tags). Tap a name to edit or remove it in the full editor; a
+// non-daily cadence shows as a small italic note, and paused items dim with resume.
+function DietSlotRow({ row, meals, dayKey, onAdd, onOpen, onResume }) {
   const [adding, setAdding] = useState(false)
   const items = meals.filter((a) =>
     row.kind === 'supp'
@@ -212,22 +284,23 @@ function DietSlotRow({ row, meals, dayKey, onAdd, onRemove, onResume }) {
       : a.type === 'meal_item' && (a.details.slot || 'breakfast') === row.slot,
   )
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5 border-b border-stone-100 pb-3">
+    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5 border-b border-stone-100 pb-3">
       <span className="kicker w-32 shrink-0 text-stone-400">{row.label}</span>
-      <div className="flex flex-1 flex-wrap items-center gap-1.5">
-        {items.map((a) => (
-          <span key={a.id} className={`inline-flex items-center gap-1.5 border border-stone-300 bg-white/50 px-2 py-0.5 text-xs text-stone-700 ${a.status === 'paused' ? 'opacity-60' : ''}`}>
-            {a.title}
-            {a.status === 'paused'
-              ? <button onClick={() => onResume && onResume(a.id)} title="Resume — bring back to Today" className="text-[9px] uppercase tracking-[0.1em] text-stone-400 hover:text-stone-900">paused · resume</button>
-              : <span className="text-[9px] uppercase tracking-[0.1em] text-stone-400">{FREQ_LABEL[a.frequency] || a.frequency}</span>}
-            <button onClick={() => onRemove(a.id)} className="text-stone-400 hover:text-stone-700"><X size={11} /></button>
+      <div className="flex flex-1 flex-wrap items-baseline gap-x-1 gap-y-1 text-sm">
+        {items.map((a, idx) => (
+          <span key={a.id} className={`inline-flex items-baseline gap-1.5 ${a.status === 'paused' ? 'opacity-50' : ''}`}>
+            {idx > 0 && <span aria-hidden className="mr-1 text-stone-300">·</span>}
+            <button onClick={() => onOpen && onOpen(a)} className="text-stone-700 transition-colors hover:text-stone-950">
+              {a.title}
+              {a.frequency && a.frequency !== 'daily' && <span className="ml-1.5 text-[10px] italic text-stone-400">{FREQ_LABEL[a.frequency] || a.frequency}</span>}
+            </button>
+            {a.status === 'paused' && <button onClick={() => onResume && onResume(a.id)} title="Resume — bring back to Today" className="text-[9px] uppercase tracking-[0.12em] text-stone-400 hover:text-stone-900">resume</button>}
           </span>
         ))}
         {adding ? (
           <AddMealForm slot={slotMeta(row.slot)} kind={row.kind} dateKeyStr={dayKey} onCancel={() => setAdding(false)} onSave={(item) => { onAdd({ ...item, slot: row.slot, kind: row.kind }); setAdding(false) }} />
         ) : (
-          <button onClick={() => setAdding(true)} className="text-sm italic hover:text-stone-700" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>
+          <button onClick={() => setAdding(true)} className="ml-2 text-sm italic text-stone-400 transition-colors hover:text-stone-700">
             {row.kind === 'supp' ? 'add supplement' : 'add food'}
           </button>
         )}
