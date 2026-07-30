@@ -670,24 +670,19 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     return out
   }
 
-  // TASKS — every section's protocols become "To Achieve" items in the day flow,
+  // ROUTINE — every section's protocols become the block checklist ("Routine"),
   // so anything scheduled in any section (Skincare, Mindset, Relationships,
-  // Diagnostics, Hormones, …) carries into the main view. Meals/supplements have
-  // their own nourishment carousel and appointments live on the calendar, so both
-  // are excluded here. Day-section placement: morning → Upon Waking/Morning,
+  // Diagnostics, Hormones, …) carries into the main view. Meals/supplements live
+  // in the Nourishment carousel and appointments live in the day's Schedule, so
+  // both are excluded here. Day-section placement: morning → Upon Waking/Morning,
   // day → Afternoon, night → Evening (an item may carry more than one).
   const dayRituals = (k) => {
     const out = []
     activities.forEach((a) => {
-      if (!active(a, k)) return
-      // Food + supplements live in the Nourishment carousel, not the checklist.
-      if (a.type === 'meal_item' || a.type === 'supplement') return
+      if (a.type !== 'protocol' || !active(a, k)) return
+      if (a.category === 'appointments') return // appointments → Schedule
       const block = a.details?.block
       const push = (part) => out.push({ id: a.id, title: a.title, part, block, done: isDoneOn(a, k), order: a.order })
-      // Events carry their part(s) of day directly.
-      if (a.type === 'event') { [...new Set(eventPartsOf(a))].forEach(push); return }
-      // Protocols: explicit day-sections win (morning / day → afternoon / night),
-      // otherwise fall back to their time-of-day parts.
       const secs = daySectionsOf(a)
       if (secs.length) {
         if (secs.includes('morning')) push('morning')
@@ -700,11 +695,24 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     return out
   }
 
-  // The main month grid previews everything scheduled that day — appointments/
-  // events plus every section's tasks — as one deduped list.
+  // SCHEDULE — the day's appointments: every event plus any Appointments-category
+  // protocol, sorted by time (timed first, then the untimed).
+  const daySchedule = (k) => {
+    const out = []
+    activities.forEach((a) => {
+      if (!active(a, k)) return
+      const isAppt = a.type === 'event' || (a.type === 'protocol' && a.category === 'appointments')
+      if (!isAppt) return
+      out.push({ id: a.id, title: a.title, time: a.details?.time || '', done: isDoneOn(a, k) })
+    })
+    return out.sort((x, y) => (x.time || '99:99').localeCompare(y.time || '99:99'))
+  }
+
+  // The main month grid previews everything scheduled that day — the day's
+  // schedule plus every section's routine — as one deduped list.
   const dayGridItems = (k) => {
     const seen = new Set()
-    return [...dayEvents(k), ...dayRituals(k)]
+    return [...daySchedule(k), ...dayRituals(k)]
       .filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)))
       .map((a) => ({ id: a.id, title: a.title, done: a.done }))
   }
@@ -812,6 +820,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         cycleConfig={cycleConfig}
         eventsFor={dayGridItems}
         ritualsFor={dayRituals}
+        scheduleFor={daySchedule}
         mealsFor={dayMeals}
         carry={carryForward}
         onCompleteCarry={completeCarry}
@@ -871,7 +880,7 @@ const PHASE_AGENDA_HINT = {
 // ── Calendar ───────────────────────────────────────────────────────
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
-function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
+function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, scheduleFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   const selected = parseKey(selectedKey)
 
   return (
@@ -892,6 +901,7 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
         <h3 className="mb-6 text-center font-serif text-2xl text-stone-900">{longDate(selected)}</h3>
         <DayColumns
           rituals={ritualsFor(selectedKey)}
+          schedule={scheduleFor(selectedKey)}
           dateKeyStr={selectedKey}
           meals={mealsFor(selectedKey)}
           onAddMeal={onAddMeal}
@@ -1030,14 +1040,23 @@ function Collapsible({ label, open, onToggle, children }) {
   )
 }
 
-// ── TODAY view body — one swipeable day flow ──
-// The whole day is a single carousel of five time-blocks (Upon Waking … Before
-// Bed). Each block gathers what happens then: the tasks to achieve, the food,
-// the supplements. Arrows/dots move between blocks; a task can be nudged to any
-// block so it sits with the right moment.
-function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
+// "14:30" → "2:30 PM"; blank/invalid → ''
+const fmtApptTime = (t) => {
+  if (!t || !/^\d{1,2}:\d{2}$/.test(t)) return ''
+  const [h, m] = t.split(':').map(Number)
+  const ap = h < 12 ? 'AM' : 'PM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${ap}`
+}
+
+// ── TODAY view body ──
+// A day-level Schedule (appointments, by time) sits above a swipeable carousel
+// of five time-blocks. Each block splits into two columns — Nourishment and the
+// block's Routine — so the day fills the width and reads clearly.
+function DayColumns({ rituals, schedule, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-3xl space-y-10">
+      <DaySchedule items={schedule || []} onToggle={onToggle} onOpen={onOpen} />
       <DayFlow
         rituals={rituals || []}
         meals={meals}
@@ -1053,8 +1072,30 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
   )
 }
 
-// A single day-flow block: its nutrition (food + supplements) first, then the
-// tasks to achieve then. Arrows/dots move between the five blocks.
+// The day's appointments — timed first, then untimed — as a simple schedule.
+function DaySchedule({ items, onToggle, onOpen }) {
+  return (
+    <div>
+      <p className="kicker text-stone-400 mb-3">Schedule</p>
+      {items.length === 0 ? (
+        <p className="text-sm italic text-stone-300">Nothing scheduled — add an Appointment from the ＋ button.</p>
+      ) : (
+        <div className="divide-y divide-stone-100">
+          {items.map((it) => (
+            <div key={it.id} className="group flex items-center gap-4 py-2">
+              <span className="w-20 shrink-0 font-serif text-sm tabular-nums text-stone-500">{fmtApptTime(it.time) || '—'}</span>
+              <button onClick={() => onOpen(it.id)} className={`flex-1 text-left text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{it.title || 'Untitled'}</button>
+              <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// A single time-block: Nourishment on the left, that block's Routine on the
+// right. Arrows/dots move between the five blocks; a task nudges between blocks.
 function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onToggle, onOpen }) {
   const [i, setI] = useState(0)
   const [addingTask, setAddingTask] = useState(false)
@@ -1083,15 +1124,20 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
         <button onClick={() => jump(i + 1)} disabled={i === n - 1} className={`px-2 py-1 text-lg ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
       </div>
 
-      <div className="min-h-[120px] space-y-5">
-        {/* Nutrition first */}
-        {block.rows.map((row) => (
-          <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
-        ))}
-
-        {/* Then the tasks to achieve — always shown, blank is fine */}
+      <div className="grid min-h-[160px] gap-x-12 gap-y-8 md:grid-cols-2">
+        {/* Nourishment */}
         <div>
-          <p className="kicker text-stone-400 mb-2">To Achieve</p>
+          <p className="kicker text-stone-400 mb-3 border-b border-stone-100 pb-1.5">Nourishment</p>
+          <div className="space-y-5">
+            {block.rows.map((row) => (
+              <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} />
+            ))}
+          </div>
+        </div>
+
+        {/* Routine — this block's checklist */}
+        <div>
+          <p className="kicker text-stone-400 mb-3 border-b border-stone-100 pb-1.5">Routine</p>
           {tasks.length > 0 && (
             <div className="mb-2 space-y-0.5">
               {tasks.map((t) => (
