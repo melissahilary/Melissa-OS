@@ -1074,16 +1074,6 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
   const isTodo = block.type === 'todo'
   const tasks = isTodo ? dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents) : []
 
-  // Move a to-do to the previous/next to-do block, and follow it to that slide.
-  const moveTask = (id, dir) => {
-    const cur = BLOCK_ORDER.indexOf(block.id)
-    const nb = BLOCK_ORDER[Math.max(0, Math.min(BLOCK_ORDER.length - 1, cur + dir))]
-    if (!nb || nb === block.id) return
-    onMoveTaskBlock(id, nb)
-    setI(DAY_BLOCKS.findIndex((b) => b.id === nb))
-  }
-  const todoIndex = BLOCK_ORDER.indexOf(block.id)
-
   return (
     <div>
       <div className={DAY_CARD}>
@@ -1099,26 +1089,16 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
         </div>
 
         <div className="min-h-[150px] space-y-7">
-          {/* Nourishment — meal slides, plus the supplements on Empty Stomach / Before Bed.
-              Rendered first so the To Do below never sits above these section titles. */}
-          {block.mealRows.length > 0 && (
-            <div className="space-y-5">
-              {block.mealRows.map((row) => (
-                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} onPause={onPause} />
-              ))}
-            </div>
-          )}
-
-          {/* To Do — only on to-do slides. On slides that also carry nourishment
-              (Empty Stomach / Before Bed) it gets its own title so it reads as a
-              peer section beneath Food / Supplements, not untitled content above them. */}
+          {/* To Do — sits directly under the slide's main title, above the nutrition
+              boxes. On slides that also carry nourishment (Empty Stomach / Before Bed)
+              it keeps its own title so it reads as its own section above Food. */}
           {isTodo && (
             <div>
               {block.mealRows.length > 0 && <p className="kicker text-stone-400 mb-2">To Do</p>}
               {tasks.length > 0 && (
                 <div className="mb-2 space-y-0.5">
                   {tasks.map((t) => (
-                    <TaskRow key={t.id} task={t} blockIndex={todoIndex} lastIndex={BLOCK_ORDER.length - 1} onToggle={onToggle} onOpen={onOpen} onMove={(dir) => moveTask(t.id, dir)} onPause={() => onPause(t.id)} />
+                    <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} onPause={() => onPause(t.id)} onRemove={onRemove} />
                   ))}
                 </div>
               )}
@@ -1127,6 +1107,15 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
               ) : (
                 <AddRow label="add to‑do" onClick={() => setAddingTask(true)} />
               )}
+            </div>
+          )}
+
+          {/* Nourishment — meal slides, plus the supplements on Empty Stomach / Before Bed. */}
+          {block.mealRows.length > 0 && (
+            <div className="space-y-5">
+              {block.mealRows.map((row) => (
+                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} onPause={onPause} />
+              ))}
             </div>
           )}
         </div>
@@ -1146,11 +1135,12 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
   )
 }
 
-// A task within a day-flow block: check it off, tap to edit, or nudge it to the
-// previous/next block with the hairline ‹ › marks (which surface on hover). The
-// leading checkbox sits in a fixed gutter so its label aligns with every other
-// row in the block, tasks and nutrition alike.
-function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove, onPause }) {
+// A task within a day-flow block: check it off, tap to edit, pause it off Today,
+// or remove it — the pause / remove marks sit on the right (always shown on touch,
+// revealed on hover for pointer devices). The leading checkbox sits in a fixed
+// gutter so its label aligns with every other row in the block, tasks and nutrition
+// alike.
+function TaskRow({ task, onToggle, onOpen, onPause, onRemove }) {
   return (
     <div className="group flex items-center gap-3 py-0.5">
       <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={task.done} onClick={() => onToggle(task.id)} /></span>
@@ -1159,9 +1149,8 @@ function TaskRow({ task, blockIndex, lastIndex, onToggle, onOpen, onMove, onPaus
         {task.title || 'Untitled'}
       </button>
       <div className="hover-reveal flex shrink-0 items-center gap-0.5">
-        <button onClick={() => onMove(-1)} disabled={blockIndex === 0} aria-label="Move to earlier block" className={`px-1 text-sm ${blockIndex === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
-        <button onClick={() => onMove(1)} disabled={blockIndex === lastIndex} aria-label="Move to later block" className={`px-1 text-sm ${blockIndex === lastIndex ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
         {onPause && <button onClick={onPause} aria-label="Pause — park off Today" title="Pause — park off Today" className="px-1 text-stone-400 hover:text-stone-900"><Pause size={13} /></button>}
+        <button onClick={() => onRemove(task.id)} aria-label="Remove" className="px-1 text-stone-300 hover:text-stone-700"><X size={13} /></button>
       </div>
     </div>
   )
