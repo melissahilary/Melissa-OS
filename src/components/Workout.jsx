@@ -65,6 +65,9 @@ const INTENTION = {
   menstrual: "Rest and reset. Honor the slowdown — it's productive in its own way.",
 }
 
+const chipCls = (on) => `px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
+const REAL_FLOW = ['Light', 'Medium', 'Heavy'] // a real period day (sets Day 1); Spotting doesn't
+
 function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const today = new Date()
   const todayKey = dateKey(today)
@@ -74,10 +77,15 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
   const cycleDay = cycleDayFor(today, start, len)
 
   const [logs, setLogs] = useLocalStorage('mos:cycle:logs', {})
+  const [selectedKey, setSelectedKey] = useState(todayKey)
   const [reading, setReading] = useState(null)
-  const todayLog = logs[todayKey] || { symptoms: [], flow: '', bbt: '', notes: '' }
-  const setToday = (patch) => setLogs((p) => ({ ...p, [todayKey]: { symptoms: [], flow: '', bbt: '', notes: '', ...(p[todayKey] || {}), ...patch } }))
-  const toggleSymptom = (s) => { const cur = todayLog.symptoms || []; setToday({ symptoms: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] }) }
+
+  // The whole log form is bound to the SELECTED day, not just today.
+  const selD = parseKey(selectedKey)
+  const isToday = selectedKey === todayKey
+  const selLog = logs[selectedKey] || { symptoms: [], flow: '', bbt: '', notes: '' }
+  const setSel = (patch) => setLogs((p) => ({ ...p, [selectedKey]: { symptoms: [], flow: '', bbt: '', notes: '', ...(p[selectedKey] || {}), ...patch } }))
+  const toggleSymptom = (s) => { const cur = selLog.symptoms || []; setSel({ symptoms: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] }) }
 
   const history = Array.isArray(cycleConfig.history) ? cycleConfig.history : []
   const setCfg = (patch) => setCycleConfig({ ...cycleConfig, ...patch })
@@ -88,8 +96,8 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
     ? [...new Set(cycleConfig.periodDays.filter(Boolean))].sort()
     : [...new Set([...history, start].filter(Boolean))].sort()
 
-  // Editing the calendar re-derives Day 1 from the runs' start dates and stores
-  // run starts as history (for average cycle length) — driving phase + predictions
+  // Setting period days re-derives Day 1 from the runs' start dates and stores run
+  // starts as history (for average cycle length) — driving phase + predictions
   // everywhere on the site.
   const setPeriodDays = (arr) => {
     const days = [...new Set(arr.filter(Boolean))].sort()
@@ -98,6 +106,16 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
     const anchor = anchorStart(starts, todayKey)
     const rest = starts.filter((k) => k !== anchor).sort((a, b) => (a < b ? 1 : -1))
     setCfg({ periodDays: days, lastPeriodStart: anchor, history: rest, manualPhase: '' })
+  }
+
+  // Choosing a flow logs the bleeding type AND, for a real flow, marks the selected
+  // day as a period day (which sets Day 1); Spotting/none only logs.
+  const setFlow = (f) => {
+    const val = selLog.flow === f ? '' : f
+    setSel({ flow: val, ...(val ? {} : { flowTime: '' }) })
+    const cur = new Set(periodDays)
+    if (REAL_FLOW.includes(val)) cur.add(selectedKey); else cur.delete(selectedKey)
+    setPeriodDays([...cur])
   }
 
   // Self-heal legacy/incorrect data on load: Day 1 must be a period-run START.
@@ -131,69 +149,70 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
     return { nextPeriod: nextStart, nextOv, nextPhaseDate, nextPhaseName }
   })()
 
-  const pastKeys = Object.keys(logs)
-    .filter((k) => k !== todayKey && logs[k] && ((logs[k].symptoms && logs[k].symptoms.length) || logs[k].flow || logs[k].bbt || (logs[k].notes && logs[k].notes.trim())))
-    .sort((a, b) => (a < b ? 1 : -1))
+  const loggedKeys = new Set(
+    Object.keys(logs).filter((k) => { const l = logs[k]; return l && ((l.symptoms && l.symptoms.length) || l.flow || l.bbt || (l.notes && l.notes.trim())) }),
+  )
+  const pastKeys = [...loggedKeys].filter((k) => k !== selectedKey).sort((a, b) => (a < b ? 1 : -1))
 
   return (
-    <div className="mb-10 space-y-12">
-      {/* TOP HERO — phase name + editable period calendar right beneath it */}
+    <div className="mb-10 space-y-10">
+      {/* Phase headline */}
       <section>
         {phase ? (
-          <p className="font-serif italic text-4xl md:text-5xl text-stone-900">{phase.name} · Day {cycleDay}</p>
+          <p className="font-serif italic text-4xl md:text-5xl text-stone-900">{phase.name}<span className="text-stone-400"> · Day {cycleDay}</span></p>
         ) : (
-          <p className="font-serif italic text-2xl text-stone-500">Set your period dates to see your phase.</p>
+          <p className="font-serif italic text-2xl text-stone-500">Log a period day below to see your phase.</p>
         )}
-
-        <div className="mt-5">
-          <p className="kicker text-stone-400 mb-2">Period dates</p>
-          <PeriodCalendar dates={periodDays} onChange={setPeriodDays} today={today} cycleConfig={cycleConfig} />
-          <p className="mt-2 text-xs italic text-stone-400">Tap the days your period started. Your most recent start becomes Day 1 and updates the phase above — and the whole planner.</p>
-        </div>
+        <p className="mt-2 max-w-xl text-sm italic text-stone-400">Tap any day to log it — bleeding, symptoms, notes. Marking a Light/Medium/Heavy flow makes it a period day and sets Day 1 for the whole planner.</p>
       </section>
 
-      {/* TODAY'S LOG */}
-      <section className="border-t border-stone-200 pt-8">
-        <p className="kicker text-stone-400 mb-5">{fmt(today)}</p>
+      {/* Calendar — tap a day to select it */}
+      <PeriodCalendar periodDays={periodDays} loggedKeys={loggedKeys} selectedKey={selectedKey} onSelect={setSelectedKey} today={today} cycleConfig={cycleConfig} />
 
-        <p className="kicker text-stone-400 mb-2">Symptoms</p>
-        <div className="mb-6 flex flex-wrap gap-1.5">
-          {SYMPTOMS.map((s) => {
-            const on = (todayLog.symptoms || []).includes(s)
-            return <button key={s} onClick={() => toggleSymptom(s)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{s}</button>
-          })}
+      {/* The selected day's log — one clean card, everything writes to that day */}
+      <section className="rounded-2xl border border-stone-200/80 bg-white/50 p-6 shadow-sm md:p-8">
+        <div className="mb-6 flex items-baseline justify-between gap-3">
+          <h3 className="font-serif italic text-2xl text-stone-900">
+            {isToday ? 'Today' : fmt(selD)}
+            {isToday && <span className="ml-2 text-base not-italic text-stone-400">{fmt(selD)}</span>}
+          </h3>
+          {!isToday && <button onClick={() => setSelectedKey(todayKey)} className="shrink-0 kicker text-stone-400 hover:text-stone-900">back to today</button>}
         </div>
 
-        <div className="mb-6">
-          <p className="kicker text-stone-400 mb-2">Period &amp; spotting</p>
+        <div className="mb-7">
+          <p className="kicker text-stone-400 mb-2">Bleeding</p>
           <div className="flex flex-wrap gap-1.5">
-            {FLOW.map((f) => {
-              const on = todayLog.flow === f
-              return <button key={f} onClick={() => setToday({ flow: on ? '' : f })} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{f}</button>
-            })}
+            {FLOW.map((f) => <button key={f} onClick={() => setFlow(f)} className={chipCls(selLog.flow === f)}>{f}</button>)}
           </div>
-
-          {todayLog.flow && (
+          {selLog.flow && (
             <div className="mt-3">
-              <label className="kicker text-stone-400 mb-1.5 block">{todayLog.flow === 'Spotting' ? 'Time spotting started' : 'Time it started'}</label>
-              <input type="time" value={todayLog.flowTime || ''} onChange={(e) => setToday({ flowTime: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              <label className="kicker text-stone-400 mb-1.5 block">{selLog.flow === 'Spotting' ? 'Time spotting started' : 'Time it started'}</label>
+              <input type="time" value={selLog.flowTime || ''} onChange={(e) => setSel({ flowTime: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
             </div>
           )}
-          <p className="mt-2 text-xs italic text-stone-400">Spotting is logged here but won't reset your cycle. Set true period days on the calendar up top.</p>
+          <p className="mt-2 text-xs italic text-stone-400">Light, Medium or Heavy marks a true period day; Spotting is logged but won't reset your cycle.</p>
         </div>
 
-        <div className="mb-6">
-          <label className="kicker text-stone-400 mb-1.5 block">Basal body temp (°F)</label>
-          <input type="number" step="0.1" value={todayLog.bbt || ''} onChange={(e) => setToday({ bbt: e.target.value })} placeholder="97.8" className="w-24 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+        <div className="mb-7">
+          <p className="kicker text-stone-400 mb-2">Symptoms</p>
+          <div className="flex flex-wrap gap-1.5">
+            {SYMPTOMS.map((s) => <button key={s} onClick={() => toggleSymptom(s)} className={chipCls((selLog.symptoms || []).includes(s))}>{s}</button>)}
+          </div>
         </div>
 
-        <div>
-          <label className="kicker text-stone-400 mb-2 block">Log</label>
-          <textarea value={todayLog.notes || ''} onChange={(e) => setToday({ notes: e.target.value })} placeholder="How you feel today" className="w-full min-h-[90px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" />
+        <div className="grid gap-7 md:grid-cols-[auto,1fr]">
+          <div>
+            <label className="kicker text-stone-400 mb-2 block">Basal body temp (°F)</label>
+            <input type="number" step="0.1" value={selLog.bbt || ''} onChange={(e) => setSel({ bbt: e.target.value })} placeholder="97.8" className="w-24 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+          </div>
+          <div>
+            <label className="kicker text-stone-400 mb-2 block">Notes</label>
+            <textarea value={selLog.notes || ''} onChange={(e) => setSel({ notes: e.target.value })} placeholder={isToday ? 'How you feel today' : 'How you felt'} className="w-full min-h-[90px] resize-y bg-white/60 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" />
+          </div>
         </div>
       </section>
 
-      {/* PREDICTIONS — What's Coming */}
+      {/* Predictions — What's Coming */}
       {predictions && (
         <section className="border-t border-stone-200 pt-6">
           <h3 className="font-serif italic text-2xl text-stone-900 mb-4">What's Coming.</h3>
@@ -212,19 +231,19 @@ function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
         </section>
       )}
 
-      {/* PAST ENTRIES */}
+      {/* Past entries */}
       <section className="border-t border-stone-200 pt-6">
         <h3 className="font-serif italic text-2xl text-stone-900 mb-4">Past entries.</h3>
         {pastKeys.length === 0 ? (
-          <p className="text-sm italic text-stone-400">No past logs yet.</p>
+          <p className="text-sm italic text-stone-400">No other logs yet.</p>
         ) : (
           <div className="divide-y divide-stone-100">
             {pastKeys.map((k) => {
               const l = logs[k]
               return (
-                <button key={k} onClick={() => setReading(k)} className="flex w-full items-center justify-between py-2.5 text-left hover:text-stone-900">
+                <button key={k} onClick={() => setSelectedKey(k)} className="flex w-full items-center justify-between py-2.5 text-left hover:text-stone-900">
                   <span className="text-sm text-stone-700">{fmt(parseKey(k))}</span>
-                  <span className="text-xs text-stone-400">{(l.symptoms || []).length} symptom{(l.symptoms || []).length === 1 ? '' : 's'}{l.flow ? ` · ${l.flow}` : ''}{l.periodStart ? ' · Day 1' : ''}</span>
+                  <span className="text-xs text-stone-400">{(l.symptoms || []).length} symptom{(l.symptoms || []).length === 1 ? '' : 's'}{l.flow ? ` · ${l.flow}` : ''}</span>
                 </button>
               )
             })}
@@ -309,24 +328,25 @@ const PHASE_LEGEND = [
   { id: 'luteal', label: 'Luteal' },
 ]
 
-// An inline month calendar for editing period days. Tapping a day toggles it as a
-// period day (solid red). Every other day is tinted by its projected cycle phase,
-// so paging month-to-month shows the whole menstrual/follicular/ovulatory/luteal
-// pattern — as far back or forward as you like.
-function PeriodCalendar({ dates, onChange, today, cycleConfig = {} }) {
-  const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-  const set = new Set(dates)
+// An inline month calendar. Tapping a day SELECTS it for logging (a ring). Period
+// days are solid red; every other day is tinted by its projected cycle phase, so
+// paging month-to-month shows the whole menstrual/follicular/ovulatory/luteal
+// pattern. A small dot marks any day that already carries a log.
+function PeriodCalendar({ periodDays, loggedKeys, selectedKey, onSelect, today, cycleConfig = {} }) {
+  const [month, setMonth] = useState(new Date(parseKey(selectedKey).getFullYear(), parseKey(selectedKey).getMonth(), 1))
+  // Follow the selection into its month (e.g. "back to today" or a past entry).
+  useEffect(() => {
+    const d = parseKey(selectedKey)
+    if (d.getMonth() !== month.getMonth() || d.getFullYear() !== month.getFullYear()) setMonth(new Date(d.getFullYear(), d.getMonth(), 1))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey])
+  const periodSet = new Set(periodDays)
   const cells = monthGrid(month)
-  const toggle = (k) => {
-    const next = new Set(set)
-    if (next.has(k)) next.delete(k); else next.add(k)
-    onChange([...next])
-  }
   return (
-    <div className="max-w-sm border border-stone-200 bg-white/40 p-4">
+    <div className="mx-auto max-w-md border border-stone-200 bg-white/40 p-4 md:p-5">
       <div className="mb-3 flex items-center justify-between">
         <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
-        <span className="font-serif text-base text-stone-900">{MONTHS[month.getMonth()]} {month.getFullYear()}</span>
+        <span className="font-serif text-lg text-stone-900">{MONTHS[month.getMonth()]} {month.getFullYear()}</span>
         <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -334,33 +354,44 @@ function PeriodCalendar({ dates, onChange, today, cycleConfig = {} }) {
         {cells.map((cell) => {
           const k = dateKey(cell)
           const inMonth = cell.getMonth() === month.getMonth()
-          const on = set.has(k)
+          const isPeriod = periodSet.has(k)
+          const isSel = k === selectedKey
           const isTod = isSameDay(cell, today)
+          const logged = loggedKeys.has(k) && !isPeriod
           // Projected phase for this day (calculated, ignoring any manual override).
           const ph = phaseFor(cell, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
           const tint = inMonth && ph ? PHASE_TINT[ph.id] : undefined
-          const style = on
+          const style = isPeriod
             ? { backgroundColor: PHASES.menstrual.color, color: '#FAFAF7' }
             : tint ? { backgroundColor: tint } : undefined
           return (
             <button
               key={k}
-              onClick={() => toggle(k)}
+              onClick={() => onSelect(k)}
               style={style}
-              className={`flex aspect-square items-center justify-center rounded-full text-xs transition-colors ${on ? '' : inMonth ? 'text-stone-700 hover:brightness-95' : 'text-stone-300 hover:bg-stone-100'} ${isTod && !on ? 'ring-1 ring-stone-900' : ''}`}
+              className={`relative flex aspect-square items-center justify-center rounded-full text-xs transition-colors ${isPeriod ? '' : inMonth ? 'text-stone-700 hover:brightness-95' : 'text-stone-300 hover:bg-stone-100'} ${isSel ? 'ring-2 ring-stone-900' : isTod ? 'ring-1 ring-stone-400' : ''}`}
             >
               {cell.getDate()}
+              {logged && <span className="absolute bottom-1 h-1 w-1 rounded-full bg-stone-500" />}
             </button>
           )
         })}
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-stone-100 pt-3">
-        {PHASE_LEGEND.map((p) => (
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-stone-100 pt-3">
+        <span className="flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] text-stone-500">
+          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PHASES.menstrual.color }} />
+          Period
+        </span>
+        {PHASE_LEGEND.filter((p) => p.id !== 'menstrual').map((p) => (
           <span key={p.id} className="flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] text-stone-500">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.id === 'menstrual' ? PHASES.menstrual.color : PHASE_TINT[p.id] }} />
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PHASE_TINT[p.id] }} />
             {p.label}
           </span>
         ))}
+        <span className="flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] text-stone-500">
+          <span className="inline-block h-1 w-1 rounded-full bg-stone-500" />
+          Logged
+        </span>
       </div>
     </div>
   )
