@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
-  ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
+  ChevronLeft, Compass, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
   Settings as SettingsIcon, X,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -40,7 +40,7 @@ import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 
 const PILLARS = [
-  { id: 'mindset', label: 'Mindset', icon: Sparkles },
+  { id: 'mindset', label: 'Mindset', icon: Compass },
   { id: 'brainhealth', label: 'Brain Health', icon: Brain },
   { id: 'skincare', label: 'Skincare', icon: Flower2 },
   { id: 'haircare', label: 'Haircare', icon: Scissors },
@@ -343,11 +343,8 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
         <div className="mx-auto w-full max-w-xl pb-16 pt-14 md:pt-20">
           {/* Centered logo masthead — the hero the rest sizes down from; returns home */}
           <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block w-full text-center text-4xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-6xl">Melissa's Digital Planner</button>
-          <div className="mx-auto mt-6 flex items-center justify-center gap-2.5" aria-hidden>
-            <span className="h-px w-10 bg-stone-300" />
-            <span className="h-[5px] w-[5px] rotate-45 bg-stone-300" />
-            <span className="h-px w-10 bg-stone-300" />
-          </div>
+          {/* Printer's fleuron — a quiet old-money book ornament in place of a rule */}
+          <div className="mx-auto mt-4 select-none text-center text-3xl leading-none text-stone-300" aria-hidden style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</div>
 
           <h2 className="mt-8 text-center font-serif text-2xl leading-none text-stone-800 md:text-3xl">Pillars of Health</h2>
 
