@@ -341,15 +341,15 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
 
       <div className={`no-scrollbar relative flex h-full w-full flex-col overflow-y-auto px-8 transition-all duration-300 md:px-12 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
         <div className="mx-auto w-full max-w-xl pb-16 pt-14 md:pt-20">
-          {/* Centered logo masthead — returns home */}
-          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block w-full text-center text-3xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-4xl">Melissa's Digital Planner</button>
+          {/* Centered logo masthead — the hero the rest sizes down from; returns home */}
+          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block w-full text-center text-4xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-6xl">Melissa's Digital Planner</button>
           <div className="mx-auto mt-6 flex items-center justify-center gap-2.5" aria-hidden>
             <span className="h-px w-10 bg-stone-300" />
             <span className="h-[5px] w-[5px] rotate-45 bg-stone-300" />
             <span className="h-px w-10 bg-stone-300" />
           </div>
 
-          <h2 className="mt-9 text-center font-serif text-[2.5rem] leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
+          <h2 className="mt-8 text-center font-serif text-2xl leading-none text-stone-800 md:text-3xl">Pillars of Health</h2>
 
           <div className="mx-auto mt-10 grid w-fit grid-cols-1 gap-x-16 sm:grid-cols-2">
             {pillars.map((p) => {
