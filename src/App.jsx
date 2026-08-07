@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
-  ChevronLeft, Compass, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
+  ChevronLeft, ChevronDown, Compass, PanelLeftClose, PanelLeftOpen, CalendarDays, CalendarRange, ClipboardList, Flower2, Gem, FlaskConical, Sun,
+  Target, UserRound, MapPin, Shirt, Car, TrendingUp,
   Settings as SettingsIcon, X,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -370,62 +371,102 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
 }
 
 // ── Contextual sub-navigation (a section's sub-pages) ───────────────
+// Sub-page nav for the pillars — a quiet row of serif tabs where the active one
+// inks into a stone pill, echoing the app's dark Add/settings buttons.
 function SubNav({ items, activeId, onPick }) {
   return (
     <div className="border-b border-stone-200 bg-cream">
       <div className="mx-auto max-w-[1400px] px-6 md:px-10">
-        <nav className="no-scrollbar flex items-center gap-7 overflow-x-auto">
-          {items.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => onPick(s.id)}
-              className={`relative whitespace-nowrap py-3 font-serif text-[15px] transition-colors ${
-                activeId === s.id ? 'text-stone-900' : 'text-stone-400 hover:text-stone-700'
-              }`}
-            >
-              {s.label}
-              {activeId === s.id && <span className="absolute inset-x-0 -bottom-px h-px bg-stone-900" />}
-            </button>
-          ))}
+        <nav className="no-scrollbar flex items-center justify-center gap-1 overflow-x-auto py-2.5">
+          {items.map((s) => {
+            const on = activeId === s.id
+            return (
+              <button
+                key={s.id}
+                onClick={() => onPick(s.id)}
+                className={`whitespace-nowrap rounded-full px-4 py-1.5 font-serif text-[15px] transition-colors ${
+                  on ? 'bg-stone-900 text-cream' : 'text-stone-400 hover:text-stone-800'
+                }`}
+              >
+                {s.label}
+              </button>
+            )
+          })}
         </nav>
       </div>
     </div>
   )
 }
 
-// Dream Planning sub-pages — fixed pages first, then the drag-reorderable set.
-// Dream Planning sits inside Mindset, so a quiet label anchors the context.
+// An icon per Dream chapter, so the index reads as a set of distinct places
+// rather than a wall of similar serif words.
+const DREAM_ICON = {
+  goals: Target,
+  week: CalendarRange,
+  calendar: CalendarDays,
+  self: UserRound,
+  outings: MapPin,
+  skincare: Flower2,
+  wardrobe: Shirt,
+  devices: Car,
+  home: Home,
+  investments: TrendingUp,
+  haircare: Scissors,
+}
+
+// Dream Planning has too many chapters for a strip, so its nav is a "chapter
+// index": the current chapter reads as a heading you tap to reveal a paneled
+// table of contents (icons + drag-to-reorder). Fixed pages first, then the set.
 function DreamSubNav({ dreamPage, setDreamPage, onExit }) {
   const [order, setOrder] = useLocalStorage('mos:dream:order', DREAM_REORDER)
+  const [open, setOpen] = useState(false)
   const [dragId, setDragId] = useState(null)
+  const [pos, setPos] = useState(null)
+  const boxRef = useRef(null)
+  const triggerRef = useRef(null)
   const reorderIds = [
     ...order.filter((id) => DREAM_REORDER.includes(id)),
     ...DREAM_REORDER.filter((id) => !order.includes(id)),
   ]
+  const allIds = [...DREAM_FIXED, ...reorderIds]
   const labelOf = (id) => DREAM_PAGES.find((p) => p.id === id)?.label || id
+  const CurrentIcon = DREAM_ICON[dreamPage] || Compass
+
+  // Fixed-position the panel from the trigger's rect, clamped into the viewport
+  // so it never runs off the right edge on a phone.
+  useEffect(() => {
+    if (!open) return
+    const place = () => {
+      const el = triggerRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const w = Math.min(288, window.innerWidth - 24)
+      const left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12))
+      setPos({ top: Math.round(r.bottom + 8), left: Math.round(left), width: w })
+    }
+    place()
+    const onDoc = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
+    const onEsc = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onEsc)
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onEsc)
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
+
   const onDrop = (targetId) => {
-    if (!dragId || dragId === targetId) return
+    if (!dragId || dragId === targetId || DREAM_FIXED.includes(targetId)) return
     const next = reorderIds.filter((id) => id !== dragId)
     const at = next.indexOf(targetId)
     next.splice(at, 0, dragId)
     setOrder(next); setDragId(null)
   }
-  const Tab = ({ id, draggable }) => (
-    <button
-      draggable={draggable}
-      onDragStart={draggable ? () => setDragId(id) : undefined}
-      onDragOver={draggable ? (e) => e.preventDefault() : undefined}
-      onDrop={draggable ? () => onDrop(id) : undefined}
-      onDragEnd={draggable ? () => setDragId(null) : undefined}
-      onClick={() => setDreamPage(id)}
-      className={`relative whitespace-nowrap py-3 font-serif text-[15px] transition-colors ${
-        dreamPage === id ? 'text-stone-900' : 'text-stone-400 hover:text-stone-700'
-      } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === id ? 'opacity-40' : ''}`}
-    >
-      {labelOf(id)}
-      {dreamPage === id && <span className="absolute inset-x-0 -bottom-px h-px bg-stone-900" />}
-    </button>
-  )
+
   return (
     <div className="border-b border-stone-200 bg-cream">
       <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 md:px-10">
@@ -438,10 +479,56 @@ function DreamSubNav({ dreamPage, setDreamPage, onExit }) {
           <span className="kicker">Mindset</span>
         </button>
         <span className="h-4 w-px shrink-0 bg-stone-200" />
-        <nav className="no-scrollbar flex flex-1 items-center gap-7 overflow-x-auto">
-          {DREAM_FIXED.map((id) => <Tab key={id} id={id} draggable={false} />)}
-          {reorderIds.map((id) => <Tab key={id} id={id} draggable />)}
-        </nav>
+
+        <div ref={boxRef} className="py-2">
+          <button
+            ref={triggerRef}
+            onClick={() => setOpen((o) => !o)}
+            className="group flex items-center gap-2 py-1 text-stone-900"
+            aria-expanded={open}
+          >
+            <CurrentIcon size={16} strokeWidth={1.75} className="text-stone-500" />
+            <span className="font-serif text-[17px]">{labelOf(dreamPage)}</span>
+            <ChevronDown size={15} className={`text-stone-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          </button>
+
+          {open && pos && (
+            <div
+              style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+              className="z-30 overflow-hidden rounded-2xl border border-stone-200 bg-cream shadow-xl shadow-stone-900/10"
+            >
+              <div className="flex items-center justify-between px-4 pb-1.5 pt-3">
+                <span className="kicker text-stone-400">Chapters</span>
+                <span className="select-none text-base leading-none text-stone-300" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</span>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto pb-2">
+                {allIds.map((id) => {
+                  const Icon = DREAM_ICON[id] || Compass
+                  const on = dreamPage === id
+                  const draggable = !DREAM_FIXED.includes(id)
+                  return (
+                    <button
+                      key={id}
+                      draggable={draggable}
+                      onDragStart={draggable ? () => setDragId(id) : undefined}
+                      onDragOver={draggable ? (e) => e.preventDefault() : undefined}
+                      onDrop={draggable ? () => onDrop(id) : undefined}
+                      onDragEnd={draggable ? () => setDragId(null) : undefined}
+                      onClick={() => { setDreamPage(id); setOpen(false) }}
+                      className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors ${
+                        on ? 'bg-stone-100/70 text-stone-900' : 'text-stone-500 hover:bg-stone-100/60 hover:text-stone-800'
+                      } ${dragId === id ? 'opacity-40' : ''} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                    >
+                      <Icon size={15} strokeWidth={1.75} className={on ? 'text-stone-700' : 'text-stone-400'} />
+                      <span className="flex-1 font-serif text-[15px]">{labelOf(id)}</span>
+                      {on && <span className="select-none text-sm leading-none text-stone-400" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
