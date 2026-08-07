@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  UtensilsCrossed, Activity, Dumbbell, Brain, BrainCircuit, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
+  UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
   Settings as SettingsIcon, X,
 } from 'lucide-react'
@@ -40,8 +40,8 @@ import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 
 const PILLARS = [
-  { id: 'mindset', label: 'Mindset', icon: Brain },
-  { id: 'brainhealth', label: 'Brain Health', icon: BrainCircuit },
+  { id: 'mindset', label: 'Mindset', icon: Sparkles },
+  { id: 'brainhealth', label: 'Brain Health', icon: Brain },
   { id: 'skincare', label: 'Skincare', icon: Flower2 },
   { id: 'haircare', label: 'Haircare', icon: Scissors },
   { id: 'aesthetics', label: 'Aesthetics', icon: Gem },
@@ -334,28 +334,27 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
   const go = (fn) => { fn(); onClose() }
   return (
     <div className={`fixed inset-0 z-[60] transition-opacity duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!open}>
-      <div className="absolute inset-0 bg-cream/95 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-cream" onClick={onClose} />
 
       {/* Close floats in the corner so the composition below can breathe */}
-      <button onClick={onClose} aria-label="Close the index" className="absolute right-6 top-6 z-10 text-stone-400 transition-colors hover:text-stone-900 md:right-10 md:top-9"><X size={24} /></button>
+      <button onClick={onClose} aria-label="Close the index" className="absolute right-6 top-6 z-10 text-stone-400 transition-colors hover:text-stone-900 md:right-10 md:top-8"><X size={24} /></button>
 
       <div className={`no-scrollbar relative flex h-full w-full flex-col overflow-y-auto px-8 transition-all duration-300 md:px-12 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
-        <div className="mx-auto my-auto w-full max-w-lg py-16">
-          {/* Masthead — the wordmark returns home */}
+        <div className="mx-auto w-full max-w-lg pb-16 pt-16 md:pt-20">
+          {/* Masthead — anchored at the top; the wordmark returns home */}
           <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block text-3xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-4xl">Melissa's Digital Planner</button>
           <div className="mt-5 h-px w-full bg-stone-200/80" />
 
           <h2 className="mt-9 font-serif text-4xl leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
 
-          <div className="mt-8 grid grid-cols-2 gap-x-12">
-            {pillars.map((p, i) => {
+          <div className="mt-7 grid grid-cols-1 gap-x-14 sm:grid-cols-2">
+            {pillars.map((p) => {
               const on = active === p.id || (p.id === 'mindset' && active === 'dream')
               const Icon = p.icon
               return (
-                <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-3.5 py-3 text-left">
-                  <span className={`w-4 shrink-0 font-serif text-[11px] tabular-nums transition-colors ${on ? 'text-stone-500' : 'text-stone-300'}`}>{String(i + 1).padStart(2, '0')}</span>
-                  <Icon size={17} strokeWidth={1.5} className={`shrink-0 transition-colors ${on ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'}`} />
-                  <span className={`font-serif text-2xl leading-tight transition-colors ${on ? 'italic text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
+                <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 py-3 text-left">
+                  <Icon size={18} strokeWidth={1.5} className={`shrink-0 transition-colors ${on ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'}`} />
+                  <span className={`font-serif text-2xl leading-tight transition-colors ${on ? 'font-medium text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
                 </button>
               )
             })}
