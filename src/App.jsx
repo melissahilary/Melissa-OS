@@ -340,21 +340,28 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
       <button onClick={onClose} aria-label="Close the index" className="absolute right-6 top-6 z-10 text-stone-400 transition-colors hover:text-stone-900 md:right-10 md:top-8"><X size={24} /></button>
 
       <div className={`no-scrollbar relative flex h-full w-full flex-col overflow-y-auto px-8 transition-all duration-300 md:px-12 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
-        <div className="mx-auto w-full max-w-lg pb-16 pt-16 md:pt-20">
-          {/* Masthead — anchored at the top; the wordmark returns home */}
-          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block text-3xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-4xl">Melissa's Digital Planner</button>
-          <div className="mt-5 h-px w-full bg-stone-200/80" />
+        <div className="mx-auto w-full max-w-xl pb-16 pt-14 md:pt-20">
+          {/* Centered logo masthead — returns home */}
+          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block w-full text-center text-3xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-4xl">Melissa's Digital Planner</button>
+          <div className="mx-auto mt-6 flex items-center justify-center gap-2.5" aria-hidden>
+            <span className="h-px w-10 bg-stone-300" />
+            <span className="h-[5px] w-[5px] rotate-45 bg-stone-300" />
+            <span className="h-px w-10 bg-stone-300" />
+          </div>
 
-          <h2 className="mt-9 font-serif text-4xl leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
+          <h2 className="mt-9 text-center font-serif text-[2.5rem] leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
 
-          <div className="mt-7 grid grid-cols-1 gap-x-14 sm:grid-cols-2">
+          <div className="mx-auto mt-10 grid max-w-md grid-cols-1 gap-x-16 sm:max-w-xl sm:grid-cols-2">
             {pillars.map((p) => {
               const on = active === p.id || (p.id === 'mindset' && active === 'dream')
               const Icon = p.icon
               return (
-                <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 py-3 text-left">
-                  <Icon size={18} strokeWidth={1.5} className={`shrink-0 transition-colors ${on ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'}`} />
-                  <span className={`font-serif text-2xl leading-tight transition-colors ${on ? 'font-medium text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
+                <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 py-3.5 text-left">
+                  <Icon size={19} strokeWidth={1.5} className={`shrink-0 transition-colors ${on ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'}`} />
+                  <span className="relative inline-block font-serif text-2xl leading-tight">
+                    <span className={`transition-colors ${on ? 'text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
+                    <span className={`absolute -bottom-1 left-0 h-px bg-stone-900 transition-all duration-300 ${on ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+                  </span>
                 </button>
               )
             })}
