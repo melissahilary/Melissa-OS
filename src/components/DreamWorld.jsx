@@ -19,6 +19,7 @@ export const DREAM_PAGES = [
   { id: 'goals', label: 'Goals' },
   { id: 'week', label: 'Dream Week' },
   { id: 'calendar', label: 'Dream Calendar' },
+  { id: 'self', label: 'Dream Self' },
   { id: 'outings', label: 'Dream Outings' },
   { id: 'skincare', label: 'Dream Skincare' },
   { id: 'wardrobe', label: 'Dream Wardrobe' },
@@ -31,7 +32,7 @@ export const DREAM_PAGES = [
 // Fixed (non-reorderable) pages, shown first and in this order.
 export const DREAM_FIXED = ['goals', 'week', 'calendar']
 // Draggable-to-reorder pages, default order.
-export const DREAM_REORDER = ['outings', 'skincare', 'wardrobe', 'devices', 'home', 'investments', 'haircare']
+export const DREAM_REORDER = ['self', 'outings', 'skincare', 'wardrobe', 'devices', 'home', 'investments', 'haircare']
 
 const CATEGORIES = [
   { id: 'personal', label: 'Personal', color: '#B8849A' },
@@ -47,6 +48,7 @@ export default function DreamWorld({ page, cycleConfig }) {
       {page === 'goals' && <ListPage storageKey="mos:dream:goals" placeholder="A goal worth the climb" checkable />}
       {page === 'week' && <DreamWeek />}
       {page === 'calendar' && <DreamCalendar />}
+      {page === 'self' && <ListPage storageKey="mos:dream:self" placeholder="A quality, habit, or trait of your dream self" checkable />}
       {page === 'outings' && <ListPage storageKey="mos:dream:outings" placeholder="A restaurant, trip, or experience to do" checkable />}
       {page === 'skincare' && <ListPage storageKey="mos:dream:skincare" placeholder="A step in the routine" checkable />}
       {page === 'wardrobe' && <ListPage storageKey="mos:dream:wardrobe" placeholder="A piece to acquire" checkable />}
