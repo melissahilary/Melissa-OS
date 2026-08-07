@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
+  UtensilsCrossed, Activity, Dumbbell, Brain, BrainCircuit, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
   Settings as SettingsIcon, X,
 } from 'lucide-react'
@@ -28,6 +28,7 @@ import MealPlanning from './components/MealPlanning'
 import Fitness from './components/Fitness'
 import Workout from './components/Workout'
 import Mindset from './components/Mindset'
+import BrainHealth from './components/BrainHealth'
 import Haircare from './components/Haircare'
 import Bodycare from './components/Bodycare'
 import Skincare from './components/Skincare'
@@ -40,6 +41,7 @@ import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './component
 
 const PILLARS = [
   { id: 'mindset', label: 'Mindset', icon: Brain },
+  { id: 'brainhealth', label: 'Brain Health', icon: BrainCircuit },
   { id: 'skincare', label: 'Skincare', icon: Flower2 },
   { id: 'haircare', label: 'Haircare', icon: Scissors },
   { id: 'aesthetics', label: 'Aesthetics', icon: Gem },
@@ -54,6 +56,7 @@ const PILLARS = [
 
 const PILLAR_COMPONENTS = {
   mindset: Mindset,
+  brainhealth: BrainHealth,
   skincare: Skincare,
   haircare: Haircare,
   aesthetics: Aesthetics,
@@ -114,6 +117,10 @@ const SUBNAV = {
     { id: 'monthly', label: 'Monthly' },
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
+  ],
+  brainhealth: [
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
   ],
   relationship: [
     { id: 'weekly', label: 'Weekly' },
@@ -328,33 +335,32 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
   return (
     <div className={`fixed inset-0 z-[60] transition-opacity duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!open}>
       <div className="absolute inset-0 bg-cream/95 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative mx-auto flex h-full w-full max-w-xl flex-col px-8 pb-10 pt-5 transition-all duration-300 md:px-10 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
-        <div className="flex items-center justify-between">
-          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="text-left text-3xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-4xl">Melissa's Digital Planner</button>
-          <button onClick={onClose} aria-label="Close the index" className="shrink-0 text-stone-400 transition-colors hover:text-stone-900"><X size={24} /></button>
-        </div>
 
-        <nav className="no-scrollbar mt-8 flex-1 overflow-y-auto">
-          <h2 className="border-t border-stone-200 pt-6 font-serif text-4xl leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
-          <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 sm:gap-x-10">
+      {/* Close floats in the corner so the composition below can breathe */}
+      <button onClick={onClose} aria-label="Close the index" className="absolute right-6 top-6 z-10 text-stone-400 transition-colors hover:text-stone-900 md:right-10 md:top-9"><X size={24} /></button>
+
+      <div className={`no-scrollbar relative flex h-full w-full flex-col overflow-y-auto px-8 transition-all duration-300 md:px-12 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
+        <div className="mx-auto my-auto w-full max-w-lg py-16">
+          {/* Masthead — the wordmark returns home */}
+          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block text-3xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-4xl">Melissa's Digital Planner</button>
+          <div className="mt-5 h-px w-full bg-stone-200/80" />
+
+          <h2 className="mt-9 font-serif text-4xl leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
+
+          <div className="mt-8 grid grid-cols-2 gap-x-12">
             {pillars.map((p, i) => {
               const on = active === p.id || (p.id === 'mindset' && active === 'dream')
               const Icon = p.icon
               return (
-                <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 border-b border-stone-100 py-3.5 text-left">
-                  <span className="w-5 shrink-0 font-serif text-xs tabular-nums text-stone-300">{String(i + 1).padStart(2, '0')}</span>
+                <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-3.5 py-3 text-left">
+                  <span className={`w-4 shrink-0 font-serif text-[11px] tabular-nums transition-colors ${on ? 'text-stone-500' : 'text-stone-300'}`}>{String(i + 1).padStart(2, '0')}</span>
                   <Icon size={17} strokeWidth={1.5} className={`shrink-0 transition-colors ${on ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'}`} />
-                  <span className={`flex-1 font-serif text-2xl leading-tight transition-colors ${on ? 'italic text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
-                  {on && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-900" />}
+                  <span className={`font-serif text-2xl leading-tight transition-colors ${on ? 'italic text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
                 </button>
               )
             })}
           </div>
-
-          <button onClick={() => go(onGoSettings)} className={`mt-8 flex items-center gap-2 kicker transition-colors ${active === 'settings' ? 'text-stone-900' : 'text-stone-400 hover:text-stone-900'}`}>
-            <SettingsIcon size={14} /> Settings
-          </button>
-        </nav>
+        </div>
       </div>
     </div>
   )
