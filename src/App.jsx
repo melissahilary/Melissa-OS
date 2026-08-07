@@ -351,7 +351,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
 
           <h2 className="mt-9 text-center font-serif text-[2.5rem] leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
 
-          <div className="mx-auto mt-10 grid max-w-md grid-cols-1 gap-x-16 sm:max-w-xl sm:grid-cols-2">
+          <div className="mx-auto mt-10 grid w-fit grid-cols-1 gap-x-16 sm:grid-cols-2">
             {pillars.map((p) => {
               const on = active === p.id || (p.id === 'mindset' && active === 'dream')
               const Icon = p.icon
