@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, Sparkles, PanelLeftClose, PanelLeftOpen, CalendarDays, ClipboardList, Flower2, Gem, FlaskConical, Sun,
-  Settings as SettingsIcon,
+  Settings as SettingsIcon, X,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
@@ -221,6 +221,7 @@ export default function App() {
   // Cross-page nav: jump to a specific day in the home TODAY view.
   const [pendingDay, setPendingDay] = useState(null)
   const goToDay = (k) => { setPendingDay(k); setActive('today') }
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const isToday = active === 'today'
   const isDream = active === 'dream'
@@ -230,6 +231,7 @@ export default function App() {
   const goToday = () => setActive('today')
   const ActivePillar = isPillar ? PILLAR_COMPONENTS[active] : null
   const activePillarMeta = PILLARS.find((p) => p.id === active)
+  const activeLabel = isToday ? 'Today' : isDream ? 'Dream Planning' : isSettings ? 'Settings' : (activePillarMeta ? activePillarMeta.label : 'Menu')
 
   // The sub-page value + setter for whichever pillar is active.
   const activeSub = SUBNAV[active]
@@ -240,11 +242,15 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav
+      <TopNav activeLabel={activeLabel} onOpenMenu={() => setMenuOpen(true)} />
+      <NavMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
         active={active}
         pillars={visiblePillars}
         onGoToday={goToday}
         onGoPillar={(id) => setActive(id)}
+        onGoSettings={() => setActive('settings')}
       />
 
       {/* Contextual second row — the active section's sub-pages. Mindset also
@@ -287,38 +293,80 @@ export default function App() {
 }
 
 // ── Top navigation bar ──────────────────────────────────────────────
-// A single horizontally-scrollable strip of sections with the account dot at
-// the end. The active section is inked with a hairline underline; the rest stay
-// quiet. Dream Planning lives inside Mindset, so it keeps Mindset inked.
-function TopNav({ active, pillars, onGoToday, onGoPillar }) {
-  const links = [
-    { id: 'today', label: 'Today', onClick: onGoToday, on: active === 'today' },
-    ...pillars.map((p) => ({
-      id: p.id,
-      label: p.label,
-      onClick: () => onGoPillar(p.id),
-      on: active === p.id || (p.id === 'mindset' && active === 'dream'),
-    })),
-  ]
+// A slim, calm bar: a hairline "index" mark + the current section's name on the
+// left, the account dot on the right. Tapping the mark opens the full index
+// (NavMenu) — so eleven pillars no longer fight for room in a scroll strip.
+function TopNav({ activeLabel, onOpenMenu }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
-      <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 md:px-10">
-        <nav className="no-scrollbar -mb-px flex flex-1 items-center gap-x-4 overflow-x-auto pt-3 lg:gap-x-5 xl:justify-between">
-          {links.map((l) => (
-            <button
-              key={l.id}
-              onClick={l.onClick}
-              className={`whitespace-nowrap border-b-2 pb-2.5 pt-0.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${
-                l.on ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-700'
-              }`}
-            >
-              {l.label}
-            </button>
-          ))}
-        </nav>
-        <div className="shrink-0 pb-1.5 pt-3"><AccountDot /></div>
+      <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-6 py-3.5 md:px-10">
+        <button onClick={onOpenMenu} aria-label="Open the index" className="group flex items-center gap-3">
+          <span className="flex flex-col items-start gap-[3.5px]" aria-hidden>
+            <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-6" />
+            <span className="block h-px w-6 bg-stone-800" />
+            <span className="block h-px w-4 bg-stone-800 transition-all duration-300 group-hover:w-6" />
+          </span>
+          <span className="font-serif text-xl leading-none text-stone-900">{activeLabel}</span>
+        </button>
+        <AccountDot />
       </div>
     </header>
+  )
+}
+
+// ── The Index — a full-screen contents menu for the eleven pillars ──
+// Opens from the top bar. A Pinyon wordmark, Today as the anchor, then the
+// pillars as a numbered serif index (two columns on wide screens), the current
+// one inked. One tap goes anywhere and closes. Editorial, calm, and fast.
+function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSettings }) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+  }, [open, onClose])
+  const isTodayOn = active === 'today'
+  const go = (fn) => { fn(); onClose() }
+  return (
+    <div className={`fixed inset-0 z-[60] transition-opacity duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!open}>
+      <div className="absolute inset-0 bg-cream/95 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative mx-auto flex h-full w-full max-w-xl flex-col px-8 pb-10 pt-5 transition-all duration-300 md:px-10 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
+        <div className="flex items-center justify-between">
+          <span style={{ fontFamily: "'Pinyon Script', cursive" }} className="text-3xl leading-none text-stone-800 md:text-4xl">Melissa's Digital Planner</span>
+          <button onClick={onClose} aria-label="Close the index" className="shrink-0 text-stone-400 transition-colors hover:text-stone-900"><X size={24} /></button>
+        </div>
+
+        <nav className="no-scrollbar mt-6 flex-1 overflow-y-auto">
+          {/* Today — the anchor */}
+          <button onClick={() => go(onGoToday)} className="group flex w-full items-baseline justify-between border-t border-stone-200 py-5 text-left">
+            <span className={`font-serif text-4xl leading-none transition-colors md:text-5xl ${isTodayOn ? 'italic text-stone-900' : 'text-stone-800 group-hover:text-stone-900'}`}>Today</span>
+            <span className="kicker text-stone-300">Your day</span>
+          </button>
+
+          <p className="kicker mb-1 mt-7 text-stone-300">The Pillars</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-10">
+            {pillars.map((p, i) => {
+              const on = active === p.id || (p.id === 'mindset' && active === 'dream')
+              const Icon = p.icon
+              return (
+                <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 border-b border-stone-100 py-3.5 text-left">
+                  <span className="w-5 shrink-0 font-serif text-xs tabular-nums text-stone-300">{String(i + 1).padStart(2, '0')}</span>
+                  <Icon size={17} strokeWidth={1.5} className={`shrink-0 transition-colors ${on ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'}`} />
+                  <span className={`flex-1 font-serif text-2xl leading-tight transition-colors ${on ? 'italic text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
+                  {on && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-900" />}
+                </button>
+              )
+            })}
+          </div>
+
+          <button onClick={() => go(onGoSettings)} className={`mt-8 flex items-center gap-2 kicker transition-colors ${active === 'settings' ? 'text-stone-900' : 'text-stone-400 hover:text-stone-900'}`}>
+            <SettingsIcon size={14} /> Settings
+          </button>
+        </nav>
+      </div>
+    </div>
   )
 }
 

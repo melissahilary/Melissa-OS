@@ -1239,11 +1239,13 @@ function TodayNotes() {
   const notes = Array.isArray(stored) ? stored : []
   const [draft, setDraft] = useState('')
   const [openId, setOpenId] = useState(null)
+  const [browsing, setBrowsing] = useState(false)
+  const todayKey = dateKey(new Date())
 
   const add = () => {
     const t = draft.trim()
     if (!t) return
-    const note = { id: uid(), title: t, body: '', date: dateKey(new Date()) }
+    const note = { id: uid(), title: t, body: '', date: todayKey }
     setNotes((prev) => [note, ...(Array.isArray(prev) ? prev : [])])
     setDraft('')
   }
@@ -1252,6 +1254,8 @@ function TodayNotes() {
   const remove = (id) => setNotes((prev) => (Array.isArray(prev) ? prev : []).filter((n) => n.id !== id))
 
   const openNote = notes.find((n) => n.id === openId) || null
+  const todaysNotes = notes.filter((n) => n.date === todayKey)
+  const olderCount = notes.length - todaysNotes.length
 
   return (
     <section className="mb-14">
@@ -1270,14 +1274,24 @@ function TodayNotes() {
         </button>
       </div>
 
-      {notes.length === 0 ? (
-        <p className="font-serif italic text-lg text-stone-400">No notes yet.</p>
+      {todaysNotes.length === 0 ? (
+        <p className="font-serif italic text-lg text-stone-400">No notes today yet.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {notes.map((n) => (
+          {todaysNotes.map((n) => (
             <NoteCard key={n.id} note={n} onOpen={() => setOpenId(n.id)} />
           ))}
         </div>
+      )}
+
+      {olderCount > 0 && (
+        <div className="mt-6 text-center">
+          <button onClick={() => setBrowsing(true)} className="kicker text-stone-400 transition-colors hover:text-stone-900">Past notes · {olderCount}</button>
+        </div>
+      )}
+
+      {browsing && (
+        <NotesArchive notes={notes} onOpen={(id) => { setOpenId(id); setBrowsing(false) }} onClose={() => setBrowsing(false)} />
       )}
 
       {openNote && (
@@ -1310,6 +1324,62 @@ function NoteCard({ note, onOpen }) {
       )}
       <p className="kicker text-stone-400 mt-3">{noteDateLabel(note.date)}</p>
     </button>
+  )
+}
+
+// Browse every note — search by words or jump to a specific day. Notes group
+// under their date, newest first; tapping one opens it to read or edit.
+function NotesArchive({ notes, onOpen, onClose }) {
+  const [q, setQ] = useState('')
+  const [day, setDay] = useState('')
+  const term = q.trim().toLowerCase()
+  const filtered = (notes || []).filter((n) => {
+    if (day && n.date !== day) return false
+    if (!term) return true
+    return `${n.title || ''} ${n.body || ''}`.toLowerCase().includes(term)
+  })
+  const byDate = {}
+  filtered.forEach((n) => { (byDate[n.date] = byDate[n.date] || []).push(n) })
+  const dates = Object.keys(byDate).sort((a, b) => (a < b ? 1 : -1))
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-lg bg-cream border border-stone-300 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
+          <span className="font-serif italic text-2xl text-stone-900">All notes</span>
+          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+        </div>
+        <div className="space-y-3 border-b border-stone-200 px-6 py-4">
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search notes…" className="w-full bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+          <div className="flex items-center gap-3">
+            <span className="kicker text-stone-400">Jump to</span>
+            <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+            {day && <button onClick={() => setDay('')} className="text-xs text-stone-400 hover:text-stone-700">clear</button>}
+          </div>
+        </div>
+        <div className="max-h-[58vh] overflow-y-auto px-6 py-4">
+          {dates.length === 0 ? (
+            <p className="text-sm italic text-stone-400">No notes found.</p>
+          ) : (
+            dates.map((d) => (
+              <div key={d} className="mb-5">
+                <p className="kicker text-stone-400 mb-2">{noteDateLabel(d)}</p>
+                <div>
+                  {byDate[d].map((n) => {
+                    const firstLine = (n.body || '').split('\n').find((l) => l.trim()) || ''
+                    return (
+                      <button key={n.id} onClick={() => onOpen(n.id)} className="flex w-full flex-col items-start border-b border-stone-100 py-2.5 text-left transition-colors hover:text-stone-900">
+                        <span className="font-serif text-base text-stone-800">{n.title || 'Untitled'}</span>
+                        {firstLine && <span className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-stone-500">{firstLine}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
