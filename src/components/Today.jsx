@@ -1081,8 +1081,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
         <div className="mb-7 flex items-center justify-between">
           <button onClick={() => jump(i - 1)} disabled={i === 0} className={`px-2 py-1 text-xl ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
           <div className="text-center leading-tight">
-            <p className="kicker text-stone-400">{block.top}</p>
-            <p className="mt-1 font-serif text-2xl text-stone-900">{block.sub}</p>
+            <p className="font-serif text-2xl text-stone-900">{block.sub}</p>
             <span className="mx-auto mt-3 block h-px w-8 bg-stone-300" />
           </div>
           <button onClick={() => jump(i + 1)} disabled={i === n - 1} className={`px-2 py-1 text-xl ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>

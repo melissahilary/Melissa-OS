@@ -37,7 +37,6 @@ import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
 import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
-import { AccountDot } from './components/shared/AccountPanel'
 
 const PILLARS = [
   { id: 'mindset', label: 'Mindset', icon: Brain },
@@ -300,15 +299,13 @@ function TopNav({ activeLabel, onOpenMenu }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
       <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-6 py-3.5 md:px-10">
-        <button onClick={onOpenMenu} aria-label="Open the index" className="group flex items-center gap-3">
-          <span className="flex flex-col items-start gap-[3.5px]" aria-hidden>
-            <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-6" />
-            <span className="block h-px w-6 bg-stone-800" />
-            <span className="block h-px w-4 bg-stone-800 transition-all duration-300 group-hover:w-6" />
+        <button onClick={onOpenMenu} aria-label="Open the index" className="group flex items-center gap-2 py-1">
+          <span className="flex flex-col items-start gap-[4px]" aria-hidden>
+            <span className="block h-px w-6 bg-stone-800 transition-all duration-300 group-hover:w-7" />
+            <span className="block h-px w-7 bg-stone-800" />
+            <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-7" />
           </span>
-          <span className="font-serif text-xl leading-none text-stone-900">{activeLabel}</span>
         </button>
-        <AccountDot />
       </div>
     </header>
   )
@@ -327,26 +324,19 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
     document.body.style.overflow = 'hidden'
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
   }, [open, onClose])
-  const isTodayOn = active === 'today'
   const go = (fn) => { fn(); onClose() }
   return (
     <div className={`fixed inset-0 z-[60] transition-opacity duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!open}>
       <div className="absolute inset-0 bg-cream/95 backdrop-blur-sm" onClick={onClose} />
       <div className={`relative mx-auto flex h-full w-full max-w-xl flex-col px-8 pb-10 pt-5 transition-all duration-300 md:px-10 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
         <div className="flex items-center justify-between">
-          <span style={{ fontFamily: "'Pinyon Script', cursive" }} className="text-3xl leading-none text-stone-800 md:text-4xl">Melissa's Digital Planner</span>
+          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="text-left text-3xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-4xl">Melissa's Digital Planner</button>
           <button onClick={onClose} aria-label="Close the index" className="shrink-0 text-stone-400 transition-colors hover:text-stone-900"><X size={24} /></button>
         </div>
 
-        <nav className="no-scrollbar mt-6 flex-1 overflow-y-auto">
-          {/* Today — the anchor */}
-          <button onClick={() => go(onGoToday)} className="group flex w-full items-baseline justify-between border-t border-stone-200 py-5 text-left">
-            <span className={`font-serif text-4xl leading-none transition-colors md:text-5xl ${isTodayOn ? 'italic text-stone-900' : 'text-stone-800 group-hover:text-stone-900'}`}>Today</span>
-            <span className="kicker text-stone-300">Your day</span>
-          </button>
-
-          <p className="kicker mb-1 mt-7 text-stone-300">The Pillars</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-10">
+        <nav className="no-scrollbar mt-8 flex-1 overflow-y-auto">
+          <h2 className="border-t border-stone-200 pt-6 font-serif text-4xl leading-none text-stone-900 md:text-5xl">Pillars of Health</h2>
+          <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 sm:gap-x-10">
             {pillars.map((p, i) => {
               const on = active === p.id || (p.id === 'mindset' && active === 'dream')
               const Icon = p.icon
