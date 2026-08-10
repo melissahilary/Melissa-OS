@@ -1095,7 +1095,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
               it keeps its own title so it reads as its own section above Food. */}
           {isTodo && (
             <div>
-              {block.mealRows.length > 0 && <p className="kicker text-stone-400 mb-2">To Do</p>}
+              <p className="kicker text-stone-400 mb-2">To Do</p>
               {tasks.length > 0 && (
                 <div className="mb-2 space-y-0.5">
                   {tasks.map((t) => (
