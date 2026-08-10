@@ -1118,7 +1118,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
           {block.mealRows.length > 0 && (
             <div className="space-y-5">
               {block.mealRows.map((row) => (
-                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onRemove={onRemove} onPause={onPause} />
+                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} />
               ))}
             </div>
           )}
@@ -1144,18 +1144,14 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 // revealed on hover for pointer devices). The leading checkbox sits in a fixed
 // gutter so its label aligns with every other row in the block, tasks and nutrition
 // alike.
-function TaskRow({ task, onToggle, onOpen, onPause, onRemove }) {
+function TaskRow({ task, onToggle, onOpen }) {
   return (
-    <div className="group flex items-center gap-3 py-0.5">
+    <div className="flex items-center gap-3 py-1">
       <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={task.done} onClick={() => onToggle(task.id)} /></span>
       <button onClick={() => onOpen(task.id)} className={`flex-1 text-left text-sm ${task.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
         {fmtApptTime(task.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtApptTime(task.time)}</span>}
         {task.title || 'Untitled'}
       </button>
-      <div className="hover-reveal flex shrink-0 items-center gap-0.5">
-        {onPause && <button onClick={onPause} aria-label="Pause — park off Today" title="Pause — park off Today" className="px-1 text-stone-400 hover:text-stone-900"><Pause size={13} /></button>}
-        <button onClick={() => onRemove(task.id)} aria-label="Remove" className="px-1 text-stone-300 hover:text-stone-700"><X size={13} /></button>
-      </div>
     </div>
   )
 }
@@ -1192,7 +1188,7 @@ function AddTaskForm({ onCancel, onSave }) {
 
 // Nutrition rows — same list language as the tasks: one text column, a quiet
 // remove mark on hover, no checkbox (nutrition is never "achieved").
-function MealSection({ section, meals, dateKeyStr, onAdd, onRemove, onPause }) {
+function MealSection({ section, meals, dateKeyStr, onAdd, onOpen }) {
   const [adding, setAdding] = useState(false)
   const items = (meals || []).filter((m) => m.kind === section.kind && m.slot === section.slot)
   return (
@@ -1201,13 +1197,9 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onRemove, onPause }) {
       {items.length > 0 && (
         <div className="mb-1 space-y-0.5">
           {items.map((m) => (
-            <div key={m.id} className="group flex items-center gap-3 py-0.5">
+            <div key={m.id} className="flex items-center gap-3 py-1">
               <span className="w-4 shrink-0" />
-              <span className="flex-1 text-sm text-stone-700">{m.name}</span>
-              <div className="hover-reveal flex shrink-0 items-center gap-0.5">
-                {onPause && <button onClick={() => onPause(m.id)} aria-label="Pause — park off Today" title="Pause — park off Today" className="px-1 text-stone-400 hover:text-stone-900"><Pause size={13} /></button>}
-                <button onClick={() => onRemove(m.id)} aria-label="Remove" className="px-1 text-stone-300 hover:text-stone-700"><X size={13} /></button>
-              </div>
+              <button onClick={() => onOpen(m.id)} className="flex-1 text-left text-sm text-stone-700">{m.name}</button>
             </div>
           ))}
         </div>
