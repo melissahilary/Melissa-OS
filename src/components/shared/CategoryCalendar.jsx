@@ -150,8 +150,15 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
         today={today}
         cycleConfig={cycleConfig}
         floorMonth={signupMonthStart}
-        itemsForDay={(k) => forDay(k).map((a) => ({ id: a.id, title: a.title || noun }))}
-        onOpenItem={(id) => { const a = items.find((x) => x.id === id); if (a) openEdit(a) }}
+        daySignal={(k) => {
+          const list = forDay(k)
+          return {
+            morning: list.some((a) => partOf(a) === 'morning'),
+            afternoon: list.some((a) => partOf(a) === 'afternoon'),
+            evening: list.some((a) => partOf(a) === 'evening'),
+            special: list.some((a) => !!(a.details?.time) || a.frequency === 'asneeded'),
+          }
+        }}
       />
 
       {/* Selected day detail */}

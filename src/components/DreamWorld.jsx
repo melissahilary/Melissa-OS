@@ -233,16 +233,24 @@ function DreamCalendar() {
               const isTod = isSameDay(cell, today)
               const evs = dayEvents(key)
               return (
-                <div key={key} className={`group relative min-h-[70px] border-b border-r border-stone-200 px-1.5 py-1 ${inMonth ? '' : 'bg-stone-50'}`}>
+                <div key={key} className={`group relative min-h-[70px] border-b border-r border-stone-200 px-1.5 py-1.5 ${inMonth ? '' : 'bg-stone-50'}`}>
                   <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'}`}>{cell.getDate()}</span>
-                  <div className="mt-0.5 space-y-0.5">
-                    {evs.map((ev) => (
-                      <button key={ev.id} onClick={() => setDetail({ key, id: ev.id })} className="flex w-full items-center gap-1 text-left">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: catColor(ev.category) }} />
-                        <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>{ev.title || 'Untitled'}</span>
-                      </button>
-                    ))}
-                  </div>
+                  {/* Signal, not a preview: a tidy row of category dots. Hover for
+                      the title, tap to open the event; the day view holds detail. */}
+                  {evs.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                      {evs.slice(0, 6).map((ev) => (
+                        <button
+                          key={ev.id}
+                          onClick={() => setDetail({ key, id: ev.id })}
+                          title={ev.title || 'Untitled'}
+                          className={`h-2 w-2 rounded-full transition-transform hover:scale-125 ${ev.done ? 'opacity-40' : ''}`}
+                          style={{ backgroundColor: catColor(ev.category) }}
+                        />
+                      ))}
+                      {evs.length > 6 && <span className="text-[9px] text-stone-400">+{evs.length - 6}</span>}
+                    </div>
+                  )}
                 </div>
               )
             })}

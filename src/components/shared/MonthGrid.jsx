@@ -13,10 +13,19 @@ const PHASE_LEGEND = [
   { id: 'luteal', label: 'Luteal' },
 ]
 
+// A single rhythm dot — filled when that part of the day holds something.
+const RhythmDot = ({ on }) => (
+  <span className={`h-[5px] w-[5px] rounded-full ${on ? 'bg-stone-500' : 'bg-stone-300/50'}`} />
+)
+
 // The one month calendar grid used everywhere — same sizing and style; only the
-// content differs. `itemsForDay(key)` returns that day's entries [{id,title,done}]
-// to preview inside each cell. `floorMonth` (optional) disables paging before it.
-export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, today, cycleConfig = {}, itemsForDay, onOpenItem, floorMonth }) {
+// content differs. Rather than cram each day with event titles (a preview no
+// small cell can hold), a cell shows the day's SHAPE: the cycle-phase tint,
+// three rhythm dots (morning · midday · evening) that fill when something's on
+// then, and a ✦ when the day carries a timed appointment or special one-off.
+// `daySignal(key)` returns { morning, afternoon, evening, special }; tapping a
+// day selects it and the full plan opens in the panel below the grid.
+export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, today, cycleConfig = {}, daySignal, floorMonth }) {
   const cells = monthGrid(month)
   const atFloor = floorMonth && month <= floorMonth
   const goPrev = () => { if (!atFloor) setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1)) }
@@ -39,46 +48,53 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
           const isSel = key === selectedKey
           const isTod = isSameDay(cell, today)
           const holiday = holidayFor(cell)
-          const items = inMonth && itemsForDay ? (itemsForDay(key) || []) : []
+          const sig = inMonth && daySignal ? (daySignal(key) || {}) : {}
+          const hasRhythm = sig.morning || sig.afternoon || sig.evening
           const phase = phaseForConfig(cycleConfig, cell)
           const tint = phase ? PHASE_TINT[phase.id] : undefined
           return (
             <div
               key={key}
+              onClick={() => inMonth && onPickDay(key)}
+              role="button"
+              tabIndex={inMonth ? 0 : -1}
               style={tint ? { backgroundColor: tint } : undefined}
-              className={`group relative min-h-[78px] border-b border-r border-stone-200 px-1.5 py-1 text-left transition-colors ${inMonth ? '' : 'text-stone-300'} ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
+              className={`relative min-h-[74px] border-b border-r border-stone-200 px-1.5 py-1.5 text-left transition-shadow ${inMonth ? 'cursor-pointer hover:shadow-[inset_0_0_0_1px_rgba(120,113,108,0.25)]' : 'text-stone-300'} ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
             >
-              <button onClick={() => onPickDay(key)} className="block w-full text-left">
-                <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'bg-stone-900 text-cream rounded-full' : inMonth ? 'text-stone-700' : 'text-stone-300'}`}>
+              <div className="flex items-start justify-between">
+                <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'rounded-full bg-stone-900 text-cream' : inMonth ? 'text-stone-700' : 'text-stone-300'}`}>
                   {cell.getDate()}
                 </span>
-              </button>
+                {sig.special && <span title="Appointment or special day" className="mt-0.5 text-[12px] leading-none text-stone-500">✦</span>}
+              </div>
 
               {holiday && <p className="mt-0.5 truncate text-[9px] uppercase tracking-wide text-stone-400">{holiday}</p>}
 
-              <div className="mt-0.5 space-y-0.5">
-                {items.slice(0, 2).map((ev) => (
-                  <button key={ev.id} onClick={() => (onOpenItem ? onOpenItem(ev.id) : onPickDay(key))} className="flex w-full items-center gap-1 text-left">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-400" />
-                    <span className={`truncate text-[10px] ${ev.done ? 'text-stone-400 line-through' : 'text-stone-600'}`}>{ev.title || 'Untitled'}</span>
-                  </button>
-                ))}
-                {items.length > 2 && (
-                  <button onClick={() => onPickDay(key)} className="text-[9px] text-stone-400 hover:text-stone-700">+{items.length - 2} more</button>
-                )}
-              </div>
+              {hasRhythm && (
+                <div className="mt-2 flex items-center gap-1" title="morning · midday · evening" aria-hidden>
+                  <RhythmDot on={sig.morning} />
+                  <RhythmDot on={sig.afternoon} />
+                  <RhythmDot on={sig.evening} />
+                </div>
+              )}
             </div>
           )
         })}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-        {PHASE_LEGEND.map((p) => (
-          <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
-            {p.label}
-          </span>
-        ))}
+      <div className="mt-4 flex flex-col items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] uppercase tracking-[0.14em] text-stone-400">
+          <span className="flex items-center gap-1"><RhythmDot on /><RhythmDot on /><RhythmDot on /><span className="ml-1">morning · midday · evening</span></span>
+          <span className="flex items-center gap-1"><span className="text-stone-500">✦</span> appointment</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+          {PHASE_LEGEND.map((p) => (
+            <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
+              {p.label}
+            </span>
+          ))}
+        </div>
       </div>
     </>
   )

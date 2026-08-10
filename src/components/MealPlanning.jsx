@@ -170,7 +170,17 @@ function NutritionMonthly({ cycleConfig = {} }) {
         today={today}
         cycleConfig={cycleConfig}
         floorMonth={signupMonthStart}
-        itemsForDay={(k) => forDay(k).map((a) => ({ id: a.id, title: a.title || 'Meal' }))}
+        daySignal={(k) => {
+          const list = forDay(k)
+          const SLOT_PART = { empty: 'morning', breakfast: 'morning', drink: 'morning', lunch: 'afternoon', snack: 'afternoon', dinner: 'evening', bed: 'evening' }
+          const partOfMeal = (a) => SLOT_PART[a.details?.slot] || 'morning'
+          return {
+            morning: list.some((a) => partOfMeal(a) === 'morning'),
+            afternoon: list.some((a) => partOfMeal(a) === 'afternoon'),
+            evening: list.some((a) => partOfMeal(a) === 'evening'),
+            special: false,
+          }
+        }}
       />
 
       {/* The picked day's full menu, slot by slot */}

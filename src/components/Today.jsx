@@ -884,8 +884,15 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
         onPickDay={onPickDay}
         today={today}
         cycleConfig={cycleConfig}
-        itemsForDay={eventsFor}
-        onOpenItem={onOpen}
+        daySignal={(k) => {
+          const list = eventsFor(k) || []
+          return {
+            morning: list.some((e) => e.part === 'morning'),
+            afternoon: list.some((e) => e.part === 'afternoon'),
+            evening: list.some((e) => e.part === 'evening'),
+            special: list.some((e) => !!e.time),
+          }
+        }}
       />
 
       {/* Selected day — expands into everything planned that day */}
