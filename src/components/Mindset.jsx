@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, Star, ArrowRight, ArrowLeft } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
-import Checkbox from './shared/Checkbox'
 import InlineText from './shared/InlineText'
 import CategoryCalendar from './shared/CategoryCalendar'
 import CategoryWeekly from './shared/CategoryWeekly'
@@ -118,68 +117,127 @@ function Journal() {
   )
 }
 
-// A yes / no checklist of influences. The two lists never show side by side —
-// Yes and No are tabs; clicking one swaps to that list.
+// Influences — a curated spread of what you let shape you. Two facing columns,
+// "Let In" and "Keep Out": each influence can carry a type (Person, Podcast,
+// Book…), be starred as a non-negotiable, and be moved to the other side as
+// your energy shifts. An intention line frames the whole page.
+const INFLUENCE_TYPES = ['Person', 'Podcast', 'Book', 'App', 'Practice', 'Space', 'Media']
+
+// Older items were { id, text, done }; keep the text, drop the checkbox meaning.
+const normInfluence = (x) => ({ id: x.id || uid(), text: x.text || '', type: x.type || '', star: !!x.star })
+const sortInfluences = (arr) => arr.slice().sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0))
+
 function Influences() {
-  const [tab, setTab] = useState('yes')
+  const [intention, setIntention] = useLocalStorage('mos:mindset:influences:intention', '')
+  const [yesRaw, setYes] = useLocalStorage('mos:mindset:influences:yes', [])
+  const [noRaw, setNo] = useLocalStorage('mos:mindset:influences:no', [])
+  const yes = (Array.isArray(yesRaw) ? yesRaw : []).map(normInfluence)
+  const no = (Array.isArray(noRaw) ? noRaw : []).map(normInfluence)
+  const setters = { yes: setYes, no: setNo }
+  const clean = (p) => (Array.isArray(p) ? p : []).map(normInfluence)
+
+  const add = (side, text = '') => setters[side]((p) => [...clean(p), { id: uid(), text, type: '', star: false }])
+  const patch = (side, id, patchObj) => setters[side]((p) => clean(p).map((x) => (x.id === id ? { ...x, ...patchObj } : x)))
+  const remove = (side, id) => setters[side]((p) => clean(p).filter((x) => x.id !== id))
+  const move = (side, id) => {
+    const to = side === 'yes' ? 'no' : 'yes'
+    const item = (side === 'yes' ? yes : no).find((x) => x.id === id)
+    if (!item) return
+    remove(side, id)
+    setters[to]((p) => [...clean(p), { ...item }])
+  }
+
+  useRegisterAdd(() => add('yes'), [])
+
   return (
-    <div className="mb-10">
-      <div className="mb-6 flex gap-1">
-        {['yes', 'no'].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-5 py-1.5 text-xs uppercase tracking-[0.16em] transition-colors ${tab === t ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-100'}`}
-          >
-            {t}
-          </button>
-        ))}
+    <div className="mb-16">
+      <header className="mb-10 text-center">
+        <h2 className="font-serif text-4xl text-stone-900">Influences</h2>
+        <p className="mt-1.5 font-serif italic text-lg text-stone-500">What you let shape you.</p>
+        <div className="mx-auto mt-3 select-none text-2xl leading-none text-stone-300" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</div>
+        <input
+          value={intention}
+          onChange={(e) => setIntention(e.target.value)}
+          placeholder="Set an intention for what you're calling in…"
+          className="mx-auto mt-4 block w-full max-w-md bg-transparent text-center font-serif italic text-stone-600 placeholder-stone-300 outline-none"
+        />
+      </header>
+
+      <div className="grid gap-10 md:grid-cols-2 md:gap-0 md:divide-x md:divide-stone-200">
+        <div className="md:pr-10">
+          <InfluenceColumn tone="in" title="Let In" hint="what to invite" items={sortInfluences(yes)}
+            onAdd={(t) => add('yes', t)} onPatch={(id, p) => patch('yes', id, p)} onRemove={(id) => remove('yes', id)} onMove={(id) => move('yes', id)} />
+        </div>
+        <div className="md:pl-10">
+          <InfluenceColumn tone="out" title="Keep Out" hint="what to release" items={sortInfluences(no)}
+            onAdd={(t) => add('no', t)} onPatch={(id, p) => patch('no', id, p)} onRemove={(id) => remove('no', id)} onMove={(id) => move('no', id)} />
+        </div>
       </div>
-      {tab === 'yes'
-        ? <InfluenceList key="yes" storageKey="mos:mindset:influences:yes" placeholder="A yes — what to let in" />
-        : <InfluenceList key="no" storageKey="mos:mindset:influences:no" placeholder="A no — what to keep out" />}
     </div>
   )
 }
 
-function InfluenceList({ storageKey, placeholder }) {
-  const [stored, setItems] = useLocalStorage(storageKey, [])
-  const items = Array.isArray(stored) ? stored : []
+function InfluenceColumn({ tone, title, hint, items, onAdd, onPatch, onRemove, onMove }) {
   const [draft, setDraft] = useState('')
-  const add = () => {
-    if (!draft.trim()) return
-    setItems((prev) => [...(Array.isArray(prev) ? prev : []), { id: uid(), text: draft.trim(), done: false }])
-    setDraft('')
+  const commit = () => { if (!draft.trim()) return; onAdd(draft.trim()); setDraft('') }
+  const cycleType = (it) => {
+    const i = INFLUENCE_TYPES.indexOf(it.type)
+    const next = i < 0 ? INFLUENCE_TYPES[0] : (i + 1 >= INFLUENCE_TYPES.length ? '' : INFLUENCE_TYPES[i + 1])
+    onPatch(it.id, { type: next })
   }
-  const toggle = (id) => setItems((prev) => prev.map((x) => (x.id === id ? { ...x, done: !x.done } : x)))
-  const editText = (id, text) => setItems((prev) => prev.map((x) => (x.id === id ? { ...x, text } : x)))
-  const remove = (id) => setItems((prev) => prev.filter((x) => x.id !== id))
-
-  useRegisterAdd(() => setItems((prev) => [...(Array.isArray(prev) ? prev : []), { id: uid(), text: '', done: false }]), [storageKey])
+  const MoveIcon = tone === 'in' ? ArrowRight : ArrowLeft
+  const out = tone === 'out'
 
   return (
     <section>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex items-baseline justify-between">
+        <h3 className="font-serif text-xl text-stone-900">{title}</h3>
+        <span className="kicker text-stone-400">{items.length ? `${items.length} · ${hint}` : hint}</span>
+      </div>
+
+      <div className="mb-2 flex items-center gap-2">
+        <Plus size={14} className="shrink-0 text-stone-300" />
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder={placeholder}
-          className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+          onKeyDown={(e) => e.key === 'Enter' && commit()}
+          placeholder={out ? 'Something to keep out' : 'Something to let in'}
+          className="flex-1 bg-transparent border-b border-stone-200 pb-1.5 text-sm outline-none placeholder-stone-300 focus:border-stone-900"
         />
       </div>
-      <div className="divide-y divide-stone-100">
+
+      <div>
         {items.map((it) => (
-          <div key={it.id} className="group flex items-center gap-3 py-2.5">
-            <Checkbox checked={it.done} onClick={() => toggle(it.id)} />
+          <div key={it.id} className="group flex items-center gap-2.5 border-b border-stone-100 py-2.5">
+            <button
+              onClick={() => onPatch(it.id, { star: !it.star })}
+              title={it.star ? 'Un-anchor' : 'Anchor as non-negotiable'}
+              className={`shrink-0 transition-colors ${it.star ? 'text-stone-700' : 'text-stone-300 hover:text-stone-500'}`}
+            >
+              <Star size={15} strokeWidth={1.75} fill={it.star ? 'currentColor' : 'none'} />
+            </button>
+
             <InlineText
               value={it.text}
-              onChange={(t) => editText(it.id, t)}
-              className={`flex-1 text-sm bg-transparent outline-none ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}
+              onChange={(t) => onPatch(it.id, { text: t })}
+              className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${out ? 'text-stone-500 line-through decoration-stone-300' : 'text-stone-800'}`}
             />
-            <button onClick={() => remove(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={14} /></button>
+
+            <button
+              onClick={() => cycleType(it)}
+              title="Cycle type"
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${it.type ? 'border-stone-300 text-stone-500' : 'border-transparent text-stone-300 hover:text-stone-500'}`}
+            >
+              {it.type || 'type'}
+            </button>
+
+            <div className="hover-reveal flex shrink-0 items-center gap-2">
+              <button onClick={() => onMove(it.id)} title={out ? 'Move to Let In' : 'Move to Keep Out'} className="text-stone-300 hover:text-stone-700"><MoveIcon size={14} /></button>
+              <button onClick={() => onRemove(it.id)} title="Remove" className="text-stone-300 hover:text-stone-700"><X size={14} /></button>
+            </div>
           </div>
         ))}
+        {!items.length && <p className="py-3 text-sm italic text-stone-300">Nothing yet.</p>}
       </div>
     </section>
   )
