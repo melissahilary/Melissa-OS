@@ -321,6 +321,14 @@ function CycleSettings({ cycleConfig, setCycleConfig }) {
   )
 }
 
+// Fade a hex accent to a soft translucent wash for the round tracker cells.
+const withAlpha = (hex, a) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '')
+  if (!m) return hex
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
 const PHASE_LEGEND = [
   { id: 'menstrual', label: 'Menstrual' },
   { id: 'follicular', label: 'Follicular' },
@@ -362,7 +370,8 @@ function PeriodCalendar({ periodDays, loggedKeys, selectedKey, onSelect, today, 
           const logged = loggedKeys.has(k) && !isPeriod
           // Projected phase for this day (calculated, ignoring any manual override).
           const ph = phaseFor(cell, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
-          const tint = inMonth && ph ? colors[ph.id] : undefined
+          // Soften the accent into a light wash for these round tracker cells.
+          const tint = inMonth && ph ? withAlpha(colors[ph.id], 0.3) : undefined
           const style = isPeriod
             ? { backgroundColor: PHASES.menstrual.color, color: '#FAFAF7' }
             : tint ? { backgroundColor: tint } : undefined

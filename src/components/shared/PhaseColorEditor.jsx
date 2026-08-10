@@ -1,29 +1,29 @@
 import React, { useEffect, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { PHASES, DEFAULT_PHASE_TINT } from '../../lib/cycle'
 
-const isHex = (s) => /^#([0-9a-f]{6})$/i.test(s)
-const norm = (s) => {
-  let v = (s || '').trim()
-  if (v && v[0] !== '#') v = `#${v}`
-  return v.toLowerCase()
-}
+// A curated set of muted, editorial calendar washes — warm clays, blush, sand,
+// sage, mist, slate, lilac, greige. Any phase can be assigned any of these; no
+// hex typing or OS colour dial, just tap a swatch.
+const WASHES = [
+  '#B79B93', '#C2A79C', '#B08C82', '#CBB6A6',
+  '#A3AF92', '#9CAD84', '#AEB79E', '#8C9C74',
+  '#C6B584', '#CDBA79', '#D2C293', '#BAA76E',
+  '#A4A6B5', '#9DA2B7', '#ABA7BD', '#969FB0',
+]
 
-// A small modal to recolour one cycle phase: pick the app's preset, type a hex,
-// or use the colour dial. Save commits it; it then reflects on every calendar.
 export default function PhaseColorEditor({ phaseId, value, onSave, onReset, onClose }) {
   const preset = DEFAULT_PHASE_TINT[phaseId]
   const label = (PHASES[phaseId] && PHASES[phaseId].name) || phaseId
-  const [hex, setHex] = useState(value || preset)
-  const valid = isHex(hex)
+  const [sel, setSel] = useState(value || preset)
+  // Always show the current colour, even if it isn't one of the presets.
+  const swatches = WASHES.includes(sel) ? WASHES : [sel, ...WASHES]
 
   useEffect(() => {
     const onEsc = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onEsc)
     return () => document.removeEventListener('keydown', onEsc)
   }, [onClose])
-
-  const save = () => { if (valid) { onSave(hex); onClose() } }
 
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -33,55 +33,38 @@ export default function PhaseColorEditor({ phaseId, value, onSave, onReset, onCl
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
 
-        <div className="space-y-5 px-5 py-5">
-          {/* Live preview */}
-          <div className="flex items-center gap-3">
-            <span className="h-12 w-12 shrink-0 rounded-full border border-black/5" style={{ backgroundColor: valid ? hex : preset }} />
+        <div className="px-5 py-5">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="h-11 w-11 shrink-0 rounded-full border border-black/5" style={{ backgroundColor: sel }} />
             <div>
               <p className="font-serif text-lg text-stone-900">{label}</p>
-              <p className="text-xs text-stone-400">This wash appears on every month calendar.</p>
+              <p className="text-xs text-stone-400">Appears on every month calendar.</p>
             </div>
           </div>
 
-          {/* Colour dial + hex, side by side */}
-          <div className="flex items-end gap-3">
-            <label className="flex flex-col items-center gap-1">
-              <span className="kicker text-stone-400">Dial</span>
-              <input
-                type="color"
-                value={valid ? hex : preset}
-                onChange={(e) => setHex(e.target.value)}
-                className="h-10 w-12 cursor-pointer rounded border border-stone-300 bg-transparent p-0.5"
-              />
-            </label>
-            <label className="flex-1">
-              <span className="kicker mb-1 block text-stone-400">Hex</span>
-              <input
-                value={hex}
-                onChange={(e) => setHex(norm(e.target.value))}
-                placeholder="#E6D2CB"
-                spellCheck={false}
-                className={`w-full border-b bg-transparent pb-1.5 font-mono text-sm uppercase outline-none ${valid ? 'border-stone-300 text-stone-800 focus:border-stone-900' : 'border-phase-menstrual text-stone-800'}`}
-              />
-            </label>
+          <div className="grid grid-cols-6 gap-2.5">
+            {swatches.map((c) => {
+              const on = c.toLowerCase() === sel.toLowerCase()
+              return (
+                <button
+                  key={c}
+                  onClick={() => setSel(c)}
+                  title={c}
+                  className={`flex aspect-square items-center justify-center rounded-full border transition-transform hover:scale-110 ${on ? 'border-stone-900' : 'border-black/10'}`}
+                  style={{ backgroundColor: c }}
+                >
+                  {on && <Check size={14} className="text-stone-700" strokeWidth={2.5} />}
+                </button>
+              )
+            })}
           </div>
-
-          {/* App preset */}
-          <button
-            onClick={() => setHex(preset)}
-            className="flex w-full items-center gap-2.5 border border-stone-200 px-3 py-2 text-left text-sm text-stone-600 transition-colors hover:border-stone-400"
-          >
-            <span className="h-5 w-5 shrink-0 rounded-full border border-black/5" style={{ backgroundColor: preset }} />
-            Use the app preset
-            <span className="ml-auto font-mono text-xs uppercase text-stone-400">{preset}</span>
-          </button>
         </div>
 
         <div className="flex items-center justify-between border-t border-stone-200 px-5 py-4">
-          <button onClick={() => { onReset(); onClose() }} className="text-sm text-stone-400 hover:text-stone-700">Reset</button>
+          <button onClick={() => { onReset(); onClose() }} className="text-sm text-stone-400 hover:text-stone-700">Reset to default</button>
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-            <button onClick={save} disabled={!valid} className={`px-5 py-2 text-sm text-cream ${valid ? 'bg-stone-900 hover:bg-stone-700' : 'cursor-not-allowed bg-stone-300'}`}>Save</button>
+            <button onClick={() => { onSave(sel); onClose() }} className="bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Save</button>
           </div>
         </div>
       </div>
