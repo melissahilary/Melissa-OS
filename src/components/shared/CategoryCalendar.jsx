@@ -254,23 +254,23 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
     onSave(base)
   }
 
-  const chip = (on) => `px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
+  const chip = (on) => `rounded-full px-3.5 py-1.5 text-xs transition-colors ${on ? 'bg-stone-900 text-cream' : 'border border-stone-300 text-stone-600 hover:border-stone-500'}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-lg bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-stone-200 bg-cream shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">{longDate(parseKey(dayKey))}</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
         </div>
-        <div className="max-h-[64vh] overflow-y-auto px-6 py-5 space-y-5">
+        <div className="max-h-[64vh] space-y-6 overflow-y-auto px-6 py-6">
           <div>
             <span className="kicker text-stone-400 mb-1.5 block">Name</span>
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={noun} className="w-full bg-transparent border-b border-stone-300 pb-1.5 font-serif text-2xl text-stone-900 placeholder-stone-300 outline-none focus:border-stone-900" />
           </div>
           <div>
             <span className="kicker text-stone-400 mb-1.5 block">Details</span>
-            <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Notes…" className="w-full min-h-[100px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900" />
+            <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Notes…" className="w-full min-h-[110px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm leading-relaxed text-stone-800 outline-none ring-1 ring-transparent transition placeholder:text-stone-300 focus:ring-stone-300" />
           </div>
           <div>
             <span className="kicker text-stone-400 mb-1.5 block">Time</span>
@@ -327,7 +327,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
               <span className="kicker text-stone-400 mb-2 block">On days</span>
               <div className="flex flex-wrap gap-1.5">
                 {WD_CHIPS.map((w) => (
-                  <button key={w.d} type="button" onClick={() => toggleDay(w.d)} className={`h-8 w-8 text-xs border transition-colors ${days.includes(w.d) ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{w.l}</button>
+                  <button key={w.d} type="button" onClick={() => toggleDay(w.d)} className={`h-9 w-9 rounded-full text-xs transition-colors ${days.includes(w.d) ? 'bg-stone-900 text-cream' : 'border border-stone-300 text-stone-600 hover:border-stone-500'}`}>{w.l}</button>
                 ))}
               </div>
             </div>
@@ -359,7 +359,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
           {isNew ? <span /> : <button onClick={onDelete} className="text-sm text-stone-400 hover:text-phase-menstrual">Delete</button>}
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-            <button onClick={submit} disabled={!canSave} className={`px-5 py-2 text-sm text-cream ${canSave ? 'bg-stone-900 hover:bg-stone-700' : 'bg-stone-300 cursor-not-allowed'}`}>Save</button>
+            <button onClick={submit} disabled={!canSave} className={`rounded-full px-6 py-2 text-sm text-cream ${canSave ? 'bg-stone-900 hover:bg-stone-700' : 'cursor-not-allowed bg-stone-300'}`}>Save</button>
           </div>
         </div>
       </div>
