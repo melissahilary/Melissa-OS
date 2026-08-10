@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, AlignLeft } from 'lucide-react'
 import * as store from '../../lib/dataStore'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity, activityOccursOn, daySectionsOf } from '../../lib/activities'
@@ -160,42 +160,31 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
         }}
       />
 
-      {/* Selected day detail */}
-      <section className="mt-8 border-t border-stone-200 pt-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-serif italic text-2xl text-stone-900">{longDate(parseKey(selectedKey))}</h3>
-        </div>
+      {/* Selected day — the sibling of the Weekly view: one flowing list of clean
+          dot-lines (time-of-day dot · serif title · readable notes), tap to edit. */}
+      <section className="mx-auto mt-10 max-w-2xl border-t border-stone-200 pt-7">
+        <h3 className="mb-5 text-center font-serif text-2xl text-stone-900">{longDate(parseKey(selectedKey))}</h3>
         {dayItems.length === 0 ? (
-          <p className="text-sm italic text-stone-400">Nothing scheduled.</p>
+          <p className="text-center text-sm italic text-stone-300">An open day.</p>
         ) : (
-          <div className="space-y-5">
-            {PARTS.map((pt) => {
-              const list = dayItems
-                .filter((a) => partOf(a) === pt.id)
-                .sort((a, b) => (a.details?.time || '99:99').localeCompare(b.details?.time || '99:99'))
-              if (!list.length) return null
-              return (
-                <div key={pt.id}>
-                  <p className="kicker text-stone-400 mb-2">{pt.label}</p>
-                  <div className="space-y-2">
-                    {list.map((a) => (
-                      <div key={a.id} className={`group flex items-start gap-3 border border-stone-200 bg-white/40 px-4 py-2.5 ${a.status === 'paused' ? 'opacity-60' : ''}`}>
-                        <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
-                          <p className="text-sm text-stone-800">
-                            {fmtTime(a.details?.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtTime(a.details?.time)}</span>}
-                            {a.title || noun}
-                            {a.status === 'paused' && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.14em] text-stone-400 border border-stone-300 px-1.5 py-0.5">paused</span>}
-                          </p>
-                          {a.notes && a.notes.trim() && <p className="mt-0.5 whitespace-pre-line text-xs leading-relaxed text-stone-500">{a.notes}</p>}
-                        </button>
-                        {a.status === 'paused' && <button onClick={() => update(a.id, { status: 'active' })} title="Resume — bring back to Today" className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-400 hover:text-stone-900">resume</button>}
-                        <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={15} /></button>
-                      </div>
-                    ))}
-                  </div>
+          <div>
+            {[...dayItems]
+              .sort((a, b) => (PARTS.findIndex((p) => p.id === partOf(a)) - PARTS.findIndex((p) => p.id === partOf(b))) || (a.details?.time || '99:99').localeCompare(b.details?.time || '99:99'))
+              .map((a) => (
+                <div key={a.id} className={`group flex items-start gap-3 border-b border-stone-100 py-2.5 last:border-0 ${a.status === 'paused' ? 'opacity-55' : ''}`}>
+                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" title={PARTS.find((p) => p.id === partOf(a))?.label} />
+                  <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
+                    <p className="font-serif text-base leading-snug text-stone-900">
+                      {fmtTime(a.details?.time) && <span className="mr-2 text-sm text-stone-400 tabular-nums">{fmtTime(a.details?.time)}</span>}
+                      {a.title || noun}
+                      {a.notes && a.notes.trim() && <AlignLeft size={11} className="ml-2 inline-block align-middle text-stone-300" aria-label="Has notes" />}
+                      {a.status === 'paused' && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.14em] text-stone-400">paused</span>}
+                    </p>
+                  </button>
+                  {a.status === 'paused' && <button onClick={() => update(a.id, { status: 'active' })} title="Resume — bring back to Today" className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-400 hover:text-stone-900">resume</button>}
+                  <button onClick={() => remove(a.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><X size={15} /></button>
                 </div>
-              )
-            })}
+              ))}
           </div>
         )}
       </section>

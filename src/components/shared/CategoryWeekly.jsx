@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, CalendarDays, AlignLeft } from 'lucide-react'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity } from '../../lib/activities'
 import { dateKey, parseKey, addDays, DOW_LONG, MONTHS_SHORT, isSameDay } from '../../lib/date'
@@ -86,9 +86,9 @@ export default function CategoryWeekly({ category, noun = 'Item' }) {
                           <p className="font-serif text-base leading-snug text-stone-900">
                             {t && <span className="mr-2 text-sm text-stone-400 tabular-nums">{t}</span>}
                             {a.title || noun}
+                            {a.notes && a.notes.trim() && <AlignLeft size={11} className="ml-2 inline-block align-middle text-stone-300" aria-label="Has notes" />}
                             {a.status === 'paused' && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.14em] text-stone-400">paused</span>}
                           </p>
-                          {a.notes && a.notes.trim() && <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-stone-600">{a.notes}</p>}
                         </button>
                         {a.status === 'paused' && <button onClick={() => update(a.id, { status: 'active' })} title="Resume — bring back to Today" className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-400 hover:text-stone-900">resume</button>}
                         <button onClick={() => remove(a.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><X size={15} /></button>

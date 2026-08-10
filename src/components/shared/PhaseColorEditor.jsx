@@ -6,10 +6,10 @@ import { PHASES, DEFAULT_PHASE_TINT } from '../../lib/cycle'
 // sage, mist, slate, lilac, greige. Any phase can be assigned any of these; no
 // hex typing or OS colour dial, just tap a swatch.
 const WASHES = [
-  '#B79B93', '#C2A79C', '#B08C82', '#CBB6A6',
-  '#A3AF92', '#9CAD84', '#AEB79E', '#8C9C74',
-  '#C6B584', '#CDBA79', '#D2C293', '#BAA76E',
-  '#A4A6B5', '#9DA2B7', '#ABA7BD', '#969FB0',
+  '#A0654C', '#B07A5F', '#8C5A46', '#9E6A55',
+  '#889072', '#7E8768', '#96A084', '#727C5E',
+  '#C4A76A', '#CBB27C', '#B79A5E', '#A8894F',
+  '#8E8074', '#9C8E82', '#7E7268', '#A39387',
 ]
 
 export default function PhaseColorEditor({ phaseId, value, onSave, onReset, onClose }) {

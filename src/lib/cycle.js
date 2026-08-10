@@ -12,10 +12,10 @@ export const PHASES = {
 // dots. Customisable per user (mos:settings:phaseColors); every month calendar
 // reads the result, so an edit reflects everywhere.
 export const DEFAULT_PHASE_TINT = {
-  menstrual: '#B79B93',
-  follicular: '#A3AF92',
-  ovulation: '#C6B584',
-  luteal: '#A4A6B5',
+  menstrual: '#A0654C',
+  follicular: '#889072',
+  ovulation: '#C4A76A',
+  luteal: '#8E8074',
 }
 export const PHASE_ORDER = ['menstrual', 'follicular', 'ovulation', 'luteal']
 
