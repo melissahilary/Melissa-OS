@@ -246,6 +246,17 @@ export default function App() {
     : null
   const setActiveSub = (id) => setSub(active, id)
 
+  // Every sub-page carries a serif title at the top. Generic calendar views
+  // (Weekly/Monthly) title with the pillar name; named views (Influences,
+  // Journal, Recipes, a Dream chapter…) title with their own name.
+  const genericSub = activeSub === 'weekly' || activeSub === 'monthly'
+  const pillarSubLabel = SUBNAV[active] && SUBNAV[active].find((s) => s.id === activeSub)?.label
+  const pageTitle = isDream
+    ? (DREAM_PAGES.find((p) => p.id === dreamPage)?.label || 'Dream Planning')
+    : isPillar
+      ? (genericSub ? activePillarMeta?.label : (pillarSubLabel || activePillarMeta?.label))
+      : null
+
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
@@ -274,6 +285,7 @@ export default function App() {
       {/* ── Main content ────────────────────────────────────── */}
       <main className="overflow-x-hidden px-6 py-10 md:px-10 lg:px-12">
         <div className="mx-auto max-w-5xl">
+          {pageTitle && <h1 className="mb-9 text-center font-serif text-4xl text-stone-900 md:text-5xl">{pageTitle}</h1>}
           {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
           {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
           {isPillar && ActivePillar && (
@@ -350,14 +362,11 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
 
       <div className={`no-scrollbar relative flex h-full w-full flex-col overflow-y-auto px-8 transition-all duration-300 md:px-12 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
         <div className="mx-auto w-full max-w-xl pb-16 pt-14 md:pt-20">
-          {/* Centered logo masthead — the hero the rest sizes down from; returns home */}
-          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block w-full text-center text-4xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-6xl">Melissa's Digital Planner</button>
-          {/* Printer's fleuron — a quiet old-money book ornament in place of a rule */}
-          <div className="mx-auto mt-4 select-none text-center text-3xl leading-none text-stone-300" aria-hidden style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</div>
+          {/* The index hero — the cursive wordmark now reads "Pillars of Health";
+              tapping it still returns home to Today. */}
+          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block w-full text-center text-4xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-6xl">Pillars of Health</button>
 
-          <h2 className="mt-8 text-center font-serif text-2xl leading-none text-stone-800 md:text-3xl">Pillars of Health</h2>
-
-          <div className="mx-auto mt-10 grid w-fit grid-cols-1 gap-x-16 sm:grid-cols-2">
+          <div className="mx-auto mt-12 grid w-fit grid-cols-1 gap-x-16 sm:grid-cols-2">
             {pillars.map((p) => {
               const on = active === p.id || (p.id === 'mindset' && active === 'dream')
               const Icon = p.icon

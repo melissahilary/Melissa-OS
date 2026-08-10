@@ -82,19 +82,13 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
         })}
       </div>
 
-      <div className="mt-4 flex flex-col items-center gap-2">
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] uppercase tracking-[0.14em] text-stone-400">
-          <span className="flex items-center gap-1"><RhythmDot on /><RhythmDot on /><RhythmDot on /><span className="ml-1">morning · midday · evening</span></span>
-          <span className="flex items-center gap-1"><span className="text-stone-500">✦</span> appointment</span>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-          {PHASE_LEGEND.map((p) => (
-            <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
-              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
-              {p.label}
-            </span>
-          ))}
-        </div>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+        {PHASE_LEGEND.map((p) => (
+          <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
+            {p.label}
+          </span>
+        ))}
       </div>
     </>
   )
