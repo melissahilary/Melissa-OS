@@ -17,7 +17,9 @@ export const MEAL_SLOTS = [
   { id: 'breakfast', label: 'Breakfast', part: 'morning', supps: true },
   { id: 'drink', label: 'Drink', part: 'morning', supps: false },
   { id: 'lunch', label: 'Lunch', part: 'afternoon', supps: true },
+  { id: 'lunchdrink', label: 'Drink', part: 'afternoon', supps: false },
   { id: 'dinner', label: 'Dinner', part: 'evening', supps: true },
+  { id: 'dinnerdrink', label: 'Drink', part: 'evening', supps: false },
   { id: 'bed', label: 'Before Bed', part: 'evening', supps: true },
 ]
 

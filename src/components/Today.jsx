@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Trash2, ChevronDown, ChevronRight, Pause } from 'lucide-react'
+import { X, Trash2, ChevronDown, ChevronRight, Pause, BookOpen } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig, PHASES } from '../lib/cycle'
 import {
@@ -712,7 +712,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const dayMeals = (k) =>
     activities
       .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && active(a, k))
-      .map(toMealShape)
+      .map((a) => ({ ...toMealShape(a), done: isDoneOn(a, k) }))
 
   // Quick inline add from a meal slot (AddMealForm shape → activity).
   const addMeal = (m) =>
@@ -941,11 +941,13 @@ const DAY_BLOCKS = [
   { id: 'morning', type: 'todo', top: 'To Do', sub: 'Morning', mealRows: [] },
   { id: 'lunch', type: 'meal', top: 'Meal', sub: 'Lunch', mealRows: [
     { kind: 'food', slot: 'lunch', label: 'Lunch' },
+    { kind: 'food', slot: 'lunchdrink', label: 'Drink' },
     { kind: 'supp', slot: 'lunch', label: 'Supplements' },
   ] },
   { id: 'daytime', type: 'todo', top: 'To Do', sub: 'Daytime', mealRows: [] },
   { id: 'dinner', type: 'meal', top: 'Meal', sub: 'Dinner', mealRows: [
     { kind: 'food', slot: 'dinner', label: 'Dinner' },
+    { kind: 'food', slot: 'dinnerdrink', label: 'Drink' },
     { kind: 'supp', slot: 'dinner', label: 'Supplements' },
   ] },
   { id: 'evening', type: 'todo', top: 'To Do', sub: 'Evening', mealRows: [] },
@@ -1110,7 +1112,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
           {block.mealRows.length > 0 && (
             <div className="space-y-5">
               {block.mealRows.map((row) => (
-                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} />
+                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
               ))}
             </div>
           )}
@@ -1180,9 +1182,10 @@ function AddTaskForm({ onCancel, onSave }) {
 
 // Nutrition rows — same list language as the tasks: one text column, a quiet
 // remove mark on hover, no checkbox (nutrition is never "achieved").
-function MealSection({ section, meals, dateKeyStr, onAdd, onOpen }) {
+function MealSection({ section, meals, dateKeyStr, onAdd, onOpen, onToggle }) {
   const [adding, setAdding] = useState(false)
   const items = (meals || []).filter((m) => m.kind === section.kind && m.slot === section.slot)
+  const addLabel = section.label === 'Drink' ? 'add drink' : section.kind === 'supp' ? 'add supplement' : 'add food'
   return (
     <div>
       <p className="kicker text-stone-400 mb-2">{section.label}</p>
@@ -1190,12 +1193,33 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onOpen }) {
         <div className="mb-1 space-y-0.5">
           {items.map((m) => (
             <div key={m.id} className="flex items-center gap-3 py-1">
-              <span className="w-4 shrink-0" />
-              <button onClick={() => onOpen(m.id)} className="flex-1 text-left text-sm text-stone-700">{m.name}</button>
+              <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={m.done} onClick={() => onToggle(m.id)} /></span>
+              <button onClick={() => onOpen(m.id)} className={`flex-1 text-left text-sm ${m.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{m.name}</button>
             </div>
           ))}
         </div>
       )}
+      {/* When a section is blank, a quiet add line keeps the structure actionable
+          without cluttering populated sections. */}
+      {adding ? (
+        <div className="flex items-start gap-3">
+          <span className="w-4 shrink-0" />
+          <div className="flex-1">
+            <AddMealForm
+              slot={slotMeta(section.slot)}
+              kind={section.kind}
+              dateKeyStr={dateKeyStr}
+              onCancel={() => setAdding(false)}
+              onSave={(item) => { onAdd({ ...item, slot: section.slot, kind: section.kind }); setAdding(false) }}
+            />
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex items-center gap-3">
+          <span className="w-4 shrink-0" />
+          <button onClick={() => setAdding(true)} className="text-sm italic text-stone-400 transition-colors hover:text-stone-700">{addLabel}</button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1313,10 +1337,11 @@ function TodayNotes() {
         </div>
       )}
 
-      {/* One quiet entry into the whole notebook — search and filter live inside. */}
-      <div className={`text-center ${todaysNotes.length > 0 ? 'mt-8' : 'mt-2'}`}>
-        <button onClick={() => setBrowsing(true)} className="kicker text-stone-400 transition-colors hover:text-stone-900">
-          Open your notebook{notes.length ? ` · ${notes.length}` : ''}
+      {/* One clean button into the whole notebook — search and filter live inside. */}
+      <div className={`flex justify-center ${todaysNotes.length > 0 ? 'mt-8' : 'mt-4'}`}>
+        <button onClick={() => setBrowsing(true)} className="flex items-center gap-2 rounded-full border border-stone-300 px-6 py-2.5 text-sm text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+          <BookOpen size={15} strokeWidth={1.75} />
+          Notebook
         </button>
       </div>
 
