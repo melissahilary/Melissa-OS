@@ -67,7 +67,7 @@ const INTENTION = {
   menstrual: "Rest and reset. Honor the slowdown — it's productive in its own way.",
 }
 
-const chipCls = (on) => `px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
+const chipCls = (on) => `rounded-full px-3.5 py-1.5 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
 const REAL_FLOW = ['Light', 'Medium', 'Heavy'] // a real period day (sets Day 1); Spotting doesn't
 
 function CyclePage({ cycleConfig, setCycleConfig, goToDay = () => {} }) {
@@ -289,8 +289,8 @@ function CycleSettings({ cycleConfig, setCycleConfig }) {
       <div className="mt-8">
         <label className="kicker text-stone-400 mb-2 block">Phase</label>
         <div className="flex flex-wrap items-center gap-1.5">
-          <button onClick={() => setCfg({ manualPhase: '' })} className={`px-2.5 py-1 text-xs border transition-colors ${!manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Use calculated phase</button>
-          <button onClick={() => setCfg({ manualPhase: manualPhase || 'follicular' })} className={`px-2.5 py-1 text-xs border transition-colors ${manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Set phase manually</button>
+          <button onClick={() => setCfg({ manualPhase: '' })} className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${!manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Use calculated phase</button>
+          <button onClick={() => setCfg({ manualPhase: manualPhase || 'follicular' })} className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${manualPhase ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>Set phase manually</button>
           {manualPhase && (
             <select value={manualPhase} onChange={(e) => setCfg({ manualPhase: e.target.value })} className="ml-1 border-b border-stone-300 bg-transparent pb-1 text-sm outline-none">
               {Object.values(PHASES).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

@@ -14,7 +14,7 @@ export default function ScopePrompt({ open, itemName, action = 'change', onChoos
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-sm bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="border-b border-stone-200 px-6 py-5">
           <p className="kicker text-stone-400 mb-1">Recurring item</p>
           <h2 className="font-serif italic text-2xl leading-tight text-stone-900">{itemName}</h2>

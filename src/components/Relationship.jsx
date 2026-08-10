@@ -86,7 +86,7 @@ function RelationshipOverview() {
                 onClick={() =>
                   setData((d) => ({ ...d, habits: d.habits.map((x) => (x.id === h.id ? { ...x, confirm: !x.confirm } : x)) }))
                 }
-                className={`px-2.5 py-1 text-xs border transition-colors ${
+                className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${
                   h.confirm ? 'bg-mauve text-white border-mauve' : 'border-stone-300 text-stone-500 hover:border-stone-500'
                 }`}
               >

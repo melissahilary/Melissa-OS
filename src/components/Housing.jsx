@@ -443,7 +443,7 @@ function BubbleRow({ label, options, value, onSelect }) {
           <button
             key={o}
             onClick={() => onSelect(o)}
-            className={`px-2.5 py-1 text-xs border transition-colors ${value === o ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-500 hover:border-stone-500'}`}
+            className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${value === o ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-500 hover:border-stone-500'}`}
           >
             {o}
           </button>

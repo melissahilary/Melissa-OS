@@ -251,7 +251,7 @@ function FacetEditor({ facet, values, onToggle }) {
                 key={o.id}
                 type="button"
                 onClick={() => onToggle(o.id)}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs border transition-colors"
+                className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs border transition-colors"
                 style={
                   on
                     ? { backgroundColor: PHASES[o.id].color, color: PHASES[o.id].ink, borderColor: PHASES[o.id].color }
@@ -268,7 +268,7 @@ function FacetEditor({ facet, values, onToggle }) {
               key={o.id}
               type="button"
               onClick={() => onToggle(o.id)}
-              className={`px-2.5 py-1 text-xs border transition-colors ${
+              className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${
                 on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'
               }`}
             >
@@ -316,7 +316,7 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-xl bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-xl bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
           <input
             value={draft.name}
@@ -431,7 +431,7 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
               value={draft.prep}
               onChange={(e) => setDraft({ ...draft, prep: e.target.value })}
               placeholder="Method, timing, anything to remember"
-              className="w-full min-h-[120px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900"
+              className="w-full min-h-[120px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm outline-none focus:border-stone-900"
             />
           </div>
         </div>
@@ -448,7 +448,7 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
             <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
             <button
               onClick={() => onSave({ ...draft, name: draft.name.trim() || 'Untitled' })}
-              className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700"
+              className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700"
             >
               Save
             </button>

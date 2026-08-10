@@ -186,7 +186,7 @@ function ConnectModal({ metric, onPick, onClose }) {
   const cfg = CONNECT[metric]
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-sm bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between px-6 pt-4">
           <span className="flex items-center gap-2 kicker text-stone-400"><Mark mark="heart" /> Apple Health</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
@@ -231,7 +231,7 @@ function VitalPopover({ metric, v, waterOz, sleepMin, stepsVal, bpVal, onLogWate
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
           <span className="flex items-center gap-2 kicker text-stone-400">{device && <Mark mark={dev(device).mark} />}{device ? dev(device).name : LABEL[metric]}</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>

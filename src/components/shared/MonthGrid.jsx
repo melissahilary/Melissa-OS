@@ -87,21 +87,18 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
         })}
       </div>
 
-      <div className="mt-4 flex flex-col items-center gap-1.5">
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
-          {PHASE_LEGEND.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setEditPhase(p.id)}
-              title={`Recolour ${p.label}`}
-              className="group flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500 transition-colors hover:text-stone-900"
-            >
-              <span className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10 transition-transform group-hover:scale-110" style={{ backgroundColor: colors[p.id] }} />
-              {p.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-[10px] italic text-stone-300">Tap a phase to recolour it</p>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+        {PHASE_LEGEND.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setEditPhase(p.id)}
+            title={`Recolour ${p.label}`}
+            className="group flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500 transition-colors hover:text-stone-900"
+          >
+            <span className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10 transition-transform group-hover:scale-110" style={{ backgroundColor: colors[p.id] }} />
+            {p.label}
+          </button>
+        ))}
       </div>
 
       {editPhase && (

@@ -127,7 +127,7 @@ function AuditDetail({ card, onChange, onDelete, onClose }) {
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-3xl bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-3xl bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
           <input
             value={card.title}
@@ -157,7 +157,7 @@ function AuditDetail({ card, onChange, onDelete, onClose }) {
           <button onClick={onDelete} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-phase-menstrual">
             <Trash2 size={15} /> Delete
           </button>
-          <button onClick={onClose} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Done</button>
+          <button onClick={onClose} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Done</button>
         </div>
       </div>
     </div>

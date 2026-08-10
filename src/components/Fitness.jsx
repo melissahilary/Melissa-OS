@@ -221,11 +221,11 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
     onSave(base)
   }
 
-  const chip = (on) => `px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
+  const chip = (on) => `rounded-full px-3.5 py-1.5 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-lg bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">{isNew ? 'New Workout' : 'Workout'}</span>
           <div className="flex items-center gap-4">
@@ -279,7 +279,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={'Squats: 4x5-8 (heavy), 2-3 min rest\nDeadlifts: 4x5 (heavy), 3 min rest\nHip thrusts: 4x8 (heavy), 90 sec rest'}
-              className="w-full min-h-[160px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900"
+              className="w-full min-h-[160px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm leading-relaxed outline-none focus:border-stone-900"
             />
           </div>
           <div>
@@ -350,7 +350,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
           {isNew ? <span /> : <button onClick={onDelete} className="text-sm text-stone-400 hover:text-phase-menstrual">Delete</button>}
           <div className="flex items-center gap-3">
             {readOnly ? (
-              <button onClick={onClose} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Close</button>
+              <button onClick={onClose} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Close</button>
             ) : (
               <>
                 <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>

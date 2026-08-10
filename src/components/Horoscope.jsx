@@ -243,7 +243,7 @@ function HoroscopeCard({ data, onEdit }) {
 function PlanetPopup({ ruler, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex justify-end px-4 pt-3">
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
@@ -385,7 +385,7 @@ function SignsModal({ signs, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-md bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-md bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">Your chart</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
@@ -415,7 +415,7 @@ function SignsModal({ signs, onSave, onClose }) {
 
         <div className="flex items-center justify-end gap-3 border-t border-stone-200 px-6 py-4">
           <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-          <button onClick={() => onSave(draft)} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+          <button onClick={() => onSave(draft)} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
         </div>
       </div>
     </div>

@@ -51,7 +51,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
         const on = (value || []).includes(o.id)
         const color = colored ? PHASES[o.id]?.color : null
         return (
-          <button key={o.id} type="button" onClick={() => onToggle(o.id)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs border transition-colors"
+          <button key={o.id} type="button" onClick={() => onToggle(o.id)} className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs border transition-colors"
             style={on ? (color ? { backgroundColor: color, color: PHASES[o.id].ink, borderColor: color } : { backgroundColor: '#1c1917', color: '#FAFAF7', borderColor: '#1c1917' }) : { borderColor: '#d6d3d1', color: '#57534e' }}>
             {color && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
             {o.label}
@@ -76,7 +76,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
           <div className="flex flex-wrap gap-1.5">
             {WEEKDAYS.map((w) => {
               const on = (draft.daysOfWeek || []).includes(w.d)
-              return <button key={w.d} type="button" onClick={() => toggleDay(w.d)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{w.label}</button>
+              return <button key={w.d} type="button" onClick={() => toggleDay(w.d)} className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{w.label}</button>
             })}
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
         {RECIPE_TAGS.map((tag) => {
           const on = (draft.details.tags || []).includes(tag)
           return (
-            <button key={tag} type="button" onClick={() => toggleTag(tag)} className="px-2.5 py-1 text-xs border transition-colors"
+            <button key={tag} type="button" onClick={() => toggleTag(tag)} className="rounded-full px-3.5 py-1.5 text-xs border transition-colors"
               style={on ? { backgroundColor: '#1c1917', color: '#FAFAF7', borderColor: '#1c1917' } : { borderColor: '#d6d3d1', color: '#57534e' }}>
               {tag}
             </button>
@@ -124,7 +124,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xl bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-xl bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
           <div className="flex-1">
             <span className="kicker text-stone-400">{TYPE_LABEL}</span>
@@ -141,7 +141,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 <div className="flex flex-wrap gap-1.5">
                   {PARTS.map((o) => {
                     const on = eventParts(draft).includes(o.id)
-                    return <button key={o.id} type="button" onClick={() => toggleEventPart(o.id)} className={`px-2.5 py-1 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{o.label}</button>
+                    return <button key={o.id} type="button" onClick={() => toggleEventPart(o.id)} className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{o.label}</button>
                   })}
                 </div>
                 <p className="mt-1.5 text-xs italic text-stone-400">Pick one or more.</p>
@@ -151,7 +151,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 <div><span className={labelCls}>Duration (min)</span><input type="number" value={draft.details.durationMinutes || ''} onChange={(e) => setD('durationMinutes', e.target.value)} className="w-20 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
               </div>
               {Scheduling}
-              <div><span className={labelCls}>Description</span><textarea value={draft.details.description || ''} onChange={(e) => setD('description', e.target.value)} className="w-full min-h-[80px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" /></div>
+              <div><span className={labelCls}>Description</span><textarea value={draft.details.description || ''} onChange={(e) => setD('description', e.target.value)} className="w-full min-h-[80px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm outline-none focus:border-stone-900" /></div>
               <div><span className={labelCls}>Attendees</span><input value={draft.details.attendees || ''} onChange={(e) => setD('attendees', e.target.value)} placeholder="Comma separated" className={lineCls} /></div>
             </>
           )}
@@ -164,7 +164,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 </select>
               </div>
               <label className="flex items-center gap-2 text-sm text-stone-700"><input type="checkbox" checked={!!draft.details.beverage} onChange={(e) => setD('beverage', e.target.checked)} /> Beverage</label>
-              <div><span className={labelCls}>Ingredients</span><textarea value={draft.details.ingredients || ''} onChange={(e) => setD('ingredients', e.target.value)} placeholder="One per line, or comma-separated — these feed Today's Ingredients" className="w-full min-h-[70px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" /></div>
+              <div><span className={labelCls}>Ingredients</span><textarea value={draft.details.ingredients || ''} onChange={(e) => setD('ingredients', e.target.value)} placeholder="One per line, or comma-separated — these feed Today's Ingredients" className="w-full min-h-[70px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm outline-none focus:border-stone-900" /></div>
               {Tags}
               <div><span className={labelCls}>Cycle phase</span><Chips value={draft.phase} options={PHASE_OPTS} onToggle={(v) => toggleArr('phase', v)} colored /></div>
               {Scheduling}
@@ -185,7 +185,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
               {Tags}
               {Scheduling}
               <div><span className={labelCls}>Cycle length</span><input value={draft.details.cycleLength || ''} onChange={(e) => setD('cycleLength', e.target.value)} placeholder="e.g. 8 weeks on, 4 off" className={lineCls} /></div>
-              <div><span className={labelCls}>Stack notes</span><textarea value={draft.details.stackNotes || ''} onChange={(e) => setD('stackNotes', e.target.value)} className="w-full min-h-[70px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" /></div>
+              <div><span className={labelCls}>Stack notes</span><textarea value={draft.details.stackNotes || ''} onChange={(e) => setD('stackNotes', e.target.value)} className="w-full min-h-[70px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm outline-none focus:border-stone-900" /></div>
               <div><span className={labelCls}>Provider</span><input value={draft.details.provider || ''} onChange={(e) => setD('provider', e.target.value)} className={lineCls} /></div>
             </>
           )}
@@ -211,7 +211,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
           )}
 
           {(t === 'event' || t === 'supplement' || t === 'protocol' || t === 'meal_item') && (
-            <div><span className={labelCls}>Notes</span><textarea value={draft.notes || ''} onChange={(e) => set('notes', e.target.value)} className="w-full min-h-[70px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-900" /></div>
+            <div><span className={labelCls}>Notes</span><textarea value={draft.notes || ''} onChange={(e) => set('notes', e.target.value)} className="w-full min-h-[70px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm outline-none focus:border-stone-900" /></div>
           )}
         </div>
 
@@ -221,7 +221,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
           )}
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-            <button onClick={() => { const secs = Array.isArray(draft.daySections) ? draft.daySections : []; const tod = secs.length ? [...new Set(secs.map(sectionToPart))] : draft.timeOfDay; onSave({ ...draft, timeOfDay: tod, title: (draft.title || '').trim() || `Untitled ${TYPE_LABEL.toLowerCase()}` }) }} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+            <button onClick={() => { const secs = Array.isArray(draft.daySections) ? draft.daySections : []; const tod = secs.length ? [...new Set(secs.map(sectionToPart))] : draft.timeOfDay; onSave({ ...draft, timeOfDay: tod, title: (draft.title || '').trim() || `Untitled ${TYPE_LABEL.toLowerCase()}` }) }} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
           </div>
         </div>
       </div>

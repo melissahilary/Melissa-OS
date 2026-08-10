@@ -39,7 +39,7 @@ function ChipGroup({ label, options, value, onChange }) {
               key={opt}
               type="button"
               onClick={() => onChange(active ? '' : opt)}
-              className={`px-2.5 py-1 text-xs border transition-colors ${
+              className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${
                 active
                   ? 'bg-stone-900 text-cream border-stone-900'
                   : 'bg-transparent text-stone-600 border-stone-300 hover:border-stone-500'
@@ -66,7 +66,7 @@ function MultiChipGroup({ label, options, values, onToggle }) {
               key={opt}
               type="button"
               onClick={() => onToggle(opt)}
-              className={`px-2.5 py-1 text-xs border transition-colors ${
+              className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${
                 active
                   ? 'bg-stone-900 text-cream border-stone-900'
                   : 'bg-transparent text-stone-600 border-stone-300 hover:border-stone-500'
@@ -136,7 +136,7 @@ export default function NotesPopup({ open, onClose, onSave, itemName, initial, v
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-xl bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-xl bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
           <div>
@@ -267,7 +267,7 @@ export default function NotesPopup({ open, onClose, onSave, itemName, initial, v
           <button
             type="button"
             onClick={() => onSave(data)}
-            className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700 transition-colors"
+            className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700 transition-colors"
           >
             Save
           </button>

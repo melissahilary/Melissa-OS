@@ -145,7 +145,7 @@ function ItemForm({ entry, noun, placeholder, category, isNew, onSave, onDelete,
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-lg bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">{DOW_LONG[weekday]} · {noun.toLowerCase()}</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
@@ -168,14 +168,14 @@ function ItemForm({ entry, noun, placeholder, category, isNew, onSave, onDelete,
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="How to do it, how long…"
-              className="w-full min-h-[110px] resize-y bg-white/50 border border-stone-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-stone-900"
+              className="w-full min-h-[110px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm leading-relaxed outline-none focus:border-stone-900"
             />
           </div>
           <div>
             <span className="kicker text-stone-400 mb-2 block">Time of day</span>
             <div className="flex gap-1.5">
               {PARTS.map((p) => (
-                <button key={p.id} type="button" onClick={() => setPart(p.id)} className={`px-2.5 py-1 text-xs border transition-colors ${part === p.id ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{p.label}</button>
+                <button key={p.id} type="button" onClick={() => setPart(p.id)} className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${part === p.id ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{p.label}</button>
               ))}
             </div>
           </div>
@@ -183,7 +183,7 @@ function ItemForm({ entry, noun, placeholder, category, isNew, onSave, onDelete,
             <span className="kicker text-stone-400 mb-2 block">Repeat</span>
             <div className="flex flex-wrap gap-1.5">
               {FREQ_OPTS.map((f) => (
-                <button key={f.id} type="button" onClick={() => setFreq(f.id)} className={`px-2.5 py-1 text-xs border transition-colors ${freq === f.id ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>
+                <button key={f.id} type="button" onClick={() => setFreq(f.id)} className={`rounded-full px-3.5 py-1.5 text-xs border transition-colors ${freq === f.id ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>
                   {f.id === 'weekly' ? `Weekly · ${DOW_LONG[weekday]}` : f.label}
                 </button>
               ))}
@@ -195,7 +195,7 @@ function ItemForm({ entry, noun, placeholder, category, isNew, onSave, onDelete,
           {isNew ? <span /> : <button onClick={onDelete} className="text-sm text-stone-400 hover:text-phase-menstrual">Delete</button>}
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-            <button onClick={submit} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+            <button onClick={submit} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
           </div>
         </div>
       </div>

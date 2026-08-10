@@ -497,7 +497,7 @@ function PhotoCropper({ src, initial, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-sm bg-cream border border-stone-300 shadow-2xl">
+      <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
           <span className="kicker text-stone-400">Profile photo</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
@@ -529,7 +529,7 @@ function PhotoCropper({ src, initial, onSave, onClose }) {
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-stone-200 px-6 py-4">
           <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-          <button onClick={save} className="px-5 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+          <button onClick={save} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
         </div>
       </div>
     </div>
