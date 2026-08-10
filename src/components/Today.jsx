@@ -300,15 +300,13 @@ function Clock({ location }) {
 
   return (
     <div className="mt-4 flex flex-col items-center">
-      <svg viewBox="0 0 200 200" className="h-28 w-28 md:h-32 md:w-32" role="img" aria-label="Clock">
-        <circle cx="100" cy="100" r="98" fill="none" stroke="#d6d3d1" strokeWidth="2" />
-        <circle cx="100" cy="100" r="94" fill="#ffffff" stroke="#e7e5e4" strokeWidth="1" />
-        {CK_DOTS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.1" fill="#a8a29e" />)}
-        {CK_BATONS.map((b, i) => <line key={i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} stroke="#1c1917" strokeWidth="4" strokeLinecap="round" />)}
-        <line x1="100" y1="100" x2={hx} y2={hy} stroke="#1c1917" strokeWidth="4.5" strokeLinecap="round" />
-        <line x1="100" y1="100" x2={mx} y2={my} stroke="#1c1917" strokeWidth="3" strokeLinecap="round" />
-        <line x1={stx} y1={sty} x2={sx} y2={sy} stroke="#1c1917" strokeWidth="1" strokeLinecap="round" />
-        <circle cx="100" cy="100" r="3.5" fill="#1c1917" />
+      <svg viewBox="0 0 200 200" className="h-24 w-24 md:h-28 md:w-28" role="img" aria-label="Clock">
+        <circle cx="100" cy="100" r="96" fill="none" stroke="#dcd8d1" strokeWidth="1.25" />
+        {CK_BATONS.map((b, i) => <line key={i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} stroke="#bdb7ac" strokeWidth="1.75" strokeLinecap="round" />)}
+        <line x1="100" y1="100" x2={hx} y2={hy} stroke="#2a2724" strokeWidth="2.75" strokeLinecap="round" />
+        <line x1="100" y1="100" x2={mx} y2={my} stroke="#2a2724" strokeWidth="1.75" strokeLinecap="round" />
+        <line x1={stx} y1={sty} x2={sx} y2={sy} stroke="#a89684" strokeWidth="0.9" strokeLinecap="round" />
+        <circle cx="100" cy="100" r="2.5" fill="#2a2724" />
       </svg>
     </div>
   )
