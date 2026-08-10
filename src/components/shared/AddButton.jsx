@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 
 // A single context-aware floating "Add" button for the whole app. Pages register
 // their add action via useRegisterAdd(handler); the button calls whatever is
@@ -54,10 +54,12 @@ export function AddProvider({ children }) {
       {active && (
         <button
           onClick={() => ref.current && ref.current()}
-          className="fixed bottom-6 right-6 z-40 px-6 py-2.5 text-base shadow-lg transition-colors hover:opacity-90"
-          style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7', borderRadius: '9999px', fontFamily: 'Cormorant Garamond, serif' }}
+          aria-label="Add"
+          title="Add"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105"
+          style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7' }}
         >
-          Add
+          <Plus size={22} strokeWidth={1.75} />
         </button>
       )}
     </AddCtx.Provider>

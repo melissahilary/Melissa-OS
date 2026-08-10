@@ -642,7 +642,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   const { activities, add, update, updateDetails, remove, toggleComplete, setOrder } = useActivities()
   const [editing, setEditing] = useState(null) // an activity (new or existing)
-  const [homeAdd, setHomeAdd] = useState(false) // section chooser open
+  const [blockAdd, setBlockAdd] = useState(false) // block-scoped add popup open
+  const [currentBlock, setCurrentBlock] = useState(DAY_BLOCKS[0]) // the visible day slide
   const [formAllowed, setFormAllowed] = useState(null) // restrict category dropdown
 
   const isNew = (a) => !activities.some((x) => x.id === a.id)
@@ -769,20 +770,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     { id: 'spirituality', label: 'Spirituality', type: 'protocol', category: 'spirituality' },
     { id: 'appointments', label: 'To Do', type: 'protocol', category: 'appointments' },
   ]
-  const pickSection = (id) => {
-    const s = ADD_SECTIONS.find((x) => x.id === id)
-    if (!s) return
-    setHomeAdd(false)
-    setFormAllowed([s.category])
-    const overrides =
-      s.type === 'meal_item' ? { category: s.category, details: { slot: 'breakfast', beverage: false } }
-        : s.type === 'event' ? { category: s.category, seriesStart: selectedKey, frequency: 'asneeded', details: { partOfDay: 'morning' } }
-          : { category: s.category, timeOfDay: ['morning'] }
-    setEditing(blankActivity(s.type, overrides))
-  }
-
-  // Universal Add on the home page → choose a section, then open its form.
-  useRegisterAdd(() => setHomeAdd(true), [])
+  // The floating Add opens a small popup scoped to the block currently on screen
+  // (Empty Stomach, Dinner, Daytime…) → add a to-do, food, drink, or supplement
+  // straight into that block.
+  useRegisterAdd(() => setBlockAdd(true), [])
 
   const pickDay = (k) => { setSelectedKey(k); setCalMonth(new Date(parseKey(k).getFullYear(), parseKey(k).getMonth(), 1)) }
 
@@ -826,16 +817,18 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onPause={pauseItem}
         onToggle={toggleEvent}
         onOpen={(id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }}
+        onBlockChange={setCurrentBlock}
       />
       </div>
 
       <TodayNotes />
 
-      {homeAdd && (
-        <AddChooser
-          options={ADD_SECTIONS.map((s) => ({ id: s.id, label: s.label }))}
-          onPick={pickSection}
-          onClose={() => setHomeAdd(false)}
+      {blockAdd && (
+        <BlockAddChooser
+          block={currentBlock}
+          onAddTask={addTask}
+          onAddMeal={addMeal}
+          onClose={() => setBlockAdd(false)}
         />
       )}
 
@@ -870,7 +863,7 @@ const PHASE_AGENDA_HINT = {
 // ── Calendar ───────────────────────────────────────────────────────
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
-function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
+function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
   const selected = parseKey(selectedKey)
 
   return (
@@ -907,6 +900,7 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
           onPause={onPause}
           onToggle={onToggle}
           onOpen={onOpen}
+          onBlockChange={onBlockChange}
         />
       </div>
     </section>
@@ -1046,7 +1040,7 @@ const fmtApptTime = (t) => {
 // A swipeable carousel of the day's slides. Meals are their own slides
 // (nourishment only); to-dos live in their own time slides (Empty Stomach →
 // Before Bed). The dots move between them.
-function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
+function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
   return (
     <div className="mx-auto max-w-2xl">
       <DayFlow
@@ -1060,6 +1054,7 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
         onPause={onPause}
         onToggle={onToggle}
         onOpen={onOpen}
+        onBlockChange={onBlockChange}
       />
     </div>
   )
@@ -1070,11 +1065,13 @@ const DAY_CARD = 'rounded-2xl border border-stone-200/80 bg-white/50 p-6 shadow-
 
 // One carousel slide — a meal (nourishment) or a to-do block. A couple of to-do
 // blocks also carry the supplements taken then. Arrows/dots move between slides.
-function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
+function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
   const [i, setI] = useState(0)
   const [addingTask, setAddingTask] = useState(false)
   const n = DAY_BLOCKS.length
   const block = DAY_BLOCKS[i]
+  // Tell the page which block is showing, so the floating Add is scoped to it.
+  useEffect(() => { if (onBlockChange) onBlockChange(block) }, [i])
   const jump = (idx) => { setI(Math.max(0, Math.min(n - 1, idx))); setAddingTask(false) }
   const isTodo = block.type === 'todo'
   const tasks = isTodo ? dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents) : []
@@ -1105,11 +1102,6 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
                     <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} onPause={() => onPause(t.id)} onRemove={onRemove} />
                   ))}
                 </div>
-              )}
-              {addingTask ? (
-                <AddTaskForm onCancel={() => setAddingTask(false)} onSave={(title) => { onAddTask(block.id, title); setAddingTask(false) }} />
-              ) : (
-                <AddRow label="add to‑do" onClick={() => setAddingTask(true)} />
               )}
             </div>
           )}
@@ -1204,22 +1196,67 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onOpen }) {
           ))}
         </div>
       )}
-      {adding ? (
-        <div className="flex items-start gap-3">
-          <span className="w-4 shrink-0" />
-          <div className="flex-1">
-            <AddMealForm
-              slot={slotMeta(section.slot)}
-              kind={section.kind}
-              dateKeyStr={dateKeyStr}
-              onCancel={() => setAdding(false)}
-              onSave={(item) => { onAdd({ ...item, slot: section.slot, kind: section.kind }); setAdding(false) }}
-            />
-          </div>
+    </div>
+  )
+}
+
+// The floating Add, scoped to the block on screen: choose a type (To-do / Food /
+// Drink / Supplement — only those the block holds), name it, and it lands in that
+// block. Reuses the same quick-add handlers the inline links used.
+function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
+  const [mode, setMode] = useState(null)
+  const [val, setVal] = useState('')
+
+  const opts = []
+  if (block.type === 'todo') opts.push({ key: 'todo', label: 'To-do' })
+  const seen = new Set()
+  block.mealRows.forEach((row) => {
+    const label = row.kind === 'supp' ? 'Supplement' : row.slot === 'drink' ? 'Drink' : 'Food'
+    if (seen.has(label)) return
+    seen.add(label)
+    opts.push({ key: `${row.kind}:${row.slot}`, label, kind: row.kind, slot: row.slot })
+  })
+
+  useEffect(() => {
+    const onEsc = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onEsc)
+    return () => document.removeEventListener('keydown', onEsc)
+  }, [onClose])
+
+  const commit = () => {
+    const t = val.trim()
+    if (!t || !mode) return
+    if (mode.key === 'todo') onAddTask(block.id, t)
+    else onAddMeal({ name: t, kind: mode.kind, slot: mode.slot })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs overflow-hidden rounded-2xl border border-stone-200 bg-cream shadow-2xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
+          <span className="kicker text-stone-400">Add to {block.sub}</span>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
-      ) : (
-        <AddRow label={section.kind === 'supp' ? 'add supplement' : 'add food'} onClick={() => setAdding(true)} />
-      )}
+        <div className="px-5 py-5">
+          {!mode ? (
+            <div className="flex flex-wrap gap-2">
+              {opts.map((o) => (
+                <button key={o.key} onClick={() => setMode(o)} className="rounded-full border border-stone-300 px-4 py-2 text-sm text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">{o.label}</button>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <p className="kicker mb-2 text-stone-400">{mode.label} · {block.sub}</p>
+              <div className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-4 pr-1.5 focus-within:border-stone-400">
+                <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder={`Add ${mode.label.toLowerCase()}…`} className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300" />
+                <button onClick={commit} className="shrink-0 rounded-full bg-stone-900 px-4 py-1.5 text-sm text-cream hover:bg-stone-700">Add</button>
+              </div>
+              <button onClick={() => { setMode(null); setVal('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1268,9 +1305,7 @@ function TodayNotes() {
         <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-colors hover:bg-stone-700">Add</button>
       </div>
 
-      {todaysNotes.length === 0 ? (
-        <p className="text-center font-serif italic text-lg text-stone-300">Nothing noted yet.</p>
-      ) : (
+      {todaysNotes.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {todaysNotes.map((n) => (
             <NoteCard key={n.id} note={n} onOpen={() => setOpenId(n.id)} />
@@ -1278,11 +1313,12 @@ function TodayNotes() {
         </div>
       )}
 
-      {olderCount > 0 && (
-        <div className="mt-6 text-center">
-          <button onClick={() => setBrowsing(true)} className="kicker text-stone-400 transition-colors hover:text-stone-900">Past notes · {olderCount}</button>
-        </div>
-      )}
+      {/* One quiet entry into the whole notebook — search and filter live inside. */}
+      <div className={`text-center ${todaysNotes.length > 0 ? 'mt-8' : 'mt-2'}`}>
+        <button onClick={() => setBrowsing(true)} className="kicker text-stone-400 transition-colors hover:text-stone-900">
+          Open your notebook{notes.length ? ` · ${notes.length}` : ''}
+        </button>
+      </div>
 
       {browsing && (
         <NotesArchive notes={notes} onOpen={(id) => { setOpenId(id); setBrowsing(false) }} onClose={() => setBrowsing(false)} />
