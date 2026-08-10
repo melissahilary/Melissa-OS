@@ -1265,21 +1265,19 @@ function TodayNotes() {
     <section className="mb-14">
       <h2 className="mb-4 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>Today's Notes.</h2>
 
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mx-auto mb-8 flex max-w-xl items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="New note title"
-          className="flex-1 bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900"
+          placeholder="Write a note…"
+          className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300"
         />
-        <button onClick={add} className="bg-stone-900 px-3 py-1.5 text-sm text-cream hover:bg-stone-700">
-          New note
-        </button>
+        <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-colors hover:bg-stone-700">Add</button>
       </div>
 
       {todaysNotes.length === 0 ? (
-        <p className="font-serif italic text-lg text-stone-400">No notes today yet.</p>
+        <p className="text-center font-serif italic text-lg text-stone-300">Nothing noted yet.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {todaysNotes.map((n) => (
@@ -1318,7 +1316,7 @@ function NoteCard({ note, onOpen }) {
   return (
     <button
       onClick={onOpen}
-      className="flex flex-col items-start border border-stone-200 bg-white/40 p-4 text-left transition-shadow hover:shadow-md"
+      className="flex flex-col items-start rounded-2xl border border-stone-200 bg-cream/50 p-5 text-left transition-shadow hover:shadow-sm"
     >
       <h3 className="font-serif text-xl text-stone-900">{note.title || 'Untitled'}</h3>
       {firstLine ? (
