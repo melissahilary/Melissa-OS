@@ -249,7 +249,7 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav activeLabel={activeLabel} onOpenMenu={() => setMenuOpen(true)} />
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -300,19 +300,27 @@ export default function App() {
 }
 
 // ── Top navigation bar ──────────────────────────────────────────────
-// A slim, calm bar: a hairline "index" mark + the current section's name on the
-// left, the account dot on the right. Tapping the mark opens the full index
-// (NavMenu) — so eleven pillars no longer fight for room in a scroll strip.
-function TopNav({ activeLabel, onOpenMenu }) {
+// A slim, calm bar: the hairline "index" mark on the left opens the full index
+// (NavMenu); the centered cursive wordmark is a persistent masthead that taps
+// home to Today, so home is always one tap away from any pillar page.
+function TopNav({ onOpenMenu, onGoHome }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-6 py-3.5 md:px-10">
-        <button onClick={onOpenMenu} aria-label="Open the index" className="group flex items-center gap-2 py-1">
+      <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
+        <button onClick={onOpenMenu} aria-label="Open the index" className="group relative z-10 flex items-center gap-2 py-1">
           <span className="flex flex-col items-start gap-[4px]" aria-hidden>
             <span className="block h-px w-6 bg-stone-800 transition-all duration-300 group-hover:w-7" />
             <span className="block h-px w-7 bg-stone-800" />
             <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-7" />
           </span>
+        </button>
+        <button
+          onClick={onGoHome}
+          title="Home — Today"
+          style={{ fontFamily: "'Pinyon Script', cursive" }}
+          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-2xl"
+        >
+          Melissa's Digital Planner
         </button>
       </div>
     </header>
