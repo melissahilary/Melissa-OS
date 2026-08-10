@@ -853,8 +853,6 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   )
 }
 
-// Very subtle per-phase cell tints for the month grid.
-const PHASE_TINT = { menstrual: '#F9EDEE', follicular: '#EFF4EF', ovulation: '#FAF5EE', luteal: '#F0EEF4' }
 const PHASE_LEGEND = [
   { id: 'menstrual', label: 'Menstrual' },
   { id: 'follicular', label: 'Follicular' },

@@ -7,6 +7,17 @@ export const PHASES = {
   luteal: { id: 'luteal', name: 'Luteal', abbr: 'LUT', color: '#5A6B7B', ink: '#FAFAF7', range: 'Days 17–28' },
 }
 
+// Default calendar wash per phase — a muted, editorial palette (warm clay, sage,
+// sand, dusty lilac) rather than bright pastels. Customisable per user and
+// stored under mos:settings:phaseColors; every month calendar reads the result.
+export const DEFAULT_PHASE_TINT = {
+  menstrual: '#E6D2CB',
+  follicular: '#D8E0D2',
+  ovulation: '#EDE1C8',
+  luteal: '#DAD5E0',
+}
+export const PHASE_ORDER = ['menstrual', 'follicular', 'ovulation', 'luteal']
+
 // Locked phase nutrition lists — do not change.
 export const PHASE_FOODS = {
   menstrual: [

@@ -5,6 +5,8 @@ import { PHASES, phaseForConfig, phaseFor, cycleDayFor, startOfDay, averageCycle
 import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '../lib/date'
 import CategoryCalendar from './shared/CategoryCalendar'
 import CategoryWeekly from './shared/CategoryWeekly'
+import PhaseColorEditor from './shared/PhaseColorEditor'
+import { usePhaseColors } from '../hooks/usePhaseColors'
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
@@ -319,8 +321,6 @@ function CycleSettings({ cycleConfig, setCycleConfig }) {
   )
 }
 
-// Soft per-phase day tints + a legend for the calendar.
-const PHASE_TINT = { menstrual: '#F4DEDE', follicular: '#E4EDE1', ovulation: '#F2E7CF', luteal: '#E4E0EC' }
 const PHASE_LEGEND = [
   { id: 'menstrual', label: 'Menstrual' },
   { id: 'follicular', label: 'Follicular' },
@@ -333,6 +333,8 @@ const PHASE_LEGEND = [
 // paging month-to-month shows the whole menstrual/follicular/ovulatory/luteal
 // pattern. A small dot marks any day that already carries a log.
 function PeriodCalendar({ periodDays, loggedKeys, selectedKey, onSelect, today, cycleConfig = {} }) {
+  const { colors, setColor, resetColor } = usePhaseColors()
+  const [editPhase, setEditPhase] = useState(null)
   const [month, setMonth] = useState(new Date(parseKey(selectedKey).getFullYear(), parseKey(selectedKey).getMonth(), 1))
   // Follow the selection into its month (e.g. "back to today" or a past entry).
   useEffect(() => {
@@ -360,7 +362,7 @@ function PeriodCalendar({ periodDays, loggedKeys, selectedKey, onSelect, today, 
           const logged = loggedKeys.has(k) && !isPeriod
           // Projected phase for this day (calculated, ignoring any manual override).
           const ph = phaseFor(cell, cycleConfig.lastPeriodStart, cycleConfig.cycleLength)
-          const tint = inMonth && ph ? PHASE_TINT[ph.id] : undefined
+          const tint = inMonth && ph ? colors[ph.id] : undefined
           const style = isPeriod
             ? { backgroundColor: PHASES.menstrual.color, color: '#FAFAF7' }
             : tint ? { backgroundColor: tint } : undefined
@@ -383,16 +385,26 @@ function PeriodCalendar({ periodDays, loggedKeys, selectedKey, onSelect, today, 
           Period
         </span>
         {PHASE_LEGEND.filter((p) => p.id !== 'menstrual').map((p) => (
-          <span key={p.id} className="flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] text-stone-500">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PHASE_TINT[p.id] }} />
+          <button key={p.id} onClick={() => setEditPhase(p.id)} title={`Recolour ${p.label}`} className="group flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] text-stone-500 transition-colors hover:text-stone-900">
+            <span className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10 transition-transform group-hover:scale-110" style={{ backgroundColor: colors[p.id] }} />
             {p.label}
-          </span>
+          </button>
         ))}
         <span className="flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] text-stone-500">
           <span className="inline-block h-1 w-1 rounded-full bg-stone-500" />
           Logged
         </span>
       </div>
+
+      {editPhase && (
+        <PhaseColorEditor
+          phaseId={editPhase}
+          value={colors[editPhase]}
+          onSave={(hex) => setColor(editPhase, hex)}
+          onReset={() => resetColor(editPhase)}
+          onClose={() => setEditPhase(null)}
+        />
+      )}
     </div>
   )
 }

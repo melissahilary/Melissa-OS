@@ -8,8 +8,7 @@ import { phaseForConfig, PHASES } from '../../lib/cycle'
 import { useRegisterAdd } from './AddButton'
 import MonthGrid from './MonthGrid'
 
-const PHASE_TINT = { menstrual: '#F4DEDE', follicular: '#E4EDE1', ovulation: '#F2E7CF', luteal: '#E4E0EC' }
-export const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
+export const PARTS =[{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
 export const partOf = (a) => {
   const t = a.timeOfDay || []
   if (t.includes('evening')) return 'evening'

@@ -1,11 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { dateKey, monthGrid, MONTHS, DOW, isSameDay } from '../../lib/date'
-import { phaseForConfig, PHASES } from '../../lib/cycle'
+import { phaseForConfig } from '../../lib/cycle'
 import { holidayFor } from '../../lib/holidays'
+import { usePhaseColors } from '../../hooks/usePhaseColors'
+import PhaseColorEditor from './PhaseColorEditor'
 
-// Shared month tints + legend so the Today schedule and every category's Monthly
-// view read identically.
-export const PHASE_TINT = { menstrual: '#F9EDEE', follicular: '#EFF4EF', ovulation: '#FAF5EE', luteal: '#F0EEF4' }
 const PHASE_LEGEND = [
   { id: 'menstrual', label: 'Menstrual' },
   { id: 'follicular', label: 'Follicular' },
@@ -26,6 +25,8 @@ const RhythmDot = ({ on }) => (
 // `daySignal(key)` returns { morning, afternoon, evening, special }; tapping a
 // day selects it and the full plan opens in the panel below the grid.
 export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, today, cycleConfig = {}, daySignal, floorMonth }) {
+  const { colors, setColor, resetColor } = usePhaseColors()
+  const [editPhase, setEditPhase] = useState(null)
   const cells = monthGrid(month)
   const atFloor = floorMonth && month <= floorMonth
   const goPrev = () => { if (!atFloor) setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1)) }
@@ -51,7 +52,7 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
           const sig = inMonth && daySignal ? (daySignal(key) || {}) : {}
           const hasRhythm = sig.morning || sig.afternoon || sig.evening
           const phase = phaseForConfig(cycleConfig, cell)
-          const tint = phase ? PHASE_TINT[phase.id] : undefined
+          const tint = phase ? colors[phase.id] : undefined
           return (
             <div
               key={key}
@@ -82,14 +83,32 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
         })}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-        {PHASE_LEGEND.map((p) => (
-          <span key={p.id} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (PHASES[p.id] && PHASES[p.id].color) || PHASE_TINT[p.id] }} />
-            {p.label}
-          </span>
-        ))}
+      <div className="mt-4 flex flex-col items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+          {PHASE_LEGEND.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setEditPhase(p.id)}
+              title={`Recolour ${p.label}`}
+              className="group flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-500 transition-colors hover:text-stone-900"
+            >
+              <span className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10 transition-transform group-hover:scale-110" style={{ backgroundColor: colors[p.id] }} />
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] italic text-stone-300">Tap a phase to recolour it</p>
       </div>
+
+      {editPhase && (
+        <PhaseColorEditor
+          phaseId={editPhase}
+          value={colors[editPhase]}
+          onSave={(hex) => setColor(editPhase, hex)}
+          onReset={() => resetColor(editPhase)}
+          onClose={() => setEditPhase(null)}
+        />
+      )}
     </>
   )
 }
