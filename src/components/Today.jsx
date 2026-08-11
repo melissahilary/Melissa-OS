@@ -7,7 +7,6 @@ import {
 } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
-import Vitals from './Vitals'
 import MonthGrid from './shared/MonthGrid'
 import { AddMealForm } from './shared/MealSlots'
 import { slotMeta } from '../lib/meals'
@@ -787,11 +786,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
       <Horoscope />
 
-      <div className="pt-10">
-        <Vitals />
-      </div>
-
-      <div className="pt-4">
+      <div className="pt-6">
       <Calendar
         calMonth={calMonth}
         setCalMonth={setCalMonth}
