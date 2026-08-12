@@ -17,6 +17,7 @@ export const ACTIVITY_TYPES = [
 ]
 
 export const FREQUENCIES = [
+  { id: 'asneeded', label: 'Does not repeat' },
   { id: 'daily', label: 'Daily' },
   { id: '2x', label: '2x Week' },
   { id: '3x', label: '3x Week' },
@@ -26,7 +27,6 @@ export const FREQUENCIES = [
   { id: 'monthly', label: 'Monthly' },
   { id: 'quarterly', label: 'Quarterly' },
   { id: 'yearly', label: 'Yearly' },
-  { id: 'asneeded', label: 'As Needed' },
   { id: 'specific', label: 'Specific Days' },
 ]
 

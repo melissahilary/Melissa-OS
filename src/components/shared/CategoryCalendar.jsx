@@ -43,7 +43,7 @@ export const occursOnCal = (a, k) => {
 // The full recurrence set — matches the Fitness workout form so every Monthly
 // subsection offers the same options.
 const PATTERNS = [
-  { id: 'once', label: 'Once' },
+  { id: 'once', label: 'Does not repeat' },
   { id: 'daily', label: 'Daily' },
   { id: 'weekdays', label: 'Weekdays' },
   { id: 'weekends', label: 'Weekends' },
