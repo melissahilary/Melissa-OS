@@ -715,7 +715,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const addMeal = (m) =>
     add(blankActivity(m.kind === 'supp' ? 'supplement' : 'meal_item', {
       title: m.name, frequency: m.frequency || 'daily', daysOfWeek: m.days || [], seriesStart: m.startDate || '',
-      details: m.kind === 'supp' ? { slot: m.slot, dose: '', unit: 'mg' } : { slot: m.slot, beverage: m.slot === 'drink' },
+      details: m.kind === 'supp' ? { slot: m.slot, dose: '', unit: 'mg' } : { slot: m.slot, beverage: slotMeta(m.slot).label === 'Drink' },
     }))
   const removeMeal = (id) => remove(id)
   const toggleEvent = (id) => toggleComplete(id, selectedKey)
@@ -1271,22 +1271,41 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onOpen, onToggle }) {
   )
 }
 
-// The floating Add, scoped to the block on screen: choose a type (To-do / Food /
-// Drink / Supplement — only those the block holds), name it, and it lands in that
-// block. Reuses the same quick-add handlers the inline links used.
-function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
-  const [mode, setMode] = useState(null)
-  const [val, setVal] = useState('')
+// The floating Add — a full picker: choose what (To-do / Food / Drink /
+// Supplement), then when (any time of day or mealtime), then name it. Reuses the
+// same quick-add handlers the inline links use. `block` is the slide on screen and
+// only pre-selects the matching "when" so the common case is one tap faster.
+const ADD_TYPES = [
+  { key: 'todo', label: 'To‑do', wheres: [
+    { label: 'Morning', block: 'morning' },
+    { label: 'Daytime', block: 'daytime' },
+    { label: 'Evening', block: 'evening' },
+  ] },
+  { key: 'food', label: 'Food', kind: 'food', wheres: [
+    { label: 'Breakfast', slot: 'breakfast' },
+    { label: 'Lunch', slot: 'lunch' },
+    { label: 'Dinner', slot: 'dinner' },
+  ] },
+  { key: 'drink', label: 'Drink', kind: 'food', wheres: [
+    { label: 'Empty Stomach', slot: 'emptydrink' },
+    { label: 'Breakfast', slot: 'drink' },
+    { label: 'Lunch', slot: 'lunchdrink' },
+    { label: 'Dinner', slot: 'dinnerdrink' },
+    { label: 'Before Bed', slot: 'beddrink' },
+  ] },
+  { key: 'supp', label: 'Supplement', kind: 'supp', wheres: [
+    { label: 'Empty Stomach', slot: 'empty' },
+    { label: 'Breakfast', slot: 'breakfast' },
+    { label: 'Lunch', slot: 'lunch' },
+    { label: 'Dinner', slot: 'dinner' },
+    { label: 'Before Bed', slot: 'bed' },
+  ] },
+]
 
-  const opts = []
-  if (block.type === 'todo' && !block.noTasks) opts.push({ key: 'todo', label: 'To-do' })
-  const seen = new Set()
-  block.mealRows.forEach((row) => {
-    const label = row.kind === 'supp' ? 'Supplement' : row.slot === 'drink' ? 'Drink' : 'Food'
-    if (seen.has(label)) return
-    seen.add(label)
-    opts.push({ key: `${row.kind}:${row.slot}`, label, kind: row.kind, slot: row.slot })
-  })
+function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
+  const [type, setType] = useState(null)
+  const [where, setWhere] = useState(null)
+  const [val, setVal] = useState('')
 
   useEffect(() => {
     const onEsc = (e) => { if (e.key === 'Escape') onClose() }
@@ -1296,34 +1315,52 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
 
   const commit = () => {
     const t = val.trim()
-    if (!t || !mode) return
-    if (mode.key === 'todo') onAddTask(block.id, t)
-    else onAddMeal({ name: t, kind: mode.kind, slot: mode.slot })
+    if (!t || !type || !where) return
+    if (type.key === 'todo') onAddTask(where.block, t)
+    else onAddMeal({ name: t, kind: type.kind, slot: where.slot })
     onClose()
   }
+
+  const Pill = ({ onClick, active, children }) => (
+    <button onClick={onClick} className={`rounded-full border px-4 py-2 text-sm transition-colors ${active ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:bg-stone-900 hover:text-cream'}`}>{children}</button>
+  )
 
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xs overflow-hidden rounded-2xl border border-stone-200 bg-cream shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
-          <span className="kicker text-stone-400">Add to {block.sub}</span>
+          <span className="kicker text-stone-400">
+            {!type ? 'Add' : type.label}{type && where ? ` · ${where.label}` : ''}
+          </span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
         </div>
         <div className="px-5 py-5">
-          {!mode ? (
+          {/* Step 1 — what are we adding? */}
+          {!type ? (
             <div className="flex flex-wrap gap-2">
-              {opts.map((o) => (
-                <button key={o.key} onClick={() => setMode(o)} className="rounded-full border border-stone-300 px-4 py-2 text-sm text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">{o.label}</button>
+              {ADD_TYPES.map((t) => (
+                <Pill key={t.key} onClick={() => setType(t)}>{t.label}</Pill>
               ))}
             </div>
-          ) : (
+          ) : !where ? (
+            /* Step 2 — when? any time of day or mealtime. */
             <div>
-              <p className="kicker mb-2 text-stone-400">{mode.label} · {block.sub}</p>
+              <p className="kicker mb-3 text-stone-400">{type.key === 'todo' ? 'Time of day' : 'Mealtime'}</p>
+              <div className="flex flex-wrap gap-2">
+                {type.wheres.map((w) => (
+                  <Pill key={w.label} active={w.label === block.sub} onClick={() => setWhere(w)}>{w.label}</Pill>
+                ))}
+              </div>
+              <button onClick={() => setType(null)} className="mt-4 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
+            </div>
+          ) : (
+            /* Step 3 — name it. */
+            <div>
               <div className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-4 pr-1.5 focus-within:border-stone-400">
-                <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder={`Add ${mode.label.toLowerCase()}…`} className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300" />
+                <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder={`Add ${type.label.toLowerCase()}…`} className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300" />
                 <button onClick={commit} className="shrink-0 rounded-full bg-stone-900 px-4 py-1.5 text-sm text-cream hover:bg-stone-700">Add</button>
               </div>
-              <button onClick={() => { setMode(null); setVal('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
+              <button onClick={() => { setWhere(null); setVal('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
             </div>
           )}
         </div>
