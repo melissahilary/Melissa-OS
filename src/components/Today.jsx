@@ -922,8 +922,9 @@ const sortEvents = (a, b) => {
 // couple of to-do slots also carry the supplements taken then, so nothing is
 // lost. `type` is 'meal' or 'todo'; `mealRows` is the nourishment shown.
 const DAY_BLOCKS = [
-  { id: 'waking', type: 'todo', top: 'To Do', sub: 'Empty Stomach', mealRows: [
+  { id: 'waking', type: 'todo', noTasks: true, top: 'Nourish', sub: 'Empty Stomach', mealRows: [
     { kind: 'food', slot: 'empty', label: 'Food' },
+    { kind: 'food', slot: 'emptydrink', label: 'Drink' },
     { kind: 'supp', slot: 'empty', label: 'Supplements' },
   ] },
   { id: 'breakfast', type: 'meal', top: 'Meal', sub: 'Breakfast', mealRows: [
@@ -944,8 +945,9 @@ const DAY_BLOCKS = [
     { kind: 'supp', slot: 'dinner', label: 'Supplements' },
   ] },
   { id: 'evening', type: 'todo', top: 'To Do', sub: 'Evening', mealRows: [] },
-  { id: 'bed', type: 'todo', top: 'To Do', sub: 'Before Bed', mealRows: [
+  { id: 'bed', type: 'todo', noTasks: true, top: 'Nourish', sub: 'Before Bed', mealRows: [
     { kind: 'food', slot: 'bed', label: 'Food' },
+    { kind: 'food', slot: 'beddrink', label: 'Drink' },
     { kind: 'supp', slot: 'bed', label: 'Supplements' },
   ] },
 ]
@@ -958,8 +960,13 @@ const PART_TO_BLOCK = { morning: 'morning', afternoon: 'daytime', evening: 'even
 const BLOCK_PART = { waking: 'morning', morning: 'morning', daytime: 'afternoon', evening: 'evening', bed: 'evening' }
 // A time-of-day section id (waking/morning/day/night/bed) → its to-do block.
 const SECTION_BLOCK = { waking: 'waking', morning: 'morning', day: 'daytime', night: 'evening', bed: 'bed' }
-const effectiveBlock = (r) =>
-  r.block && BLOCK_ORDER.includes(r.block) ? r.block : (PART_TO_BLOCK[r.part] || 'morning')
+// Empty Stomach / Before Bed carry only nourishment now — any to-dos that land in
+// them fold into the neighbouring Morning / Evening lists.
+const BLOCK_REMAP = { waking: 'morning', bed: 'evening' }
+const effectiveBlock = (r) => {
+  const raw = r.block && BLOCK_ORDER.includes(r.block) ? r.block : (PART_TO_BLOCK[r.part] || 'morning')
+  return BLOCK_REMAP[raw] || raw
+}
 
 // Agenda order: manual drag order wins; otherwise morning→evening, then time.
 const PART_RANK = { morning: 0, afternoon: 1, evening: 2 }
@@ -1130,7 +1137,7 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 // Empty Stomach / Before Bed) the nourishment taken then.
 function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onAddTask, onToggle, onOpen }) {
   const [adding, setAdding] = useState(false)
-  const tasks = dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
+  const tasks = block.noTasks ? [] : dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
 
   return (
     <div className={DAY_CARD}>
@@ -1140,23 +1147,27 @@ function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onAddTask, onTogg
       </div>
 
       <div className="space-y-6">
-        <div>
-          {tasks.length > 0 && (
-            <div className="mb-1 space-y-0.5">
-              {tasks.map((t) => (
-                <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} />
-              ))}
-            </div>
-          )}
-          {adding ? (
-            <AddTaskForm
-              onCancel={() => setAdding(false)}
-              onSave={(title) => { onAddTask(block.id, title); setAdding(false) }}
-            />
-          ) : (
-            <AddRow label="add a to‑do" onClick={() => setAdding(true)} />
-          )}
-        </div>
+        {/* To-do blocks (Morning / Daytime / Evening) carry the day's tasks; Empty
+            Stomach and Before Bed are nourishment-only. */}
+        {!block.noTasks && (
+          <div>
+            {tasks.length > 0 && (
+              <div className="mb-1 space-y-0.5">
+                {tasks.map((t) => (
+                  <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} />
+                ))}
+              </div>
+            )}
+            {adding ? (
+              <AddTaskForm
+                onCancel={() => setAdding(false)}
+                onSave={(title) => { onAddTask(block.id, title); setAdding(false) }}
+              />
+            ) : (
+              <AddRow label="add a to‑do" onClick={() => setAdding(true)} />
+            )}
+          </div>
+        )}
 
         {/* Nourishment on the blocks that carry it (Empty Stomach / Before Bed). */}
         {block.mealRows.length > 0 && (

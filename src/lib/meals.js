@@ -14,6 +14,7 @@ import { parseKey } from './date'
 // slot appears under; `supps` marks slots that also carry a supplements list.
 export const MEAL_SLOTS = [
   { id: 'empty', label: 'Empty Stomach', part: 'morning', supps: true },
+  { id: 'emptydrink', label: 'Drink', part: 'morning', supps: false },
   { id: 'breakfast', label: 'Breakfast', part: 'morning', supps: true },
   { id: 'drink', label: 'Drink', part: 'morning', supps: false },
   { id: 'lunch', label: 'Lunch', part: 'afternoon', supps: true },
@@ -21,6 +22,7 @@ export const MEAL_SLOTS = [
   { id: 'dinner', label: 'Dinner', part: 'evening', supps: true },
   { id: 'dinnerdrink', label: 'Drink', part: 'evening', supps: false },
   { id: 'bed', label: 'Before Bed', part: 'evening', supps: true },
+  { id: 'beddrink', label: 'Drink', part: 'evening', supps: false },
 ]
 
 // Tags a recipe can carry — used to tag items in the editor and filter the library.
