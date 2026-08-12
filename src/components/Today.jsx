@@ -1058,23 +1058,27 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
 // Soft framed card used for each slide.
 const DAY_CARD = 'rounded-2xl border border-stone-200/80 bg-white/50 p-6 shadow-sm md:p-8'
 
-// One carousel slide — a meal (nourishment) or a to-do block. A couple of to-do
-// blocks also carry the supplements taken then. Arrows/dots move between slides.
+// The three meals ride a carousel; the five time blocks stack beneath it as a
+// quiet vertical rhythm of the day.
+const MEAL_BLOCKS = DAY_BLOCKS.filter((b) => b.type === 'meal')
+const TODO_BLOCKS = DAY_BLOCKS.filter((b) => b.type === 'todo')
+
+// TODAY body. A carousel of the day's meals (Breakfast · Lunch · Dinner) sits up
+// top; below it the day's time blocks (Empty Stomach → Before Bed) stack in order,
+// each with its to-dos and — for the ones that carry nourishment — its food and
+// supplements.
 function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
   const [i, setI] = useState(0)
-  const [addingTask, setAddingTask] = useState(false)
-  const n = DAY_BLOCKS.length
-  const block = DAY_BLOCKS[i]
-  // Tell the page which block is showing, so the floating Add is scoped to it.
+  const n = MEAL_BLOCKS.length
+  const block = MEAL_BLOCKS[i]
+  // Tell the page which meal is showing, so the floating Add is scoped to it.
   useEffect(() => { if (onBlockChange) onBlockChange(block) }, [i])
-  const jump = (idx) => { setI(Math.max(0, Math.min(n - 1, idx))); setAddingTask(false) }
-  const isTodo = block.type === 'todo'
-  const tasks = isTodo ? dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents) : []
+  const jump = (idx) => setI(Math.max(0, Math.min(n - 1, idx)))
 
   return (
     <div>
+      {/* ── Meals — a small carousel ── */}
       <div className={DAY_CARD}>
-        {/* Slide header — eyebrow, serif name, a small centred rule — flanked by arrows */}
         <div className="mb-7 flex items-center justify-between">
           <button onClick={() => jump(i - 1)} disabled={i === 0} className={`px-2 py-1 text-xl ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
           <div className="text-center leading-tight">
@@ -1084,43 +1088,84 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
           <button onClick={() => jump(i + 1)} disabled={i === n - 1} className={`px-2 py-1 text-xl ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
         </div>
 
-        <div className="min-h-[150px] space-y-7">
-          {/* To Do — sits directly under the slide's main title, above the nutrition
-              boxes. On slides that also carry nourishment (Empty Stomach / Before Bed)
-              it keeps its own title so it reads as its own section above Food. */}
-          {isTodo && (
-            <div>
-              <p className="kicker text-stone-400 mb-2">To Do</p>
-              {tasks.length > 0 && (
-                <div className="mb-2 space-y-0.5">
-                  {tasks.map((t) => (
-                    <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} onPause={() => onPause(t.id)} onRemove={onRemove} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Nourishment — meal slides, plus the supplements on Empty Stomach / Before Bed. */}
-          {block.mealRows.length > 0 && (
-            <div className="space-y-5">
-              {block.mealRows.map((row) => (
-                <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
-              ))}
-            </div>
-          )}
+        <div className="min-h-[150px] space-y-5">
+          {block.mealRows.map((row) => (
+            <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
+          ))}
         </div>
       </div>
 
       <div className="mt-5 flex items-center justify-center gap-1.5">
-        {DAY_BLOCKS.map((b, idx) => (
+        {MEAL_BLOCKS.map((b, idx) => (
           <button
             key={b.id}
             onClick={() => jump(idx)}
-            aria-label={`${b.top} · ${b.sub}`}
+            aria-label={b.sub}
             className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-5 bg-stone-700' : 'w-1.5 bg-stone-300 hover:bg-stone-400'}`}
           />
         ))}
+      </div>
+
+      {/* ── Time blocks — Empty Stomach → Before Bed ── */}
+      <div className="mt-10 space-y-4">
+        {TODO_BLOCKS.map((b) => (
+          <TodoBlock
+            key={b.id}
+            block={b}
+            rituals={rituals}
+            meals={meals}
+            dateKeyStr={dateKeyStr}
+            onAdd={onAdd}
+            onAddTask={onAddTask}
+            onToggle={onToggle}
+            onOpen={onOpen}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// One stacked time block — its serif title, its to-dos, a quiet add line, and (for
+// Empty Stomach / Before Bed) the nourishment taken then.
+function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onAddTask, onToggle, onOpen }) {
+  const [adding, setAdding] = useState(false)
+  const tasks = dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
+
+  return (
+    <div className={DAY_CARD}>
+      <div className="mb-5 text-center leading-tight">
+        <p className="font-serif text-xl text-stone-900">{block.sub}</p>
+        <span className="mx-auto mt-2.5 block h-px w-7 bg-stone-300" />
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          {tasks.length > 0 && (
+            <div className="mb-1 space-y-0.5">
+              {tasks.map((t) => (
+                <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} />
+              ))}
+            </div>
+          )}
+          {adding ? (
+            <AddTaskForm
+              onCancel={() => setAdding(false)}
+              onSave={(title) => { onAddTask(block.id, title); setAdding(false) }}
+            />
+          ) : (
+            <AddRow label="add a to‑do" onClick={() => setAdding(true)} />
+          )}
+        </div>
+
+        {/* Nourishment on the blocks that carry it (Empty Stomach / Before Bed). */}
+        {block.mealRows.length > 0 && (
+          <div className="space-y-5">
+            {block.mealRows.map((row) => (
+              <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
