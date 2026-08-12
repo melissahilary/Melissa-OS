@@ -923,7 +923,6 @@ const sortEvents = (a, b) => {
 // lost. `type` is 'meal' or 'todo'; `mealRows` is the nourishment shown.
 const DAY_BLOCKS = [
   { id: 'waking', type: 'todo', noTasks: true, top: 'Nourish', sub: 'Empty Stomach', mealRows: [
-    { kind: 'food', slot: 'empty', label: 'Food' },
     { kind: 'food', slot: 'emptydrink', label: 'Drink' },
     { kind: 'supp', slot: 'empty', label: 'Supplements' },
   ] },
@@ -946,7 +945,6 @@ const DAY_BLOCKS = [
   ] },
   { id: 'evening', type: 'todo', top: 'To Do', sub: 'Evening', mealRows: [] },
   { id: 'bed', type: 'todo', noTasks: true, top: 'Nourish', sub: 'Before Bed', mealRows: [
-    { kind: 'food', slot: 'bed', label: 'Food' },
     { kind: 'food', slot: 'beddrink', label: 'Drink' },
     { kind: 'supp', slot: 'bed', label: 'Supplements' },
   ] },
@@ -1065,15 +1063,15 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
 // Soft framed card used for each slide.
 const DAY_CARD = 'rounded-2xl border border-stone-200/80 bg-white/50 p-6 shadow-sm md:p-8'
 
-// The three meals ride a carousel; the five time blocks stack beneath it as a
-// quiet vertical rhythm of the day.
-const MEAL_BLOCKS = DAY_BLOCKS.filter((b) => b.type === 'meal')
-const TODO_BLOCKS = DAY_BLOCKS.filter((b) => b.type === 'todo')
+// Nourishment rides a carousel (Empty Stomach · Breakfast · Lunch · Dinner ·
+// Before Bed); the three to-do time blocks stack beneath it as a quiet vertical
+// rhythm of the day.
+const MEAL_BLOCKS = DAY_BLOCKS.filter((b) => b.mealRows.length > 0)
+const TODO_BLOCKS = DAY_BLOCKS.filter((b) => b.type === 'todo' && !b.noTasks)
 
-// TODAY body. A carousel of the day's meals (Breakfast · Lunch · Dinner) sits up
-// top; below it the day's time blocks (Empty Stomach → Before Bed) stack in order,
-// each with its to-dos and — for the ones that carry nourishment — its food and
-// supplements.
+// TODAY body. A carousel of the day's nourishment (Empty Stomach → Before Bed)
+// sits up top; below it the day's to-do blocks (Morning · Daytime · Evening)
+// stack in order.
 function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
   const [i, setI] = useState(0)
   const n = MEAL_BLOCKS.length
@@ -1281,7 +1279,7 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
   const [val, setVal] = useState('')
 
   const opts = []
-  if (block.type === 'todo') opts.push({ key: 'todo', label: 'To-do' })
+  if (block.type === 'todo' && !block.noTasks) opts.push({ key: 'todo', label: 'To-do' })
   const seen = new Set()
   block.mealRows.forEach((row) => {
     const label = row.kind === 'supp' ? 'Supplement' : row.slot === 'drink' ? 'Drink' : 'Food'
