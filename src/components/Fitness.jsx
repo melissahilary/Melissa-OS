@@ -5,6 +5,44 @@ import { blankActivity } from '../lib/activities'
 import { parseKey, dateKey, addDays, MONTHS, MONTHS_SHORT, isSameDay } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 import CategoryCalendar, { occursOnCal } from './shared/CategoryCalendar'
+import { CategoryLog, CategoryShelf } from './shared/LogShelf'
+
+// Dated records (logs) and things you own & keep using (shelves).
+const FIT_LOG = {
+  training: {
+    addNoun: 'session',
+    blurb: 'What you do yourself, on a program.',
+    suggestions: ['Strength', 'Cardio', 'Mobility', 'Pilates', 'Yoga', 'Running', 'Cycling', 'Swimming'],
+    place: { label: 'Where', placeholder: 'gym · home · studio' },
+    fields: [],
+  },
+  sessions: {
+    addNoun: 'session',
+    blurb: 'Performed with or by someone else.',
+    suggestions: ['Personal training', 'Group class', 'Physical therapy', 'Sports massage', 'Stretch therapy', 'Chiropractic'],
+    place: { label: 'With / where', placeholder: 'trainer · studio' },
+    fields: [],
+  },
+  appointments: {
+    addNoun: 'appointment',
+    blurb: 'Information only — no work performed.',
+    suggestions: ['Assessment', 'DEXA scan', 'VO2 max testing', 'Movement screen', 'InBody', 'Gait analysis'],
+    place: { label: 'Who / where', placeholder: 'provider · clinic' },
+    fields: [{ key: 'results', label: 'Results', placeholder: 'numbers to remember' }],
+  },
+}
+const FIT_SHELF = {
+  products: {
+    blurb: 'Recurring consumables.',
+    suggestions: ['Protein', 'Creatine', 'Electrolytes', 'Pre-workout', 'Recovery supplements'],
+    notePlaceholder: "what it's for · how often",
+  },
+  devices: {
+    blurb: 'Tools you own that do the work.',
+    suggestions: ['Whoop', 'Oura', 'Foam roller', 'Theragun', 'Sauna', 'Cold plunge', 'Compression boots', 'Weights'],
+    notePlaceholder: 'what it does · how often',
+  },
+}
 
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -85,9 +123,10 @@ const recurWeekdays = (a) => {
 }
 
 export default function Fitness({ subPage, cycleConfig }) {
-  return subPage === 'monthly'
-    ? <CategoryCalendar category="fitness" cycleConfig={cycleConfig} noun="Workout" />
-    : <Workouts />
+  if (subPage === 'monthly') return <CategoryCalendar category="fitness" cycleConfig={cycleConfig} noun="Workout" />
+  if (FIT_LOG[subPage]) return <CategoryLog storeKey={`mos:fitness:${subPage}`} {...FIT_LOG[subPage]} />
+  if (FIT_SHELF[subPage]) return <CategoryShelf storeKey={`mos:fitness:${subPage}`} {...FIT_SHELF[subPage]} />
+  return <Workouts />
 }
 
 // ── Workouts — a Monday–Sunday weekly schedule. Each workout is a ritual

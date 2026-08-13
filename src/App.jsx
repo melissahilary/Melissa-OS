@@ -86,6 +86,11 @@ const SUBNAV = {
   aesthetics: [
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
+    { id: 'treatments', label: 'Treatments' },
+    { id: 'services', label: 'Services' },
+    { id: 'appointments', label: 'Appointments' },
+    { id: 'devices', label: 'Devices' },
+    { id: 'prescribed', label: 'Prescribed' },
   ],
   bodycare: [
     { id: 'weekly', label: 'Weekly' },
@@ -104,6 +109,11 @@ const SUBNAV = {
   fitness: [
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
+    { id: 'training', label: 'Training' },
+    { id: 'sessions', label: 'Sessions' },
+    { id: 'appointments', label: 'Appointments' },
+    { id: 'products', label: 'Products' },
+    { id: 'devices', label: 'Devices' },
   ],
   workout: [
     { id: 'weekly', label: 'Weekly' },
