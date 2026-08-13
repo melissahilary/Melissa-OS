@@ -13,7 +13,164 @@ export default function Mindset({ subPage, cycleConfig }) {
   if (subPage === 'monthly') return <CategoryCalendar category="mindset" cycleConfig={cycleConfig} noun="Practice" />
   if (subPage === 'weekly') return <CategoryWeekly category="mindset" noun="Practice" />
   if (subPage === 'journal') return <Journal />
+  if (subPage === 'mood') return <MoodTracker />
+  if (subPage === 'gratitude') return <Gratitude />
   return <Influences />
+}
+
+// ── Mood tracker — log the day's feeling from a curated, grown-up palette, then
+// watch the month fill in as a quiet map of colour. Tap any day to paint it.
+const MOODS = [
+  { id: 'radiant', label: 'Radiant', tint: '#C4A76A' },
+  { id: 'content', label: 'Content', tint: '#889072' },
+  { id: 'tender', label: 'Tender', tint: '#C08B72' },
+  { id: 'tired', label: 'Tired', tint: '#9A8F84' },
+  { id: 'anxious', label: 'Anxious', tint: '#A0654C' },
+  { id: 'low', label: 'Low', tint: '#7E7A86' },
+]
+const moodMeta = (id) => MOODS.find((m) => m.id === id)
+
+function MoodTracker() {
+  const [store, setStore] = useLocalStorage('mos:mood', {})
+  const map = store && typeof store === 'object' ? store : {}
+  const today = new Date()
+  const todayKey = dateKey(today)
+  const [selKey, setSelKey] = useState(todayKey)
+  const [anchor, setAnchor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
+  const selMood = map[selKey]
+
+  const setMood = (key, moodId) =>
+    setStore((prev) => {
+      const p = prev && typeof prev === 'object' ? prev : {}
+      const next = { ...p }
+      if (next[key] === moodId) delete next[key]
+      else next[key] = moodId
+      return next
+    })
+
+  const cells = monthGrid(anchor)
+  const monthIdx = anchor.getMonth()
+  const shift = (n) => setAnchor((m) => new Date(m.getFullYear(), m.getMonth() + n, 1))
+
+  return (
+    <div className="mx-auto max-w-xl">
+      <p className="text-center font-serif text-2xl text-stone-800">{selKey === todayKey ? 'How are you, today?' : 'How were you?'}</p>
+      <p className="kicker mt-1 mb-6 text-center text-stone-400">{longDate(parseKey(selKey))}</p>
+
+      <div className="flex flex-wrap justify-center gap-2.5">
+        {MOODS.map((m) => {
+          const on = selMood === m.id
+          return (
+            <button
+              key={m.id}
+              onClick={() => setMood(selKey, m.id)}
+              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-all ${on ? 'border-stone-900 text-stone-900 shadow-sm' : 'border-stone-200 text-stone-500 hover:border-stone-400'}`}
+            >
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: m.tint }} />
+              {m.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* The month as a map of colour */}
+      <div className="mt-12">
+        <div className="mb-4 flex items-center justify-between">
+          <button onClick={() => shift(-1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronLeft size={20} /></button>
+          <p className="font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {anchor.getFullYear()}</p>
+          <button onClick={() => shift(1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronRight size={20} /></button>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
+          {cells.map((c, i) => {
+            const inMonth = c.getMonth() === monthIdx
+            const key = dateKey(c)
+            const tint = map[key] ? moodMeta(map[key])?.tint : null
+            const isSel = key === selKey
+            return (
+              <button
+                key={i}
+                onClick={() => inMonth && setSelKey(key)}
+                disabled={!inMonth}
+                className={`relative flex aspect-square items-center justify-center rounded-lg text-xs transition-all ${inMonth ? '' : 'pointer-events-none opacity-0'} ${isSel ? 'ring-1 ring-stone-500 ring-offset-1' : ''}`}
+                style={{ backgroundColor: tint || '#F1F0ED' }}
+              >
+                <span className={tint ? 'text-cream/90' : 'text-stone-400'}>{c.getDate()}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-8 flex flex-wrap justify-center gap-x-4 gap-y-2">
+        {MOODS.map((m) => (
+          <span key={m.id} className="flex items-center gap-1.5 text-xs text-stone-400">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.tint }} />{m.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Gratitude — three graces a day, gathered afterward into a keepsake wall.
+function Gratitude() {
+  const [store, setStore] = useLocalStorage('mos:gratitude', {})
+  const map = store && typeof store === 'object' ? store : {}
+  const today = new Date()
+  const todayKey = dateKey(today)
+  const lines = Array.isArray(map[todayKey]) ? map[todayKey] : ['', '', '']
+
+  const setLine = (idx, val) =>
+    setStore((prev) => {
+      const p = prev && typeof prev === 'object' ? prev : {}
+      const cur = Array.isArray(p[todayKey]) ? [...p[todayKey]] : ['', '', '']
+      cur[idx] = val
+      return { ...p, [todayKey]: cur }
+    })
+
+  const pastKeys = Object.keys(map)
+    .filter((k) => k !== todayKey && (map[k] || []).some((l) => (l || '').trim()))
+    .sort((a, b) => (a < b ? 1 : -1))
+
+  return (
+    <div className="mx-auto max-w-xl">
+      <p className="text-center font-serif text-2xl text-stone-800">Three graces, today.</p>
+      <p className="kicker mt-1 mb-8 text-center text-stone-400">{longDate(today)}</p>
+
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-4 rounded-2xl border border-stone-200 bg-cream/50 px-5 py-3.5 transition-colors focus-within:border-stone-400">
+            <span className="font-serif text-2xl leading-none text-stone-300">{i + 1}</span>
+            <input
+              value={lines[i] || ''}
+              onChange={(e) => setLine(i, e.target.value)}
+              placeholder="I'm grateful for…"
+              className="flex-1 bg-transparent font-serif text-lg text-stone-800 placeholder-stone-300 outline-none"
+            />
+          </div>
+        ))}
+      </div>
+
+      {pastKeys.length > 0 && (
+        <div className="mt-16 border-t border-stone-200 pt-8">
+          <p className="kicker mb-6 text-center text-stone-400">The Gratitude Wall</p>
+          <div className="space-y-6">
+            {pastKeys.map((k) => (
+              <div key={k}>
+                <p className="kicker mb-2 text-stone-400">{longDate(parseKey(k))}</p>
+                <div className="space-y-1">
+                  {(map[k] || []).filter((l) => (l || '').trim()).map((l, idx) => (
+                    <p key={idx} className="font-serif text-lg leading-relaxed text-stone-700">— {l}</p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // A day's writing is a list of titled entries. Older days saved a single string,

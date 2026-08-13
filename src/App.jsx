@@ -75,6 +75,9 @@ const SUBNAV = {
   skincare: [
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
+    { id: 'morning', label: 'Morning Routine' },
+    { id: 'evening', label: 'Evening Routine' },
+    { id: 'products', label: 'Products Used' },
   ],
   haircare: [
     { id: 'weekly', label: 'Weekly' },
@@ -118,6 +121,8 @@ const SUBNAV = {
     { id: 'monthly', label: 'Monthly' },
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
+    { id: 'mood', label: 'Mood' },
+    { id: 'gratitude', label: 'Gratitude' },
   ],
   brainhealth: [
     { id: 'weekly', label: 'Weekly' },
