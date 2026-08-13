@@ -1123,7 +1123,6 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
             meals={meals}
             dateKeyStr={dateKeyStr}
             onAdd={onAdd}
-            onAddTask={onAddTask}
             onToggle={onToggle}
             onOpen={onOpen}
           />
@@ -1133,10 +1132,9 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
   )
 }
 
-// One stacked time block — its serif title, its to-dos, a quiet add line, and (for
-// Empty Stomach / Before Bed) the nourishment taken then.
-function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onAddTask, onToggle, onOpen }) {
-  const [adding, setAdding] = useState(false)
+// One stacked time block — its serif title and its to-dos. Adding is handled by
+// the floating + (scoped to a time of day), so there's no inline add line here.
+function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onToggle, onOpen }) {
   const tasks = block.noTasks ? [] : dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
 
   return (
@@ -1147,26 +1145,16 @@ function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onAddTask, onTogg
       </div>
 
       <div className="space-y-6">
-        {/* To-do blocks (Morning / Daytime / Evening) carry the day's tasks; Empty
-            Stomach and Before Bed are nourishment-only. */}
         {!block.noTasks && (
-          <div>
-            {tasks.length > 0 && (
-              <div className="mb-1 space-y-0.5">
-                {tasks.map((t) => (
-                  <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} />
-                ))}
-              </div>
-            )}
-            {adding ? (
-              <AddTaskForm
-                onCancel={() => setAdding(false)}
-                onSave={(title) => { onAddTask(block.id, title); setAdding(false) }}
-              />
-            ) : (
-              <AddRow label="add a to‑do" onClick={() => setAdding(true)} />
-            )}
-          </div>
+          tasks.length > 0 ? (
+            <div className="space-y-0.5">
+              {tasks.map((t) => (
+                <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-sm italic text-stone-300">Nothing yet.</p>
+          )
         )}
 
         {/* Nourishment on the blocks that carry it (Empty Stomach / Before Bed). */}
@@ -1195,36 +1183,6 @@ function TaskRow({ task, onToggle, onOpen }) {
         {fmtApptTime(task.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtApptTime(task.time)}</span>}
         {task.title || 'Untitled'}
       </button>
-    </div>
-  )
-}
-
-// Inline "add …" affordance, indented to sit in the shared text column.
-function AddRow({ label, onClick }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-4 shrink-0" />
-      <button onClick={onClick} className="text-sm italic hover:text-stone-700 transition-colors" style={{ color: 'rgba(28, 28, 26, 0.7)' }}>{label}</button>
-    </div>
-  )
-}
-
-// Inline "add to-do" for a day-flow block — a quiet single-line entry.
-function AddTaskForm({ onCancel, onSave }) {
-  const [val, setVal] = useState('')
-  const commit = () => { const t = val.trim(); if (t) onSave(t); else onCancel() }
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-4 shrink-0" />
-      <input
-        autoFocus
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel() }}
-        onBlur={commit}
-        placeholder="A to‑do for this block…"
-        className="flex-1 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
-      />
     </div>
   )
 }

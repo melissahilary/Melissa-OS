@@ -87,21 +87,25 @@ function Journal() {
         {display.map((e, i) => (
           <article key={e.id} className="group relative">
             {i > 0 && <div className="mx-auto my-8 select-none text-center text-lg leading-none text-stone-200" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</div>}
-            {dayList.length > 1 && (
-              <button onClick={() => removeEntry(e.id)} className="absolute -right-1 top-3 z-10 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100" title="Delete entry"><X size={16} /></button>
-            )}
-            <input
-              value={e.title}
-              onChange={(ev) => updateEntry(e.id, { title: ev.target.value })}
-              placeholder="Title"
-              className="w-full bg-transparent pr-8 font-serif text-3xl text-stone-900 placeholder-stone-300 outline-none md:text-4xl"
-            />
-            <textarea
-              value={e.body}
-              onChange={(ev) => updateEntry(e.id, { body: ev.target.value })}
-              placeholder="Begin where you are…"
-              className="mt-3 block w-full min-h-[44vh] resize-y bg-transparent font-serif text-lg leading-loose text-stone-800 placeholder-stone-300 outline-none md:text-xl"
-            />
+            {/* A dark writing box — light text on ink, so it's unmistakably the
+                space to write in. */}
+            <div className="relative rounded-2xl px-6 py-6 shadow-sm md:px-8 md:py-7" style={{ backgroundColor: '#1C1C1A' }}>
+              {dayList.length > 1 && (
+                <button onClick={() => removeEntry(e.id)} className="absolute right-3 top-3 z-10 text-cream/40 opacity-0 transition-opacity hover:text-cream group-hover:opacity-100" title="Delete entry"><X size={16} /></button>
+              )}
+              <input
+                value={e.title}
+                onChange={(ev) => updateEntry(e.id, { title: ev.target.value })}
+                placeholder="Title"
+                className="w-full bg-transparent pr-8 font-serif text-3xl text-cream placeholder-stone-500 outline-none md:text-4xl"
+              />
+              <textarea
+                value={e.body}
+                onChange={(ev) => updateEntry(e.id, { body: ev.target.value })}
+                placeholder="Begin where you are…"
+                className="mt-3 block w-full min-h-[44vh] resize-y bg-transparent font-serif text-lg leading-loose text-cream/90 placeholder-stone-500 outline-none md:text-xl"
+              />
+            </div>
           </article>
         ))}
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, ChevronDown, Compass, PanelLeftClose, PanelLeftOpen, CalendarDays, CalendarRange, ClipboardList, Flower2, Gem, FlaskConical, Sun,
-  Target, UserRound, MapPin, Shirt, Car, TrendingUp,
+  Target, UserRound, MapPin, Shirt, Car, TrendingUp, Sparkles,
   Settings as SettingsIcon, X,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -260,7 +260,7 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} />
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -268,6 +268,7 @@ export default function App() {
         pillars={visiblePillars}
         onGoToday={goToday}
         onGoPillar={(id) => setActive(id)}
+        onGoDream={() => { setActive('dream'); setDreamPage('goals') }}
         onGoSettings={() => setActive('settings')}
       />
 
@@ -275,9 +276,9 @@ export default function App() {
           carries Dream Planning, which opens into its own page set below. */}
       {isPillar && SUBNAV[active] && (
         <SubNav
-          items={active === 'mindset' ? [...SUBNAV.mindset, { id: '__manifest', label: 'Dream Planning' }] : SUBNAV[active]}
+          items={SUBNAV[active]}
           activeId={activeSub}
-          onPick={(id) => { if (id === '__manifest') { setActive('dream'); setDreamPage('goals') } else setActiveSub(id) }}
+          onPick={setActiveSub}
         />
       )}
       {isDream && <DreamSubNav dreamPage={dreamPage} setDreamPage={setDreamPage} onExit={() => setActive('mindset')} />}
@@ -315,7 +316,7 @@ export default function App() {
 // A slim, calm bar: the hairline "index" mark on the left opens the full index
 // (NavMenu); the centered cursive wordmark is a persistent masthead that taps
 // home to Today, so home is always one tap away from any pillar page.
-function TopNav({ onOpenMenu, onGoHome }) {
+function TopNav({ onOpenMenu, onGoHome, showWordmark = true }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
       <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
@@ -326,14 +327,18 @@ function TopNav({ onOpenMenu, onGoHome }) {
             <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-7" />
           </span>
         </button>
-        <button
-          onClick={onGoHome}
-          title="Home — Today"
-          style={{ fontFamily: "'Pinyon Script', cursive" }}
-          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-2xl"
-        >
-          Melissa's Digital Planner
-        </button>
+        {/* On the home (Today) page the big cursive masthead already carries the
+            name, so the bar wordmark is hidden there to avoid showing it twice. */}
+        {showWordmark && (
+          <button
+            onClick={onGoHome}
+            title="Home — Today"
+            style={{ fontFamily: "'Pinyon Script', cursive" }}
+            className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-2xl"
+          >
+            Melissa's Digital Planner
+          </button>
+        )}
       </div>
     </header>
   )
@@ -343,7 +348,7 @@ function TopNav({ onOpenMenu, onGoHome }) {
 // Opens from the top bar. A Pinyon wordmark, Today as the anchor, then the
 // pillars as a numbered serif index (two columns on wide screens), the current
 // one inked. One tap goes anywhere and closes. Editorial, calm, and fast.
-function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSettings }) {
+function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDream, onGoSettings }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -368,7 +373,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
 
           <div className="mx-auto mt-12 grid w-fit grid-cols-1 gap-x-16 sm:grid-cols-2">
             {pillars.map((p) => {
-              const on = active === p.id || (p.id === 'mindset' && active === 'dream')
+              const on = active === p.id
               const Icon = p.icon
               return (
                 <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 py-3.5 text-left">
@@ -380,6 +385,20 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoSe
                 </button>
               )
             })}
+          </div>
+
+          {/* Dream Planning lives apart from the pillars — a small indulgence you
+              step into. A soft inked capsule with a sparkle, centred below. */}
+          <div className="mt-14 flex justify-center">
+            <button
+              onClick={() => go(onGoDream)}
+              className={`group inline-flex items-center gap-2.5 rounded-full px-7 py-3 font-serif text-lg tracking-wide transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${
+                active === 'dream' ? 'bg-stone-900 text-cream' : 'bg-stone-900 text-cream/95 shadow-md'
+              }`}
+            >
+              <Sparkles size={17} strokeWidth={1.5} className="transition-transform duration-500 group-hover:rotate-12" />
+              Dream Planning
+            </button>
           </div>
         </div>
       </div>
