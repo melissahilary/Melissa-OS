@@ -816,6 +816,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
       <TodayNotes />
 
+      <ShoppingList />
+
       {blockAdd && (
         <BlockAddChooser
           block={currentBlock}
@@ -1444,6 +1446,68 @@ function TodayNotes() {
           onClose={() => setOpenId(null)}
         />
       )}
+    </section>
+  )
+}
+
+// ── Shopping list — a running list of things to buy, not tied to any day.
+// Add quickly, tick items off as you buy them, sweep the bought ones away.
+function ShoppingList() {
+  const [stored, setList] = useLocalStorage('mos:shopping', [])
+  const items = Array.isArray(stored) ? stored : []
+  const [draft, setDraft] = useState('')
+
+  const add = () => {
+    const t = draft.trim()
+    if (!t) return
+    setList((prev) => [{ id: uid(), text: t, bought: false }, ...(Array.isArray(prev) ? prev : [])])
+    setDraft('')
+  }
+  const toggle = (id) =>
+    setList((prev) => (Array.isArray(prev) ? prev : []).map((it) => (it.id === id ? { ...it, bought: !it.bought } : it)))
+  const remove = (id) => setList((prev) => (Array.isArray(prev) ? prev : []).filter((it) => it.id !== id))
+  const clearBought = () => setList((prev) => (Array.isArray(prev) ? prev : []).filter((it) => !it.bought))
+
+  // Unbought first, bought sink to the bottom.
+  const bought = items.filter((it) => it.bought)
+  const ordered = [...items.filter((it) => !it.bought), ...bought]
+
+  return (
+    <section className="mb-16">
+      <h2 className="mb-6 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>Shopping List.</h2>
+
+      <div className="mx-auto max-w-xl">
+        <div className="mb-6 flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+            placeholder="Something to buy…"
+            className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300"
+          />
+          <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-colors hover:bg-stone-700">Add</button>
+        </div>
+
+        {ordered.length > 0 ? (
+          <div className="divide-y divide-stone-200/70 overflow-hidden rounded-2xl border border-stone-200 bg-cream/50">
+            {ordered.map((it) => (
+              <div key={it.id} className="group flex items-center gap-3 px-5 py-3">
+                <Checkbox checked={it.bought} onClick={() => toggle(it.id)} />
+                <span className={`flex-1 text-sm ${it.bought ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.text}</span>
+                <button onClick={() => remove(it.id)} aria-label="Remove" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={14} /></button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-sm italic text-stone-300">Nothing on the list yet.</p>
+        )}
+
+        {bought.length > 0 && (
+          <div className="mt-5 flex justify-center">
+            <button onClick={clearBought} className="text-xs text-stone-400 transition-colors hover:text-stone-700">Clear {bought.length} bought</button>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
