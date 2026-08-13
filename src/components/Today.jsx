@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Trash2, ChevronDown, ChevronRight, Pause, BookOpen } from 'lucide-react'
+import { X, Trash2, ChevronDown, ChevronRight, Pause, BookOpen, ShoppingBag } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig, PHASES } from '../lib/cycle'
 import {
@@ -1450,27 +1450,35 @@ function TodayNotes() {
   )
 }
 
-// ── Shopping list — a running list of things to buy, not tied to any day.
-// Add quickly, tick items off as you buy them, sweep the bought ones away.
+// ── Shopping list — a fresh list each day. Anything you don't tick off carries
+// into the next day; anything you buy drops away overnight and settles into the
+// Basket (the running record of what you've bought, by day).
 function ShoppingList() {
   const [stored, setList] = useLocalStorage('mos:shopping', [])
   const items = Array.isArray(stored) ? stored : []
   const [draft, setDraft] = useState('')
+  const [browsing, setBrowsing] = useState(false)
+  const todayKey = dateKey(new Date())
 
   const add = () => {
     const t = draft.trim()
     if (!t) return
-    setList((prev) => [{ id: uid(), text: t, bought: false }, ...(Array.isArray(prev) ? prev : [])])
+    setList((prev) => [{ id: uid(), text: t, bought: false, addedDate: todayKey, boughtDate: '' }, ...(Array.isArray(prev) ? prev : [])])
     setDraft('')
   }
   const toggle = (id) =>
-    setList((prev) => (Array.isArray(prev) ? prev : []).map((it) => (it.id === id ? { ...it, bought: !it.bought } : it)))
+    setList((prev) => (Array.isArray(prev) ? prev : []).map((it) =>
+      it.id === id ? { ...it, bought: !it.bought, boughtDate: !it.bought ? todayKey : '' } : it))
   const remove = (id) => setList((prev) => (Array.isArray(prev) ? prev : []).filter((it) => it.id !== id))
-  const clearBought = () => setList((prev) => (Array.isArray(prev) ? prev : []).filter((it) => !it.bought))
+  const addAgain = (text) =>
+    setList((prev) => [{ id: uid(), text, bought: false, addedDate: todayKey, boughtDate: '' }, ...(Array.isArray(prev) ? prev : [])])
 
-  // Unbought first, bought sink to the bottom.
-  const bought = items.filter((it) => it.bought)
-  const ordered = [...items.filter((it) => !it.bought), ...bought]
+  // Today's list = everything still needed (carries day to day) plus whatever was
+  // ticked off today (crossed out, gone tomorrow). Older buys live in the Basket.
+  const active = items.filter((it) => !it.bought || it.boughtDate === todayKey)
+  const ordered = [...active.filter((it) => !it.bought), ...active.filter((it) => it.bought)]
+  const carried = items.filter((it) => !it.bought && it.addedDate && it.addedDate < todayKey).length
+  const boughtEver = items.filter((it) => it.bought)
 
   return (
     <section className="mb-16">
@@ -1488,6 +1496,10 @@ function ShoppingList() {
           <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-colors hover:bg-stone-700">Add</button>
         </div>
 
+        {carried > 0 && (
+          <p className="mb-3 text-center text-xs italic text-stone-400">{carried} carried over from before</p>
+        )}
+
         {ordered.length > 0 ? (
           <div className="divide-y divide-stone-200/70 overflow-hidden rounded-2xl border border-stone-200 bg-cream/50">
             {ordered.map((it) => (
@@ -1499,16 +1511,77 @@ function ShoppingList() {
             ))}
           </div>
         ) : (
-          <p className="text-center text-sm italic text-stone-300">Nothing on the list yet.</p>
+          <p className="text-center text-sm italic text-stone-300">Nothing on today's list.</p>
         )}
 
-        {bought.length > 0 && (
-          <div className="mt-5 flex justify-center">
-            <button onClick={clearBought} className="text-xs text-stone-400 transition-colors hover:text-stone-700">Clear {bought.length} bought</button>
+        {boughtEver.length > 0 && (
+          <div className="mt-6 flex justify-center">
+            <button onClick={() => setBrowsing(true)} className="flex items-center gap-2 rounded-full border border-stone-300 px-6 py-2.5 text-sm text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+              <ShoppingBag size={15} strokeWidth={1.75} />
+              Basket
+            </button>
           </div>
         )}
       </div>
+
+      {browsing && (
+        <ShoppingArchive items={boughtEver} onAddAgain={addAgain} onClose={() => setBrowsing(false)} />
+      )}
     </section>
+  )
+}
+
+// The Basket — a record of everything bought, grouped by the day it was ticked
+// off. Search by word or jump to a date; tap "add again" to put something back on
+// today's list.
+function ShoppingArchive({ items, onAddAgain, onClose }) {
+  const [q, setQ] = useState('')
+  const [day, setDay] = useState('')
+  const term = q.trim().toLowerCase()
+  const filtered = (items || []).filter((it) => {
+    if (day && it.boughtDate !== day) return false
+    if (!term) return true
+    return (it.text || '').toLowerCase().includes(term)
+  })
+  const byDate = {}
+  filtered.forEach((it) => { const d = it.boughtDate || it.addedDate || ''; (byDate[d] = byDate[d] || []).push(it) })
+  const dates = Object.keys(byDate).sort((a, b) => (a < b ? 1 : -1))
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
+          <span className="font-serif italic text-2xl text-stone-900">Basket</span>
+          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+        </div>
+        <div className="space-y-3 border-b border-stone-200 px-6 py-4">
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search what you've bought…" className="w-full bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
+          <div className="flex items-center gap-3">
+            <span className="kicker text-stone-400">Jump to</span>
+            <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+            {day && <button onClick={() => setDay('')} className="text-xs text-stone-400 hover:text-stone-700">clear</button>}
+          </div>
+        </div>
+        <div className="max-h-[58vh] overflow-y-auto px-6 py-4">
+          {dates.length === 0 ? (
+            <p className="text-sm italic text-stone-400">Nothing here yet.</p>
+          ) : (
+            dates.map((d) => (
+              <div key={d} className="mb-5">
+                <p className="kicker text-stone-400 mb-2">{d ? noteDateLabel(d) : 'Undated'}</p>
+                <div>
+                  {byDate[d].map((it) => (
+                    <div key={it.id} className="group flex items-center gap-3 border-b border-stone-100 py-2.5">
+                      <span className="flex-1 text-sm text-stone-600 line-through">{it.text}</span>
+                      <button onClick={() => onAddAgain(it.text)} className="text-xs text-stone-400 opacity-0 transition-opacity hover:text-stone-900 group-hover:opacity-100">add again</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
