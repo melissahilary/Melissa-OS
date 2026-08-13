@@ -7,6 +7,37 @@ import CategoryCalendar from './shared/CategoryCalendar'
 import CategoryWeekly from './shared/CategoryWeekly'
 import PhaseColorEditor from './shared/PhaseColorEditor'
 import { usePhaseColors } from '../hooks/usePhaseColors'
+import { CategoryLog, CategoryShelf } from './shared/LogShelf'
+
+// Hormone-specific sub-sections. Labs lead with the date because timing is the
+// data — a draw on day 3 is a different point than day 21 — so a cycle-day field
+// sits alongside it.
+const HORMONE_LOG = {
+  appointments: {
+    addNoun: 'appointment',
+    blurb: 'Provider visits where information is produced or the protocol changes.',
+    suggestions: ['Endocrinology', 'Functional medicine', 'OBGYN', 'Follow-up consult', 'Dose adjustment'],
+    place: { label: 'Who / where', placeholder: 'provider · clinic' },
+    fields: [{ key: 'changes', label: 'What changed', placeholder: 'protocol / dose changes' }],
+  },
+  labs: {
+    addNoun: 'lab',
+    blurb: 'Hormone panels where timing matters — a day-3 draw is not a day-21 draw.',
+    suggestions: ['Full panel', 'Thyroid panel', 'Cortisol curve', 'Cycle-day draw'],
+    place: { label: 'Where', placeholder: 'lab · clinic' },
+    fields: [
+      { key: 'cycleDay', label: 'Cycle day', placeholder: 'e.g. day 3 / day 21' },
+      { key: 'results', label: 'Results', placeholder: 'values to remember' },
+    ],
+  },
+}
+const HORMONE_SHELF = {
+  products: {
+    blurb: 'Supportive supplements.',
+    suggestions: ['Magnesium', 'Seed cycling', 'Adaptogens', 'Vitamin D', 'Inositol', 'DIM'],
+    notePlaceholder: 'what it supports · how often',
+  },
+}
 
 const MS_DAY = 86400000
 const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
@@ -30,17 +61,12 @@ const anchorStart = (runStarts, todayKey) => {
 }
 
 export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {}, subPage = 'cycle' }) {
-  return (
-    <div>
-      {subPage === 'monthly'
-        ? <CategoryCalendar category="hormones" cycleConfig={cycleConfig} noun="Item" />
-        : subPage === 'weekly'
-          ? <CategoryWeekly category="hormones" noun="Item" />
-          : subPage === 'settings'
-            ? <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
-            : <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />}
-    </div>
-  )
+  if (subPage === 'monthly') return <CategoryCalendar category="hormones" cycleConfig={cycleConfig} noun="Item" />
+  if (subPage === 'weekly') return <CategoryWeekly category="hormones" noun="Item" />
+  if (subPage === 'settings') return <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
+  if (HORMONE_LOG[subPage]) return <CategoryLog storeKey={`mos:hormones:${subPage}`} {...HORMONE_LOG[subPage]} />
+  if (HORMONE_SHELF[subPage]) return <CategoryShelf storeKey={`mos:hormones:${subPage}`} {...HORMONE_SHELF[subPage]} />
+  return <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />
 }
 
 // ── Cycle tracking ──────────────────────────────────────────────────

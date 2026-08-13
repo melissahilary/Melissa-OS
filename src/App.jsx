@@ -119,6 +119,9 @@ const SUBNAV = {
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
     { id: 'cycle', label: 'Cycle' },
+    { id: 'appointments', label: 'Appointments' },
+    { id: 'labs', label: 'Labs' },
+    { id: 'products', label: 'Products' },
     { id: 'settings', label: 'Settings' },
   ],
   diagnostics: [
