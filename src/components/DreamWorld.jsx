@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { DOW_LONG, monthGrid, dateKey, parseKey, isSameDay, MONTHS, DOW, moonPhaseIndex } from '../lib/date'
 import MoonIcon from './shared/MoonIcon'
+import DreamDashboard from './DreamDashboard'
 import InlineText from './shared/InlineText'
 import { useRegisterAdd } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
@@ -16,7 +17,7 @@ const focusAdd = (ref) => {
 
 // Full set of Dream Planning subsections (Overview removed).
 export const DREAM_PAGES = [
-  { id: 'goals', label: 'Goals' },
+  { id: 'goals', label: 'Dashboard' },
   { id: 'week', label: 'Dream Week' },
   { id: 'calendar', label: 'Dream Calendar' },
   { id: 'self', label: 'Dream Self' },
@@ -45,7 +46,7 @@ const FREQS = ['once', 'daily', 'weekly', 'monthly', 'yearly']
 export default function DreamWorld({ page, cycleConfig }) {
   return (
     <div>
-      {page === 'goals' && <ListPage storageKey="mos:dream:goals" placeholder="A goal worth the climb" checkable />}
+      {page === 'goals' && <DreamDashboard />}
       {page === 'week' && <DreamWeek />}
       {page === 'calendar' && <DreamCalendar />}
       {page === 'self' && <ListPage storageKey="mos:dream:self" placeholder="A quality, habit, or trait of your dream self" checkable />}
