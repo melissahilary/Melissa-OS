@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { X, Pencil, ChevronDown, ChevronRight, Calendar, Share2, Check, CircleCheck, CircleAlert, CircleX, CirclePause } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
+import Diet from './Diet'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
 import InlineText from './shared/InlineText'
 import { AddMealForm } from './shared/MealSlots'
@@ -41,9 +42,10 @@ export default function MealPlanning({ cycleConfig = {}, subPage = 'weekly' }) {
     <div>
       {subPage === 'monthly' ? <NutritionMonthly cycleConfig={cycleConfig} />
         : subPage === 'ingredients' ? <TodaysIngredients />
-          : subPage === 'recipes' ? <Recipes />
-            : subPage === 'grocery' ? <GroceryList />
-              : <NutritionWeekly />}
+          : subPage === 'diet' ? <Diet />
+            : subPage === 'recipes' ? <Recipes />
+              : subPage === 'grocery' ? <GroceryList />
+                : <NutritionWeekly />}
     </div>
   )
 }
