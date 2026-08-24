@@ -350,23 +350,28 @@ function FilterGroup({ label, items, active, onPick }) {
   )
 }
 
+// The five time-of-day buckets a recipe (or supplement) can belong to.
+const RECIPE_SLOTS = [
+  { id: 'empty', label: 'Empty Stomach', slots: ['empty', 'emptydrink'] },
+  { id: 'breakfast', label: 'Breakfast', slots: ['breakfast', 'drink'] },
+  { id: 'lunch', label: 'Lunch', slots: ['lunch', 'lunchdrink'] },
+  { id: 'dinner', label: 'Dinner', slots: ['dinner', 'dinnerdrink'] },
+  { id: 'bed', label: 'Before Bed', slots: ['bed', 'beddrink'] },
+]
+const recipeBucket = (slot) => (RECIPE_SLOTS.find((b) => b.slots.includes(slot)) || RECIPE_SLOTS[1]).id
+
 function RecipeLibrary({ activities, onOpen }) {
-  const [tagF, setTagF] = useState(null)
-  const [freqF, setFreqF] = useState(null)
+  const [slotF, setSlotF] = useState(null)
   const recipes = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived')
-  const typeTags = RECIPE_TAGS.filter((t) => !CYCLE_TAGS.includes(t))
-  const freqs = FREQUENCIES.map((f) => f.id).filter((id) => recipes.some((a) => a.frequency === id))
-  const filtered = recipes.filter((a) => (!tagF || tagsOf(a).includes(tagF)) && (!freqF || a.frequency === freqF))
+  const filtered = recipes.filter((a) => !slotF || recipeBucket(a.details.slot || 'breakfast') === slotF)
+  const pill = (on) => `rounded-full px-4 py-1.5 text-sm transition-colors ${on ? 'bg-stone-900 text-cream' : 'border border-stone-200 text-stone-500 hover:border-stone-400 hover:text-stone-800'}`
   return (
     <section>
-      <div className="mb-6 flex items-center justify-end">
-        <span className="text-sm text-stone-400">{filtered.length}</span>
-      </div>
-
-      <div className="mb-8 space-y-3 border-y border-stone-100 py-4">
-        <FilterGroup label="Type" items={typeTags.map((t) => ({ id: t, label: t }))} active={tagF} onPick={(id) => setTagF(tagF === id ? null : id)} />
-        <FilterGroup label="Cycle" items={CYCLE_TAGS.map((t) => ({ id: t, label: t, dot: PHASE_DOT[t] }))} active={tagF} onPick={(id) => setTagF(tagF === id ? null : id)} />
-        <FilterGroup label="Often" items={freqs.map((id) => ({ id, label: FREQ_LABEL[id] || id }))} active={freqF} onPick={(id) => setFreqF(freqF === id ? null : id)} />
+      <div className="no-scrollbar mb-8 flex flex-wrap items-center justify-center gap-1.5 overflow-x-auto">
+        <button onClick={() => setSlotF(null)} className={pill(!slotF)}>All</button>
+        {RECIPE_SLOTS.map((b) => (
+          <button key={b.id} onClick={() => setSlotF(slotF === b.id ? null : b.id)} className={pill(slotF === b.id)}>{b.label}</button>
+        ))}
       </div>
 
       {filtered.length === 0 ? (
@@ -398,8 +403,6 @@ function recipeTint(a) {
 function RecipeCard({ a, onOpen }) {
   const tint = recipeTint(a)
   const initial = ((a.title || '?').trim()[0] || '?').toUpperCase()
-  const phase = (tagsOf(a) || []).find((t) => CYCLE_TAGS.includes(t))
-  const tags = (tagsOf(a) || []).filter((t) => !CYCLE_TAGS.includes(t)).slice(0, 2)
   const note = (a.notes || '').split('\n').find((l) => l.trim()) || ''
   return (
     <button onClick={onOpen} className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-cream/50 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
@@ -415,12 +418,6 @@ function RecipeCard({ a, onOpen }) {
           <span className="kicker">{FREQ_LABEL[a.frequency] || a.frequency}</span>
         </div>
         {note && <p className="mt-2 line-clamp-1 text-sm leading-relaxed text-stone-500">{note}</p>}
-        {(phase || tags.length > 0) && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {phase && <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-500/5 px-2.5 py-0.5 text-[11px] text-stone-500"><span className="h-1.5 w-1.5 rounded-full" style={{ background: PHASE_DOT[phase] }} />{phase}</span>}
-            {tags.map((t) => <span key={t} className="rounded-full bg-stone-500/5 px-2.5 py-0.5 text-[11px] text-stone-500">{t}</span>)}
-          </div>
-        )}
       </div>
     </button>
   )
