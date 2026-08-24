@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Plus, Minus } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { dateKey, addDays } from '../lib/date'
+import { dateKey, addDays, MONTHS_SHORT } from '../lib/date'
 import Checkbox from './shared/Checkbox'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -120,15 +120,12 @@ export default function Diet() {
   const todayIdx = (today.getDay() + 6) % 7
   const monday = addDays(today, -todayIdx)
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
-  const [sel, setSel] = useState(todayIdx)
-  const selDateKey = dateKey(weekDates[sel])
-  const eatenSet = new Set(Array.isArray(eaten[selDateKey]) ? eaten[selDateKey] : [])
 
-  const toggleEaten = (id) => setEaten((p) => {
+  const toggleEaten = (dk, id) => setEaten((p) => {
     const pp = p && typeof p === 'object' ? p : {}
-    const cur = new Set(Array.isArray(pp[selDateKey]) ? pp[selDateKey] : [])
+    const cur = new Set(Array.isArray(pp[dk]) ? pp[dk] : [])
     cur.has(id) ? cur.delete(id) : cur.add(id)
-    return { ...pp, [selDateKey]: [...cur] }
+    return { ...pp, [dk]: [...cur] }
   })
 
   return (
@@ -143,59 +140,61 @@ export default function Diet() {
       </div>
 
       {view === 'week'
-        ? <WeekView foods={foods} weekDates={weekDates} sel={sel} setSel={setSel} todayIdx={todayIdx} eatenSet={eatenSet} onToggle={toggleEaten} />
+        ? <WeekView foods={foods} weekDates={weekDates} todayIdx={todayIdx} eaten={eaten} onToggle={toggleEaten} />
         : <StaplesView foods={foods} setFoods={setFoods} />}
     </div>
   )
 }
 
-function WeekView({ foods, weekDates, sel, setSel, todayIdx, eatenSet, onToggle }) {
+// The whole week at a glance — every day a soft card, its foods grouped by time
+// of day, today gently lifted. Tick things off as you eat them.
+function WeekView({ foods, weekDates, todayIdx, eaten, onToggle }) {
   return (
-    <div>
-      {/* day switcher */}
-      <div className="mb-8 grid grid-cols-7 gap-1.5">
-        {weekDates.map((d, i) => {
-          const on = sel === i, isToday = i === todayIdx
-          return (
-            <button key={i} onClick={() => setSel(i)} className={`flex flex-col items-center gap-1 rounded-xl py-2.5 transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:bg-stone-500/5'}`}>
-              <span className="text-[10px] tracking-wider">{DAY_INIT[i]}</span>
-              <span className={`font-serif text-lg leading-none tabular-nums ${!on && isToday ? 'text-stone-900' : ''}`}>{d.getDate()}</span>
-              {isToday && <span className="h-1 w-1 rounded-full" style={{ background: on ? '#FAF8F3' : FILL }} />}
-            </button>
-          )
-        })}
-      </div>
-
-      <h2 className="mb-6 text-center font-serif italic text-2xl text-stone-800">{DAY_FULL[sel]}</h2>
-
-      <div className="space-y-7">
-        {SLOTS.map((slot) => {
-          const items = foods.filter((f) => f.slot === slot.id && f.days[sel])
-          if (items.length === 0) return null
-          return (
-            <div key={slot.id}>
-              <div className="mb-2 flex items-center gap-3">
-                <span className="kicker text-stone-400">{slot.label}</span>
-                <span className="h-px flex-1 bg-stone-100" />
-              </div>
-              <div className="space-y-0.5">
-                {items.map((f) => {
-                  const done = eatenSet.has(f.id)
-                  return (
-                    <div key={f.id} className="flex items-center gap-3 py-1.5">
-                      <Checkbox checked={done} onClick={() => onToggle(f.id)} />
-                      <span className={`flex-1 font-serif text-lg leading-tight ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{f.name}</span>
-                    </div>
-                  )
-                })}
-              </div>
+    <div className="space-y-4">
+      {weekDates.map((d, i) => {
+        const dk = dateKey(d)
+        const isToday = i === todayIdx
+        const eatenSet = new Set(Array.isArray(eaten[dk]) ? eaten[dk] : [])
+        const sections = SLOTS.map((slot) => ({ slot, items: foods.filter((f) => f.slot === slot.id && f.days[i]) })).filter((x) => x.items.length)
+        const total = sections.reduce((n, s) => n + s.items.length, 0)
+        const doneCount = sections.reduce((n, s) => n + s.items.filter((f) => eatenSet.has(f.id)).length, 0)
+        return (
+          <div key={dk} className={`rounded-2xl border p-5 transition-colors ${isToday ? 'border-stone-300' : 'border-stone-200'}`} style={{ background: isToday ? '#F3F1EA' : 'rgba(255,255,255,0.35)' }}>
+            <div className="mb-4 flex items-baseline gap-2.5">
+              <h3 className="font-serif italic text-2xl text-stone-900">{DAY_FULL[i]}</h3>
+              <span className="text-sm not-italic text-stone-400 tabular-nums">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
+              {isToday && <span className="ml-1 rounded-full bg-stone-900 px-2 py-0.5 text-[10px] tracking-[0.14em] text-cream">TODAY</span>}
+              {total > 0 && <span className="ml-auto text-xs tabular-nums text-stone-400">{doneCount}/{total}</span>}
             </div>
-          )
-        })}
-        {SLOTS.every((slot) => foods.filter((f) => f.slot === slot.id && f.days[sel]).length === 0) && (
-          <p className="text-center text-sm italic text-stone-300">Nothing set for this day yet — add staples under “Staples.”</p>
-        )}
-      </div>
+
+            {sections.length === 0 ? (
+              <p className="text-sm italic text-stone-300">Nothing planned.</p>
+            ) : (
+              <div className="space-y-5">
+                {sections.map(({ slot, items }) => (
+                  <div key={slot.id}>
+                    <div className="mb-1.5 flex items-center gap-3">
+                      <span className="kicker text-stone-400">{slot.label}</span>
+                      <span className="h-px flex-1 bg-stone-100" />
+                    </div>
+                    <div className="space-y-0.5">
+                      {items.map((f) => {
+                        const done = eatenSet.has(f.id)
+                        return (
+                          <div key={f.id} className="flex items-center gap-3 py-1">
+                            <Checkbox checked={done} onClick={() => onToggle(dk, f.id)} />
+                            <span className={`flex-1 font-serif text-lg leading-tight ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{f.name}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
