@@ -370,9 +370,12 @@ function RecipeLibrary({ activities, onOpen }) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="font-serif italic text-lg text-stone-400">No recipes yet.</p>
+        <div className="rounded-2xl border border-dashed border-stone-200 py-16 text-center">
+          <p className="font-serif italic text-xl text-stone-400">No recipes yet.</p>
+          <p className="mt-1 text-sm text-stone-400">Tap the + to add your first.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((a) => <RecipeCard key={a.id} a={a} onOpen={() => onOpen(a)} />)}
         </div>
       )}
@@ -380,16 +383,44 @@ function RecipeLibrary({ activities, onOpen }) {
   )
 }
 
-// A recipe reads as a clean line — title first, a quiet slot · frequency beneath.
-// No notes, no boxes.
+// A recipe reads as an elegant card: a soft tinted crown with a serif monogram
+// (tint keyed to its cycle phase, else a stable colour from its name), the title,
+// a quiet slot · frequency, and its tags as chips.
+const RECIPE_PALETTE = ['#889072', '#C4A76A', '#A0654C', '#8E8074', '#8C7A5F', '#9E7B5A', '#7C8B6B', '#B08D45']
+function recipeTint(a) {
+  const phase = (tagsOf(a) || []).find((t) => CYCLE_TAGS.includes(t))
+  if (phase) return PHASE_DOT[phase]
+  const s = a.title || ''
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return RECIPE_PALETTE[h % RECIPE_PALETTE.length]
+}
 function RecipeCard({ a, onOpen }) {
+  const tint = recipeTint(a)
+  const initial = ((a.title || '?').trim()[0] || '?').toUpperCase()
+  const phase = (tagsOf(a) || []).find((t) => CYCLE_TAGS.includes(t))
+  const tags = (tagsOf(a) || []).filter((t) => !CYCLE_TAGS.includes(t)).slice(0, 2)
+  const note = (a.notes || '').split('\n').find((l) => l.trim()) || ''
   return (
-    <button onClick={onOpen} className="flex flex-col items-start rounded-md px-3 py-3 text-left transition-colors hover:bg-white/60">
-      <h3 className="font-serif text-xl text-stone-900">{a.title || 'Untitled'}</h3>
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 text-stone-400">
-        <span className="kicker">{slotMeta(a.details.slot || 'breakfast').label}</span>
-        <span className="text-stone-300">·</span>
-        <span className="kicker">{FREQ_LABEL[a.frequency] || a.frequency}</span>
+    <button onClick={onOpen} className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-cream/50 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative flex h-20 items-center justify-center" style={{ background: `linear-gradient(135deg, ${tint}26, ${tint}0d)` }}>
+        <span className="font-serif text-4xl leading-none" style={{ color: tint, opacity: 0.6 }}>{initial}</span>
+        <span aria-hidden className="absolute bottom-0 left-0 h-[3px] w-full" style={{ background: tint, opacity: 0.55 }} />
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="font-serif text-xl leading-tight text-stone-900">{a.title || 'Untitled'}</h3>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-stone-400">
+          <span className="kicker">{slotMeta(a.details.slot || 'breakfast').label}</span>
+          <span className="text-stone-300">·</span>
+          <span className="kicker">{FREQ_LABEL[a.frequency] || a.frequency}</span>
+        </div>
+        {note && <p className="mt-2 line-clamp-1 text-sm leading-relaxed text-stone-500">{note}</p>}
+        {(phase || tags.length > 0) && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {phase && <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-500/5 px-2.5 py-0.5 text-[11px] text-stone-500"><span className="h-1.5 w-1.5 rounded-full" style={{ background: PHASE_DOT[phase] }} />{phase}</span>}
+            {tags.map((t) => <span key={t} className="rounded-full bg-stone-500/5 px-2.5 py-0.5 text-[11px] text-stone-500">{t}</span>)}
+          </div>
+        )}
       </div>
     </button>
   )

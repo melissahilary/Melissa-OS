@@ -104,6 +104,7 @@ const SUBNAV = {
     { id: 'weekly', label: 'Weekly' },
     { id: 'monthly', label: 'Monthly' },
     { id: 'diet', label: 'Diet' },
+    { id: 'recipes', label: 'Recipes' },
     { id: 'grocery', label: "What's In My Fridge" },
   ],
   fitness: [
