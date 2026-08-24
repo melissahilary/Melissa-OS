@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, ChevronDown, Compass, PanelLeftClose, PanelLeftOpen, CalendarDays, CalendarRange, ClipboardList, Flower2, Gem, FlaskConical, Sun,
-  Target, UserRound, MapPin, Shirt, Car, TrendingUp, Sparkles,
+  Target, UserRound, MapPin, Shirt, Car, TrendingUp, Sparkles, MessageCircle,
   Settings as SettingsIcon, X,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -39,6 +39,7 @@ import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
 import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
+import AskConcierge from './components/AskConcierge'
 
 const PILLARS = [
   { id: 'mindset', label: 'Mindset', icon: Compass },
@@ -248,6 +249,7 @@ export default function App() {
   const [pendingDay, setPendingDay] = useState(null)
   const goToDay = (k) => { setPendingDay(k); setActive('today') }
   const [menuOpen, setMenuOpen] = useState(false)
+  const [askOpen, setAskOpen] = useState(false)
 
   const isToday = active === 'today'
   const isDream = active === 'dream'
@@ -271,7 +273,7 @@ export default function App() {
   const genericSub = activeSub === 'weekly' || activeSub === 'monthly'
   const pillarSubLabel = SUBNAV[active] && SUBNAV[active].find((s) => s.id === activeSub)?.label
   const pageTitle = isDream
-    ? (DREAM_PAGES.find((p) => p.id === dreamPage)?.label || 'Dream Planning')
+    ? null
     : isPillar
       ? (genericSub ? activePillarMeta?.label : (pillarSubLabel || activePillarMeta?.label))
       : null
@@ -279,7 +281,7 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} />
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} onAsk={() => setAskOpen(true)} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -300,7 +302,6 @@ export default function App() {
           onPick={setActiveSub}
         />
       )}
-      {isDream && <DreamSubNav dreamPage={dreamPage} setDreamPage={setDreamPage} onExit={() => setActive('mindset')} />}
 
       {/* ── Main content ────────────────────────────────────── */}
       <main className="overflow-x-hidden px-6 py-10 md:px-10 lg:px-12">
@@ -326,6 +327,8 @@ export default function App() {
       >
         <SettingsIcon size={18} />
       </button>
+
+      <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} />
     </div>
     </AddProvider>
   )
@@ -335,7 +338,7 @@ export default function App() {
 // A slim, calm bar: the hairline "index" mark on the left opens the full index
 // (NavMenu); the centered cursive wordmark is a persistent masthead that taps
 // home to Today, so home is always one tap away from any pillar page.
-function TopNav({ onOpenMenu, onGoHome, showWordmark = true }) {
+function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
       <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
@@ -346,6 +349,12 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true }) {
             <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-7" />
           </span>
         </button>
+        {onAsk && (
+          <button onClick={onAsk} aria-label="Ask the concierge" title="Ask the concierge" className="relative z-10 ml-auto flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
+            <MessageCircle size={15} strokeWidth={1.75} />
+            <span className="text-xs tracking-wide">Ask</span>
+          </button>
+        )}
         {/* On the home (Today) page the big cursive masthead already carries the
             name, so the bar wordmark is hidden there to avoid showing it twice. */}
         {showWordmark && (

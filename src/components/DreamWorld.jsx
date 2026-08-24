@@ -43,10 +43,15 @@ const CATEGORIES = [
 ]
 const FREQS = ['once', 'daily', 'weekly', 'monthly', 'yearly']
 
-export default function DreamWorld({ page, cycleConfig }) {
+// Dream Planning is the Dashboard — nothing else. (The old chapter pages remain
+// exported below only so any legacy imports keep resolving.)
+export default function DreamWorld() {
+  return <DreamDashboard />
+}
+// eslint-disable-next-line no-unused-vars
+function _LegacyDreamPages({ page }) {
   return (
     <div>
-      {page === 'goals' && <DreamDashboard />}
       {page === 'week' && <DreamWeek />}
       {page === 'calendar' && <DreamCalendar />}
       {page === 'self' && <ListPage storageKey="mos:dream:self" placeholder="A quality, habit, or trait of your dream self" checkable />}
