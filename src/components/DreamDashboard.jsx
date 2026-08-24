@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, X, Check, ChevronRight, Target, Sparkles, Calendar } from 'lucide-react'
+import { Plus, X, Check, ChevronRight, Target, Sparkles, Calendar, ListChecks, FolderKanban, NotebookPen } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
-import { blankActivity, isDoneOn } from '../lib/activities'
-import { dateKey, parseKey, addDays, MONTHS } from '../lib/date'
+import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
+import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW_LONG } from '../lib/date'
 import Checkbox from './shared/Checkbox'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -96,6 +96,7 @@ export default function DreamDashboard() {
   const [openMs, setOpenMs] = useState(() => new Set())
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
+  const [tab, setTab] = useState('week')
 
   const setGoals = (updater) => setRawGoals((prev) => {
     const cur = (Array.isArray(prev) ? prev : []).map(normGoal)
@@ -141,66 +142,79 @@ export default function DreamDashboard() {
   const achieved = goals.filter((g) => g.status === 'achieved')
   const openGoalObj = goals.find((g) => g.id === openId) || null
 
+  // ── this week's tasks (appointments + goal steps + one-time to-dos) ──
+  const now = new Date()
+  const weekMon = addDays(now, -((now.getDay() + 6) % 7))
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekMon, i))
+  const isWeekTask = (a) => a.status !== 'archived' && a.type !== 'meal_item' && a.type !== 'supplement' && (a.type === 'event' || (a.details && a.details.goalId) || a.frequency === 'once' || a.frequency === 'asneeded')
+  const weekDays = weekDates.map((d) => { const dk = dateKey(d); return { d, dk, items: activities.filter((a) => isWeekTask(a) && activityOccursOn(a, dk)) } })
+  const weekTotal = weekDays.reduce((n, x) => n + x.items.length, 0)
+  const weekDone = weekDays.reduce((n, x) => n + x.items.filter((a) => isDoneOn(a, x.dk)).length, 0)
+
+  const TABS = [
+    { id: 'week', label: 'This Week', icon: ListChecks },
+    { id: 'projects', label: 'Projects', icon: FolderKanban },
+    { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'recap', label: 'Recap', icon: NotebookPen },
+  ]
+
   return (
     <section>
-      <div className="mb-7 flex items-end justify-between gap-4">
-        <div>
-          <p className="kicker text-stone-400">The board</p>
-          <h2 className="font-serif italic text-3xl md:text-4xl text-stone-900">Life on track.</h2>
-        </div>
-        <button onClick={addGoal} className="flex shrink-0 items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><Plus size={15} strokeWidth={1.75} /> New goal</button>
-      </div>
+      <Briefing on={on} attn={attn} weekTotal={weekTotal} weekDone={weekDone} goalCount={active.length} />
 
-      {/* KPIs */}
-      <div className="mb-9 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-stone-200 bg-cream/50 p-5">
-          <div className="mb-3 flex items-center gap-2 text-stone-400"><Target size={15} strokeWidth={1.75} /><span className="kicker">Active goals</span></div>
-          <p className="font-serif text-4xl leading-none text-stone-900 tabular-nums">{active.length}</p>
-        </div>
-        <div className="rounded-2xl border border-stone-200 bg-cream/50 p-5">
-          <div className="mb-3 flex items-center gap-2 text-stone-400"><Sparkles size={15} strokeWidth={1.75} /><span className="kicker">Momentum</span></div>
-          <div className="flex items-baseline gap-5">
-            <span className="flex items-baseline gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: HEALTH.on.c }} /><span className="font-serif text-3xl leading-none tabular-nums" style={{ color: HEALTH.on.c }}>{on}</span><span className="text-xs text-stone-400">on track</span></span>
-            <span className="flex items-baseline gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: HEALTH.risk.c }} /><span className="font-serif text-3xl leading-none tabular-nums" style={{ color: HEALTH.risk.c }}>{attn}</span><span className="text-xs text-stone-400">need attention</span></span>
-          </div>
-        </div>
-      </div>
-
-      {/* Board */}
-      <div className="grid gap-6 md:grid-cols-3">
-        {PHASES.map((ph) => {
-          const inp = active.filter((g) => g.phase === ph.id)
+      {/* section tabs */}
+      <div className="no-scrollbar mb-8 flex items-center justify-center gap-1.5 overflow-x-auto">
+        {TABS.map((t) => {
+          const active2 = tab === t.id
+          const Icon = t.icon
           return (
-            <div key={ph.id}
-              onDragOver={(e) => { e.preventDefault() }}
-              onDrop={() => { if (dragId) { updateGoal(dragId, { phase: ph.id }); setDragId(null) } }}>
-              <div className="mb-3 flex items-baseline justify-between border-b border-stone-200 pb-2">
-                <span className="font-serif text-lg text-stone-800">{ph.label}</span>
-                <span className="kicker text-stone-400">{inp.length} · {ph.note}</span>
-              </div>
-              <div className="min-h-[60px] space-y-3">
-                {inp.map((g) => (
-                  <GoalCard key={g.id} goal={g} steps={stepsOf(g.id)} onOpen={() => openGoal(g.id)} onDragStart={() => setDragId(g.id)} onDragEnd={() => setDragId(null)} />
-                ))}
-                {inp.length === 0 && <p className="py-6 text-center text-xs italic text-stone-300">Nothing here.</p>}
-              </div>
-            </div>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-colors ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:bg-stone-500/5'}`}>
+              <Icon size={14} strokeWidth={1.75} />{t.label}
+            </button>
           )
         })}
       </div>
 
-      {/* Achieved */}
-      {achieved.length > 0 && (
-        <div className="mt-10 border-t border-stone-200 pt-6">
-          <p className="kicker mb-3 text-stone-400">Achieved · {achieved.length}</p>
-          <div className="flex flex-wrap gap-2">
-            {achieved.map((g) => (
-              <button key={g.id} onClick={() => openGoal(g.id)} className="flex items-center gap-2 rounded-full border border-stone-200 px-4 py-1.5 text-sm text-stone-500 transition-colors hover:border-stone-400">
-                <Check size={13} style={{ color: HEALTH.on.c }} /><span className="font-serif text-base line-through">{g.title || 'Untitled'}</span>
-              </button>
-            ))}
+      {tab === 'week' && <ThisWeek weekDays={weekDays} todayKeyStr={dateKey(now)} onToggle={(id, dk) => toggleComplete(id, dk)} />}
+      {tab === 'projects' && <Projects />}
+      {tab === 'recap' && <DailyRecap />}
+      {tab === 'goals' && (
+        <>
+          <div className="mb-7 flex items-center justify-end">
+            <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><Plus size={15} strokeWidth={1.75} /> New goal</button>
           </div>
-        </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {PHASES.map((ph) => {
+              const inp = active.filter((g) => g.phase === ph.id)
+              return (
+                <div key={ph.id} onDragOver={(e) => { e.preventDefault() }} onDrop={() => { if (dragId) { updateGoal(dragId, { phase: ph.id }); setDragId(null) } }}>
+                  <div className="mb-3 flex items-baseline justify-between border-b border-stone-200 pb-2">
+                    <span className="font-serif text-lg text-stone-800">{ph.label}</span>
+                    <span className="kicker text-stone-400">{inp.length} · {ph.note}</span>
+                  </div>
+                  <div className="min-h-[60px] space-y-3">
+                    {inp.map((g) => (
+                      <GoalCard key={g.id} goal={g} steps={stepsOf(g.id)} onOpen={() => openGoal(g.id)} onDragStart={() => setDragId(g.id)} onDragEnd={() => setDragId(null)} />
+                    ))}
+                    {inp.length === 0 && <p className="py-6 text-center text-xs italic text-stone-300">Nothing here.</p>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {achieved.length > 0 && (
+            <div className="mt-10 border-t border-stone-200 pt-6">
+              <p className="kicker mb-3 text-stone-400">Achieved · {achieved.length}</p>
+              <div className="flex flex-wrap gap-2">
+                {achieved.map((g) => (
+                  <button key={g.id} onClick={() => openGoal(g.id)} className="flex items-center gap-2 rounded-full border border-stone-200 px-4 py-1.5 text-sm text-stone-500 transition-colors hover:border-stone-400">
+                    <Check size={13} style={{ color: HEALTH.on.c }} /><span className="font-serif text-base line-through">{g.title || 'Untitled'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {openGoalObj && (
@@ -431,6 +445,171 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
         <button onClick={() => onAccept(ai.plan)} className="flex-1 rounded-full bg-stone-900 px-4 py-2.5 text-sm text-cream hover:bg-stone-700">Accept plan → send to planner</button>
         <button onClick={onDismiss} className="text-xs text-stone-400 hover:text-stone-700">Not now</button>
       </div>
+    </div>
+  )
+}
+
+// ── Briefing — the one thing you read first ──
+function Briefing({ on, attn, weekTotal, weekDone, goalCount }) {
+  const h = new Date().getHours()
+  const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  const now = new Date()
+  const dateStr = `${DOW_LONG[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`
+  const line = goalCount === 0
+    ? 'A quiet slate — set a goal whenever you are ready.'
+    : `${goalCount} goal${goalCount > 1 ? 's' : ''} in motion${attn > 0 ? `, ${attn} asking for attention` : ', all on track'}.`
+  const weekLine = weekTotal === 0 ? 'Nothing on the calendar this week yet.' : `${weekDone} of ${weekTotal} tasks done this week.`
+  return (
+    <div className="mb-8">
+      <p className="kicker text-stone-400">{dateStr}</p>
+      <h2 className="mt-1 font-serif italic text-3xl md:text-4xl text-stone-900">{greet}, Melissa.</h2>
+      <p className="mt-3 max-w-xl font-serif text-lg leading-relaxed text-stone-600">{line} {weekLine}</p>
+    </div>
+  )
+}
+
+// ── This Week — appointments, goal steps, and one-time to-dos, by day ──
+function ThisWeek({ weekDays, todayKeyStr, onToggle }) {
+  const total = weekDays.reduce((n, x) => n + x.items.length, 0)
+  if (total === 0) return <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">Nothing scheduled this week yet.<br /><span className="text-sm not-italic text-stone-400">Appointments and goal steps you add will gather here.</span></p>
+  return (
+    <div className="space-y-4">
+      {weekDays.map(({ d, dk, items }) => {
+        if (items.length === 0) return null
+        const isToday = dk === todayKeyStr
+        return (
+          <div key={dk} className={`rounded-2xl border p-5 ${isToday ? 'border-stone-300' : 'border-stone-200'}`} style={{ background: isToday ? '#F3F1EA' : 'rgba(255,255,255,0.35)' }}>
+            <div className="mb-3 flex items-baseline gap-2.5">
+              <h3 className="font-serif italic text-xl text-stone-900">{DOW_LONG[d.getDay()]}</h3>
+              <span className="text-sm not-italic text-stone-400 tabular-nums">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
+              {isToday && <span className="ml-1 rounded-full bg-stone-900 px-2 py-0.5 text-[10px] tracking-[0.14em] text-cream">TODAY</span>}
+            </div>
+            <div className="space-y-0.5">
+              {items.map((a) => {
+                const done = isDoneOn(a, dk)
+                const time = a.details && a.details.time
+                return (
+                  <div key={a.id} className="flex items-center gap-3 py-1.5">
+                    <Checkbox checked={done} onClick={() => onToggle(a.id, dk)} />
+                    <span className={`flex-1 text-sm ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
+                      {a.type === 'event' && time ? <span className="mr-2 font-serif text-stone-500 tabular-nums">{time}</span> : null}
+                      {a.title || 'Untitled'}
+                    </span>
+                    {a.details && a.details.section && <span className="whitespace-nowrap text-[11px] text-stone-400">{a.details.section}</span>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Projects — work with its own little list of tasks ──
+function Projects() {
+  const [stored, setProjects] = useLocalStorage('mos:dream:projects', [])
+  const projects = Array.isArray(stored) ? stored : []
+  const [open, setOpen] = useState(() => new Set())
+  const [draft, setDraft] = useState('')
+  const add = () => { const t = draft.trim(); if (!t) return; setProjects((p) => [{ id: uid(), title: t, due: '', status: 'active', tasks: [] }, ...(Array.isArray(p) ? p : [])]); setDraft('') }
+  const update = (id, patch) => setProjects((p) => (Array.isArray(p) ? p : []).map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  const remove = (id) => setProjects((p) => (Array.isArray(p) ? p : []).filter((x) => x.id !== id))
+  const toggleOpen = (id) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const activeP = projects.filter((p) => p.status !== 'done')
+  const doneP = projects.filter((p) => p.status === 'done')
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 focus-within:border-stone-400">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="New project…" className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300" />
+        <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
+      </div>
+      {activeP.length === 0 && doneP.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No projects yet.<br /><span className="text-sm not-italic text-stone-400">A project is a piece of work with its own little list of tasks.</span></p>
+      ) : (
+        <div className="space-y-3">
+          {activeP.map((p) => <ProjectCard key={p.id} project={p} open={open.has(p.id)} onToggleOpen={() => toggleOpen(p.id)} onUpdate={(patch) => update(p.id, patch)} onRemove={() => remove(p.id)} />)}
+        </div>
+      )}
+      {doneP.length > 0 && (
+        <div className="mt-8 border-t border-stone-200 pt-5">
+          <p className="kicker mb-3 text-stone-400">Done · {doneP.length}</p>
+          <div className="flex flex-wrap gap-2">
+            {doneP.map((p) => (
+              <button key={p.id} onClick={() => update(p.id, { status: 'active' })} className="flex items-center gap-2 rounded-full border border-stone-200 px-4 py-1.5 text-sm text-stone-500 hover:border-stone-400"><Check size={13} style={{ color: HEALTH.on.c }} /><span className="font-serif text-base line-through">{p.title}</span></button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProjectCard({ project, open, onToggleOpen, onUpdate, onRemove }) {
+  const [taskDraft, setTaskDraft] = useState('')
+  const tasks = Array.isArray(project.tasks) ? project.tasks : []
+  const done = tasks.filter((t) => t.done).length
+  const pctv = tasks.length ? Math.round((done / tasks.length) * 100) : 0
+  const setTask = (id, patch) => onUpdate({ tasks: tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) })
+  const addTask = () => { const t = taskDraft.trim(); if (!t) return; onUpdate({ tasks: [...tasks, { id: uid(), title: t, done: false }] }); setTaskDraft('') }
+  const removeTask = (id) => onUpdate({ tasks: tasks.filter((t) => t.id !== id) })
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white/50 p-4 shadow-sm">
+      <button onClick={onToggleOpen} className="flex w-full items-center gap-3 text-left">
+        <span className="font-serif text-lg text-stone-900">{project.title || 'Untitled project'}</span>
+        <span className="text-[11px] tabular-nums text-stone-400">{tasks.length ? `${done}/${tasks.length}` : ''}</span>
+        <ChevronRight size={15} className={`ml-auto text-stone-300 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {tasks.length > 0 && <div className="mt-2 h-1 w-full overflow-hidden rounded bg-stone-100"><div className="h-full rounded" style={{ width: `${pctv}%`, background: '#1C1C1A' }} /></div>}
+      {open && (
+        <div className="mt-3 space-y-0.5 border-t border-stone-100 pt-3">
+          {tasks.map((t) => (
+            <div key={t.id} className="group flex items-center gap-3 py-1">
+              <Checkbox checked={t.done} onClick={() => setTask(t.id, { done: !t.done })} />
+              <span className={`flex-1 text-sm ${t.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{t.title}</span>
+              <button onClick={() => removeTask(t.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={13} /></button>
+            </div>
+          ))}
+          <input value={taskDraft} onChange={(e) => setTaskDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask()} placeholder="+ add a task" className="mt-1 w-full bg-transparent py-1 text-sm italic text-stone-400 placeholder-stone-400 outline-none" />
+          <div className="mt-3 flex items-center justify-between">
+            <button onClick={onRemove} className="text-xs text-stone-400 hover:text-phase-menstrual">Delete</button>
+            <button onClick={() => onUpdate({ status: 'done' })} className="rounded-full bg-stone-900 px-4 py-1.5 text-xs text-cream hover:bg-stone-700">Mark done</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Daily Recap — a few honest lines a day, gathered as you go ──
+function DailyRecap() {
+  const [stored, setRecaps] = useLocalStorage('mos:dream:recaps', {})
+  const recaps = stored && typeof stored === 'object' ? stored : {}
+  const tk = dateKey(new Date())
+  const setToday = (v) => setRecaps((p) => ({ ...(p && typeof p === 'object' ? p : {}), [tk]: v }))
+  const past = Object.keys(recaps).filter((k) => k !== tk && (recaps[k] || '').trim()).sort((a, b) => (a < b ? 1 : -1))
+  const now = new Date()
+  return (
+    <div className="mx-auto max-w-2xl">
+      <div className="rounded-2xl border border-stone-200 bg-cream/50 p-5">
+        <p className="kicker mb-1 text-stone-400">{DOW_LONG[now.getDay()]}, {MONTHS[now.getMonth()]} {now.getDate()}</p>
+        <h3 className="mb-3 font-serif italic text-2xl text-stone-900">How did today go?</h3>
+        <textarea value={recaps[tk] || ''} onChange={(e) => setToday(e.target.value)} placeholder="A few honest lines — what moved, how you felt, what tomorrow needs…" rows={4} className="w-full resize-y rounded-xl bg-white/50 px-4 py-3 font-serif text-lg leading-relaxed text-stone-800 placeholder-stone-300 outline-none focus:bg-white/70" />
+      </div>
+      {past.length > 0 && (
+        <div className="mt-8">
+          <p className="kicker mb-4 text-stone-400">Past days</p>
+          <div className="space-y-5">
+            {past.map((k) => { const d = parseKey(k); return (
+              <div key={k} className="border-l-2 border-stone-200 pl-4">
+                <p className="kicker mb-1 text-stone-400">{DOW_LONG[d.getDay()]} · {MONTHS_SHORT[d.getMonth()]} {d.getDate()}</p>
+                <p className="whitespace-pre-line font-serif text-lg leading-relaxed text-stone-700">{recaps[k]}</p>
+              </div>
+            ) })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
