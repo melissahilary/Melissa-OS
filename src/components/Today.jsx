@@ -747,6 +747,14 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block },
     }))
+  // Add a one-time appointment on the selected day, at a time. Shows in the day's
+  // agenda and on the calendars.
+  const partForTime = (t) => { if (!t) return 'morning'; const h = parseInt(t.slice(0, 2), 10); return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening' }
+  const addEvent = (title, time) =>
+    add(blankActivity('event', {
+      title, category: 'personal', frequency: 'once', seriesStart: selectedKey,
+      details: { time: time || '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' },
+    }))
 
   const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
 
@@ -823,6 +831,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
           block={currentBlock}
           onAddTask={addTask}
           onAddMeal={addMeal}
+          onAddEvent={addEvent}
           onClose={() => setBlockAdd(false)}
         />
       )}
@@ -1241,6 +1250,7 @@ const ADD_TYPES = [
     { label: 'Daytime', block: 'daytime' },
     { label: 'Evening', block: 'evening' },
   ] },
+  { key: 'appt', label: 'Appointment', appt: true },
   { key: 'food', label: 'Food', kind: 'food', wheres: [
     { label: 'Breakfast', slot: 'breakfast' },
     { label: 'Lunch', slot: 'lunch' },
@@ -1262,10 +1272,11 @@ const ADD_TYPES = [
   ] },
 ]
 
-function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
+function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
   const [type, setType] = useState(null)
   const [where, setWhere] = useState(null)
   const [val, setVal] = useState('')
+  const [time, setTime] = useState('')
 
   useEffect(() => {
     const onEsc = (e) => { if (e.key === 'Escape') onClose() }
@@ -1275,8 +1286,10 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
 
   const commit = () => {
     const t = val.trim()
-    if (!t || !type || !where) return
-    if (type.key === 'todo') onAddTask(where.block, t)
+    if (!t || !type) return
+    if (type.appt) { if (onAddEvent) onAddEvent(t, time) }
+    else if (!where) return
+    else if (type.key === 'todo') onAddTask(where.block, t)
     else onAddMeal({ name: t, kind: type.kind, slot: where.slot })
     onClose()
   }
@@ -1301,6 +1314,17 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onClose }) {
               {ADD_TYPES.map((t) => (
                 <Pill key={t.key} onClick={() => setType(t)}>{t.label}</Pill>
               ))}
+            </div>
+          ) : type.appt ? (
+            /* Appointment — name + an optional time, on the day you're viewing. */
+            <div>
+              <p className="kicker mb-2 text-stone-400">Appointment</p>
+              <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder="What is it?" className="mb-3 w-full rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm outline-none placeholder-stone-300 focus:border-stone-400" />
+              <div className="flex items-center gap-2">
+                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm text-stone-600 outline-none focus:border-stone-400" />
+                <button onClick={commit} className="ml-auto shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
+              </div>
+              <button onClick={() => { setType(null); setVal(''); setTime('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
             </div>
           ) : !where ? (
             /* Step 2 — when? any time of day or mealtime. */
