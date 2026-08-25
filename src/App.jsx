@@ -250,6 +250,12 @@ export default function App() {
   const goToDay = (k) => { setPendingDay(k); setActive('today') }
   const [menuOpen, setMenuOpen] = useState(false)
   const [askOpen, setAskOpen] = useState(false)
+  // The chosen wardrobe palette re-skins the whole app via CSS variables.
+  const [themeRaw] = useLocalStorage('mos:settings:theme', 'porcelain')
+  useEffect(() => {
+    const t = typeof themeRaw === 'string' ? themeRaw : 'porcelain'
+    document.documentElement.setAttribute('data-mos-theme', t)
+  }, [themeRaw])
 
   const isToday = active === 'today'
   const isDream = active === 'dream'

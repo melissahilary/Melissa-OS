@@ -4,7 +4,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        cream: '#FAFAF7',
+        // The whole neutral system reads from CSS variables so a single
+        // data-mos-theme attribute reskins the app (see index.css palettes).
+        cream: 'var(--mos-cream, #FAFAF7)',
+        stone: {
+          50: 'var(--mos-stone-50, #fafaf9)',
+          100: 'var(--mos-stone-100, #f5f5f4)',
+          200: 'var(--mos-stone-200, #e7e5e4)',
+          300: 'var(--mos-stone-300, #d6d3d1)',
+          400: 'var(--mos-stone-400, #a8a29e)',
+          500: 'var(--mos-stone-500, #78716c)',
+          600: 'var(--mos-stone-600, #57534e)',
+          700: 'var(--mos-stone-700, #44403c)',
+          800: 'var(--mos-stone-800, #292524)',
+          900: 'var(--mos-stone-900, #1c1917)',
+        },
         sand: '#C4A882',
         mauve: '#B8849A',
         phase: {
