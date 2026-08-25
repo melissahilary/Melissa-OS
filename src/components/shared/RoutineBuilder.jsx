@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { X, Check, Plus, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { dateKey } from '../../lib/date'
+import { upsertShelfItem } from '../../lib/goalRoutes'
 
 // ── RoutineBuilder — an ordered ritual where every step is a real record:
 // name, product used, type, frequency. Adding walks you through the fields;
@@ -16,7 +17,7 @@ const FREQS = [
   { id: 'asneeded', label: 'As needed' },
 ]
 
-export default function RoutineBuilder({ storeKey, Icon, intro, types = [], productLabel = 'Product' }) {
+export default function RoutineBuilder({ storeKey, Icon, intro, types = [], productLabel = 'Product', shelfKey = null }) {
   const [stored, setSteps] = useLocalStorage(storeKey, [])
   const steps = (Array.isArray(stored) ? stored : []).map((s) => ({ id: s.id || uid(), name: s.name || s.text || '', product: s.product || '', type: s.type || '', freq: s.freq || 'daily', ...s }))
   const [doneStore, setDone] = useLocalStorage(`${storeKey}:done`, {})
@@ -28,6 +29,8 @@ export default function RoutineBuilder({ storeKey, Icon, intro, types = [], prod
   const commit = (step) => {
     if (step.id === 'new') setSteps((p) => [...(Array.isArray(p) ? p : []), { ...step, id: uid() }])
     else setSteps((p) => (Array.isArray(p) ? p : []).map((s) => (s.id === step.id ? step : s)))
+    // The product named on a step also lives on the pillar's Products shelf.
+    if (shelfKey && (step.product || '').trim()) upsertShelfItem(shelfKey, step.product, step.type ? `${step.type.toLowerCase()} · from your routine` : 'from your routine')
     setOpenId(null)
   }
   const remove = (id) => { setSteps((p) => (Array.isArray(p) ? p : []).filter((s) => s.id !== id)); setOpenId(null) }

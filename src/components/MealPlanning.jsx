@@ -497,6 +497,17 @@ function GroceryList() {
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
   const update = (id, patch) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))
 
+  // Marking something out of stock puts it straight on the shopping list —
+  // deduped by name against what's already there and unbought.
+  const addToShopping = (name) => {
+    const t = (name || '').trim()
+    if (!t) return
+    const cur = store.get('mos:shopping', [])
+    const arr = Array.isArray(cur) ? cur : []
+    if (arr.some((x) => !x.bought && (x.text || '').trim().toLowerCase() === t.toLowerCase())) return
+    store.set('mos:shopping', [{ id: uid(), text: t, bought: false, addedDate: dateKey(new Date()), boughtDate: '' }, ...arr])
+  }
+
   const Row = (item) => {
     const st = normStatus(item.status)
     return (
@@ -514,7 +525,7 @@ function GroceryList() {
             const on = st === s.id
             const Icon = s.icon
             return (
-              <button key={s.id} onClick={() => update(item.id, { status: on ? '' : s.id })} title={s.label} aria-label={s.label} className={`transition-colors ${on ? '' : 'text-stone-300 hover:text-stone-500'}`} style={on ? { color: s.color } : undefined}>
+              <button key={s.id} onClick={() => { update(item.id, { status: on ? '' : s.id }); if (!on && s.id === 'out of stock') addToShopping(item.name) }} title={s.label} aria-label={s.label} className={`transition-colors ${on ? '' : 'text-stone-300 hover:text-stone-500'}`} style={on ? { color: s.color } : undefined}>
                 <Icon size={17} strokeWidth={1.75} />
               </button>
             )

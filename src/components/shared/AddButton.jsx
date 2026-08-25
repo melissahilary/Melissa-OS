@@ -87,9 +87,17 @@ export function AddProvider({ children }) {
     setHasHandler(!!fn)
   }, [])
 
-  const showToast = (text) => {
-    setToast(text)
-    setTimeout(() => setToast(null), 2600)
+  const [, setActivePage] = useLocalStorage('mos:active', 'today')
+  const [, setSubs] = useLocalStorage('mos:subpages', {})
+  const showToast = (text, dest) => {
+    setToast({ text, dest })
+    setTimeout(() => setToast(null), 3400)
+  }
+  const goTo = (dest) => {
+    if (!dest) return
+    setActivePage(dest.page)
+    if (dest.sub) setSubs((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [dest.page]: dest.sub }))
+    setToast(null)
   }
 
   return (
@@ -109,9 +117,10 @@ export function AddProvider({ children }) {
       {open && <QuickAdd onClose={() => setOpen(false)} onDone={showToast} fullEditor={hasHandler ? () => { setOpen(false); ref.current && ref.current() } : null} />}
 
       {toast && (
-        <div className="fixed bottom-24 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream shadow-xl">
-          <Check size={14} strokeWidth={2.5} /> {toast}
-        </div>
+        <button onClick={() => goTo(toast.dest)} className="fixed bottom-24 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream shadow-xl transition-transform hover:scale-[1.02]">
+          <Check size={14} strokeWidth={2.5} /> {toast.text}
+          {toast.dest && <span className="ml-1 border-l border-cream/30 pl-2.5 text-cream/80">View →</span>}
+        </button>
       )}
     </AddCtx.Provider>
   )
@@ -148,25 +157,25 @@ function QuickAdd({ onClose, onDone, fullEditor }) {
     if (!t) return
     if (type === 'todo') {
       add(blankActivity('protocol', { title: t, category: 'wellness', frequency: 'daily', seriesStart: dateKey(new Date()), timeOfDay: [blockMeta.part], details: { block } }))
-      onDone(`To-do added · ${blockMeta.label}`)
+      onDone(`To-do added · ${blockMeta.label}`, { page: 'today' })
     } else if (type === 'appt') {
       add(blankActivity('event', { title: t, category: 'personal', frequency: 'once', seriesStart: date, details: { time: time || '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' } }))
-      onDone(`Appointment set · ${date}${time ? ` at ${time}` : ''}`)
+      onDone(`Appointment set · ${date}${time ? ` at ${time}` : ''}`, { page: 'today' })
     } else if (type === 'food' || type === 'drink') {
       add(blankActivity('meal_item', { title: t, category: 'nutrition', frequency: 'daily', details: { slot: type === 'drink' ? mt.drink : mt.food, beverage: type === 'drink' } }))
-      onDone(`${type === 'drink' ? 'Drink' : 'Food'} added · ${mt.label}`)
+      onDone(`${type === 'drink' ? 'Drink' : 'Food'} added · ${mt.label}`, { page: 'today' })
     } else if (type === 'supp') {
       add(blankActivity('supplement', { title: t, category: 'supplements', frequency: 'daily', details: { slot: mt.supp, dose: '', unit: 'mg' } }))
-      onDone(`Supplement added · ${mt.label}`)
+      onDone(`Supplement added · ${mt.label}`, { page: 'menu', sub: 'supplements' })
     } else if (type === 'goal') {
       setGoals((prev) => [...(Array.isArray(prev) ? prev : []), { id: uid(), title: t, vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [] }])
-      onDone('Goal added · Dream Planning')
+      onDone('Goal added · Dream Planning', { page: 'dream' })
     } else if (type === 'shop') {
       setShop((prev) => [{ id: uid(), text: t, bought: false, addedDate: dateKey(new Date()), boughtDate: '' }, ...(Array.isArray(prev) ? prev : [])])
-      onDone('Added to your shopping list')
+      onDone('Added to your shopping list', { page: 'today' })
     } else if (type === 'note') {
       setNotes((prev) => [{ id: uid(), title: t, body: '', date: dateKey(new Date()) }, ...(Array.isArray(prev) ? prev : [])])
-      onDone("Noted · Today's Notes")
+      onDone("Noted · Today's Notes", { page: 'today' })
     }
     onClose()
   }

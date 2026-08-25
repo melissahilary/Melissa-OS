@@ -8,8 +8,8 @@ import { CategoryShelf } from './shared/LogShelf'
 const SKIN_TYPES = ['Cleanser', 'Toner', 'Essence', 'Serum', 'Moisturizer', 'SPF', 'Treatment', 'Mask', 'Oil', 'Eye', 'Device']
 
 export default function Skincare({ subPage, cycleConfig }) {
-  if (subPage === 'morning') return <RoutineBuilder storeKey="mos:skincare:am" Icon={Sun} intro="The order you begin the day in — each step carries its product, type and cadence." types={SKIN_TYPES} />
-  if (subPage === 'evening') return <RoutineBuilder storeKey="mos:skincare:pm" Icon={Moon} intro="How you wind the day down, step by step." types={SKIN_TYPES} />
+  if (subPage === 'morning') return <RoutineBuilder storeKey="mos:skincare:am" shelfKey="mos:skincare:products" Icon={Sun} intro="The order you begin the day in — each step carries its product, type and cadence." types={SKIN_TYPES} />
+  if (subPage === 'evening') return <RoutineBuilder storeKey="mos:skincare:pm" shelfKey="mos:skincare:products" Icon={Moon} intro="How you wind the day down, step by step." types={SKIN_TYPES} />
   if (subPage === 'products') return <CategoryShelf storeKey="mos:skincare:products" blurb="The vanity shelf — everything you own and use." suggestions={['Cleanser', 'Vitamin C', 'Retinal', 'SPF', 'Moisturizer']} notePlaceholder="brand · strength · when you use it" />
   return <CategorySchedule category="skincare" noun="Step" cycleConfig={cycleConfig} />
 }

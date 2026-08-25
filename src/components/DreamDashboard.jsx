@@ -5,6 +5,8 @@ import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
 import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW_LONG } from '../lib/date'
 import Checkbox from './shared/Checkbox'
+import ActivityForm from './shared/ActivityForm'
+import { routeStepToSection } from '../lib/goalRoutes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -94,13 +96,14 @@ function Ring({ p, size = 46 }) {
 export default function DreamDashboard() {
   const [rawGoals, setRawGoals] = useLocalStorage('mos:dream:goals', [])
   const goals = (Array.isArray(rawGoals) ? rawGoals : []).map(normGoal)
-  const { activities, add, remove, toggleComplete } = useActivities()
+  const { activities, add, update, remove, toggleComplete } = useActivities()
   const [openId, setOpenId] = useState(null)
   const [openMs, setOpenMs] = useState(() => new Set())
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('week')
   const [goalView, setGoalView] = useState('board') // board | timeline | metrics
+  const [editItem, setEditItem] = useState(null) // a week item opened from This Week
 
   const setGoals = (updater) => setRawGoals((prev) => {
     const cur = (Array.isArray(prev) ? prev : []).map(normGoal)
@@ -111,7 +114,12 @@ export default function DreamDashboard() {
   const removeGoal = (id) => { setGoals((p) => p.filter((g) => g.id !== id)); activities.filter((a) => a.details && a.details.goalId === id).forEach((a) => remove(a.id)); setOpenId(null) }
 
   const stepsOf = (goalId) => activities.filter((a) => a.details && a.details.goalId === goalId && a.status !== 'archived')
-  const addStep = (goalId, milestoneId, s) => add(stepActivity(goalId, milestoneId, s))
+  // A routed step lives twice on purpose: as a planner activity (checkable, on
+  // Today/Schedule) AND as a record in its pillar section's own page.
+  const addStep = (goalId, milestoneId, s) => {
+    add(stepActivity(goalId, milestoneId, s))
+    routeStepToSection({ pillar: s.pillar, kind: s.kind, title: s.title, goalId })
+  }
   const acceptPlan = (g, plan) => {
     const newMs = []
     plan.forEach((m) => { const mid = uid(); newMs.push({ id: mid, title: m.title, done: false }); m.steps.forEach((s) => addStep(g.id, mid, s)) })
@@ -179,7 +187,7 @@ export default function DreamDashboard() {
         })}
       </div>
 
-      {tab === 'week' && <ThisWeek weekDays={weekDays} todayKeyStr={dateKey(now)} onToggle={(id, dk) => toggleComplete(id, dk)} />}
+      {tab === 'week' && <ThisWeek weekDays={weekDays} todayKeyStr={dateKey(now)} onToggle={(id, dk) => toggleComplete(id, dk)} onOpenItem={setEditItem} />}
       {tab === 'projects' && <Projects />}
       {tab === 'recap' && <DailyRecap />}
       {tab === 'goals' && (
@@ -250,6 +258,17 @@ export default function DreamDashboard() {
           onRunAI={() => runAI(openGoalObj)}
           onAcceptAI={(plan) => acceptPlan(openGoalObj, plan)}
           onDismissAI={() => setAi(null)}
+        />
+      )}
+
+      {/* Tap a This Week item → its full editor, right here. */}
+      {editItem && (
+        <ActivityForm
+          activity={editItem}
+          isNew={false}
+          onSave={(a) => { update(a.id, a); setEditItem(null) }}
+          onDelete={() => { remove(editItem.id); setEditItem(null) }}
+          onClose={() => setEditItem(null)}
         />
       )}
     </section>
@@ -499,7 +518,7 @@ function Briefing({ on, attn, weekTotal, weekDone, goalCount }) {
 }
 
 // ── This Week — appointments, goal steps, and one-time to-dos, by day ──
-function ThisWeek({ weekDays, todayKeyStr, onToggle }) {
+function ThisWeek({ weekDays, todayKeyStr, onToggle, onOpenItem }) {
   const total = weekDays.reduce((n, x) => n + x.items.length, 0)
   if (total === 0) return <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">Nothing scheduled this week yet.<br /><span className="text-sm not-italic text-stone-400">Appointments and goal steps you add will gather here.</span></p>
   return (
@@ -521,10 +540,10 @@ function ThisWeek({ weekDays, todayKeyStr, onToggle }) {
                 return (
                   <div key={a.id} className="flex items-center gap-3 py-1.5">
                     <Checkbox checked={done} onClick={() => onToggle(a.id, dk)} />
-                    <span className={`flex-1 text-sm ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
+                    <button onClick={() => onOpenItem && onOpenItem(a)} className={`flex-1 text-left text-sm ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
                       {a.type === 'event' && time ? <span className="mr-2 font-serif text-stone-500 tabular-nums">{time}</span> : null}
                       {a.title || 'Untitled'}
-                    </span>
+                    </button>
                     {a.details && a.details.section && <span className="whitespace-nowrap text-[11px] text-stone-400">{a.details.section}</span>}
                   </div>
                 )
