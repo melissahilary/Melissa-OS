@@ -39,9 +39,9 @@ const daysAgoKey = (n) => dateKey(addDays(new Date(), -n))
 const daysUntil = (key) => (key ? Math.round((parseKey(key).getTime() - parseKey(todayKey()).getTime()) / 86400000) : null)
 const fmtShort = (key) => { if (!key) return ''; const d = parseKey(key); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}` }
 
-const normMilestone = (m) => ({ id: m.id || uid(), title: m.title || '', done: !!m.done })
+const normMilestone = (m) => ({ id: m.id || uid(), title: m.title || '', done: !!m.done, target: m.target || '' })
 const normGoal = (g) => {
-  if (typeof g === 'string') return { id: uid(), title: g, vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [] }
+  if (typeof g === 'string') return { id: uid(), title: g, vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [], tags: [], notes: [], links: [] }
   return {
     id: g.id || uid(),
     title: g.title != null ? g.title : (g.text || ''),
@@ -51,6 +51,9 @@ const normGoal = (g) => {
     target: g.target || g.targetDate || '',
     status: g.status || (g.done ? 'achieved' : 'active'),
     milestones: Array.isArray(g.milestones) ? g.milestones.map(normMilestone) : [],
+    tags: Array.isArray(g.tags) ? g.tags : [],
+    notes: Array.isArray(g.notes) ? g.notes : [], // { id, text, date } — the comment log
+    links: Array.isArray(g.links) ? g.links : [], // { id, label, url } — attachments-lite
   }
 }
 const msDone = (m) => !!m.done
@@ -97,6 +100,7 @@ export default function DreamDashboard() {
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('week')
+  const [goalView, setGoalView] = useState('board') // board | timeline | metrics
 
   const setGoals = (updater) => setRawGoals((prev) => {
     const cur = (Array.isArray(prev) ? prev : []).map(normGoal)
@@ -180,9 +184,20 @@ export default function DreamDashboard() {
       {tab === 'recap' && <DailyRecap />}
       {tab === 'goals' && (
         <>
-          <div className="mb-7 flex items-center justify-end">
+          <div className="mb-7 flex items-center justify-between">
+            {/* View switcher — the same goals, three readings */}
+            <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
+              {[['board', 'Board'], ['timeline', 'Timeline'], ['metrics', 'Metrics']].map(([id, label]) => (
+                <button key={id} onClick={() => setGoalView(id)} className={`rounded-full px-4 py-1.5 text-xs transition-colors ${goalView === id ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:text-stone-800'}`}>{label}</button>
+              ))}
+            </div>
             <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><Plus size={15} strokeWidth={1.75} /> New goal</button>
           </div>
+
+          {goalView === 'timeline' && <GoalTimeline goals={active} onOpen={openGoal} />}
+          {goalView === 'metrics' && <GoalMetrics goals={active} achieved={achieved} stepsOf={stepsOf} />}
+
+          {goalView === 'board' && (
           <div className="grid gap-6 md:grid-cols-3">
             {PHASES.map((ph) => {
               const inp = active.filter((g) => g.phase === ph.id)
@@ -202,7 +217,8 @@ export default function DreamDashboard() {
               )
             })}
           </div>
-          {achieved.length > 0 && (
+          )}
+          {goalView === 'board' && achieved.length > 0 && (
             <div className="mt-10 border-t border-stone-200 pt-6">
               <p className="kicker mb-3 text-stone-400">Achieved · {achieved.length}</p>
               <div className="flex flex-wrap gap-2">
@@ -306,6 +322,9 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
             <span className="inline-flex items-center gap-1.5 text-stone-600"><span className="h-2 w-2 rounded-full" style={{ background: h.c }} />{h.label}</span>
           </div>
 
+          {/* tags */}
+          <TagEditor tags={goal.tags || []} onChange={(tags) => onUpdate({ tags })} />
+
           {/* path */}
           <div className="mt-7 mb-1 flex items-center gap-2.5">
             <span className="kicker text-stone-400">The path · {done}/{goal.milestones.length || 0} milestones</span>
@@ -336,6 +355,11 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
                   </div>
                   {open && (
                     <div className="mb-2 ml-3 border-l border-stone-200 pl-5">
+                      <div className="flex items-center gap-2 pb-1.5 text-[11px] text-stone-400">
+                        <Calendar size={11} className="opacity-70" />
+                        <input type="date" value={m.target || ''} onChange={(e) => setMilestone(m.id, { target: e.target.value })} className="bg-transparent text-[11px] text-stone-500 outline-none" aria-label="Milestone target date" />
+                        <button onClick={() => removeMilestone(m.id)} className="ml-auto text-stone-300 hover:text-stone-600">remove</button>
+                      </div>
                       {mSteps.map((a) => {
                         const P = pillarMeta(a.details?.pillarId)
                         return (
@@ -364,6 +388,12 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
               <Sparkles size={16} /> {goal.milestones.length ? 'Extend the plan with AI' : 'Build the plan with AI'}
             </button>
           )}
+
+          {/* links — attachments, the light way */}
+          <LinksSection links={goal.links || []} onChange={(links) => onUpdate({ links })} />
+
+          {/* the log — comments to your future self */}
+          <NotesLog notes={goal.notes || []} onChange={(notes) => onUpdate({ notes })} />
 
           <div className="mt-7 flex items-center justify-between border-t border-stone-200 pt-4">
             <button onClick={onRemove} className="text-xs text-stone-400 hover:text-phase-menstrual">Delete goal</button>
@@ -607,6 +637,202 @@ function DailyRecap() {
                 <p className="whitespace-pre-line font-serif text-lg leading-relaxed text-stone-700">{recaps[k]}</p>
               </div>
             ) })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Tags — light labels for filtering the mind, not bureaucracy ──
+function TagEditor({ tags, onChange }) {
+  const [v, setV] = useState('')
+  const commit = () => { const t = v.trim().toLowerCase(); if (t && !tags.includes(t)) onChange([...tags, t]); setV('') }
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      {tags.map((t) => (
+        <span key={t} className="group inline-flex items-center gap-1 rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-600">
+          {t}
+          <button onClick={() => onChange(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`} className="text-stone-300 hover:text-stone-600"><X size={10} /></button>
+        </span>
+      ))}
+      <input
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit() } }}
+        onBlur={commit}
+        placeholder={tags.length ? '+ tag' : '+ add a tag'}
+        className="w-20 bg-transparent text-[11px] italic text-stone-400 outline-none placeholder:text-stone-300"
+      />
+    </div>
+  )
+}
+
+// ── Links — reference material pinned to the goal (a URL is the lightest file) ──
+function LinksSection({ links, onChange }) {
+  const [label, setLabel] = useState('')
+  const [url, setUrl] = useState('')
+  const add = () => {
+    const u = url.trim()
+    if (!u) return
+    const withProto = /^https?:\/\//i.test(u) ? u : `https://${u}`
+    onChange([...links, { id: uid(), label: label.trim() || u.replace(/^https?:\/\//i, '').slice(0, 40), url: withProto }])
+    setLabel(''); setUrl('')
+  }
+  return (
+    <div className="mt-7">
+      <div className="mb-1 flex items-center gap-2.5">
+        <span className="kicker text-stone-400">Attached</span>
+        <span className="h-px flex-1 bg-stone-200" />
+      </div>
+      {links.length > 0 && (
+        <div className="space-y-1 pt-1">
+          {links.map((l) => (
+            <div key={l.id} className="group flex items-center gap-2.5 py-1">
+              <span className="text-stone-300">↗</span>
+              <a href={l.url} target="_blank" rel="noreferrer" className="flex-1 truncate text-sm text-stone-700 underline-offset-2 hover:underline">{l.label}</a>
+              <button onClick={() => onChange(links.filter((x) => x.id !== l.id))} aria-label="Remove link" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-1.5 flex items-center gap-2">
+        <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Paste a link…" className="flex-1 bg-transparent border-b border-stone-200 pb-1 text-sm text-stone-700 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-400" />
+        <input value={label} onChange={(e) => setLabel(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="name (optional)" className="w-28 bg-transparent border-b border-stone-200 pb-1 text-xs text-stone-500 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-400" />
+      </div>
+    </div>
+  )
+}
+
+// ── The log — dated notes on the goal, newest first ──
+function NotesLog({ notes, onChange }) {
+  const [v, setV] = useState('')
+  const add = () => {
+    const t = v.trim()
+    if (!t) return
+    onChange([{ id: uid(), text: t, date: todayKey() }, ...notes])
+    setV('')
+  }
+  return (
+    <div className="mt-7">
+      <div className="mb-1 flex items-center gap-2.5">
+        <span className="kicker text-stone-400">The log</span>
+        <span className="h-px flex-1 bg-stone-200" />
+      </div>
+      <input value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Leave a note on this goal…" className="mt-1 w-full bg-transparent border-b border-stone-200 pb-1.5 text-sm text-stone-800 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-400" />
+      {notes.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {notes.map((n) => (
+            <div key={n.id} className="group flex items-baseline gap-3">
+              <span className="shrink-0 text-[11px] tabular-nums text-stone-400">{fmtShort(n.date)}</span>
+              <p className="flex-1 text-sm leading-relaxed text-stone-700">{n.text}</p>
+              <button onClick={() => onChange(notes.filter((x) => x.id !== n.id))} aria-label="Remove note" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Timeline — every dated goal and milestone on one horizon ──
+function GoalTimeline({ goals, onOpen }) {
+  const dated = goals
+    .map((g) => ({ g, dates: [g.target, ...g.milestones.map((m) => m.target)].filter(Boolean) }))
+    .filter((x) => x.dates.length)
+  if (!dated.length) {
+    return <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No target dates yet.<br /><span className="text-sm not-italic text-stone-400">Give a goal or milestone a date and it appears on the horizon.</span></p>
+  }
+  const all = dated.flatMap((x) => x.dates)
+  const t0 = Math.min(parseKey(todayKey()).getTime(), ...all.map((d) => parseKey(d).getTime()))
+  const t1 = Math.max(...all.map((d) => parseKey(d).getTime()), parseKey(todayKey()).getTime() + 86400000 * 14)
+  const span = Math.max(1, t1 - t0)
+  const xOf = (d) => ((parseKey(d).getTime() - t0) / span) * 100
+  const todayX = ((parseKey(todayKey()).getTime() - t0) / span) * 100
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white/40 p-6">
+      <div className="relative">
+        {/* today line */}
+        <div className="absolute bottom-0 top-0 w-px bg-stone-900/60" style={{ left: `${todayX}%` }}>
+          <span className="absolute -top-1 left-1.5 text-[10px] tracking-[0.12em] text-stone-500">TODAY</span>
+        </div>
+        <div className="space-y-5 pt-5">
+          {dated.map(({ g }) => {
+            const p = pct(g)
+            const pl = pillarMeta(g.pillar)
+            return (
+              <button key={g.id} onClick={() => onOpen(g.id)} className="block w-full text-left">
+                <div className="mb-1 flex items-baseline gap-2">
+                  <span className="font-serif text-base text-stone-900">{g.title || 'Untitled'}</span>
+                  <span className="text-[11px] tabular-nums text-stone-400">{p}%</span>
+                </div>
+                <div className="relative h-5">
+                  <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-stone-200" />
+                  {g.milestones.filter((m) => m.target).map((m) => (
+                    <span key={m.id} title={`${m.title} · ${m.target}`} className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cream" style={{ left: `${xOf(m.target)}%`, background: m.done ? '#1C1C1A' : '#C9C2B2' }} />
+                  ))}
+                  {g.target && (
+                    <span title={`Target · ${g.target}`} className="absolute top-1/2 flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 rotate-45 items-center justify-center border-2 border-cream" style={{ left: `${xOf(g.target)}%`, background: pl.tint }} />
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className="mt-5 flex items-center gap-5 border-t border-stone-100 pt-3 text-[11px] text-stone-400">
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-stone-300" /> milestone</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-stone-900" /> reached</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rotate-45" style={{ background: '#A0654C' }} /> goal target</span>
+      </div>
+    </div>
+  )
+}
+
+// ── Metrics — the honest numbers behind the board ──
+function GoalMetrics({ goals, achieved, stepsOf }) {
+  const withSteps = goals.map((g) => ({ g, steps: stepsOf(g.id) }))
+  const health = { on: 0, risk: 0, stall: 0 }
+  withSteps.forEach(({ g, steps }) => { health[healthOf(g, steps)]++ })
+  const msAll = goals.flatMap((g) => g.milestones)
+  const msDoneN = msAll.filter(msDone).length
+  const weekAgo = daysAgoKey(6)
+  const stepsWeek = withSteps.reduce((n, { steps }) => n + steps.reduce((m, a) => m + Object.keys(a.completions || {}).filter((k) => k >= weekAgo).length, 0), 0)
+  const byPillar = {}
+  goals.forEach((g) => { byPillar[g.pillar] = (byPillar[g.pillar] || 0) + 1 })
+  const pillarRows = Object.entries(byPillar).sort((a, b) => b[1] - a[1])
+  const maxP = Math.max(1, ...pillarRows.map(([, n]) => n))
+  const Tile = ({ label, value, sub, color }) => (
+    <div className="rounded-2xl border border-stone-200 bg-white/40 p-5">
+      <p className="kicker text-stone-400">{label}</p>
+      <p className="mt-2 font-serif text-4xl leading-none tabular-nums" style={{ color: color || 'var(--mos-stone-900, #1c1917)' }}>{value}</p>
+      {sub && <p className="mt-1.5 text-xs text-stone-400">{sub}</p>}
+    </div>
+  )
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Tile label="In motion" value={goals.length} sub={`${achieved.length} achieved all-time`} />
+        <Tile label="On track" value={health.on} color={HEALTH.on.c} />
+        <Tile label="Need attention" value={health.risk + health.stall} sub={`${health.stall} stalled`} color={HEALTH.risk.c} />
+        <Tile label="Steps this week" value={stepsWeek} sub={`${msDoneN}/${msAll.length} milestones reached`} />
+      </div>
+      {pillarRows.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-stone-200 bg-white/40 p-6">
+          <p className="kicker mb-4 text-stone-400">Where your goals live</p>
+          <div className="space-y-2.5">
+            {pillarRows.map(([id, n]) => {
+              const P = pillarMeta(id)
+              return (
+                <div key={id} className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 truncate text-sm text-stone-600">{P.label}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
+                    <div className="h-full rounded-full" style={{ width: `${(n / maxP) * 100}%`, background: P.tint }} />
+                  </div>
+                  <span className="w-5 text-right text-xs tabular-nums text-stone-500">{n}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
