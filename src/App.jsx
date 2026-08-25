@@ -350,9 +350,9 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
           </span>
         </button>
         {onAsk && (
-          <button onClick={onAsk} aria-label="Ask the concierge" title="Ask the concierge" className="relative z-10 ml-auto flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
-            <MessageCircle size={15} strokeWidth={1.75} />
-            <span className="text-xs tracking-wide">Ask</span>
+          <button onClick={onAsk} aria-label="Esmé, your concierge" title="Esmé, your concierge" className="relative z-10 ml-auto flex items-center gap-2 rounded-full border border-stone-300 py-1.5 pl-2 pr-3.5 text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-stone-300 font-serif italic text-[11px] leading-none">E</span>
+            <span className="text-xs tracking-wide" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '14px' }}>Esmé</span>
           </button>
         )}
         {/* On the home (Today) page the big cursive masthead already carries the
