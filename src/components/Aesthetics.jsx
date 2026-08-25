@@ -1,6 +1,5 @@
 import React from 'react'
-import CategoryCalendar from './shared/CategoryCalendar'
-import CategoryWeekly from './shared/CategoryWeekly'
+import CategorySchedule from './shared/CategorySchedule'
 import { CategoryLog, CategoryShelf } from './shared/LogShelf'
 
 // Dated visits (logs) and things you keep using (shelves).
@@ -45,8 +44,8 @@ const SHELF = {
 }
 
 export default function Aesthetics({ subPage, cycleConfig }) {
-  if (subPage === 'monthly') return <CategoryCalendar category="aesthetics" cycleConfig={cycleConfig} noun="Treatment" />
+  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="aesthetics" noun="Treatment" cycleConfig={cycleConfig} />
   if (LOG[subPage]) return <CategoryLog storeKey={`mos:aesthetics:${subPage}`} {...LOG[subPage]} />
   if (SHELF[subPage]) return <CategoryShelf storeKey={`mos:aesthetics:${subPage}`} {...SHELF[subPage]} />
-  return <CategoryWeekly category="aesthetics" noun="Treatment" />
+  return <CategorySchedule category="aesthetics" noun="Treatment" cycleConfig={cycleConfig} />
 }

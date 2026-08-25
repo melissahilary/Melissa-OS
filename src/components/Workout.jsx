@@ -3,8 +3,7 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES, phaseForConfig, phaseFor, cycleDayFor, startOfDay, averageCycleLength } from '../lib/cycle'
 import { dateKey, parseKey, addDays, MONTHS, monthGrid, DOW, isSameDay } from '../lib/date'
-import CategoryCalendar from './shared/CategoryCalendar'
-import CategoryWeekly from './shared/CategoryWeekly'
+import CategorySchedule from './shared/CategorySchedule'
 import PhaseColorEditor from './shared/PhaseColorEditor'
 import { usePhaseColors } from '../hooks/usePhaseColors'
 import { CategoryLog, CategoryShelf } from './shared/LogShelf'
@@ -61,12 +60,144 @@ const anchorStart = (runStarts, todayKey) => {
 }
 
 export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {}, subPage = 'cycle' }) {
-  if (subPage === 'monthly') return <CategoryCalendar category="hormones" cycleConfig={cycleConfig} noun="Item" />
-  if (subPage === 'weekly') return <CategoryWeekly category="hormones" noun="Item" />
-  if (subPage === 'settings') return <CycleSettings cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} />
+  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="hormones" noun="Item" cycleConfig={cycleConfig} />
+  if (subPage === 'protocols') return <Protocols />
+  if (subPage === 'wearables') return <CategoryShelf storeKey="mos:hormones:wearables" blurb="What you wear that listens to your body — temperature, HRV, glucose, sleep." suggestions={['Oura ring', 'Whoop', 'Apple Watch', 'CGM', 'Tempdrop', 'Natural Cycles']} notePlaceholder="what it tracks · what you watch for" />
   if (HORMONE_LOG[subPage]) return <CategoryLog storeKey={`mos:hormones:${subPage}`} {...HORMONE_LOG[subPage]} />
-  if (HORMONE_SHELF[subPage]) return <CategoryShelf storeKey={`mos:hormones:${subPage}`} {...HORMONE_SHELF[subPage]} />
+  return <MyBody cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />
+}
+
+// ── My Body — shaped by the life stage chosen in Settings → My Body. A cycling
+// woman gets the full cycle tracker; expecting and beyond-cycles get their own
+// worlds instead of being forced through a period calendar.
+function MyBody({ cycleConfig, setCycleConfig, goToDay }) {
+  const [stageRaw] = useLocalStorage('mos:settings:lifeStage', 'cycling')
+  const stage = typeof stageRaw === 'string' ? stageRaw : 'cycling'
+  if (stage === 'pregnant') return <Expecting />
+  if (stage === 'menopause') return <BeyondCycles />
   return <CyclePage cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />
+}
+
+// Expecting — the week you're in, counted from your due date.
+function Expecting() {
+  const [dataRaw, setData] = useLocalStorage('mos:pregnancy', {})
+  const d = dataRaw && typeof dataRaw === 'object' ? dataRaw : {}
+  const set = (patch) => setData((p) => ({ ...(p && typeof p === 'object' ? p : {}), ...patch }))
+  const week = d.dueDate ? Math.max(1, Math.min(42, 40 - Math.floor((parseKey(d.dueDate).getTime() - Date.now()) / (7 * 86400000)))) : null
+  const trimester = week == null ? null : week <= 13 ? 'First trimester' : week <= 27 ? 'Second trimester' : 'Third trimester'
+  return (
+    <div className="mx-auto max-w-xl">
+      <div className="rounded-2xl border border-stone-200 bg-white/40 p-8 text-center">
+        {week ? (
+          <>
+            <p className="kicker text-stone-400">{trimester}</p>
+            <p className="mt-2 font-serif text-6xl leading-none text-stone-900 tabular-nums">{week}</p>
+            <p className="mt-1 font-serif italic text-xl text-stone-600">weeks</p>
+          </>
+        ) : (
+          <p className="font-serif italic text-xl text-stone-500">Set your due date and your planner counts the weeks with you.</p>
+        )}
+        <label className="mt-6 inline-flex items-center gap-3 text-sm text-stone-600">
+          <span className="kicker text-stone-400">Due date</span>
+          <input type="date" value={d.dueDate || ''} onChange={(e) => set({ dueDate: e.target.value })} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900" />
+        </label>
+      </div>
+      <div className="mt-6 rounded-2xl border border-stone-200 bg-white/40 p-6">
+        <p className="kicker mb-3 text-stone-400">Notes for this week</p>
+        <textarea value={d.notes || ''} onChange={(e) => set({ notes: e.target.value })} placeholder="Symptoms, questions for your provider, what your body is telling you…" rows={4} className="w-full resize-y rounded-xl bg-stone-500/5 px-4 py-3 font-serif text-lg leading-relaxed outline-none" />
+      </div>
+    </div>
+  )
+}
+
+// Beyond cycles — symptoms and therapies, without a period calendar in the way.
+const MENO_SYMPTOMS = ['Hot flashes', 'Night sweats', 'Sleep', 'Mood', 'Brain fog', 'Joint aches', 'Energy', 'Libido', 'Skin & hair']
+function BeyondCycles() {
+  const [logRaw, setLog] = useLocalStorage('mos:meno:log', {})
+  const log = logRaw && typeof logRaw === 'object' ? logRaw : {}
+  const tk = dateKey(new Date())
+  const today = Array.isArray(log[tk]) ? log[tk] : []
+  const toggle = (s) => setLog((p) => { const pp = p && typeof p === 'object' ? p : {}; const cur = Array.isArray(pp[tk]) ? pp[tk] : []; return { ...pp, [tk]: cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s] } })
+  return (
+    <div className="mx-auto max-w-xl">
+      <div className="rounded-2xl border border-stone-200 bg-white/40 p-6">
+        <p className="kicker mb-1 text-stone-400">Today</p>
+        <h3 className="mb-4 font-serif italic text-2xl text-stone-900">How is your body speaking?</h3>
+        <div className="flex flex-wrap gap-1.5">
+          {MENO_SYMPTOMS.map((s) => (
+            <button key={s} onClick={() => toggle(s)} className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${today.includes(s) ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{s}</button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-4 text-center text-xs italic text-stone-400">Your protocols (HRT, supplements) live under Protocols; labs under Labs.</p>
+    </div>
+  )
+}
+
+// ── Protocols — the compounds you run on purpose: peptides, HRT, cycles of
+// anything. Each carries dose, cadence, and a start date, active or paused.
+function Protocols() {
+  const [stored, setItems] = useLocalStorage('mos:hormones:protocols', [])
+  const items = Array.isArray(stored) ? stored : []
+  const [openId, setOpenId] = useState(null)
+  const uid2 = () => Math.random().toString(36).slice(2, 10)
+  const add = () => { const it = { id: uid2(), name: '', dose: '', cadence: '', start: '', notes: '', active: true }; setItems((p) => [...(Array.isArray(p) ? p : []), it]); setOpenId(it.id) }
+  const update = (id, patch) => setItems((p) => (Array.isArray(p) ? p : []).map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  const remove = (id) => { setItems((p) => (Array.isArray(p) ? p : []).filter((x) => x.id !== id)); setOpenId(null) }
+  const open = items.find((x) => x.id === openId) || null
+  const activeItems = items.filter((x) => x.active !== false)
+  const paused = items.filter((x) => x.active === false)
+  const inputCls = 'w-full bg-transparent border-b border-stone-200 pb-1.5 text-sm outline-none placeholder:text-stone-300 focus:border-stone-900'
+  return (
+    <div className="mx-auto max-w-xl">
+      <div className="mb-6 flex items-end justify-between">
+        <p className="max-w-sm text-sm italic leading-relaxed text-stone-400">Peptides, HRT, and every protocol you run — dosed, dated, and deliberate.</p>
+        <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream hover:bg-stone-700">New protocol</button>
+      </div>
+      {items.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">Nothing running yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {[...activeItems, ...paused].map((it) => (
+            <button key={it.id} onClick={() => setOpenId(it.id)} className={`flex w-full items-center gap-4 rounded-2xl border bg-white/50 p-4 text-left transition-all hover:shadow-sm ${it.active === false ? 'border-stone-200 opacity-60' : 'border-stone-200'}`}>
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${it.active === false ? 'bg-stone-300' : ''}`} style={it.active !== false ? { background: '#7C8B6B' } : undefined} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-serif text-lg leading-tight text-stone-900">{it.name || 'Untitled protocol'}</span>
+                <span className="text-xs text-stone-400">{[it.dose, it.cadence, it.start ? `since ${it.start}` : null].filter(Boolean).join(' · ') || 'no details yet'}</span>
+              </span>
+              <span className="kicker text-stone-300">{it.active === false ? 'paused' : 'active'}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={() => setOpenId(null)} />
+          <div className="relative w-full max-w-md rounded-t-3xl border border-stone-200 bg-cream shadow-2xl sm:rounded-3xl">
+            <div className="space-y-5 px-6 pb-2 pt-6">
+              <input autoFocus value={open.name} onChange={(e) => update(open.id, { name: e.target.value })} placeholder="The protocol — e.g. GLP-1, BPC-157" className="w-full border-b border-stone-200 bg-transparent pb-2 font-serif text-2xl text-stone-900 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-900" />
+              <div className="grid grid-cols-2 gap-4">
+                <div><p className="kicker mb-1.5 text-stone-400">Dose</p><input value={open.dose || ''} onChange={(e) => update(open.id, { dose: e.target.value })} placeholder="e.g. 0.5 mg" className={inputCls} /></div>
+                <div><p className="kicker mb-1.5 text-stone-400">Cadence</p><input value={open.cadence || ''} onChange={(e) => update(open.id, { cadence: e.target.value })} placeholder="e.g. weekly" className={inputCls} /></div>
+              </div>
+              <div><p className="kicker mb-1.5 text-stone-400">Started</p><input type="date" value={open.start || ''} onChange={(e) => update(open.id, { start: e.target.value })} className={inputCls} /></div>
+              <div><p className="kicker mb-1.5 text-stone-400">Notes</p><input value={open.notes || ''} onChange={(e) => update(open.id, { notes: e.target.value })} placeholder="source, timing, how you feel on it" className={inputCls} /></div>
+              <label className="flex items-center gap-3 text-sm text-stone-600">
+                <button onClick={() => update(open.id, { active: open.active === false })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${open.active !== false ? 'bg-stone-900' : 'bg-stone-300'}`}>
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-cream transition-all ${open.active !== false ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+                {open.active !== false ? 'Running' : 'Paused'}
+              </label>
+            </div>
+            <div className="flex items-center justify-between px-6 pb-6 pt-4">
+              <button onClick={() => remove(open.id)} className="text-xs text-stone-400 hover:text-phase-menstrual">Delete</button>
+              <button onClick={() => setOpenId(null)} className="rounded-full bg-stone-900 px-8 py-2.5 text-sm text-cream hover:bg-stone-700">Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Cycle tracking ──────────────────────────────────────────────────

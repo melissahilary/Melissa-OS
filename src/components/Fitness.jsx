@@ -5,6 +5,8 @@ import { blankActivity } from '../lib/activities'
 import { parseKey, dateKey, addDays, MONTHS, MONTHS_SHORT, isSameDay } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 import CategoryCalendar, { occursOnCal } from './shared/CategoryCalendar'
+import CategorySchedule from './shared/CategorySchedule'
+import FitnessPlan from './FitnessPlan'
 import { CategoryLog, CategoryShelf } from './shared/LogShelf'
 
 // Dated records (logs) and things you own & keep using (shelves).
@@ -123,10 +125,10 @@ const recurWeekdays = (a) => {
 }
 
 export default function Fitness({ subPage, cycleConfig }) {
-  if (subPage === 'monthly') return <CategoryCalendar category="fitness" cycleConfig={cycleConfig} noun="Workout" />
+  if (subPage === 'plan') return <FitnessPlan />
   if (FIT_LOG[subPage]) return <CategoryLog storeKey={`mos:fitness:${subPage}`} {...FIT_LOG[subPage]} />
-  if (FIT_SHELF[subPage]) return <CategoryShelf storeKey={`mos:fitness:${subPage}`} {...FIT_SHELF[subPage]} />
-  return <Workouts />
+  if (subPage === 'devices') return <CategoryShelf storeKey="mos:fitness:devices" blurb="The equipment you own that does the work." suggestions={['Weights', 'Foam roller', 'Theragun', 'Pilates reformer', 'Resistance bands', 'Sauna', 'Cold plunge', 'Compression boots']} notePlaceholder="what it does · how often" />
+  return <CategorySchedule category="fitness" noun="Workout" cycleConfig={cycleConfig} />
 }
 
 // ── Workouts — a Monday–Sunday weekly schedule. Each workout is a ritual

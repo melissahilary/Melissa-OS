@@ -50,8 +50,8 @@ const PILLARS = [
   { id: 'bodycare', label: 'Bodycare', icon: Droplets },
   { id: 'fitness', label: 'Fitness', icon: Dumbbell },
   { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
-  { id: 'workout', label: 'Hormones', icon: Activity },
-  { id: 'diagnostics', label: 'Diagnostics', icon: FlaskConical },
+  { id: 'workout', label: 'Cycle', icon: Activity },
+  { id: 'diagnostics', label: 'Testing', icon: FlaskConical },
   { id: 'relationship', label: 'Relationships', icon: Heart },
   { id: 'spirituality', label: 'Spirituality', icon: Sun },
 ]
@@ -71,22 +71,23 @@ const PILLAR_COMPONENTS = {
   spirituality: Spirituality,
 }
 
-// Category sub-navigation shown when inside a section.
+// Category sub-navigation shown when inside a section. Weekly + Monthly are
+// condensed into one Schedule view everywhere.
 const SUBNAV = {
   skincare: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
     { id: 'morning', label: 'Morning Routine' },
     { id: 'evening', label: 'Evening Routine' },
-    { id: 'products', label: 'Products Used' },
+    { id: 'products', label: 'Products' },
   ],
   haircare: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'routine', label: 'Routine' },
+    { id: 'products', label: 'Products' },
+    { id: 'appointments', label: 'Appointments' },
   ],
   aesthetics: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
     { id: 'treatments', label: 'Treatments' },
     { id: 'services', label: 'Services' },
     { id: 'appointments', label: 'Appointments' },
@@ -94,59 +95,59 @@ const SUBNAV = {
     { id: 'prescribed', label: 'Prescribed' },
   ],
   bodycare: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'therapies', label: 'Therapies' },
+    { id: 'products', label: 'Products' },
   ],
   spirituality: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'practices', label: 'Practices' },
   ],
   menu: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
     { id: 'diet', label: 'Diet' },
+    { id: 'supplements', label: 'Supplements' },
     { id: 'recipes', label: 'Recipes' },
     { id: 'grocery', label: "What's In My Fridge" },
   ],
   fitness: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
-    { id: 'training', label: 'Training' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'plan', label: 'Workout Plan' },
     { id: 'sessions', label: 'Sessions' },
     { id: 'appointments', label: 'Appointments' },
-    { id: 'products', label: 'Products' },
-    { id: 'devices', label: 'Devices' },
+    { id: 'devices', label: 'Equipment' },
   ],
   workout: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
-    { id: 'cycle', label: 'Cycle' },
-    { id: 'appointments', label: 'Appointments' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'cycle', label: 'My Body' },
+    { id: 'protocols', label: 'Protocols' },
     { id: 'labs', label: 'Labs' },
-    { id: 'products', label: 'Products' },
-    { id: 'settings', label: 'Settings' },
+    { id: 'appointments', label: 'Appointments' },
+    { id: 'wearables', label: 'Wearables' },
   ],
   diagnostics: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
-    { id: 'log', label: 'Log' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'bloodwork', label: 'Bloodwork' },
+    { id: 'imaging', label: 'Imaging' },
+    { id: 'log', label: 'Results' },
   ],
   mindset: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
     { id: 'mood', label: 'Mood' },
     { id: 'gratitude', label: 'Gratitude' },
   ],
   brainhealth: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'scans', label: 'Scans' },
+    { id: 'wearables', label: 'Wearables' },
+    { id: 'practices', label: 'Practices' },
   ],
   relationship: [
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'monthly', label: 'Monthly' },
-    { id: 'overview', label: 'Relationships' },
+    { id: 'schedule', label: 'Schedule' },
+    { id: 'circle', label: 'My Circle' },
+    { id: 'overview', label: 'Together' },
   ],
 }
 
@@ -276,7 +277,7 @@ export default function App() {
   // Every sub-page carries a serif title at the top. Generic calendar views
   // (Weekly/Monthly) title with the pillar name; named views (Influences,
   // Journal, Recipes, a Dream chapter…) title with their own name.
-  const genericSub = activeSub === 'weekly' || activeSub === 'monthly'
+  const genericSub = activeSub === 'schedule' || activeSub === 'weekly' || activeSub === 'monthly'
   const pillarSubLabel = SUBNAV[active] && SUBNAV[active].find((s) => s.id === activeSub)?.label
   const pageTitle = isDream
     ? null

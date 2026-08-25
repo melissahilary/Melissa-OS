@@ -3,16 +3,18 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
-import CategoryCalendar from './shared/CategoryCalendar'
-import CategoryWeekly from './shared/CategoryWeekly'
+import CategorySchedule from './shared/CategorySchedule'
+import { CategoryLog } from './shared/LogShelf'
 import { dateKey } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
+// Testing — where every routine draw, scan and exam lives, dated with results.
 export default function Diagnostics({ subPage, cycleConfig }) {
-  if (subPage === 'monthly') return <CategoryCalendar category="diagnostics" cycleConfig={cycleConfig} noun="Test" />
-  if (subPage === 'weekly') return <CategoryWeekly category="diagnostics" noun="Test" />
-  return <DiagnosticsLog />
+  if (subPage === 'bloodwork') return <CategoryLog storeKey="mos:testing:bloodwork" addNoun="draw" blurb="Every draw, dated — because a number without its date is noise." suggestions={['Full panel', 'CBC', 'Metabolic panel', 'Lipids', 'Thyroid', 'Vitamin D', 'Iron / ferritin', 'HbA1c', 'hs-CRP']} place={{ label: 'Where', placeholder: 'lab · clinic' }} fields={[{ key: 'fasting', label: 'Fasting?', placeholder: 'fasted · fed' }, { key: 'results', label: 'Key results', placeholder: 'values to remember' }]} />
+  if (subPage === 'imaging') return <CategoryLog storeKey="mos:testing:imaging" addNoun="exam" blurb="Scans and structural exams — what was looked at, and what was seen." suggestions={['DEXA', 'Ultrasound', 'MRI', 'Mammogram', 'Skin check', 'Dental exam', 'Eye exam', 'VO2 max']} place={{ label: 'Where', placeholder: 'imaging center · clinic' }} fields={[{ key: 'results', label: 'Findings', placeholder: 'what was seen' }]} />
+  if (subPage === 'log') return <DiagnosticsLog />
+  return <CategorySchedule category="diagnostics" noun="Test" cycleConfig={cycleConfig} />
 }
 
 // ── Diagnostics log — a running list of labs and health markers. Each row is a

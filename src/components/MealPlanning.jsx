@@ -3,6 +3,8 @@ import { X, Pencil, ChevronDown, ChevronRight, Calendar, Share2, Check, CircleCh
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import Diet from './Diet'
+import Supplements from './Supplements'
+import CategorySchedule from './shared/CategorySchedule'
 import NotesPopup, { hasNotes } from './shared/NotesPopup'
 import InlineText from './shared/InlineText'
 import { AddMealForm } from './shared/MealSlots'
@@ -40,7 +42,8 @@ const DIET_ROWS = [
 export default function MealPlanning({ cycleConfig = {}, subPage = 'weekly' }) {
   return (
     <div>
-      {subPage === 'monthly' ? <NutritionMonthly cycleConfig={cycleConfig} />
+      {subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly' ? <CategorySchedule category="nutrition" noun="Item" cycleConfig={cycleConfig} />
+        : subPage === 'supplements' ? <Supplements />
         : subPage === 'ingredients' ? <TodaysIngredients />
           : subPage === 'diet' ? <Diet />
             : subPage === 'recipes' ? <Recipes />

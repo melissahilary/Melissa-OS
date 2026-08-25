@@ -3,15 +3,13 @@ import { X, Plus, Star, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Calend
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
-import CategoryCalendar from './shared/CategoryCalendar'
-import CategoryWeekly from './shared/CategoryWeekly'
+import CategorySchedule from './shared/CategorySchedule'
 import { dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 export default function Mindset({ subPage, cycleConfig }) {
-  if (subPage === 'monthly') return <CategoryCalendar category="mindset" cycleConfig={cycleConfig} noun="Practice" />
-  if (subPage === 'weekly') return <CategoryWeekly category="mindset" noun="Practice" />
+  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="mindset" noun="Practice" cycleConfig={cycleConfig} />
   if (subPage === 'journal') return <Journal />
   if (subPage === 'mood') return <MoodTracker />
   if (subPage === 'gratitude') return <Gratitude />
