@@ -28,11 +28,6 @@ export default function Supplements() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <div className="mb-8 flex flex-col items-center text-center">
-        <Pill size={26} strokeWidth={1.25} className="text-stone-400" />
-        <p className="mt-3 max-w-xs text-sm italic leading-relaxed text-stone-400">The stack — every supplement, at the moment it's taken. Tap one to edit dose and cadence.</p>
-      </div>
-
       {supps.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No supplements yet — tap + to add your first.</p>
       ) : (

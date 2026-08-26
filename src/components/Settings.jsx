@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Copy, Check, LogOut, Upload, Trash2, Mail, X, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle } from 'lucide-react'
+import { Copy, Check, LogOut, Upload, Trash2, Mail, X, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import LocationField from './shared/LocationField'
 import { SIGNS } from '../lib/astrology/natal'
+import { LIFE_STAGES, useLifeStage, stageMeta } from '../lib/lifeStage'
 
 // Pillars that can be hidden/shown (data is kept either way).
 const SECTIONS = [
@@ -27,6 +28,7 @@ const ROOMS = [
   { id: 'appearance', label: 'Appearance', icon: Palette, blurb: 'Your palette' },
   { id: 'body', label: 'My Body', icon: HeartPulse, blurb: 'Life stage & cycle' },
   { id: 'house', label: 'My House', icon: LayoutGrid, blurb: 'Sections & layout' },
+  { id: 'connected', label: 'Connected', icon: Watch, blurb: 'Wearables & devices' },
   { id: 'notifications', label: 'Notifications', icon: Bell, blurb: 'What reaches you' },
   { id: 'membership', label: 'Membership', icon: Gem, blurb: 'Plan & referrals' },
   { id: 'privacy', label: 'Data & Privacy', icon: ShieldCheck, blurb: 'Yours alone' },
@@ -41,11 +43,20 @@ export const THEMES = [
   { id: 'sage', label: 'Sage', blurb: 'Quiet green air', ground: '#F7F8F4', mid: '#E2E5DB', ink: '#191B16' },
 ]
 
-// Life stages — the Cycle pillar reshapes itself around this.
-const LIFE_STAGES = [
-  { id: 'cycling', label: 'Cycling', blurb: 'Tracking a monthly cycle — phases, period days, cycle-aware planning.' },
-  { id: 'pregnant', label: 'Expecting', blurb: 'Pregnancy first — weeks, trimester, and gentle planning.' },
-  { id: 'menopause', label: 'Beyond cycles', blurb: 'Peri/menopause — symptoms, therapies, and steady rhythms.' },
+// Life stages live in src/lib/lifeStage.js — one source of truth for the
+// whole arc, with per-stage feature manifests and behavior flags.
+
+// The wearables & devices that can listen to her body. Auto-sync is a runway
+// item; today each is 'worn' (tracked by hand / its own app) or not.
+const DEVICES = [
+  { id: 'oura', label: 'Oura ring', tracks: 'sleep · HRV · temperature' },
+  { id: 'whoop', label: 'Whoop', tracks: 'strain · recovery · sleep' },
+  { id: 'applewatch', label: 'Apple Watch', tracks: 'activity · heart · cycle' },
+  { id: 'cgm', label: 'CGM', tracks: 'glucose' },
+  { id: 'tempdrop', label: 'Tempdrop', tracks: 'basal temperature' },
+  { id: 'naturalcycles', label: 'Natural Cycles', tracks: 'cycle · fertility' },
+  { id: 'muse', label: 'Muse headband', tracks: 'meditation · EEG' },
+  { id: 'garmin', label: 'Garmin', tracks: 'training · sleep' },
 ]
 
 const NOTIFS = [
@@ -119,7 +130,14 @@ export default function Settings() {
   const nf = notifs && typeof notifs === 'object' ? notifs : {}
   const toggleNotif = (id) => setNotifs((prev) => { const cur = prev && typeof prev === 'object' ? prev : {}; return { ...cur, [id]: !cur[id] } })
   const [theme, setTheme] = useLocalStorage('mos:settings:theme', 'porcelain')
-  const [lifeStage, setLifeStage] = useLocalStorage('mos:settings:lifeStage', 'cycling')
+  const { stage: lifeStage, setStage: setLifeStage, journey } = useLifeStage()
+  const [pregRaw, setPreg] = useLocalStorage('mos:pregnancy', {})
+  const preg = pregRaw && typeof pregRaw === 'object' ? pregRaw : {}
+  const [ppRaw, setPP] = useLocalStorage('mos:postpartum', {})
+  const pp = ppRaw && typeof ppRaw === 'object' ? ppRaw : {}
+  const [connectionsRaw, setConnections] = useLocalStorage('mos:connections', {})
+  const connections = connectionsRaw && typeof connectionsRaw === 'object' ? connectionsRaw : {}
+  const setConn = (id, patch) => setConnections((prev) => { const p = prev && typeof prev === 'object' ? prev : {}; return { ...p, [id]: { ...(p[id] || {}), ...patch } } })
 
   const [email, setEmail] = useState('')
   const [msg, setMsg] = useState('')
@@ -312,24 +330,63 @@ export default function Settings() {
           )}
 
           {room === 'body' && (<>
-            <Card title="Life stage." blurb="Your planner shapes itself around where your body is. Change it any time.">
+            <Card title="Life stage." blurb="The whole arc — pick where your body is and the planner reshapes itself. Change it any time; nothing is ever lost when you move.">
               <div className="space-y-3">
                 {LIFE_STAGES.map((s) => {
                   const on = (lifeStage || 'cycling') === s.id
                   return (
-                    <button key={s.id} onClick={() => setLifeStage(s.id)} className={`flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200 hover:border-stone-400'}`}>
-                      <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${on ? 'border-stone-900 bg-stone-900' : 'border-stone-300'}`}>{on && <Check size={12} className="text-cream" />}</span>
-                      <span>
-                        <span className="block font-serif text-lg text-stone-900">{s.label}</span>
-                        <span className="text-sm text-stone-500">{s.blurb}</span>
-                      </span>
-                    </button>
+                    <div key={s.id} className={`rounded-2xl border transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200 hover:border-stone-400'}`}>
+                      <button onClick={() => setLifeStage(s.id)} className="flex w-full items-start gap-4 p-4 text-left">
+                        <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${on ? 'border-stone-900 bg-stone-900' : 'border-stone-300'}`}>{on && <Check size={12} className="text-cream" />}</span>
+                        <span>
+                          <span className="block font-serif text-lg text-stone-900">{s.label}</span>
+                          <span className="text-sm text-stone-500">{s.blurb}</span>
+                        </span>
+                      </button>
+                      {on && (
+                        <div className="grid grid-cols-1 gap-4 border-t border-stone-100 px-4 pb-4 pt-3 sm:grid-cols-2 sm:px-5">
+                          <div>
+                            <p className="kicker mb-2 text-stone-500">Your planner turns on</p>
+                            <ul className="space-y-1">
+                              {s.on.map((f) => (
+                                <li key={f} className="flex items-baseline gap-2 text-xs text-stone-700"><span className="h-1.5 w-1.5 shrink-0 translate-y-[-1px] rounded-full bg-stone-900" />{f}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="kicker mb-2 text-stone-400">What rests</p>
+                            <ul className="space-y-1">
+                              {s.off.map((f) => (
+                                <li key={f} className="flex items-baseline gap-2 text-xs text-stone-400"><span className="h-1.5 w-1.5 shrink-0 translate-y-[-1px] rounded-full border border-stone-300" />{f}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>
+              {journey.length > 1 && (
+                <p className="mt-4 text-xs italic text-stone-400">
+                  Your journey so far: {journey.map((j) => stageMeta(j.stage).label).join(' → ')}. Everything you logged along the way is still yours.
+                </p>
+              )}
             </Card>
 
-            {(lifeStage || 'cycling') === 'cycling' && (
+            {(lifeStage || 'cycling') === 'pregnant' && (
+              <Card title="Due date." blurb="The anchor your weeks and trimester are counted from.">
+                <Field label="Due date"><input type="date" value={preg.dueDate || ''} onChange={(e) => setPreg((p2) => ({ ...(p2 && typeof p2 === 'object' ? p2 : {}), dueDate: e.target.value }))} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></Field>
+              </Card>
+            )}
+
+            {(lifeStage || 'cycling') === 'postpartum' && (
+              <Card title="Birth date." blurb="The anchor your recovery weeks are counted from.">
+                <Field label="Baby arrived"><input type="date" value={pp.birthDate || ''} onChange={(e) => setPP((p2) => ({ ...(p2 && typeof p2 === 'object' ? p2 : {}), birthDate: e.target.value }))} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></Field>
+              </Card>
+            )}
+
+            {['cycling', 'ttc', 'perimenopause'].includes(lifeStage || 'cycling') && (
               <Card title="Cycle." blurb="The anchor your phases are computed from.">
                 <div className="flex flex-wrap items-end gap-6">
                   <Field label="Last period started"><input type="date" value={cycle.lastPeriodStart || ''} onChange={(e) => setCfg({ lastPeriodStart: e.target.value })} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></Field>
@@ -355,6 +412,52 @@ export default function Settings() {
               </div>
             </Card>
           )}
+
+          {room === 'connected' && (<>
+            <Card title="Intelligence." blurb="The mind behind the house.">
+              <div className={`rounded-2xl border p-5 transition-all ${connections.claude?.off ? 'border-stone-200' : 'border-stone-900 bg-white/60'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-serif text-lg leading-tight text-stone-900">Claude</p>
+                    <p className="mt-0.5 text-xs text-stone-400">Powers Esmé, your daily horoscope, and goal plans — reading only your own planner, never the open internet.</p>
+                  </div>
+                  <Toggle on={!connections.claude?.off} onClick={() => setConn('claude', { off: !connections.claude?.off })} title={connections.claude?.off ? 'Paused' : 'Connected'} />
+                </div>
+                {!connections.claude?.off && (
+                  <div className="mt-3 flex items-center gap-2 border-t border-stone-100 pt-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#7C8B6B]" />
+                    <span className="text-[10px] tracking-[0.12em] text-stone-400">CONNECTED · ANSWERS GROUNDED IN YOUR DATA</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <Card title="Wearables." blurb="What you wear that listens to your body. Toggle what you own; auto-sync arrives here first.">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {DEVICES.map((d) => {
+                  const c = connections[d.id] || {}
+                  const on = !!c.on
+                  return (
+                    <div key={d.id} className={`rounded-2xl border p-4 transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200'}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-serif text-lg leading-tight text-stone-900">{d.label}</p>
+                          <p className="text-xs text-stone-400">{d.tracks}</p>
+                        </div>
+                        <Toggle on={on} onClick={() => setConn(d.id, { on: !on })} title={on ? 'Worn' : 'Not worn'} />
+                      </div>
+                      {on && (
+                        <div className="mt-3 border-t border-stone-100 pt-3">
+                          <input value={c.note || ''} onChange={(e) => setConn(d.id, { note: e.target.value })} placeholder="What you watch for…" className="w-full bg-transparent text-xs text-stone-600 outline-none placeholder:text-stone-300" />
+                          <span className="mt-2 inline-block rounded-full bg-stone-500/5 px-2.5 py-0.5 text-[10px] tracking-[0.12em] text-stone-400">AUTO-SYNC COMING SOON</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          </>)}
 
           {room === 'notifications' && (
             <Card title="What reaches you." blurb="Only what you choose. Saved to your account.">

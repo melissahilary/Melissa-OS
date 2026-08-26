@@ -103,6 +103,7 @@ export default function DreamDashboard() {
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('week')
   const [goalView, setGoalView] = useState('board') // board | timeline | metrics
+  const [boardFilter, setBoardFilter] = useState(null) // a pillar id, from tapping a metrics bar
   const [editItem, setEditItem] = useState(null) // a week item opened from This Week
 
   const setGoals = (updater) => setRawGoals((prev) => {
@@ -167,6 +168,7 @@ export default function DreamDashboard() {
     { id: 'week', label: 'This Week', icon: ListChecks },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'collections', label: 'Collections', icon: Sparkles },
     { id: 'recap', label: 'Recap', icon: NotebookPen },
   ]
 
@@ -189,6 +191,7 @@ export default function DreamDashboard() {
 
       {tab === 'week' && <ThisWeek weekDays={weekDays} todayKeyStr={dateKey(now)} onToggle={(id, dk) => toggleComplete(id, dk)} onOpenItem={setEditItem} />}
       {tab === 'projects' && <Projects />}
+      {tab === 'collections' && <Collections />}
       {tab === 'recap' && <DailyRecap />}
       {tab === 'goals' && (
         <>
@@ -203,12 +206,19 @@ export default function DreamDashboard() {
           </div>
 
           {goalView === 'timeline' && <GoalTimeline goals={active} onOpen={openGoal} />}
-          {goalView === 'metrics' && <GoalMetrics goals={active} achieved={achieved} stepsOf={stepsOf} />}
+          {goalView === 'metrics' && <GoalMetrics goals={active} achieved={achieved} stepsOf={stepsOf} onPillar={(id) => { setBoardFilter(id); setGoalView('board') }} />}
 
+          {goalView === 'board' && boardFilter && (
+            <div className="mb-4 flex justify-center">
+              <button onClick={() => setBoardFilter(null)} className="flex items-center gap-2 rounded-full border border-stone-900 bg-stone-900 px-4 py-1.5 text-xs text-cream transition-colors hover:bg-stone-700">
+                {pillarMeta(boardFilter).label} only <X size={12} />
+              </button>
+            </div>
+          )}
           {goalView === 'board' && (
           <div className="grid gap-6 md:grid-cols-3">
             {PHASES.map((ph) => {
-              const inp = active.filter((g) => g.phase === ph.id)
+              const inp = active.filter((g) => g.phase === ph.id && (!boardFilter || g.pillar === boardFilter))
               return (
                 <div key={ph.id} onDragOver={(e) => { e.preventDefault() }} onDrop={() => { if (dragId) { updateGoal(dragId, { phase: ph.id }); setDragId(null) } }}>
                   <div className="mb-3 flex items-baseline justify-between border-b border-stone-200 pb-2">
@@ -809,7 +819,71 @@ function GoalTimeline({ goals, onOpen }) {
 }
 
 // ── Metrics — the honest numbers behind the board ──
-function GoalMetrics({ goals, achieved, stepsOf }) {
+// ── Collections — the dream lists that used to be scattered chapter pages:
+// wardrobe, home, cars, assets, outings, self. Each is a living checklist —
+// nothing was lost when the dashboard took over; it all lives here now.
+const COLLECTIONS = [
+  { key: 'mos:dream:wardrobe', label: 'Wardrobe', hint: 'Pieces to acquire' },
+  { key: 'mos:dream:home', label: 'Home', hint: 'For the house' },
+  { key: 'mos:dream:devices', label: 'Cars', hint: 'The garage of dreams' },
+  { key: 'mos:dream:investments', label: 'Investments & assets', hint: 'What you will own' },
+  { key: 'mos:dream:outings', label: 'Outings', hint: 'Tables, trips, experiences' },
+  { key: 'mos:dream:self', label: 'Dream self', hint: 'Who you are becoming' },
+  { key: 'mos:dream:skincare', label: 'Skincare wishlist', hint: 'Coveted, not yet owned' },
+  { key: 'mos:dream:haircare', label: 'Haircare wishlist', hint: 'Coveted, not yet owned' },
+]
+
+function Collections() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {COLLECTIONS.map((c) => <CollectionCard key={c.key} storeKey={c.key} label={c.label} hint={c.hint} />)}
+    </div>
+  )
+}
+
+function CollectionCard({ storeKey, label, hint }) {
+  const [stored, setItems] = useLocalStorage(storeKey, [])
+  const items = Array.isArray(stored) ? stored : []
+  const [draft, setDraft] = useState('')
+  const commit = () => {
+    const t = draft.trim()
+    if (!t) return
+    setItems((p) => [...(Array.isArray(p) ? p : []), { id: uid(), text: t, done: false }])
+    setDraft('')
+  }
+  const toggle = (id) => setItems((p) => (Array.isArray(p) ? p : []).map((x) => (x.id === id ? { ...x, done: !x.done } : x)))
+  const rm = (id) => setItems((p) => (Array.isArray(p) ? p : []).filter((x) => x.id !== id))
+  const doneN = items.filter((x) => x.done).length
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white/40 p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <div>
+          <p className="font-serif text-xl text-stone-900">{label}</p>
+          <p className="text-xs text-stone-400">{hint}</p>
+        </div>
+        {items.length > 0 && <span className="text-xs tabular-nums text-stone-400">{doneN}/{items.length}</span>}
+      </div>
+      <div className="mb-2 flex items-center gap-2">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && commit()} placeholder="Add to the list…" className="flex-1 border-b border-stone-200 bg-transparent pb-1 text-sm outline-none placeholder:text-stone-300 focus:border-stone-900" />
+      </div>
+      {items.length > 0 && (
+        <div className="max-h-56 space-y-0.5 overflow-y-auto">
+          {items.map((it) => (
+            <div key={it.id} className="group flex items-center gap-2.5 rounded-lg px-1 py-1.5">
+              <button onClick={() => toggle(it.id)} aria-label={it.done ? 'Uncheck' : 'Check'} className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors ${it.done ? 'border-stone-900 bg-stone-900' : 'border-stone-300 hover:border-stone-500'}`}>
+                {it.done && <Check size={10} className="text-cream" />}
+              </button>
+              <span className={`flex-1 text-sm ${it.done ? 'text-stone-300 line-through' : 'text-stone-700'}`}>{it.text}</span>
+              <button onClick={() => rm(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GoalMetrics({ goals, achieved, stepsOf, onPillar }) {
   const withSteps = goals.map((g) => ({ g, steps: stepsOf(g.id) }))
   const health = { on: 0, risk: 0, stall: 0 }
   withSteps.forEach(({ g, steps }) => { health[healthOf(g, steps)]++ })
@@ -838,18 +912,18 @@ function GoalMetrics({ goals, achieved, stepsOf }) {
       </div>
       {pillarRows.length > 0 && (
         <div className="mt-4 rounded-2xl border border-stone-200 bg-white/40 p-6">
-          <p className="kicker mb-4 text-stone-400">Where your goals live</p>
-          <div className="space-y-2.5">
+          <p className="kicker mb-4 text-stone-400">Where your goals live — tap a bar to see them</p>
+          <div className="space-y-1">
             {pillarRows.map(([id, n]) => {
               const P = pillarMeta(id)
               return (
-                <div key={id} className="flex items-center gap-3">
+                <button key={id} onClick={() => onPillar && onPillar(id)} className="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-stone-500/5">
                   <span className="w-28 shrink-0 truncate text-sm text-stone-600">{P.label}</span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
                     <div className="h-full rounded-full" style={{ width: `${(n / maxP) * 100}%`, background: P.tint }} />
                   </div>
                   <span className="w-5 text-right text-xs tabular-nums text-stone-500">{n}</span>
-                </div>
+                </button>
               )
             })}
           </div>

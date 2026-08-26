@@ -4,6 +4,7 @@ import { useActivities } from '../../hooks/useActivities'
 import { useRegisterAdd } from './AddButton'
 import { usePhaseColors } from '../../hooks/usePhaseColors'
 import { phaseForConfig } from '../../lib/cycle'
+import { useLifeStage } from '../../lib/lifeStage'
 import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW } from '../../lib/date'
 import { blankActivity } from '../../lib/activities'
 import { occursOnCal, DayItemForm } from './CategoryCalendar'
@@ -25,6 +26,9 @@ const fmtTime = (t) => {
 export default function CategorySchedule({ category, noun = 'Item', cycleConfig = {} }) {
   const { activities, add, update, remove } = useActivities()
   const { colors } = usePhaseColors()
+  const { flags } = useLifeStage()
+  // The phase wash only breathes for stages that live by a cycle.
+  const phaseCfg = flags.phases ? cycleConfig : {}
   const today = new Date()
   const todayK = dateKey(today)
   const [selKey, setSelKey] = useState(todayK)
@@ -80,7 +84,7 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
           {days.map(({ d, k, items }) => {
             const on = k === sel.k
             const isToday = k === todayK
-            const ph = phaseForConfig(cycleConfig, d)
+            const ph = phaseForConfig(phaseCfg, d)
             const tint = ph ? colors[ph.id] : null
             const monthStart = d.getDate() === 1 || k === days[0].k
             return (
@@ -112,7 +116,7 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
       <div className="mx-auto mt-7 max-w-2xl">
         <div className="mb-5 text-center">
           <h3 className="font-serif italic text-2xl text-stone-900">{sel.k === todayK ? 'Today' : `${MONTHS[selD.getMonth()]} ${selD.getDate()}`}</h3>
-          {(() => { const ph = phaseForConfig(cycleConfig, selD); return ph ? <p className="kicker mt-1 text-stone-400">{ph.label} phase</p> : null })()}
+          {(() => { const ph = phaseForConfig(phaseCfg, selD); return ph ? <p className="kicker mt-1 text-stone-400">{ph.label} phase</p> : null })()}
         </div>
 
         {sel.items.length === 0 ? (

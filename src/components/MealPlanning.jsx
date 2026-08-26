@@ -365,7 +365,8 @@ const recipeBucket = (slot) => (RECIPE_SLOTS.find((b) => b.slots.includes(slot))
 
 function RecipeLibrary({ activities, onOpen }) {
   const [slotF, setSlotF] = useState(null)
-  const recipes = activities.filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived')
+  // Recipes are food only — supplements live under Nutrition → Supplements.
+  const recipes = activities.filter((a) => a.type === 'meal_item' && a.status !== 'archived')
   const filtered = recipes.filter((a) => !slotF || recipeBucket(a.details.slot || 'breakfast') === slotF)
   const pill = (on) => `rounded-full px-4 py-1.5 text-sm transition-colors ${on ? 'bg-stone-900 text-cream' : 'border border-stone-200 text-stone-500 hover:border-stone-400 hover:text-stone-800'}`
   return (

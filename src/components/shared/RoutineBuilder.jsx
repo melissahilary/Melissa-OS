@@ -10,12 +10,29 @@ import { upsertShelfItem } from '../../lib/goalRoutes'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
+// The same expansive recurrence vocabulary as the main calendar.
 const FREQS = [
-  { id: 'daily', label: 'Every day' },
-  { id: 'weekly', label: 'Once a week' },
-  { id: '2-3x', label: '2–3× a week' },
+  { id: 'daily', label: 'Daily' },
+  { id: 'days', label: 'Specific days' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'biweekly', label: 'Bi-weekly' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'custom', label: 'Custom' },
   { id: 'asneeded', label: 'As needed' },
 ]
+const WD = [
+  { d: 1, l: 'M' }, { d: 2, l: 'T' }, { d: 3, l: 'W' }, { d: 4, l: 'T' }, { d: 5, l: 'F' }, { d: 6, l: 'S' }, { d: 0, l: 'S' },
+]
+const UNITS = [
+  { id: 'day', label: 'days' }, { id: 'week', label: 'weeks' }, { id: 'month', label: 'months' },
+]
+export const freqLabel = (s) => {
+  const f = s.freq || 'daily'
+  if (f === 'days') { const n = (s.days || []).length; return n ? `${n}× a week` : 'Specific days' }
+  if (f === 'custom') { const n = s.interval || 2; const u = s.unit || 'week'; return `Every ${n} ${u}${n === 1 ? '' : 's'}` }
+  if (f === '2-3x') return '2–3× a week' // legacy steps keep their label
+  return (FREQS.find((x) => x.id === f) || {}).label || f
+}
 
 export default function RoutineBuilder({ storeKey, Icon, intro, types = [], productLabel = 'Product', shelfKey = null }) {
   const [stored, setSteps] = useLocalStorage(storeKey, [])
@@ -46,11 +63,6 @@ export default function RoutineBuilder({ storeKey, Icon, intro, types = [], prod
 
   return (
     <div className="mx-auto max-w-lg">
-      <div className="mb-8 flex flex-col items-center text-center">
-        {Icon && <Icon size={26} strokeWidth={1.25} className="text-stone-400" />}
-        {intro && <p className="mt-3 max-w-xs text-sm italic leading-relaxed text-stone-400">{intro}</p>}
-      </div>
-
       <ol className="space-y-2.5">
         {steps.map((s, i) => {
           const done = doneToday.includes(s.id)
@@ -68,7 +80,7 @@ export default function RoutineBuilder({ storeKey, Icon, intro, types = [], prod
                 <p className={`truncate font-serif text-lg leading-tight ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{s.name || 'Untitled step'}</p>
                 {(s.product || s.type || s.freq !== 'daily') && (
                   <p className="mt-0.5 truncate text-xs text-stone-400">
-                    {[s.product, s.type, s.freq !== 'daily' ? (FREQS.find((f) => f.id === s.freq)?.label || s.freq) : null].filter(Boolean).join(' · ')}
+                    {[s.product, s.type, s.freq !== 'daily' ? freqLabel(s) : null].filter(Boolean).join(' · ')}
                   </p>
                 )}
               </button>
@@ -125,8 +137,25 @@ function StepForm({ step, types, productLabel, onSave, onDelete, onClose }) {
           <div>
             <p className="kicker mb-2 text-stone-400">How often</p>
             <div className="flex flex-wrap gap-1.5">
-              {FREQS.map((f) => <button key={f.id} onClick={() => patch({ freq: f.id })} className={chip(s.freq === f.id)}>{f.label}</button>)}
+              {FREQS.map((f) => <button key={f.id} onClick={() => patch({ freq: f.id })} className={chip((s.freq === f.id) || (s.freq === '2-3x' && f.id === 'days'))}>{f.label}</button>)}
             </div>
+            {(s.freq === 'days' || s.freq === '2-3x') && (
+              <div className="mt-3 flex gap-1.5">
+                {WD.map((w) => {
+                  const on = (s.days || []).includes(w.d)
+                  return <button key={w.d} onClick={() => patch({ freq: 'days', days: on ? (s.days || []).filter((x) => x !== w.d) : [...(s.days || []), w.d].sort() })} className={`h-8 w-9 rounded-full border text-xs transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{w.l}</button>
+                })}
+              </div>
+            )}
+            {s.freq === 'custom' && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-stone-700">
+                Every
+                <input type="number" min="1" value={s.interval || 2} onChange={(e) => patch({ interval: Math.max(1, Number(e.target.value) || 1) })} className="w-14 border-b border-stone-300 bg-transparent pb-1 text-center outline-none focus:border-stone-900" />
+                <select value={s.unit || 'week'} onChange={(e) => patch({ unit: e.target.value })} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900">
+                  {UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-between px-6 pb-6 pt-4">

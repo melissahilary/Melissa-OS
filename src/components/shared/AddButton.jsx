@@ -8,7 +8,7 @@ import { dateKey } from '../../lib/date'
 // ── The universal Add. One + button, always present; one sheet, always the same.
 // You say what you're adding, it shows only the fields that matter, and a toast
 // tells you exactly where it landed. Pages may still register a full editor via
-// useRegisterAdd — the sheet offers it as "More options" when present.
+// useRegisterAdd — the sheet offers it as "Open the full editor" when present.
 
 const AddCtx = createContext(() => {})
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -243,7 +243,7 @@ function QuickAdd({ onClose, onDone, fullEditor }) {
 
         <div className="flex items-center justify-between gap-3 px-6 pb-6 pt-4">
           {fullEditor ? (
-            <button onClick={fullEditor} className="text-xs text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline">More options…</button>
+            <button onClick={fullEditor} className="text-xs text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline">Open the full editor</button>
           ) : <span />}
           <button
             onClick={save}

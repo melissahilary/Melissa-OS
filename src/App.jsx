@@ -123,7 +123,6 @@ const SUBNAV = {
     { id: 'protocols', label: 'Protocols' },
     { id: 'labs', label: 'Labs' },
     { id: 'appointments', label: 'Appointments' },
-    { id: 'wearables', label: 'Wearables' },
   ],
   diagnostics: [
     { id: 'schedule', label: 'Schedule' },
@@ -141,13 +140,11 @@ const SUBNAV = {
   brainhealth: [
     { id: 'schedule', label: 'Schedule' },
     { id: 'scans', label: 'Scans' },
-    { id: 'wearables', label: 'Wearables' },
     { id: 'practices', label: 'Practices' },
   ],
   relationship: [
     { id: 'schedule', label: 'Schedule' },
     { id: 'circle', label: 'My Circle' },
-    { id: 'overview', label: 'Together' },
   ],
 }
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Trash2, ChevronDown, ChevronRight, Pause, BookOpen, ShoppingBag } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig, PHASES } from '../lib/cycle'
+import { useLifeStage } from '../lib/lifeStage'
 import {
   dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
 } from '../lib/date'
@@ -318,14 +319,33 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycle
   const [dateOpen, setDateOpen] = useState(false)
   const todayKey = dateKey(today)
   const selected = parseKey(selectedKey)
-  const phase = phaseForConfig(cycleConfig, selected)
-  const phaseDay = phase ? `${phase.name} · Day ${phase.cycleDay}` : '—'
+  // The first field is the life stage's headline — phase for a cycling body,
+  // weeks for a pregnant or recovering one, steady words beyond cycles.
+  const { stage, flags } = useLifeStage()
+  const [pregRaw] = useLocalStorage('mos:pregnancy', {})
+  const [ppRaw] = useLocalStorage('mos:postpartum', {})
+  const phase = flags.phases ? phaseForConfig(cycleConfig, selected) : null
+  const phaseDay = (() => {
+    if (stage === 'pregnant') {
+      const due = pregRaw && typeof pregRaw === 'object' ? pregRaw.dueDate : ''
+      const week = due ? Math.max(1, Math.min(42, 40 - Math.floor((parseKey(due).getTime() - selected.getTime()) / (7 * 86400000)))) : null
+      return week ? `Week ${week} · expecting` : 'Expecting'
+    }
+    if (stage === 'postpartum') {
+      const bd = ppRaw && typeof ppRaw === 'object' ? ppRaw.birthDate : ''
+      const wk = bd ? Math.max(0, Math.floor((selected.getTime() - parseKey(bd).getTime()) / (7 * 86400000))) : null
+      return wk != null ? `Week ${wk} postpartum` : 'Postpartum'
+    }
+    if (stage === 'menopause') return 'Beyond cycles'
+    if (phase) return `${phase.name} · Day ${phase.cycleDay}`
+    return stage === 'perimenopause' ? 'Perimenopause' : '—'
+  })()
   const dateStr = `${MONTHS[selected.getMonth()]} ${selected.getDate()}, ${selected.getFullYear()}`
   const Dot = () => <span className="text-stone-300">·</span>
   return (
     <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
-      <button onClick={() => setCycleOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{phaseDay}</button>
-      {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={selected} onEdit={goToCycle} onClose={() => setCycleOpen(false)} />}
+      <button onClick={() => (flags.phases ? setCycleOpen(true) : goToCycle())} className="text-stone-600 hover:text-stone-900 transition-colors">{phaseDay}</button>
+      {cycleOpen && flags.phases && <CyclePopup cycleConfig={cycleConfig || {}} today={selected} onEdit={goToCycle} onClose={() => setCycleOpen(false)} />}
       <Dot />
       <MoonField />
       <Dot />

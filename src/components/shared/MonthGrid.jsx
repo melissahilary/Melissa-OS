@@ -3,6 +3,7 @@ import { dateKey, monthGrid, MONTHS, DOW, isSameDay } from '../../lib/date'
 import { phaseForConfig } from '../../lib/cycle'
 import { holidayFor } from '../../lib/holidays'
 import { usePhaseColors } from '../../hooks/usePhaseColors'
+import { useLifeStage } from '../../lib/lifeStage'
 import PhaseColorEditor from './PhaseColorEditor'
 
 const PHASE_LEGEND = [
@@ -27,6 +28,9 @@ const RhythmDot = ({ on }) => (
 export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, today, cycleConfig = {}, daySignal, floorMonth }) {
   const { colors, setColor, resetColor } = usePhaseColors()
   const [editPhase, setEditPhase] = useState(null)
+  const { flags } = useLifeStage()
+  // Cycle ribbons and the phase legend only exist for stages that live by a cycle.
+  const phaseCfg = flags.phases ? cycleConfig : {}
   const cells = monthGrid(month)
   const atFloor = floorMonth && month <= floorMonth
   const goPrev = () => { if (!atFloor) setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1)) }
@@ -51,7 +55,7 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
           const holiday = holidayFor(cell)
           const sig = inMonth && daySignal ? (daySignal(key) || {}) : {}
           const hasRhythm = sig.morning || sig.afternoon || sig.evening
-          const phase = phaseForConfig(cycleConfig, cell)
+          const phase = phaseForConfig(phaseCfg, cell)
           const tint = phase ? colors[phase.id] : undefined
           return (
             <div
@@ -87,7 +91,7 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
         })}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+      {flags.phases && <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
         {PHASE_LEGEND.map((p) => (
           <button
             key={p.id}
@@ -99,7 +103,7 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
             {p.label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {editPhase && (
         <PhaseColorEditor

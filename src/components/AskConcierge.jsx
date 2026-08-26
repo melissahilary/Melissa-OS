@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { X, ArrowUp } from 'lucide-react'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 // ── Esmé — the house concierge. A full-height salon, not a chat widget. She
 // answers only from Melissa's own planner, in the voice of a great European spa
@@ -13,6 +14,26 @@ const SUGGESTIONS = [
   'What does my week look like?',
 ]
 
+// Doors — after she answers, the rooms her answer touched appear as quiet
+// chips. Tap one and the salon closes onto that page: every answer is a way in.
+const DOORS = [
+  { match: /\b(eat|eating|meal|diet|food|dinner|lunch|breakfast|menu)\b/i, label: 'The table', page: 'menu', sub: 'diet' },
+  { match: /\b(supplement|vitamin|capsule|stack|magnesium|omega)\b/i, label: 'Supplements', page: 'menu', sub: 'supplements' },
+  { match: /\b(recipe|cook)\b/i, label: 'Recipes', page: 'menu', sub: 'recipes' },
+  { match: /\b(goal|milestone|dream|project)\b/i, label: 'Dream planning', page: 'dream', sub: '' },
+  { match: /\b(week|today|schedule|appointment|calendar|agenda)\b/i, label: 'Today', page: 'today', sub: '' },
+  { match: /\b(skin|skincare|serum|retinol|spf)\b/i, label: 'Skincare', page: 'skincare', sub: 'schedule' },
+  { match: /\b(hair|haircare)\b/i, label: 'Haircare', page: 'haircare', sub: 'schedule' },
+  { match: /\b(cycle|period|phase|hormone|ovulat|luteal|menopause|pregnan)\b/i, label: 'My body', page: 'workout', sub: 'cycle' },
+  { match: /\b(workout|training|train|gym|pilates|lift|fitness)\b/i, label: 'Fitness', page: 'fitness', sub: 'schedule' },
+  { match: /\b(shop|shopping|grocery|buy)\b/i, label: 'Grocery', page: 'menu', sub: 'grocery' },
+]
+const doorsFor = (row) => {
+  const text = `${row.q} ${row.a || ''}`
+  const out = []
+  for (const d of DOORS) if (d.match.test(text) && !out.some((x) => x.label === d.label)) out.push(d)
+  return out.slice(0, 3)
+}
 // Elegant monogram seal — a serif E inside a fine double ring.
 function Seal({ size = 44 }) {
   return (
@@ -32,6 +53,13 @@ export default function AskConcierge({ open, onClose }) {
   const [mounted, setMounted] = useState(false)
   const scrollRef = useRef(null)
   const inputRef = useRef(null)
+  const [, setActivePage] = useLocalStorage('mos:active', 'today')
+  const [, setSubs] = useLocalStorage('mos:subpages', {})
+  const openDoor = (door) => {
+    setActivePage(door.page)
+    if (door.sub) setSubs((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [door.page]: door.sub }))
+    onClose()
+  }
 
   useEffect(() => {
     if (!open) { setMounted(false); return }
@@ -115,7 +143,20 @@ export default function AskConcierge({ open, onClose }) {
                       ) : row.error ? (
                         <p className="font-serif italic text-[17px] leading-relaxed text-stone-500">I've stepped away from the desk for a moment, my dear — do ask again shortly.</p>
                       ) : (
-                        <p className="whitespace-pre-line font-serif text-[17.5px] leading-[1.75] text-stone-800">{row.a}</p>
+                        <>
+                          <p className="whitespace-pre-line font-serif text-[17.5px] leading-[1.75] text-stone-800">{row.a}</p>
+                          {(() => {
+                            const doors = doorsFor(row)
+                            return doors.length ? (
+                              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                                <span className="kicker mr-1 text-stone-300">Through here</span>
+                                {doors.map((d) => (
+                                  <button key={d.label} onClick={() => openDoor(d)} className="rounded-full border border-stone-300 px-3 py-1 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">{d.label} →</button>
+                                ))}
+                              </div>
+                            ) : null
+                          })()}
+                        </>
                       )}
                     </div>
                   </div>
