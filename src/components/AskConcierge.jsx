@@ -2,16 +2,29 @@ import React, { useState, useRef, useEffect } from 'react'
 import { X, ArrowUp } from 'lucide-react'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { useLifeStage } from '../lib/lifeStage'
 
 // ── Esmé — the house concierge. A full-height salon, not a chat widget. She
 // answers only from Melissa's own planner, in the voice of a great European spa
 // matron; if it isn't recorded, she says so plainly.
 
-const SUGGESTIONS = [
-  'What am I eating tomorrow?',
-  'How is my glass-skin goal coming along?',
-  'What do I take on an empty stomach?',
-  'What does my week look like?',
+// Her rooms — the opening screen reads like a concierge's card of services:
+// each room of the house, with one question she can answer from it right now.
+// My Body speaks in the language of the life stage chosen in Settings.
+const ROOMS_OF_ASK = (stage) => [
+  { k: 'The Week', q: 'What does my week look like?' },
+  { k: 'The Table', q: 'What am I eating tomorrow?' },
+  { k: 'The Stack', q: 'What do I take on an empty stomach?' },
+  { k: 'The Mirror', q: 'How is my glass-skin goal coming along?' },
+  {
+    k: 'My Body',
+    q: stage === 'pregnant' ? 'What week am I in?'
+      : stage === 'postpartum' ? 'How many weeks postpartum am I?'
+        : stage === 'menopause' || stage === 'perimenopause' ? 'What has my body been saying lately?'
+          : stage === 'ttc' ? 'When is my fertile window?'
+            : 'Where am I in my cycle?',
+  },
+  { k: 'The Circle', q: 'Whose birthday is coming up?' },
 ]
 
 // Doors — after she answers, the rooms her answer touched appear as quiet
@@ -55,6 +68,7 @@ export default function AskConcierge({ open, onClose }) {
   const inputRef = useRef(null)
   const [, setActivePage] = useLocalStorage('mos:active', 'today')
   const [, setSubs] = useLocalStorage('mos:subpages', {})
+  const { stage } = useLifeStage()
   const openDoor = (door) => {
     setActivePage(door.page)
     if (door.sub) setSubs((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [door.page]: door.sub }))
@@ -112,21 +126,36 @@ export default function AskConcierge({ open, onClose }) {
         {/* Thread */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-7">
           {thread.length === 0 ? (
-            <div className="flex h-full flex-col justify-center pb-10">
-              <p className="font-serif italic text-[19px] leading-relaxed text-stone-600">
-                {greeting}, Melissa. Ask me anything of your planner — your table, your rituals, your goals, your week. I speak only from what you've recorded, and I'll tell you plainly when something isn't there.
-              </p>
-              <div className="mt-8">
-                <p className="kicker mb-3 text-stone-400">You might ask</p>
-                <div className="space-y-0">
-                  {SUGGESTIONS.map((s) => (
-                    <button key={s} onClick={() => ask(s)} className="group flex w-full items-baseline gap-3 border-b border-stone-200/70 py-3 text-left transition-colors last:border-b-0 hover:border-stone-400">
-                      <span className="text-stone-300 transition-colors group-hover:text-stone-500">—</span>
-                      <span className="font-serif text-[17px] text-stone-600 transition-colors group-hover:text-stone-900">{s}</span>
-                    </button>
-                  ))}
-                </div>
+            <div className="flex h-full flex-col justify-center pb-8">
+              {/* Presence — she is at her desk, and this room is yours alone */}
+              <div className="mb-5 flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" style={{ background: '#7C8B6B' }} />
+                  <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: '#7C8B6B' }} />
+                </span>
+                <span className="text-[10px] tracking-[0.22em] text-stone-400">AT HER DESK · PRIVATE · YOURS ALONE</span>
               </div>
+
+              <p className="font-serif text-[26px] leading-tight text-stone-900">{greeting}, Melissa.</p>
+              <p className="mt-2 font-serif italic text-[16px] leading-relaxed text-stone-500">
+                Every room of your house, one question away. If it isn't in your planner, I'll say so plainly.
+              </p>
+
+              {/* The card of services — each room, one question she can answer now */}
+              <div className="mt-7 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {ROOMS_OF_ASK(stage).map((s) => (
+                  <button
+                    key={s.k}
+                    onClick={() => ask(s.q)}
+                    className="group rounded-2xl border border-stone-200 bg-white/40 px-4 py-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-stone-900 hover:shadow-md"
+                  >
+                    <span className="block text-[9.5px] tracking-[0.2em] text-stone-400 transition-colors group-hover:text-stone-500">{s.k.toUpperCase()}</span>
+                    <span className="mt-1 block font-serif text-[15.5px] leading-snug text-stone-700 transition-colors group-hover:text-stone-900">{s.q}</span>
+                  </button>
+                ))}
+              </div>
+
+              <p className="mt-6 text-center text-[10.5px] italic text-stone-300">…or ask in your own words below.</p>
             </div>
           ) : (
             <div className="space-y-8">
