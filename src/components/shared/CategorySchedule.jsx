@@ -8,6 +8,7 @@ import { useLifeStage } from '../../lib/lifeStage'
 import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW, fmtSpan } from '../../lib/date'
 import { blankActivity } from '../../lib/activities'
 import { occursOnCal, DayItemForm } from './CategoryCalendar'
+import AddInline from './AddInline'
 
 // ── Schedule — one view of a pillar's time. A ribbon of days you glide along
 // (today inked, cycle phase as an underline breath, item marks as dots), and
@@ -120,7 +121,7 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
         </div>
 
         {sel.items.length === 0 ? (
-          <p className="py-6 text-center text-sm italic text-stone-300">Nothing scheduled — tap + to add.</p>
+          <p className="py-6 text-center text-sm italic text-stone-300">Nothing scheduled yet.</p>
         ) : (
           <div className="space-y-0.5">
             {[...sel.items]
@@ -134,6 +135,8 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
               ))}
           </div>
         )}
+
+        <AddInline label={`Add ${noun.toLowerCase() === 'item' ? 'something' : `a ${noun.toLowerCase()}`} to this day`} onClick={() => openNew(selKey)} className="mt-3" />
 
         {/* Ahead — the next dated moments in this pillar */}
         {ahead.length > 0 && (

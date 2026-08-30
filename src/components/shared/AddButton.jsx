@@ -87,7 +87,11 @@ export function AddProvider({ children }) {
     setHasHandler(!!fn)
   }, [])
 
-  const [, setActivePage] = useLocalStorage('mos:active', 'today')
+  const [activeRaw, setActivePage] = useLocalStorage('mos:active', 'today')
+  // The floating + belongs to the home page, where you're adding to the day at
+  // large. Inside a pillar you're adding to that section, so the way in lives
+  // in the section itself (see AddInline).
+  const onHome = (typeof activeRaw === 'string' ? activeRaw : 'today') === 'today'
   const [, setSubs] = useLocalStorage('mos:subpages', {})
   const showToast = (text, dest) => {
     setToast({ text, dest })
@@ -104,15 +108,17 @@ export function AddProvider({ children }) {
     <AddCtx.Provider value={register}>
       {children}
 
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Add something"
-        title="Add"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105"
-        style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7' }}
-      >
-        <Plus size={22} strokeWidth={1.75} />
-      </button>
+      {onHome && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Add something"
+          title="Add"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105"
+          style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7' }}
+        >
+          <Plus size={22} strokeWidth={1.75} />
+        </button>
+      )}
 
       {open && <QuickAdd onClose={() => setOpen(false)} onDone={showToast} fullEditor={hasHandler ? () => { setOpen(false); ref.current && ref.current() } : null} />}
 

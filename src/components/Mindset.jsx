@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Plus, Star, Check, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { X, Plus, Check, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
+import AddInline from './shared/AddInline'
 import InlineText from './shared/InlineText'
 import CategorySchedule from './shared/CategorySchedule'
 import { dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW } from '../lib/date'
@@ -420,8 +421,9 @@ function Gratitude() {
   // The practice map — how many graces each day of this month holds. This is
   // what belongs beside the writing: evidence of the habit, not a second copy
   // of what she just wrote.
-  const monthCells = monthGrid(new Date(today.getFullYear(), today.getMonth(), 1))
-  const monthIdx = today.getMonth()
+  const gAnchor = new Date(today.getFullYear(), today.getMonth(), 1)
+  const monthCells = monthGrid(gAnchor)
+  const monthIdx = gAnchor.getMonth()
   const countFor = (k) => (Array.isArray(map[k]) ? map[k] : []).filter((l) => (l || '').trim()).length
   const daysLogged = monthCells.filter((c) => c.getMonth() === monthIdx && countFor(dateKey(c)) === 3).length
 
@@ -442,16 +444,19 @@ function Gratitude() {
 
   return (
     <>
-      <p className="mb-10 text-center font-serif text-2xl text-stone-800">What are you grateful for?</p>
+      <p className="mb-10 text-center font-serif text-2xl text-stone-800">What are you grateful for today?</p>
 
       <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
         {/* ── The three lines — one ruled page, not three boxes ── */}
         <div className="xl:col-span-5">
           {/* The same working header the feelings grid carries: the task, and
               how far along she is. */}
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
-            <span className="font-serif text-lg text-stone-800">Three graces</span>
-            <span className="flex items-center gap-1.5">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-3">
+            <span>
+              <span className="block font-serif text-lg text-stone-800">Your top three</span>
+              <span className="mt-0.5 block text-[11px] text-stone-400">Three things, big or small — press enter after each.</span>
+            </span>
+            <span className="flex items-center gap-1.5 pb-0.5">
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
@@ -503,33 +508,32 @@ function Gratitude() {
         {/* ── The record — the shape of the practice, and the days before this
             one. Never a second copy of what she has just written. ── */}
         <div className="mt-14 xl:col-span-7 xl:mt-0">
-          <div className="rounded-2xl border border-stone-200 bg-white/40 p-6">
-            <div className="mb-4 flex items-baseline justify-between">
-              <span className="kicker text-stone-400">{MONTHS[monthIdx]}</span>
-              <span className="text-xs text-stone-400">
-                <span className="font-serif text-lg text-stone-900">{daysLogged}</span> day{daysLogged === 1 ? '' : 's'} logged
-              </span>
-            </div>
+          <div>
+            <p className="mb-4 text-center font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {gAnchor.getFullYear()}</p>
             <div className="grid grid-cols-7 gap-1.5">
-              {DOW.map((d) => <div key={d} className="pb-1 text-center text-[9px] tracking-wider text-stone-300">{d[0]}</div>)}
+              {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
               {monthCells.map((c, i) => {
                 const inMonth = c.getMonth() === monthIdx
                 const k = dateKey(c)
                 const n = inMonth ? countFor(k) : 0
                 const isToday = k === todayKey
+                const ahead = k > todayKey
                 return (
                   <div
                     key={i}
-                    title={inMonth ? `${longDate(c)} — ${n} of 3` : ''}
-                    className={`flex aspect-square items-center justify-center rounded-md text-[10px] tabular-nums ${inMonth ? '' : 'opacity-0'} ${isToday ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
+                    title={inMonth && !ahead ? `${longDate(c)} — ${n} of 3` : ''}
+                    className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-lg text-xs ${inMonth ? '' : 'opacity-0'} ${ahead ? 'opacity-40' : ''} ${isToday ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
                     style={{
-                      background: n === 3 ? '#1C1C1A' : n > 0 ? 'rgba(28,28,26,0.16)' : 'rgba(120,113,108,0.07)',
-                      color: n === 3 ? '#FAFAF7' : '#A8A29E',
+                      background: ahead ? 'transparent' : n === 3 ? '#1C1C1A' : n > 0 ? 'rgba(28,28,26,0.16)' : '#F1F0ED',
+                      color: n === 3 && !ahead ? '#FAFAF7' : ahead ? '#D6D3D1' : '#A8A29E',
                     }}
                   >{c.getDate()}</div>
                 )
               })}
             </div>
+            <p className="mt-4 text-center text-xs text-stone-400">
+              <span className="font-serif text-lg text-stone-900">{daysLogged}</span> day{daysLogged === 1 ? '' : 's'} logged this month
+            </p>
           </div>
 
           {pastKeys.length > 0 && (
@@ -636,6 +640,7 @@ function Journal() {
 
       {/* The page — an unadorned writing surface, a comfortable measure wide */}
       <div className="mx-auto max-w-2xl">
+        <AddInline label="Add another entry to this day" onClick={() => addEntry()} className="mb-6" />
         {display.map((e, i) => (
           <article key={e.id} className="group relative">
             {i > 0 && <div className="mx-auto my-8 select-none text-center text-lg leading-none text-stone-200" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</div>}
@@ -745,8 +750,7 @@ function JournalCalendar({ selectedKey, today, hasEntry, onPick, onClose }) {
 // Influences — two facing columns: what to let in, and what to keep out. Each
 // influence can be starred as a non-negotiable (anchors float to the top). The
 // page title is supplied by the app shell.
-const normInfluence = (x) => ({ id: x.id || uid(), text: x.text || '', star: !!x.star })
-const sortInfluences = (arr) => arr.slice().sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0))
+const normInfluence = (x) => ({ id: x.id || uid(), text: x.text || '' })
 
 function Influences() {
   const [yesRaw, setYes] = useLocalStorage('mos:mindset:influences:yes', [])
@@ -756,7 +760,7 @@ function Influences() {
   const setters = { yes: setYes, no: setNo }
   const clean = (p) => (Array.isArray(p) ? p : []).map(normInfluence)
 
-  const add = (side, text = '') => setters[side]((p) => [...clean(p), { id: uid(), text, star: false }])
+  const add = (side, text = '') => setters[side]((p) => [...clean(p), { id: uid(), text }])
   const patch = (side, id, patchObj) => setters[side]((p) => clean(p).map((x) => (x.id === id ? { ...x, ...patchObj } : x)))
   const remove = (side, id) => setters[side]((p) => clean(p).filter((x) => x.id !== id))
 
@@ -767,11 +771,11 @@ function Influences() {
       <p className="mb-9 text-center font-serif text-2xl text-stone-800">What are you letting in?</p>
       <div className="grid gap-10 md:grid-cols-2 md:gap-0 md:divide-x md:divide-stone-200">
         <div className="md:pr-10">
-          <InfluenceColumn tone="in" title="Let In" items={sortInfluences(yes)}
+          <InfluenceColumn tone="in" title="Let In" items={yes}
             onAdd={(t) => add('yes', t)} onPatch={(id, p) => patch('yes', id, p)} onRemove={(id) => remove('yes', id)} />
         </div>
         <div className="md:pl-10">
-          <InfluenceColumn tone="out" title="Keep Out" items={sortInfluences(no)}
+          <InfluenceColumn tone="out" title="Keep Out" items={no}
             onAdd={(t) => add('no', t)} onPatch={(id, p) => patch('no', id, p)} onRemove={(id) => remove('no', id)} />
         </div>
       </div>
@@ -799,23 +803,16 @@ function InfluenceColumn({ tone, title, items, onAdd, onPatch, onRemove }) {
         />
       </div>
 
-      <div>
+      {/* A long list scrolls in place rather than pushing the page down */}
+      <div className="max-h-[22rem] overflow-y-auto pr-1">
         {items.map((it) => (
-          <div key={it.id} className="group flex items-center gap-2.5 border-b border-stone-100 py-2.5">
-            <button
-              onClick={() => onPatch(it.id, { star: !it.star })}
-              title={it.star ? 'Un-anchor' : 'Anchor as non-negotiable'}
-              className={`shrink-0 transition-colors ${it.star ? 'text-stone-700' : 'text-stone-300 hover:text-stone-500'}`}
-            >
-              <Star size={15} strokeWidth={1.75} fill={it.star ? 'currentColor' : 'none'} />
-            </button>
-
+          <div key={it.id} className="group flex items-center gap-3 border-b border-stone-100 py-2.5">
+            <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" />
             <InlineText
               value={it.text}
               onChange={(t) => onPatch(it.id, { text: t })}
-              className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${out ? 'text-stone-500 line-through decoration-stone-300' : 'text-stone-800'}`}
+              className="min-w-0 flex-1 bg-transparent text-sm text-stone-800 outline-none"
             />
-
             <button onClick={() => onRemove(it.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><X size={14} /></button>
           </div>
         ))}

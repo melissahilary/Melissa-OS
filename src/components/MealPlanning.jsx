@@ -10,6 +10,7 @@ import InlineText from './shared/InlineText'
 import { AddMealForm } from './shared/MealSlots'
 import { MEAL_SLOTS, slotMeta, RECIPE_TAGS } from '../lib/meals'
 import { useRegisterAdd } from './shared/AddButton'
+import AddInline from './shared/AddInline'
 import MonthGrid from './shared/MonthGrid'
 import * as store from '../lib/dataStore'
 import { useActivities } from '../hooks/useActivities'
@@ -557,6 +558,8 @@ function GroceryList() {
           )
         })}
       </div>
+
+      <AddInline label="Add something to the fridge" onClick={() => setAdding(true)} className="mb-6" />
 
       {visible.length === 0 ? (
         <p className="font-serif italic text-lg text-stone-400">{active.length === 0 ? 'Fridge is good. List is empty.' : 'Nothing matches that filter.'}</p>

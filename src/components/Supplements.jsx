@@ -4,6 +4,7 @@ import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
 import ActivityForm from './shared/ActivityForm'
 import { useRegisterAdd } from './shared/AddButton'
+import AddInline from './shared/AddInline'
 
 // ── Supplements — every capsule and powder in one place, grouped by the moment
 // you take it. Dose lives on the row; tap to open the full editor.
@@ -28,8 +29,10 @@ export default function Supplements() {
 
   return (
     <div className="mx-auto max-w-xl">
+      <AddInline label="Add a supplement" onClick={() => setEditing(newSupp())} className="mb-6" />
+
       {supps.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No supplements yet — tap + to add your first.</p>
+        <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No supplements yet.</p>
       ) : (
         <div className="space-y-7">
           {GROUPS.map((g) => {
