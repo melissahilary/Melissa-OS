@@ -141,6 +141,41 @@ export async function updateEmail(email) {
   return supabase.auth.updateUser({ email }, { emailRedirectTo: window.location.origin })
 }
 
+// ── files ───────────────────────────────────────────────────────────
+// Photos are real files in the private `board` bucket, not JSON. Each user's
+// images live under a folder named for their auth id, and RLS makes that folder
+// theirs alone — so a board can hold as many photos as she likes without ever
+// bloating the state rows that load at sign-in.
+const BUCKET = 'board'
+
+export function currentUserId() {
+  return user ? user.id : null
+}
+
+// Returns the stored path, or null when there's no session to own the file.
+export async function uploadPhoto(blob, ext = 'jpg') {
+  if (!user) return null
+  const path = `${user.id}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false })
+  if (error) { console.warn('[mos] upload failed', error.message); return null }
+  return path
+}
+
+// The bucket is private, so viewing needs a signed URL. Signed generously (8h)
+// so a board left open all day keeps its pictures.
+export async function signedPhotoUrl(path, seconds = 28800) {
+  if (!path) return null
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, seconds)
+  if (error) { console.warn('[mos] sign failed', error.message); return null }
+  return data ? data.signedUrl : null
+}
+
+export async function deletePhoto(path) {
+  if (!path) return
+  const { error } = await supabase.storage.from(BUCKET).remove([path])
+  if (error) console.warn('[mos] delete failed', error.message)
+}
+
 // Every stored key/value — used for the full data export.
 export function all() {
   const out = {}

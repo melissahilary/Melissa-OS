@@ -842,9 +842,11 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       />
       </div>
 
-      <TodayNotes />
-
-      <ShoppingList />
+      {/* Notes and the list are a pair — side by side once there's room for them */}
+      <div className="grid gap-2 xl:grid-cols-2 xl:gap-12">
+        <TodayNotes />
+        <ShoppingList />
+      </div>
 
       {blockAdd && (
         <BlockAddChooser
@@ -1073,7 +1075,7 @@ const fmtApptTime = (t) => {
 // Before Bed). The dots move between them.
 function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto w-full max-w-2xl xl:max-w-none">
       <DayFlow
         rituals={rituals || []}
         meals={meals}
@@ -1113,8 +1115,9 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 
   return (
     <div>
-      {/* ── Meals — a small carousel ── */}
-      <div className={DAY_CARD}>
+      {/* ── Meals — a small carousel. Held to a readable measure even on a wide
+          desk, so the day's food never sprawls across the whole screen. ── */}
+      <div className={`${DAY_CARD} xl:mx-auto xl:max-w-3xl`}>
         <div className="mb-7 flex items-center justify-between">
           <button onClick={() => jump(i - 1)} disabled={i === 0} className={`px-2 py-1 text-xl ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
           <div className="text-center leading-tight">
@@ -1142,8 +1145,9 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
         ))}
       </div>
 
-      {/* ── Time blocks — Empty Stomach → Before Bed ── */}
-      <div className="mt-10 space-y-4">
+      {/* ── Time blocks — Empty Stomach → Before Bed. Stacked on a phone; on a
+          wide desk they stand side by side, so the whole day is one glance. ── */}
+      <div className="mt-10 space-y-4 xl:grid xl:grid-cols-3 xl:items-start xl:gap-5 xl:space-y-0">
         {TODO_BLOCKS.map((b) => (
           <TodoBlock
             key={b.id}
@@ -1406,7 +1410,7 @@ function TodayNotes() {
     <section className="mb-14">
       <h2 className="mb-4 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>Today's Notes.</h2>
 
-      <div className="mx-auto mb-8 flex max-w-xl items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400">
+      <div className="mx-auto mb-8 flex w-full max-w-xl items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400 xl:max-w-none">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -1486,7 +1490,7 @@ function ShoppingList() {
     <section className="mb-16">
       <h2 className="mb-6 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>Shopping List.</h2>
 
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto w-full max-w-xl xl:max-w-none">
         <div className="mb-6 flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400">
           <input
             value={draft}

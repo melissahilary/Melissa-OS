@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, X, Check, ChevronRight, Target, Sparkles, Calendar, ListChecks, FolderKanban, NotebookPen } from 'lucide-react'
+import { Plus, X, Check, ChevronRight, Target, Sparkles, Calendar, ListChecks, FolderKanban, NotebookPen, Image as ImageIcon } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
@@ -7,6 +7,7 @@ import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW_LONG } from '../l
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { routeStepToSection } from '../lib/goalRoutes'
+import DreamBoard from './DreamBoard'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -168,6 +169,7 @@ export default function DreamDashboard() {
     { id: 'week', label: 'This Week', icon: ListChecks },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'board', label: 'Dream Board', icon: ImageIcon },
     { id: 'collections', label: 'Collections', icon: Sparkles },
     { id: 'recap', label: 'Recap', icon: NotebookPen },
   ]
@@ -191,6 +193,7 @@ export default function DreamDashboard() {
 
       {tab === 'week' && <ThisWeek weekDays={weekDays} todayKeyStr={dateKey(now)} onToggle={(id, dk) => toggleComplete(id, dk)} onOpenItem={setEditItem} />}
       {tab === 'projects' && <Projects />}
+      {tab === 'board' && <DreamBoard />}
       {tab === 'collections' && <Collections />}
       {tab === 'recap' && <DailyRecap />}
       {tab === 'goals' && (
