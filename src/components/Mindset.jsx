@@ -522,7 +522,6 @@ function Gratitude() {
                 )
               })}
             </div>
-            <p className="mt-3 text-[10.5px] text-stone-400">Filled on days you wrote all three.</p>
           </div>
 
           {pastKeys.length > 0 && (
