@@ -104,8 +104,10 @@ function MoodTracker({ cycleConfig = {} }) {
   const selBucket = bucketOf(selected)
   const full = selected.length >= MAX_PICKS
 
+  // Only the present and the past can be recorded.
+  const isFuture = (k) => k > todayKey
   const toggleFeeling = (id) =>
-    setStore((prev) => {
+    isFuture(selKey) ? null : setStore((prev) => {
       const p = prev && typeof prev === 'object' ? prev : {}
       const cur = dayFeelings(p[selKey])
       if (!cur.includes(id) && cur.length >= MAX_PICKS) return p // top three only
@@ -118,7 +120,9 @@ function MoodTracker({ cycleConfig = {} }) {
 
   const cells = monthGrid(anchor)
   const monthIdx = anchor.getMonth()
-  const shift = (n) => setAnchor((m) => new Date(m.getFullYear(), m.getMonth() + n, 1))
+  // The month grid stops at the month she is in — there is nothing ahead to log.
+  const atCurrentMonth = anchor.getFullYear() === today.getFullYear() && monthIdx === today.getMonth()
+  const shift = (n) => { if (n > 0 && atCurrentMonth) return; setAnchor((m) => new Date(m.getFullYear(), m.getMonth() + n, 1)) }
 
   // ── the read — this month, by bucket and against the cycle ──
   const monthDays = cells
@@ -296,7 +300,7 @@ function MoodTracker({ cycleConfig = {} }) {
           <div className="mb-4 flex items-center justify-between">
             <button onClick={() => shift(-1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronLeft size={20} /></button>
             <p className="font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {anchor.getFullYear()}</p>
-            <button onClick={() => shift(1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronRight size={20} /></button>
+            <button onClick={() => shift(1)} disabled={atCurrentMonth} className={`transition-colors ${atCurrentMonth ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}><ChevronRight size={20} /></button>
           </div>
           <div className="grid grid-cols-7 gap-1.5">
             {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
@@ -306,16 +310,18 @@ function MoodTracker({ cycleConfig = {} }) {
               const bucket = bucketOf(dayFeelings(map[key]))
               const tint = bucket ? bandMeta(bucket).tint : null
               const isSel = key === selKey
-              const ph = inMonth ? phaseForConfig(phaseCfg, c) : null
+              const ahead = isFuture(key)
+              const ph = inMonth && !ahead ? phaseForConfig(phaseCfg, c) : null
               return (
                 <button
                   key={i}
-                  onClick={() => inMonth && setSelKey(key)}
-                  disabled={!inMonth}
-                  className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-lg text-xs transition-all ${inMonth ? '' : 'pointer-events-none opacity-0'} ${isSel ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
-                  style={{ backgroundColor: tint || '#F1F0ED' }}
+                  onClick={() => inMonth && !ahead && setSelKey(key)}
+                  disabled={!inMonth || ahead}
+                  title={inMonth && ahead ? 'Not yet' : undefined}
+                  className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-lg text-xs transition-all ${inMonth ? '' : 'pointer-events-none opacity-0'} ${ahead ? 'cursor-default opacity-40' : ''} ${isSel ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
+                  style={{ backgroundColor: ahead ? 'transparent' : (tint || '#F1F0ED') }}
                 >
-                  <span className={tint ? 'text-cream/90' : 'text-stone-400'}>{c.getDate()}</span>
+                  <span className={ahead ? 'text-stone-300' : tint ? 'text-cream/90' : 'text-stone-400'}>{c.getDate()}</span>
                   {ph && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px]" style={{ backgroundColor: colors[ph.id] }} />}
                 </button>
               )
@@ -325,36 +331,23 @@ function MoodTracker({ cycleConfig = {} }) {
 
           {/* ── The read — the one place the day is resolved ── */}
           <div className="mt-8 rounded-2xl border border-stone-200 bg-white/40 p-6">
-            <div className="mb-5 flex items-baseline justify-between">
-              <span className="kicker text-stone-400">The read</span>
-              {todayPhase && (
-                <span className="flex items-center gap-1.5 text-[11px] text-stone-500">
-                  <span className="h-2 w-2 rounded-full" style={{ background: colors[todayPhase.id] }} />
-                  Day {todayPhase.cycleDay} · {(PHASES[todayPhase.id] || {}).name}
-                </span>
-              )}
-            </div>
-
             {selBucket ? (
               <>
-                <div className="flex items-start gap-4">
-                  <span className="mt-1.5 h-4 w-4 shrink-0 rounded-full" style={{ background: bandMeta(selBucket).tint }} />
+                <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="font-serif text-3xl leading-none text-stone-900">{bandMeta(selBucket).label}</p>
                     <p className="mt-2 text-sm text-stone-500">{pickLabels.join(' · ')}</p>
                   </div>
+                  {todayPhase && (
+                    <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap pt-1 text-[11px] text-stone-500">
+                      <span className="h-2 w-2 rounded-full" style={{ background: colors[todayPhase.id] }} />
+                      Day {todayPhase.cycleDay} · {(PHASES[todayPhase.id] || {}).name}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-4 space-y-2">
-                  {moodSentence && (
-                    <p className="flex gap-2.5 text-sm leading-relaxed text-stone-700">
-                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" />{moodSentence}
-                    </p>
-                  )}
-                  {cycleSentence && (
-                    <p className="flex gap-2.5 text-sm leading-relaxed text-stone-700">
-                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" />{cycleSentence}
-                    </p>
-                  )}
+                  {moodSentence && <p className="text-sm leading-relaxed text-stone-700">{moodSentence}</p>}
+                  {cycleSentence && <p className="text-sm leading-relaxed text-stone-700">{cycleSentence}</p>}
                 </div>
               </>
             ) : (
@@ -454,6 +447,21 @@ function Gratitude() {
       <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
         {/* ── The three lines — one ruled page, not three boxes ── */}
         <div className="xl:col-span-5">
+          {/* The same working header the feelings grid carries: the task, and
+              how far along she is. */}
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
+            <span className="font-serif text-lg text-stone-800">Three graces</span>
+            <span className="flex items-center gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-2 w-2 rounded-full transition-colors"
+                  style={{ background: kept(i) ? '#1C1C1A' : 'rgba(120,113,108,0.22)' }}
+                />
+              ))}
+              <span className="ml-1 text-[11px] tabular-nums text-stone-400">{[0, 1, 2].filter(kept).length} of 3</span>
+            </span>
+          </div>
           <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white/50 shadow-sm">
             {[0, 1, 2].map((i) => {
               const isKept = kept(i)
