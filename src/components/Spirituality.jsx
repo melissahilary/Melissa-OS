@@ -8,5 +8,5 @@ const PRACTICE_TYPES = ['Prayer', 'Sabbath', 'Meditation', 'Scripture / study', 
 
 export default function Spirituality({ subPage, cycleConfig }) {
   if (subPage === 'practices') return <RoutineBuilder storeKey="mos:spirituality:practices" Icon={Sun} intro="What you keep holy, and how often — the practices that hold you." types={PRACTICE_TYPES} productLabel="Details" />
-  return <CategorySchedule category="spirituality" noun="Practice" cycleConfig={cycleConfig} />
+  return <CategorySchedule category="spirituality" question="What do you want to observe today?" noun="Practice" cycleConfig={cycleConfig} />
 }

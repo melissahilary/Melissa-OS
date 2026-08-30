@@ -75,19 +75,19 @@ const PILLAR_COMPONENTS = {
 // condensed into one Schedule view everywhere.
 const SUBNAV = {
   skincare: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'morning', label: 'Morning Routine' },
     { id: 'evening', label: 'Evening Routine' },
     { id: 'products', label: 'Products' },
   ],
   haircare: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'routine', label: 'Routine' },
     { id: 'products', label: 'Products' },
     { id: 'appointments', label: 'Appointments' },
   ],
   aesthetics: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'treatments', label: 'Treatments' },
     { id: 'services', label: 'Services' },
     { id: 'appointments', label: 'Appointments' },
@@ -95,55 +95,55 @@ const SUBNAV = {
     { id: 'prescribed', label: 'Prescribed' },
   ],
   bodycare: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'therapies', label: 'Therapies' },
     { id: 'products', label: 'Products' },
   ],
   spirituality: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'practices', label: 'Practices' },
   ],
   menu: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'diet', label: 'Diet' },
     { id: 'supplements', label: 'Supplements' },
     { id: 'recipes', label: 'Recipes' },
     { id: 'grocery', label: "What's In My Fridge" },
   ],
   fitness: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'plan', label: 'Workout Plan' },
     { id: 'sessions', label: 'Sessions' },
     { id: 'appointments', label: 'Appointments' },
     { id: 'devices', label: 'Equipment' },
   ],
   workout: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'cycle', label: 'My Body' },
     { id: 'protocols', label: 'Protocols' },
     { id: 'labs', label: 'Labs' },
     { id: 'appointments', label: 'Appointments' },
   ],
   diagnostics: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'bloodwork', label: 'Bloodwork' },
     { id: 'imaging', label: 'Imaging' },
     { id: 'log', label: 'Results' },
   ],
   mindset: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'influences', label: 'Influences' },
     { id: 'journal', label: 'Journal' },
     { id: 'mood', label: 'Mood' },
     { id: 'gratitude', label: 'Gratitude' },
   ],
   brainhealth: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'scans', label: 'Scans' },
     { id: 'practices', label: 'Practices' },
   ],
   relationship: [
-    { id: 'schedule', label: 'Schedule' },
+    { id: 'schedule', label: 'Protocol' },
     { id: 'circle', label: 'My Circle' },
   ],
 }

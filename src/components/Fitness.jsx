@@ -128,7 +128,7 @@ export default function Fitness({ subPage, cycleConfig }) {
   if (subPage === 'plan') return <FitnessPlan />
   if (FIT_LOG[subPage]) return <CategoryLog storeKey={`mos:fitness:${subPage}`} {...FIT_LOG[subPage]} />
   if (subPage === 'devices') return <CategoryShelf storeKey="mos:fitness:devices" blurb="The equipment you own that does the work." suggestions={['Weights', 'Foam roller', 'Theragun', 'Pilates reformer', 'Resistance bands', 'Sauna', 'Cold plunge', 'Compression boots']} notePlaceholder="what it does · how often" />
-  return <CategorySchedule category="fitness" noun="Workout" cycleConfig={cycleConfig} />
+  return <CategorySchedule category="fitness" question="What do you want to train today?" noun="Workout" cycleConfig={cycleConfig} />
 }
 
 // ── Workouts — a Monday–Sunday weekly schedule. Each workout is a ritual

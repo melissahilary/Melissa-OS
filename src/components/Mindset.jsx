@@ -12,7 +12,7 @@ import { useLifeStage } from '../lib/lifeStage'
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 export default function Mindset({ subPage, cycleConfig }) {
-  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="mindset" noun="Practice" cycleConfig={cycleConfig} />
+  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="mindset" noun="Practice" question="What do you want to practise today?" cycleConfig={cycleConfig} />
   if (subPage === 'journal') return <Journal />
   if (subPage === 'mood') return <MoodTracker cycleConfig={cycleConfig} />
   if (subPage === 'gratitude') return <Gratitude />
@@ -447,15 +447,12 @@ function Gratitude() {
 
       <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
         {/* ── The three lines — one ruled page, not three boxes ── */}
-        <div className="xl:col-span-5">
+        <div className="xl:col-span-6">
           {/* The same working header the feelings grid carries: the task, and
               how far along she is. */}
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-3">
-            <span>
-              <span className="block font-serif text-lg text-stone-800">Your top three</span>
-              <span className="mt-0.5 block text-[11px] text-stone-400">Three things, big or small — press enter after each.</span>
-            </span>
-            <span className="flex items-center gap-1.5 pb-0.5">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
+            <span className="font-serif text-lg text-stone-800">Your top three</span>
+            <span className="flex items-center gap-1.5">
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
@@ -506,7 +503,7 @@ function Gratitude() {
         {/* ── Archive — every day kept, stored beside the practice ── */}
         {/* ── The record — the shape of the practice, and the days before this
             one. Never a second copy of what she has just written. ── */}
-        <div className="mt-14 xl:col-span-7 xl:mt-0">
+        <div className="mt-14 xl:col-span-6 xl:mt-0">
           <div>
             <p className="mb-4 text-center font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {gAnchor.getFullYear()}</p>
             <div className="grid grid-cols-7 gap-1.5">

@@ -43,7 +43,7 @@ const DIET_ROWS = [
 export default function MealPlanning({ cycleConfig = {}, subPage = 'weekly' }) {
   return (
     <div>
-      {subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly' ? <CategorySchedule category="nutrition" noun="Item" cycleConfig={cycleConfig} />
+      {subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly' ? <CategorySchedule category="nutrition" question="What do you want to eat today?" noun="Item" cycleConfig={cycleConfig} />
         : subPage === 'supplements' ? <Supplements />
         : subPage === 'ingredients' ? <TodaysIngredients />
           : subPage === 'diet' ? <Diet />

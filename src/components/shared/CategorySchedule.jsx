@@ -24,7 +24,7 @@ const fmtTime = (t) => {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${ap}`
 }
 
-export default function CategorySchedule({ category, noun = 'Item', cycleConfig = {} }) {
+export default function CategorySchedule({ category, noun = 'Item', question = '', cycleConfig = {} }) {
   const { activities, add, update, remove } = useActivities()
   const { colors } = usePhaseColors()
   const { flags } = useLifeStage()
@@ -80,6 +80,8 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
 
   return (
     <div className="mb-10">
+      {question && <p className="mb-9 text-center font-serif text-2xl text-stone-800">{question}</p>}
+
       {/* The ribbon */}
       <div className="relative">
         <button onClick={() => scrollBy(-360)} aria-label="Earlier" className="absolute -left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-1.5 text-stone-400 shadow-sm hover:text-stone-900"><ChevronLeft size={16} /></button>
@@ -128,14 +130,16 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
         {sel.items.length === 0 ? (
           <p className="py-6 text-center text-sm italic text-stone-300">Nothing scheduled yet.</p>
         ) : (
-          <div className="space-y-0.5">
+          <div>
             {[...sel.items]
               .sort((a, b) => (a.details?.time || '99:99').localeCompare(b.details?.time || '99:99'))
               .map((a) => (
-                <button key={a.id} onClick={() => setEditing({ dayKey: sel.k, activity: a })} className="group flex w-full items-baseline gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/60">
-                  <span className="w-24 shrink-0 text-right text-xs tabular-nums text-stone-400">{fmtSpan(a.details?.time, a.details?.endTime) || '—'}</span>
-                  <span className="flex-1 font-serif text-lg leading-tight text-stone-800">{a.title || noun}</span>
-                  {(a.frequency === 'asneeded' || a.frequency === 'once') && <span className="kicker text-stone-300">once</span>}
+                <button key={a.id} onClick={() => setEditing({ dayKey: sel.k, activity: a })} className="flex w-full items-center gap-3 border-b border-stone-100 py-2.5 text-left transition-colors hover:border-stone-300">
+                  <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-stone-800">{a.title || noun}</span>
+                  {fmtSpan(a.details?.time, a.details?.endTime) && (
+                    <span className="shrink-0 text-xs tabular-nums text-stone-400">{fmtSpan(a.details?.time, a.details?.endTime)}</span>
+                  )}
                 </button>
               ))}
           </div>
@@ -148,14 +152,16 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
               <span className="kicker text-stone-400">Ahead</span>
               <span className="h-px flex-1 bg-stone-200" />
             </div>
-            <div className="space-y-0.5">
+            <div>
               {ahead.map(({ a, k }) => {
                 const d = parseKey(k)
                 return (
-                  <button key={`${a.id}:${k}`} onClick={() => setSelKey(k)} className="flex w-full items-baseline gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-white/60">
-                    <span className="w-16 shrink-0 text-right text-xs tabular-nums text-stone-400">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
-                    <span className="flex-1 text-sm text-stone-700">{a.title || noun}</span>
-                    {fmtTime(a.details?.time) && <span className="text-xs tabular-nums text-stone-400">{fmtSpan(a.details?.time, a.details?.endTime)}</span>}
+                  <button key={`${a.id}:${k}`} onClick={() => setSelKey(k)} className="flex w-full items-center gap-3 border-b border-stone-100 py-2.5 text-left transition-colors hover:border-stone-300">
+                    <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-stone-700">{a.title || noun}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-stone-400">
+                      {MONTHS_SHORT[d.getMonth()]} {d.getDate()}{fmtTime(a.details?.time) ? ` · ${fmtSpan(a.details?.time, a.details?.endTime)}` : ''}
+                    </span>
                   </button>
                 )
               })}

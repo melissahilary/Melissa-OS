@@ -10,7 +10,7 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 
 export default function Relationship({ subPage, cycleConfig }) {
   if (subPage === 'circle') return <Circle />
-  return <CategorySchedule category="relationship" noun="Plan" cycleConfig={cycleConfig} />
+  return <CategorySchedule category="relationship" question="Who do you want to see today?" noun="Plan" cycleConfig={cycleConfig} />
 }
 
 // ── My Circle — a private CRM for the people who matter. Every person carries

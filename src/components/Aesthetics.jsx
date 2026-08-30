@@ -44,8 +44,8 @@ const SHELF = {
 }
 
 export default function Aesthetics({ subPage, cycleConfig }) {
-  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="aesthetics" noun="Treatment" cycleConfig={cycleConfig} />
+  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="aesthetics" question="What do you want to book today?" noun="Treatment" cycleConfig={cycleConfig} />
   if (LOG[subPage]) return <CategoryLog storeKey={`mos:aesthetics:${subPage}`} {...LOG[subPage]} />
   if (SHELF[subPage]) return <CategoryShelf storeKey={`mos:aesthetics:${subPage}`} {...SHELF[subPage]} />
-  return <CategorySchedule category="aesthetics" noun="Treatment" cycleConfig={cycleConfig} />
+  return <CategorySchedule category="aesthetics" question="What do you want to book today?" noun="Treatment" cycleConfig={cycleConfig} />
 }

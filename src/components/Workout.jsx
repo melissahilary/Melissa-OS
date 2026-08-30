@@ -61,7 +61,7 @@ const anchorStart = (runStarts, todayKey) => {
 }
 
 export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {}, subPage = 'cycle' }) {
-  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="hormones" noun="Item" cycleConfig={cycleConfig} />
+  if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="hormones" question="What do you want to track today?" noun="Item" cycleConfig={cycleConfig} />
   if (subPage === 'protocols') return <Protocols />
   if (HORMONE_LOG[subPage]) return <CategoryLog storeKey={`mos:hormones:${subPage}`} {...HORMONE_LOG[subPage]} />
   return <MyBody cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />
