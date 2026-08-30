@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { X, Plus, Star, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { X, Plus, Star, Check, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
@@ -111,13 +111,33 @@ function MoodTracker() {
   )
 }
 
-// ── Gratitude — three graces a day, gathered afterward into a keepsake wall.
+// ── Gratitude — three graces a day. A blank line lies dormant; write one and
+// press enter and it inks in with a check, and the climb below marks the level
+// reached. When all three are kept the day seals into a keepsake card and joins
+// the wall of every day before it, which lives alongside the practice.
+const GRACES = 3
+
+// A small pressed seal — the same monogram language the house uses elsewhere.
+function DaySeal({ size = 26 }) {
+  return (
+    <span
+      className="relative inline-flex shrink-0 items-center justify-center rounded-full"
+      style={{ width: size, height: size, border: '1px solid #C9C2B2', boxShadow: 'inset 0 0 0 2px #FAF8F3, inset 0 0 0 3px #DDD7C8' }}
+    >
+      <span className="font-serif italic" style={{ fontSize: size * 0.46, lineHeight: 1, color: '#57524A' }}>g</span>
+    </span>
+  )
+}
+
 function Gratitude() {
   const [store, setStore] = useLocalStorage('mos:gratitude', {})
   const map = store && typeof store === 'object' ? store : {}
   const today = new Date()
   const todayKey = dateKey(today)
   const lines = Array.isArray(map[todayKey]) ? map[todayKey] : ['', '', '']
+  // Which line is being written right now. A line with words in it and no cursor
+  // is a kept one — that's what earns the ink and the check.
+  const [editing, setEditing] = useState(-1)
 
   const setLine = (idx, val) =>
     setStore((prev) => {
@@ -127,46 +147,142 @@ function Gratitude() {
       return { ...p, [todayKey]: cur }
     })
 
+  const kept = (i) => !!(lines[i] || '').trim()
+  const level = [0, 1, 2].filter(kept).length
+  // The day only seals once the third grace is committed — never mid-sentence,
+  // or the card would close over the words still being written.
+  const complete = level === GRACES && editing === -1
+  // Enter keeps the line and moves the cursor to the next one still waiting.
+  // The next box is already mounted, so it has to be focused by hand.
+  const inputRefs = useRef([])
+  const commit = (i, el) => {
+    const next = [0, 1, 2].find((j) => j > i && !(lines[j] || '').trim())
+    const target = next == null ? null : inputRefs.current[next]
+    if (target) { target.focus(); return }
+    if (el) el.blur()
+    setEditing(next == null ? -1 : next)
+  }
+
   const pastKeys = Object.keys(map)
     .filter((k) => k !== todayKey && (map[k] || []).some((l) => (l || '').trim()))
     .sort((a, b) => (a < b ? 1 : -1))
 
+  const LEVEL_WORD = ['None yet', 'One of three', 'Two of three', 'All three, kept']
+
   return (
-    <div className="mx-auto max-w-xl">
-      <p className="text-center font-serif text-2xl text-stone-800">Three graces, today.</p>
-      <p className="kicker mt-1 mb-8 text-center text-stone-400">{longDate(today)}</p>
+    <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
+      {/* ── The practice ── */}
+      <div className="xl:col-span-5">
+        <p className="text-center font-serif text-2xl text-stone-800 xl:text-left">What are you grateful for?</p>
 
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-4 rounded-2xl border border-stone-200 bg-cream/50 px-5 py-3.5 transition-colors focus-within:border-stone-400">
-            <span className="font-serif text-2xl leading-none text-stone-300">{i + 1}</span>
-            <input
-              value={lines[i] || ''}
-              onChange={(e) => setLine(i, e.target.value)}
-              placeholder="I'm grateful for…"
-              className="flex-1 bg-transparent font-serif text-lg text-stone-800 placeholder-stone-300 outline-none"
-            />
+        {complete ? (
+          /* Sealed — the day gathered into its keepsake */
+          <div className="mt-8 rounded-2xl border border-stone-300 bg-white/70 p-7 shadow-sm">
+            <div className="mb-5 flex items-center gap-3">
+              <DaySeal />
+              <span className="flex-1">
+                <span className="block font-serif text-lg leading-tight text-stone-900">Today is gathered.</span>
+                <span className="kicker text-stone-400">{longDate(today)}</span>
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {lines.filter((l) => (l || '').trim()).map((l, i) => (
+                <p key={i} className="border-l border-stone-200 pl-4 font-serif text-lg leading-relaxed text-stone-800">{l}</p>
+              ))}
+            </div>
+            <button onClick={() => setEditing(0)} className="mt-6 text-xs text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline">Change something</button>
           </div>
-        ))}
-      </div>
-
-      {pastKeys.length > 0 && (
-        <div className="mt-16 border-t border-stone-200 pt-8">
-          <p className="kicker mb-6 text-center text-stone-400">The Gratitude Wall</p>
-          <div className="space-y-6">
-            {pastKeys.map((k) => (
-              <div key={k}>
-                <p className="kicker mb-2 text-stone-400">{longDate(parseKey(k))}</p>
-                <div className="space-y-1">
-                  {(map[k] || []).filter((l) => (l || '').trim()).map((l, idx) => (
-                    <p key={idx} className="font-serif text-lg leading-relaxed text-stone-700">— {l}</p>
-                  ))}
+        ) : (
+          <div className="mt-8 space-y-3">
+            {[0, 1, 2].map((i) => {
+              const isKept = kept(i)
+              const isEditing = editing === i
+              if (isKept && !isEditing) {
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setEditing(i)}
+                    className="flex w-full items-center gap-4 rounded-2xl border border-stone-300 bg-white/70 px-5 py-3.5 text-left shadow-sm transition-colors hover:border-stone-400"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stone-900">
+                      <Check size={13} strokeWidth={2.5} className="text-cream" />
+                    </span>
+                    <span className="flex-1 font-serif text-lg leading-snug text-stone-800">{lines[i]}</span>
+                  </button>
+                )
+              }
+              return (
+                <div
+                  key={i}
+                  className={`flex items-center gap-4 rounded-2xl border px-5 py-3.5 transition-colors ${isEditing ? 'border-stone-400 bg-white/60' : 'border-dashed border-stone-200 bg-transparent'}`}
+                >
+                  <span className={`font-serif text-2xl leading-none ${isEditing ? 'text-stone-400' : 'text-stone-300'}`}>{i + 1}</span>
+                  <input
+                    ref={(el) => { inputRefs.current[i] = el }}
+                    autoFocus={isEditing}
+                    value={lines[i] || ''}
+                    onChange={(e) => setLine(i, e.target.value)}
+                    onFocus={() => setEditing(i)}
+                    onBlur={() => setEditing((cur) => (cur === i ? -1 : cur))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(i, e.currentTarget) } }}
+                    placeholder="I'm grateful for…"
+                    className={`flex-1 bg-transparent font-serif text-lg outline-none placeholder-stone-300 ${isEditing ? 'text-stone-800' : 'text-stone-400'}`}
+                  />
                 </div>
-              </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* The climb — each grace kept raises the mark */}
+        <div className="mt-7 flex items-end gap-4">
+          <div className="flex items-end gap-1.5" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="w-2.5 rounded-full transition-all duration-500"
+                style={{ height: 10 + i * 8, background: i < level ? '#1C1C1A' : 'rgba(120,113,108,0.18)' }}
+              />
             ))}
           </div>
+          <span className="kicker pb-0.5 text-stone-400">{LEVEL_WORD[level]}</span>
         </div>
-      )}
+      </div>
+
+      {/* ── The wall — every day kept, stored beside the practice ── */}
+      <div className="mt-16 xl:col-span-7 xl:mt-0">
+        {pastKeys.length > 0 ? (
+          <>
+            <div className="mb-6 flex items-baseline gap-3">
+              <span className="kicker text-stone-400">The Gratitude Wall</span>
+              <span className="h-px flex-1 bg-stone-200" />
+              <span className="text-xs tabular-nums text-stone-300">{pastKeys.length}</span>
+            </div>
+            <div className="columns-1 gap-4 sm:columns-2">
+              {pastKeys.map((k) => {
+                const kls = (map[k] || []).filter((l) => (l || '').trim())
+                return (
+                  <div key={k} className="mb-4 break-inside-avoid rounded-2xl border border-stone-200 bg-white/50 p-5">
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <DaySeal size={20} />
+                      <span className="kicker text-stone-400">{longDate(parseKey(k))}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {kls.map((l, idx) => (
+                        <p key={idx} className="border-l border-stone-200 pl-3.5 font-serif text-[17px] leading-relaxed text-stone-700">{l}</p>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-stone-200 px-6 py-14 text-center">
+            <p className="font-serif italic text-lg text-stone-400">Every day you keep all three is stored here.</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
