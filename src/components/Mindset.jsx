@@ -5,7 +5,7 @@ import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
 import CategorySchedule from './shared/CategorySchedule'
 import { dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW } from '../lib/date'
-import { phaseForConfig } from '../lib/cycle'
+import { phaseForConfig, PHASES } from '../lib/cycle'
 import { usePhaseColors } from '../hooks/usePhaseColors'
 import { useLifeStage } from '../lib/lifeStage'
 
@@ -20,55 +20,73 @@ export default function Mindset({ subPage, cycleConfig }) {
 }
 
 // ── Mood tracker — the day's felt state, recorded precisely enough to be
-// clinically useful. Every feeling carries a domain (mood, anxiety, energy,
-// focus, drive, stress, irritability) and a direction, so a month of taps adds
-// up to something a functional or hormone practitioner can actually read — and
-// the calendar carries the cycle phase beneath each day, so the pattern between
-// where she is in her cycle and how she feels becomes visible on its own.
+// clinically useful. Six domains a hormone or functional practitioner actually
+// assesses, each offered at three levels — regulated, even, dysregulated — so
+// the same question is asked of mood, anxiety, irritability, energy, focus and
+// drive every day. Pick your top three; their weight decides the day's bucket,
+// and the bucket is what colours the calendar. Read against the cycle phase,
+// a month of taps shows whether the hard days cluster somewhere.
 const DOMAINS = {
   mood: 'Mood', anxiety: 'Anxiety', irritability: 'Irritability',
-  stress: 'Stress load', energy: 'Energy', focus: 'Focus', drive: 'Drive',
+  energy: 'Energy', focus: 'Focus', drive: 'Drive',
 }
+const DOMAIN_ORDER = ['mood', 'anxiety', 'irritability', 'energy', 'focus', 'drive']
 
-// dir: +1 regulated · 0 even · -1 dysregulated. The legacy single-mood ids
-// (radiant/content/tender/tired/anxious/low) are kept so old logs still read.
+// Three bands, three colours — the day takes the colour of the band it lands in,
+// so a month reads as a pattern rather than a bag of eighteen hues.
+const BANDS = [
+  { id: 'up', label: 'Regulated', tint: '#7C8B6B', dir: 1 },
+  { id: 'even', label: 'Even', tint: '#A3A093', dir: 0 },
+  { id: 'down', label: 'Dysregulated', tint: '#A0654C', dir: -1 },
+]
+const bandMeta = (id) => BANDS.find((b) => b.id === id) || BANDS[1]
+
+// Six domains × three levels. Every row is the same question asked at a
+// different intensity, which is what makes a month of it readable.
 const MOODS = [
   // Regulated
-  { id: 'radiant', label: 'Radiant', tint: '#C4A76A', band: 'up', domain: 'mood', dir: 1 },
-  { id: 'energised', label: 'Energised', tint: '#9C8F4F', band: 'up', domain: 'energy', dir: 1 },
-  { id: 'clear', label: 'Clear', tint: '#6E8CA0', band: 'up', domain: 'focus', dir: 1 },
-  { id: 'motivated', label: 'Motivated', tint: '#7C8B6B', band: 'up', domain: 'drive', dir: 1 },
-  { id: 'connected', label: 'Connected', tint: '#B07A9A', band: 'up', domain: 'mood', dir: 1 },
-  { id: 'calm', label: 'Calm', tint: '#8FA394', band: 'up', domain: 'anxiety', dir: 1 },
+  { id: 'bright', label: 'Bright', band: 'up', domain: 'mood' },
+  { id: 'calm', label: 'Calm', band: 'up', domain: 'anxiety' },
+  { id: 'patient', label: 'Patient', band: 'up', domain: 'irritability' },
+  { id: 'energised', label: 'Energised', band: 'up', domain: 'energy' },
+  { id: 'clear', label: 'Clear', band: 'up', domain: 'focus' },
+  { id: 'motivated', label: 'Motivated', band: 'up', domain: 'drive' },
   // Even
-  { id: 'content', label: 'Content', tint: '#889072', band: 'even', domain: 'mood', dir: 1 },
-  { id: 'rested', label: 'Rested', tint: '#9BAF9F', band: 'even', domain: 'energy', dir: 1 },
-  { id: 'even', label: 'Even', tint: '#A3A093', band: 'even', domain: 'mood', dir: 0 },
+  { id: 'steady', label: 'Steady', band: 'even', domain: 'mood' },
+  { id: 'settled', label: 'Settled', band: 'even', domain: 'anxiety' },
+  { id: 'unbothered', label: 'Unbothered', band: 'even', domain: 'irritability' },
+  { id: 'rested', label: 'Rested', band: 'even', domain: 'energy' },
+  { id: 'present', label: 'Present', band: 'even', domain: 'focus' },
+  { id: 'managing', label: 'Managing', band: 'even', domain: 'drive' },
   // Dysregulated
-  { id: 'tender', label: 'Tender', tint: '#C08B72', band: 'down', domain: 'mood', dir: -1 },
-  { id: 'low', label: 'Low', tint: '#7E7A86', band: 'down', domain: 'mood', dir: -1 },
-  { id: 'tearful', label: 'Tearful', tint: '#8E7BA0', band: 'down', domain: 'mood', dir: -1 },
-  { id: 'anxious', label: 'Anxious', tint: '#A0654C', band: 'down', domain: 'anxiety', dir: -1 },
-  { id: 'onedge', label: 'On edge', tint: '#B0704F', band: 'down', domain: 'anxiety', dir: -1 },
-  { id: 'irritable', label: 'Irritable', tint: '#A85B4B', band: 'down', domain: 'irritability', dir: -1 },
-  { id: 'overwhelmed', label: 'Overwhelmed', tint: '#8A6A5C', band: 'down', domain: 'stress', dir: -1 },
-  { id: 'foggy', label: 'Foggy', tint: '#9A9AA0', band: 'down', domain: 'focus', dir: -1 },
-  { id: 'tired', label: 'Tired', tint: '#9A8F84', band: 'down', domain: 'energy', dir: -1 },
-  { id: 'flat', label: 'Flat', tint: '#8B8578', band: 'down', domain: 'drive', dir: -1 },
+  { id: 'low', label: 'Low', band: 'down', domain: 'mood' },
+  { id: 'anxious', label: 'Anxious', band: 'down', domain: 'anxiety' },
+  { id: 'irritable', label: 'Irritable', band: 'down', domain: 'irritability' },
+  { id: 'depleted', label: 'Depleted', band: 'down', domain: 'energy' },
+  { id: 'foggy', label: 'Foggy', band: 'down', domain: 'focus' },
+  { id: 'flat', label: 'Flat', band: 'down', domain: 'drive' },
 ]
-const moodMeta = (id) => MOODS.find((m) => m.id === id)
-const BANDS = [
-  { id: 'up', label: 'Regulated' },
-  { id: 'even', label: 'Even' },
-  { id: 'down', label: 'Dysregulated' },
-]
+// Days logged before this vocabulary existed still read correctly.
+const LEGACY = {
+  radiant: 'bright', content: 'steady', connected: 'bright', even: 'steady',
+  tender: 'low', tearful: 'low', tired: 'depleted', onedge: 'anxious',
+  overwhelmed: 'anxious', wired: 'anxious',
+}
+const moodMeta = (id) => MOODS.find((m) => m.id === id) || MOODS.find((m) => m.id === LEGACY[id])
+const MAX_PICKS = 3
 
-// A day was once a single mood id; it is now a list, the first of which colours
-// the day. Read both shapes.
+// A day was once a single mood id; it is now up to three. Read both shapes.
 const dayFeelings = (v) => {
-  if (Array.isArray(v)) return v.filter((id) => moodMeta(id))
-  if (typeof v === 'string' && moodMeta(v)) return [v]
-  return []
+  const raw = Array.isArray(v) ? v : (typeof v === 'string' ? [v] : [])
+  const out = []
+  raw.forEach((id) => { const m = moodMeta(id); if (m && !out.includes(m.id)) out.push(m.id) })
+  return out
+}
+// The weight of what she felt decides the day's bucket.
+const bucketOf = (ids) => {
+  if (!ids.length) return null
+  const score = ids.reduce((n, id) => n + bandMeta((moodMeta(id) || {}).band).dir, 0)
+  return score > 0 ? 'up' : score < 0 ? 'down' : 'even'
 }
 
 function MoodTracker({ cycleConfig = {} }) {
@@ -83,12 +101,14 @@ function MoodTracker({ cycleConfig = {} }) {
   const phaseCfg = flags.phases ? cycleConfig : {}
 
   const selected = dayFeelings(map[selKey])
+  const selBucket = bucketOf(selected)
+  const full = selected.length >= MAX_PICKS
 
-  // Tapping a feeling adds or removes it; the first one chosen colours the day.
   const toggleFeeling = (id) =>
     setStore((prev) => {
       const p = prev && typeof prev === 'object' ? prev : {}
       const cur = dayFeelings(p[selKey])
+      if (!cur.includes(id) && cur.length >= MAX_PICKS) return p // top three only
       const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
       const out = { ...p }
       if (next.length) out[selKey] = next
@@ -100,174 +120,198 @@ function MoodTracker({ cycleConfig = {} }) {
   const monthIdx = anchor.getMonth()
   const shift = (n) => setAnchor((m) => new Date(m.getFullYear(), m.getMonth() + n, 1))
 
-  // ── the clinical read — this month, by domain and by cycle phase ──
-  const monthDays = cells.filter((c) => c.getMonth() === monthIdx).map((c) => ({ d: c, k: dateKey(c), f: dayFeelings(map[dateKey(c)]) })).filter((x) => x.f.length)
+  // ── the read — this month, by bucket and against the cycle ──
+  const monthDays = cells
+    .filter((c) => c.getMonth() === monthIdx)
+    .map((c) => ({ d: c, k: dateKey(c), f: dayFeelings(map[dateKey(c)]) }))
+    .filter((x) => x.f.length)
   const logged = monthDays.length
   const bandCount = { up: 0, even: 0, down: 0 }
   const domainCount = {}
   monthDays.forEach(({ f }) => {
-    // A day's band is the direction of the weight of what she felt that day.
-    const score = f.reduce((n, id) => n + (moodMeta(id)?.dir || 0), 0)
-    bandCount[score > 0 ? 'up' : score < 0 ? 'down' : 'even']++
+    bandCount[bucketOf(f)]++
     f.forEach((id) => {
       const m = moodMeta(id)
-      if (m && m.dir < 0) domainCount[m.domain] = (domainCount[m.domain] || 0) + 1
+      if (m && m.band === 'down') domainCount[m.domain] = (domainCount[m.domain] || 0) + 1
     })
   })
   const flagged = Object.entries(domainCount).sort((a, b) => b[1] - a[1]).slice(0, 4)
 
-  // Where the hard days fall in the cycle — the pattern a practitioner wants.
-  const phaseRows = (() => {
+  // How each phase of the cycle actually goes — the comparison worth having.
+  const byPhase = (() => {
     if (!flags.phases) return []
     const acc = {}
     monthDays.forEach(({ d, f }) => {
       const ph = phaseForConfig(phaseCfg, d)
       if (!ph) return
-      const score = f.reduce((n, id) => n + (moodMeta(id)?.dir || 0), 0)
-      if (!acc[ph.id]) acc[ph.id] = { id: ph.id, label: ph.label || ph.name, total: 0, down: 0 }
+      if (!acc[ph.id]) acc[ph.id] = { id: ph.id, total: 0, up: 0, even: 0, down: 0 }
       acc[ph.id].total++
-      if (score < 0) acc[ph.id].down++
+      acc[ph.id][bucketOf(f)]++
     })
-    return Object.values(acc).filter((r) => r.total)
+    return Object.keys(PHASES).filter((id) => acc[id]).map((id) => acc[id])
   })()
+  const todayPhase = flags.phases ? phaseForConfig(phaseCfg, parseKey(selKey)) : null
+  const todayPhaseRow = todayPhase ? byPhase.find((r) => r.id === todayPhase.id) : null
 
   return (
-    <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
-      {/* ── The question and the squares ── */}
-      <div className="xl:col-span-6">
-        <p className="text-center font-serif text-2xl text-stone-800 xl:text-left">
-          {selKey === todayKey ? 'How do you feel today?' : `How did you feel on ${longDate(parseKey(selKey))}?`}
-        </p>
-        <p className="mt-1.5 text-center text-xs text-stone-400 xl:text-left">Choose as many as are true. The first colours the day.</p>
+    <>
+      <p className="mb-2 text-center font-serif text-2xl text-stone-800">
+        {selKey === todayKey ? 'How do you feel today?' : `How did you feel on ${longDate(parseKey(selKey))}?`}
+      </p>
+      <p className="mb-10 text-center text-xs text-stone-400">
+        Your top three{todayPhase ? ` — you're in your ${(PHASES[todayPhase.id] || {}).name.toLowerCase()} phase` : ''}.
+      </p>
 
-        <div className="mt-7 space-y-6">
-          {BANDS.map((b) => (
-            <div key={b.id}>
-              <div className="mb-2.5 flex items-center gap-3">
-                <span className="kicker text-stone-400">{b.label}</span>
-                <span className="h-px flex-1 bg-stone-100" />
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-3">
-                {MOODS.filter((m) => m.band === b.id).map((m) => {
-                  const on = selected.includes(m.id)
-                  const primary = selected[0] === m.id
-                  return (
-                    <button
-                      key={m.id}
-                      onClick={() => toggleFeeling(m.id)}
-                      title={DOMAINS[m.domain]}
-                      className={`relative flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border transition-all ${on ? 'border-stone-900 shadow-sm' : 'border-stone-200 hover:border-stone-400'}`}
-                      style={{ background: on ? `${m.tint}1f` : undefined }}
-                    >
-                      <span className="h-4 w-4 rounded-full" style={{ backgroundColor: m.tint, boxShadow: on ? `0 0 0 3px ${m.tint}33` : undefined }} />
-                      <span className={`px-1 text-center text-[11.5px] leading-tight ${on ? 'text-stone-900' : 'text-stone-500'}`}>{m.label}</span>
-                      {primary && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-stone-900" title="Colours the day" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── The month, and what it says ── */}
-      <div className="mt-14 xl:col-span-6 xl:mt-0">
-        <div className="mb-4 flex items-center justify-between">
-          <button onClick={() => shift(-1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronLeft size={20} /></button>
-          <p className="font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {anchor.getFullYear()}</p>
-          <button onClick={() => shift(1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronRight size={20} /></button>
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
-          {cells.map((c, i) => {
-            const inMonth = c.getMonth() === monthIdx
-            const key = dateKey(c)
-            const f = dayFeelings(map[key])
-            const tint = f.length ? moodMeta(f[0])?.tint : null
-            const isSel = key === selKey
-            const ph = inMonth ? phaseForConfig(phaseCfg, c) : null
-            return (
-              <button
-                key={i}
-                onClick={() => inMonth && setSelKey(key)}
-                disabled={!inMonth}
-                className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-lg text-xs transition-all ${inMonth ? '' : 'pointer-events-none opacity-0'} ${isSel ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
-                style={{ backgroundColor: tint || '#F1F0ED' }}
-              >
-                <span className={tint ? 'text-cream/90' : 'text-stone-400'}>{c.getDate()}</span>
-                {/* more than one feeling that day */}
-                {f.length > 1 && <span className="absolute right-1 top-1 h-1 w-1 rounded-full bg-cream/70" />}
-                {/* the cycle phase, running beneath the day */}
-                {ph && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px]" style={{ backgroundColor: colors[ph.id] }} />}
-              </button>
-            )
-          })}
-        </div>
-
-        {flags.phases && (
-          <p className="mt-3 text-center text-[10.5px] text-stone-400">The line beneath each day is your cycle phase.</p>
-        )}
-
-        {/* The read — what a month of taps amounts to */}
-        {logged > 0 && (
-          <div className="mt-8 rounded-2xl border border-stone-200 bg-white/40 p-6">
-            <div className="mb-4 flex items-baseline justify-between">
-              <span className="kicker text-stone-400">The read</span>
-              <span className="text-xs tabular-nums text-stone-300">{logged} day{logged === 1 ? '' : 's'} logged</span>
-            </div>
-
-            <div className="flex h-2 overflow-hidden rounded-full bg-stone-100">
-              {['up', 'even', 'down'].map((b) => (
-                bandCount[b] ? <span key={b} style={{ width: `${(bandCount[b] / logged) * 100}%`, background: b === 'up' ? '#7C8B6B' : b === 'even' ? '#A3A093' : '#A0654C' }} /> : null
-              ))}
-            </div>
-            <div className="mt-2 flex justify-between text-[10.5px] text-stone-400">
-              <span>{bandCount.up} regulated</span><span>{bandCount.even} even</span><span>{bandCount.down} dysregulated</span>
-            </div>
-
-            {flagged.length > 0 && (
-              <div className="mt-5 border-t border-stone-100 pt-4">
-                <p className="kicker mb-2.5 text-stone-400">What is asking for attention</p>
-                <div className="space-y-1.5">
-                  {flagged.map(([d, n]) => (
-                    <div key={d} className="flex items-center gap-3">
-                      <span className="w-24 shrink-0 text-sm text-stone-600">{DOMAINS[d]}</span>
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100">
-                        <div className="h-full rounded-full" style={{ width: `${(n / logged) * 100}%`, background: '#A0654C' }} />
-                      </div>
-                      <span className="w-12 text-right text-[11px] tabular-nums text-stone-400">{n}/{logged}</span>
-                    </div>
-                  ))}
+      <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
+        {/* ── The squares ── */}
+        <div className="xl:col-span-6">
+          <div className="space-y-6">
+            {BANDS.map((b) => (
+              <div key={b.id}>
+                <div className="mb-2.5 flex items-center gap-3">
+                  <span className="h-2 w-2 rounded-full" style={{ background: b.tint }} />
+                  <span className="kicker text-stone-400">{b.label}</span>
+                  <span className="h-px flex-1 bg-stone-100" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {MOODS.filter((m) => m.band === b.id).map((m) => {
+                    const on = selected.includes(m.id)
+                    const locked = full && !on
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => toggleFeeling(m.id)}
+                        disabled={locked}
+                        title={DOMAINS[m.domain]}
+                        className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border transition-all ${on ? 'border-stone-900 shadow-sm' : locked ? 'border-stone-100 opacity-40' : 'border-stone-200 hover:border-stone-400'}`}
+                        style={{ background: on ? `${b.tint}26` : undefined }}
+                      >
+                        <span className={`px-1 text-center text-[12.5px] leading-tight ${on ? 'text-stone-900' : 'text-stone-500'}`}>{m.label}</span>
+                        <span className="text-[9px] tracking-[0.12em] text-stone-400">{DOMAINS[m.domain].toUpperCase()}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-            )}
-
-            {phaseRows.length > 0 && (
-              <div className="mt-5 border-t border-stone-100 pt-4">
-                <p className="kicker mb-2.5 text-stone-400">Against your cycle</p>
-                <div className="space-y-1.5">
-                  {phaseRows.map((r) => (
-                    <div key={r.id} className="flex items-center gap-3">
-                      <span className="flex w-24 shrink-0 items-center gap-2 text-sm text-stone-600">
-                        <span className="h-2 w-2 rounded-full" style={{ background: colors[r.id] }} />{r.label}
-                      </span>
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100">
-                        <div className="h-full rounded-full" style={{ width: `${(r.down / r.total) * 100}%`, background: '#A0654C' }} />
-                      </div>
-                      <span className="w-12 text-right text-[11px] tabular-nums text-stone-400">{r.down}/{r.total}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-3 text-[10.5px] italic leading-relaxed text-stone-400">
-                  Hard days as a share of days logged in each phase — the pattern worth bringing to your practitioner.
-                </p>
-              </div>
-            )}
+            ))}
           </div>
-        )}
+
+          {/* Where the three you picked land */}
+          {selBucket && (
+            <div className="mt-6 flex items-center gap-3 rounded-2xl border border-stone-200 bg-white/50 px-5 py-4">
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: bandMeta(selBucket).tint }} />
+              <span className="flex-1 text-sm text-stone-600">
+                {selected.length === MAX_PICKS ? 'This day reads' : `${selected.length} of ${MAX_PICKS} — so far this day reads`}{' '}
+                <span className="font-serif text-lg text-stone-900">{bandMeta(selBucket).label}</span>
+              </span>
+              <button onClick={() => setStore((p) => { const o = { ...(p && typeof p === 'object' ? p : {}) }; delete o[selKey]; return o })} className="text-xs text-stone-400 hover:text-stone-700">clear</button>
+            </div>
+          )}
+        </div>
+
+        {/* ── The month, and what it says ── */}
+        <div className="mt-14 xl:col-span-6 xl:mt-0">
+          <div className="mb-4 flex items-center justify-between">
+            <button onClick={() => shift(-1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronLeft size={20} /></button>
+            <p className="font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {anchor.getFullYear()}</p>
+            <button onClick={() => shift(1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronRight size={20} /></button>
+          </div>
+          <div className="grid grid-cols-7 gap-1.5">
+            {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
+            {cells.map((c, i) => {
+              const inMonth = c.getMonth() === monthIdx
+              const key = dateKey(c)
+              const bucket = bucketOf(dayFeelings(map[key]))
+              const tint = bucket ? bandMeta(bucket).tint : null
+              const isSel = key === selKey
+              const ph = inMonth ? phaseForConfig(phaseCfg, c) : null
+              return (
+                <button
+                  key={i}
+                  onClick={() => inMonth && setSelKey(key)}
+                  disabled={!inMonth}
+                  className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-lg text-xs transition-all ${inMonth ? '' : 'pointer-events-none opacity-0'} ${isSel ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
+                  style={{ backgroundColor: tint || '#F1F0ED' }}
+                >
+                  <span className={tint ? 'text-cream/90' : 'text-stone-400'}>{c.getDate()}</span>
+                  {ph && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px]" style={{ backgroundColor: colors[ph.id] }} />}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            {BANDS.map((b) => (
+              <span key={b.id} className="flex items-center gap-1.5 text-[10.5px] text-stone-400">
+                <span className="h-2 w-2 rounded-full" style={{ background: b.tint }} />{b.label}
+              </span>
+            ))}
+            {flags.phases && <span className="text-[10.5px] text-stone-400">· the line beneath each day is your cycle phase</span>}
+          </div>
+
+          {logged > 0 && (
+            <div className="mt-8 rounded-2xl border border-stone-200 bg-white/40 p-6">
+              <div className="mb-4 flex items-baseline justify-between">
+                <span className="kicker text-stone-400">The read</span>
+                <span className="text-xs tabular-nums text-stone-300">{logged} day{logged === 1 ? '' : 's'} logged</span>
+              </div>
+
+              <div className="flex h-2 overflow-hidden rounded-full bg-stone-100">
+                {BANDS.map((b) => (bandCount[b.id] ? <span key={b.id} style={{ width: `${(bandCount[b.id] / logged) * 100}%`, background: b.tint }} /> : null))}
+              </div>
+              <div className="mt-2 flex justify-between text-[10.5px] text-stone-400">
+                {BANDS.map((b) => <span key={b.id}>{bandCount[b.id]} {b.label.toLowerCase()}</span>)}
+              </div>
+
+              {byPhase.length > 0 && (
+                <div className="mt-5 border-t border-stone-100 pt-4">
+                  <p className="kicker mb-3 text-stone-400">Against your cycle</p>
+                  <div className="space-y-2.5">
+                    {byPhase.map((r) => {
+                      const P = PHASES[r.id] || {}
+                      const here = todayPhase && todayPhase.id === r.id
+                      return (
+                        <div key={r.id} className={`flex items-center gap-3 rounded-lg ${here ? 'bg-stone-500/5 px-2 py-1.5' : 'px-2'}`}>
+                          <span className="flex w-24 shrink-0 items-center gap-2 text-sm text-stone-600">
+                            <span className="h-2 w-2 rounded-full" style={{ background: colors[r.id] }} />{P.name || r.id}
+                          </span>
+                          <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
+                            {BANDS.map((b) => (r[b.id] ? <span key={b.id} style={{ width: `${(r[b.id] / r.total) * 100}%`, background: b.tint }} /> : null))}
+                          </div>
+                          <span className="w-8 text-right text-[11px] tabular-nums text-stone-400">{r.total}d</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {todayPhaseRow && todayPhaseRow.total > 0 && (
+                    <p className="mt-3 text-[11px] italic leading-relaxed text-stone-500">
+                      In your {(PHASES[todayPhaseRow.id] || {}).name.toLowerCase()} phase this month, {todayPhaseRow.down} of {todayPhaseRow.total} logged day{todayPhaseRow.total === 1 ? '' : 's'} read dysregulated.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {flagged.length > 0 && (
+                <div className="mt-5 border-t border-stone-100 pt-4">
+                  <p className="kicker mb-2.5 text-stone-400">What is asking for attention</p>
+                  <div className="space-y-1.5">
+                    {flagged.map(([d, n]) => (
+                      <div key={d} className="flex items-center gap-3">
+                        <span className="w-24 shrink-0 text-sm text-stone-600">{DOMAINS[d]}</span>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100">
+                          <div className="h-full rounded-full" style={{ width: `${(n / logged) * 100}%`, background: '#A0654C' }} />
+                        </div>
+                        <span className="w-12 text-right text-[11px] tabular-nums text-stone-400">{n}/{logged}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -319,45 +363,43 @@ function Gratitude() {
       <p className="mb-10 text-center font-serif text-2xl text-stone-800">What are you grateful for?</p>
 
       <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
-        {/* ── The three lines ── */}
-        <div className="space-y-3 xl:col-span-5">
-          {[0, 1, 2].map((i) => {
-            const isKept = kept(i)
-            const isEditing = editing === i
-            if (isKept && !isEditing) {
+        {/* ── The three lines — one ruled page, not three boxes ── */}
+        <div className="xl:col-span-5">
+          <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white/50 shadow-sm">
+            {[0, 1, 2].map((i) => {
+              const isKept = kept(i)
+              const isEditing = editing === i
               return (
-                <button
+                <div
                   key={i}
-                  onClick={() => setEditing(i)}
-                  className="flex w-full items-center gap-4 rounded-2xl border border-stone-300 bg-white/70 px-5 py-3.5 text-left shadow-sm transition-colors hover:border-stone-400"
+                  className={`flex items-center gap-4 px-6 py-5 transition-colors ${i > 0 ? 'border-t border-stone-100' : ''} ${isEditing ? 'bg-white' : ''}`}
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stone-900">
-                    <Check size={13} strokeWidth={2.5} className="text-cream" />
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+                    {isKept && !isEditing
+                      ? <Check size={15} strokeWidth={2.5} className="text-stone-900" />
+                      : <span className={`font-serif text-xl leading-none ${isEditing ? 'text-stone-400' : 'text-stone-200'}`}>{i + 1}</span>}
                   </span>
-                  <span className="flex-1 font-serif text-lg leading-snug text-stone-800">{lines[i]}</span>
-                </button>
+                  {isKept && !isEditing ? (
+                    <button onClick={() => setEditing(i)} className="flex-1 text-left font-serif text-lg leading-snug text-stone-800">
+                      {lines[i]}
+                    </button>
+                  ) : (
+                    <input
+                      ref={(el) => { inputRefs.current[i] = el }}
+                      autoFocus={isEditing}
+                      value={lines[i] || ''}
+                      onChange={(e) => setLine(i, e.target.value)}
+                      onFocus={() => setEditing(i)}
+                      onBlur={() => setEditing((cur) => (cur === i ? -1 : cur))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(i, e.currentTarget) } }}
+                      placeholder="I'm grateful for…"
+                      className={`flex-1 bg-transparent font-serif text-lg outline-none placeholder-stone-300 ${isEditing ? 'text-stone-800' : 'text-stone-400'}`}
+                    />
+                  )}
+                </div>
               )
-            }
-            return (
-              <div
-                key={i}
-                className={`flex items-center gap-4 rounded-2xl border px-5 py-3.5 transition-colors ${isEditing ? 'border-stone-400 bg-white/60' : 'border-dashed border-stone-200 bg-transparent'}`}
-              >
-                <span className={`font-serif text-2xl leading-none ${isEditing ? 'text-stone-400' : 'text-stone-300'}`}>{i + 1}</span>
-                <input
-                  ref={(el) => { inputRefs.current[i] = el }}
-                  autoFocus={isEditing}
-                  value={lines[i] || ''}
-                  onChange={(e) => setLine(i, e.target.value)}
-                  onFocus={() => setEditing(i)}
-                  onBlur={() => setEditing((cur) => (cur === i ? -1 : cur))}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(i, e.currentTarget) } }}
-                  placeholder="I'm grateful for…"
-                  className={`flex-1 bg-transparent font-serif text-lg outline-none placeholder-stone-300 ${isEditing ? 'text-stone-800' : 'text-stone-400'}`}
-                />
-              </div>
-            )
-          })}
+            })}
+          </div>
         </div>
 
         {/* ── Archive — every day kept, stored beside the practice ── */}
@@ -368,7 +410,7 @@ function Gratitude() {
               <span className="h-px flex-1 bg-stone-200" />
               <span className="text-xs tabular-nums text-stone-300">{archive.length}</span>
             </div>
-            <div className="columns-1 gap-4 sm:columns-2">
+            <div className={archive.length > 1 ? 'columns-1 gap-4 md:columns-2' : ''}>
               {archive.map((k) => (
                 <div key={k} className="mb-4 break-inside-avoid rounded-2xl border border-stone-200 bg-white/50 p-5">
                   <p className="kicker mb-3 text-stone-400">{k === todayKey ? 'Today' : longDate(parseKey(k))}</p>
@@ -449,8 +491,12 @@ function Journal() {
           <p className="font-serif text-2xl text-stone-800">
             {isToday ? "What's on your mind today?" : `What was on your mind on ${longDate(selected)}?`}
           </p>
-          <button onClick={() => setShowCal(true)} title="Jump to a date" className="mt-2 text-stone-300 transition-colors hover:text-stone-600">
-            <CalendarDays size={15} />
+          <button
+            onClick={() => setShowCal(true)}
+            title="Jump to a date"
+            className="mt-3 flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream"
+          >
+            <CalendarDays size={13} /> Jump to a date
           </button>
           {!isToday && <button onClick={() => setSelectedKey(dateKey(today))} className="mt-1 text-xs italic text-stone-400 underline underline-offset-2 hover:text-stone-700">Back to today</button>}
         </div>
