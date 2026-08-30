@@ -151,20 +151,80 @@ function MoodTracker({ cycleConfig = {} }) {
     return Object.keys(PHASES).filter((id) => acc[id]).map((id) => acc[id])
   })()
   const todayPhase = flags.phases ? phaseForConfig(phaseCfg, parseKey(selKey)) : null
-  const todayPhaseRow = todayPhase ? byPhase.find((r) => r.id === todayPhase.id) : null
+
+  // ── the verdict, in words ── The panel's job is to say what the month came
+  // to, not to hand her three numbers and let her work it out.
+  const dominant = logged
+    ? BANDS.reduce((best, b) => (bandCount[b.id] > bandCount[best.id] ? b : best), BANDS[1]).id
+    : 'even'
+  const readSentence = (() => {
+    if (logged === 1) {
+      const d = bandMeta(dominant)
+      return d.id === 'up' ? 'One day logged, and it sat regulated.'
+        : d.id === 'down' ? 'One day logged, and it ran dysregulated.'
+          : 'One day logged, and it sat level — nothing pulling up or down.'
+    }
+    const n = bandCount[dominant]
+    const share = Math.round((n / logged) * 100)
+    return dominant === 'up'
+      ? `${n} of your ${logged} logged days ran regulated — ${share}% of the month so far.`
+      : dominant === 'down'
+        ? `${n} of your ${logged} logged days ran dysregulated — ${share}% of the month so far.`
+        : `${n} of your ${logged} logged days sat level — ${share}% of the month so far.`
+  })()
+
+  // Only say something when there is enough behind it to be worth saying.
+  const insights = (() => {
+    const out = []
+    if (logged < 3) {
+      out.push('A few more days and the pattern against your cycle appears here.')
+      return out
+    }
+    const down = bandCount.down
+    if (down >= 2 && flags.phases) {
+      const worst = byPhase.filter((r) => r.down > 0).sort((a, b) => (b.down / b.total) - (a.down / a.total))[0]
+      if (worst && worst.down >= 2 && worst.down / worst.total >= 0.5) {
+        out.push(`Your hard days cluster in your ${(PHASES[worst.id] || {}).name.toLowerCase()} phase — ${worst.down} of the ${worst.total} you logged there.`)
+      }
+    }
+    if (down >= 2) {
+      const top = Object.entries(domainCount).sort((a, b) => b[1] - a[1])[0]
+      if (top && top[1] >= 2) out.push(`When a day is hard, it is most often your ${DOMAINS[top[0]].toLowerCase()} — ${top[1]} of ${logged} days.`)
+    }
+    if (bandCount.up >= 2 && down === 0) out.push('Nothing has run dysregulated this month.')
+    return out
+  })()
 
   return (
     <>
-      <p className="mb-2 text-center font-serif text-2xl text-stone-800">
+      <p className="mb-9 text-center font-serif text-2xl text-stone-800">
         {selKey === todayKey ? 'How do you feel today?' : `How did you feel on ${longDate(parseKey(selKey))}?`}
-      </p>
-      <p className="mb-10 text-center text-xs text-stone-400">
-        Your top three{todayPhase ? ` — you're in your ${(PHASES[todayPhase.id] || {}).name.toLowerCase()} phase` : ''}.
       </p>
 
       <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
         {/* ── The squares ── */}
         <div className="xl:col-span-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
+            <span className="font-serif text-lg text-stone-800">Your top three</span>
+            <div className="flex items-center gap-3">
+              {todayPhase && (
+                <span className="flex items-center gap-1.5 text-[11px] text-stone-500">
+                  <span className="h-2 w-2 rounded-full" style={{ background: colors[todayPhase.id] }} />
+                  {(PHASES[todayPhase.id] || {}).name} phase
+                </span>
+              )}
+              <span className="flex items-center gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-2 w-2 rounded-full transition-colors"
+                    style={{ background: i < selected.length ? (selBucket ? bandMeta(selBucket).tint : '#1C1C1A') : 'rgba(120,113,108,0.22)' }}
+                  />
+                ))}
+                <span className="ml-1 text-[11px] tabular-nums text-stone-400">{selected.length} of {MAX_PICKS}</span>
+              </span>
+            </div>
+          </div>
           <div className="space-y-6">
             {BANDS.map((b) => (
               <div key={b.id}>
@@ -251,19 +311,39 @@ function MoodTracker({ cycleConfig = {} }) {
 
           {logged > 0 && (
             <div className="mt-8 rounded-2xl border border-stone-200 bg-white/40 p-6">
-              <div className="mb-4 flex items-baseline justify-between">
+              <div className="mb-5 flex items-baseline justify-between">
                 <span className="kicker text-stone-400">The read</span>
                 <span className="text-xs tabular-nums text-stone-300">{logged} day{logged === 1 ? '' : 's'} logged</span>
               </div>
 
-              <div className="flex h-2 overflow-hidden rounded-full bg-stone-100">
-                {BANDS.map((b) => (bandCount[b.id] ? <span key={b.id} style={{ width: `${(bandCount[b.id] / logged) * 100}%`, background: b.tint }} /> : null))}
-              </div>
-              <div className="mt-2 flex justify-between text-[10.5px] text-stone-400">
-                {BANDS.map((b) => <span key={b.id}>{bandCount[b.id]} {b.label.toLowerCase()}</span>)}
+              {/* The verdict, said plainly — not left for her to work out of a bar */}
+              <div className="flex items-start gap-4">
+                <span className="mt-1.5 h-4 w-4 shrink-0 rounded-full" style={{ background: bandMeta(dominant).tint }} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-serif text-3xl leading-none text-stone-900">
+                    {logged === 1 ? bandMeta(dominant).label : `Mostly ${bandMeta(dominant).label.toLowerCase()}`}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-stone-500">{readSentence}</p>
+                  {logged > 1 && (
+                    <p className="mt-2.5 text-xs text-stone-400">
+                      {BANDS.filter((b) => bandCount[b.id]).map((b) => `${bandCount[b.id]} ${b.label.toLowerCase()}`).join(' · ')}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {byPhase.length > 0 && (
+              {/* What it means — only once there is enough to mean anything */}
+              {insights.length > 0 && (
+                <div className="mt-5 space-y-2 border-t border-stone-100 pt-4">
+                  {insights.map((t, i) => (
+                    <p key={i} className="flex gap-2.5 text-sm leading-relaxed text-stone-700">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" />{t}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {byPhase.length > 1 && (
                 <div className="mt-5 border-t border-stone-100 pt-4">
                   <p className="kicker mb-3 text-stone-400">Against your cycle</p>
                   <div className="space-y-2.5">
@@ -283,28 +363,6 @@ function MoodTracker({ cycleConfig = {} }) {
                       )
                     })}
                   </div>
-                  {todayPhaseRow && todayPhaseRow.total > 0 && (
-                    <p className="mt-3 text-[11px] italic leading-relaxed text-stone-500">
-                      In your {(PHASES[todayPhaseRow.id] || {}).name.toLowerCase()} phase this month, {todayPhaseRow.down} of {todayPhaseRow.total} logged day{todayPhaseRow.total === 1 ? '' : 's'} read dysregulated.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {flagged.length > 0 && (
-                <div className="mt-5 border-t border-stone-100 pt-4">
-                  <p className="kicker mb-2.5 text-stone-400">What is asking for attention</p>
-                  <div className="space-y-1.5">
-                    {flagged.map(([d, n]) => (
-                      <div key={d} className="flex items-center gap-3">
-                        <span className="w-24 shrink-0 text-sm text-stone-600">{DOMAINS[d]}</span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100">
-                          <div className="h-full rounded-full" style={{ width: `${(n / logged) * 100}%`, background: '#A0654C' }} />
-                        </div>
-                        <span className="w-12 text-right text-[11px] tabular-nums text-stone-400">{n}/{logged}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
@@ -316,9 +374,10 @@ function MoodTracker({ cycleConfig = {} }) {
 }
 
 // ── Gratitude — three graces a day. A blank line lies dormant; write one and
-// press enter and it inks in with a check and the cursor moves on. Once all
-// three are kept the day joins the archive beside the practice, where every
-// day already kept is stored.
+// press enter and it inks in with a check and the cursor moves on. Beside the
+// writing sits the record of the practice itself — the month as a map of how
+// consistently three were kept — and the days before this one. Today is never
+// reprinted there; it is already on the page.
 function Gratitude() {
   const [store, setStore] = useLocalStorage('mos:gratitude', {})
   const map = store && typeof store === 'object' ? store : {}
@@ -338,9 +397,14 @@ function Gratitude() {
     })
 
   const kept = (i) => !!(lines[i] || '').trim()
-  // Today joins the archive only once the third grace is committed — never
-  // mid-sentence, or it would file words still being written.
-  const complete = [0, 1, 2].every(kept) && editing === -1
+
+  // The practice map — how many graces each day of this month holds. This is
+  // what belongs beside the writing: evidence of the habit, not a second copy
+  // of what she just wrote.
+  const monthCells = monthGrid(new Date(today.getFullYear(), today.getMonth(), 1))
+  const monthIdx = today.getMonth()
+  const countFor = (k) => (Array.isArray(map[k]) ? map[k] : []).filter((l) => (l || '').trim()).length
+  const daysKept = monthCells.filter((c) => c.getMonth() === monthIdx && countFor(dateKey(c)) === 3).length
 
   // Enter keeps the line and moves the cursor to the next one still waiting.
   // The next box is already mounted, so it has to be focused by hand.
@@ -356,7 +420,6 @@ function Gratitude() {
   const pastKeys = Object.keys(map)
     .filter((k) => k !== todayKey && (map[k] || []).some((l) => (l || '').trim()))
     .sort((a, b) => (a < b ? 1 : -1))
-  const archive = complete ? [todayKey, ...pastKeys] : pastKeys
 
   return (
     <>
@@ -403,27 +466,61 @@ function Gratitude() {
         </div>
 
         {/* ── Archive — every day kept, stored beside the practice ── */}
-        {archive.length > 0 && (
-          <div className="mt-14 xl:col-span-7 xl:mt-0">
-            <div className="mb-5 flex items-baseline gap-3">
-              <span className="kicker text-stone-400">Archive</span>
-              <span className="h-px flex-1 bg-stone-200" />
-              <span className="text-xs tabular-nums text-stone-300">{archive.length}</span>
+        {/* ── The record — the shape of the practice, and the days before this
+            one. Never a second copy of what she has just written. ── */}
+        <div className="mt-14 xl:col-span-7 xl:mt-0">
+          <div className="rounded-2xl border border-stone-200 bg-white/40 p-6">
+            <div className="mb-4 flex items-baseline justify-between">
+              <span className="kicker text-stone-400">{MONTHS[monthIdx]}</span>
+              <span className="text-xs text-stone-400">
+                <span className="font-serif text-lg text-stone-900">{daysKept}</span> day{daysKept === 1 ? '' : 's'} kept
+              </span>
             </div>
-            <div className={archive.length > 1 ? 'columns-1 gap-4 md:columns-2' : ''}>
-              {archive.map((k) => (
-                <div key={k} className="mb-4 break-inside-avoid rounded-2xl border border-stone-200 bg-white/50 p-5">
-                  <p className="kicker mb-3 text-stone-400">{k === todayKey ? 'Today' : longDate(parseKey(k))}</p>
-                  <div className="space-y-2">
-                    {(map[k] || []).filter((l) => (l || '').trim()).map((l, idx) => (
-                      <p key={idx} className="border-l border-stone-200 pl-3.5 font-serif text-[17px] leading-relaxed text-stone-700">{l}</p>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-7 gap-1.5">
+              {DOW.map((d) => <div key={d} className="pb-1 text-center text-[9px] tracking-wider text-stone-300">{d[0]}</div>)}
+              {monthCells.map((c, i) => {
+                const inMonth = c.getMonth() === monthIdx
+                const k = dateKey(c)
+                const n = inMonth ? countFor(k) : 0
+                const isToday = k === todayKey
+                return (
+                  <div
+                    key={i}
+                    title={inMonth ? `${longDate(c)} — ${n} of 3` : ''}
+                    className={`flex aspect-square items-center justify-center rounded-md text-[10px] tabular-nums ${inMonth ? '' : 'opacity-0'} ${isToday ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
+                    style={{
+                      background: n === 3 ? '#1C1C1A' : n > 0 ? 'rgba(28,28,26,0.16)' : 'rgba(120,113,108,0.07)',
+                      color: n === 3 ? '#FAFAF7' : '#A8A29E',
+                    }}
+                  >{c.getDate()}</div>
+                )
+              })}
             </div>
+            <p className="mt-3 text-[10.5px] text-stone-400">Filled where all three were kept.</p>
           </div>
-        )}
+
+          {pastKeys.length > 0 && (
+            <div className="mt-8">
+              <div className="mb-5 flex items-baseline gap-3">
+                <span className="kicker text-stone-400">Before today</span>
+                <span className="h-px flex-1 bg-stone-200" />
+                <span className="text-xs tabular-nums text-stone-300">{pastKeys.length}</span>
+              </div>
+              <div className={pastKeys.length > 1 ? 'columns-1 gap-4 md:columns-2' : ''}>
+                {pastKeys.map((k) => (
+                  <div key={k} className="mb-4 break-inside-avoid rounded-2xl border border-stone-200 bg-white/50 p-5">
+                    <p className="kicker mb-3 text-stone-400">{longDate(parseKey(k))}</p>
+                    <div className="space-y-2">
+                      {(map[k] || []).filter((l) => (l || '').trim()).map((l, idx) => (
+                        <p key={idx} className="border-l border-stone-200 pl-3.5 font-serif text-[17px] leading-relaxed text-stone-700">{l}</p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </>
   )
@@ -494,9 +591,10 @@ function Journal() {
           <button
             onClick={() => setShowCal(true)}
             title="Jump to a date"
-            className="mt-3 flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream"
+            aria-label="Jump to a date"
+            className="mt-3 flex h-8 w-8 items-center justify-center rounded-full border border-stone-300 text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream"
           >
-            <CalendarDays size={13} /> Jump to a date
+            <CalendarDays size={15} />
           </button>
           {!isToday && <button onClick={() => setSelectedKey(dateKey(today))} className="mt-1 text-xs italic text-stone-400 underline underline-offset-2 hover:text-stone-700">Back to today</button>}
         </div>
@@ -538,7 +636,7 @@ function Journal() {
       {/* The archive — flip back through past days */}
       {past.length > 0 && (
         <div className="mx-auto mt-16 max-w-2xl border-t border-stone-200 pt-8">
-          <p className="kicker mb-5 text-center text-stone-400">Archive</p>
+          <p className="kicker mb-5 text-center text-stone-400">Notebook</p>
           <div className="space-y-1">
             {past.map((k) => {
               const d = parseKey(k)
@@ -633,6 +731,7 @@ function Influences() {
 
   return (
     <div className="mb-16">
+      <p className="mb-9 text-center font-serif text-2xl text-stone-800">What are you letting in?</p>
       <div className="grid gap-10 md:grid-cols-2 md:gap-0 md:divide-x md:divide-stone-200">
         <div className="md:pr-10">
           <InfluenceColumn tone="in" title="Let In" items={sortInfluences(yes)}
