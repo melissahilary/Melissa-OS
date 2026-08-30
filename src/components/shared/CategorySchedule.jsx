@@ -70,6 +70,9 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
     return out.slice(0, 8)
   }, [days, sel.k])
 
+  // A name typed on the line becomes a real item on the day in view — the same
+  // activity the home page reads, so it shows up in both places.
+  const quickAdd = (title) => add(blankActivity('protocol', { title, category, frequency: 'asneeded', timeOfDay: ['morning'], seriesStart: selKey }))
   const openNew = (k) => setEditing({ dayKey: k, activity: blankActivity('protocol', { category, frequency: 'asneeded', timeOfDay: ['morning'], seriesStart: k }) })
   useRegisterAdd(() => openNew(selKey), [selKey])
   const save = (a) => { if (activities.some((x) => x.id === a.id)) update(a.id, a); else add(a); setEditing(null) }
@@ -120,6 +123,8 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
           {(() => { const ph = phaseForConfig(phaseCfg, selD); return ph ? <p className="kicker mt-1 text-stone-400">{ph.label} phase</p> : null })()}
         </div>
 
+        <AddInline onSubmit={quickAdd} className="mb-5" />
+
         {sel.items.length === 0 ? (
           <p className="py-6 text-center text-sm italic text-stone-300">Nothing scheduled yet.</p>
         ) : (
@@ -135,8 +140,6 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
               ))}
           </div>
         )}
-
-        <AddInline label={`Add ${noun.toLowerCase() === 'item' ? 'something' : `a ${noun.toLowerCase()}`} to this day`} onClick={() => openNew(selKey)} className="mt-3" />
 
         {/* Ahead — the next dated moments in this pillar */}
         {ahead.length > 0 && (

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { X, Plus, Check, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
-import AddInline from './shared/AddInline'
 import InlineText from './shared/InlineText'
 import CategorySchedule from './shared/CategorySchedule'
 import { dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW } from '../lib/date'
@@ -640,7 +639,6 @@ function Journal() {
 
       {/* The page — an unadorned writing surface, a comfortable measure wide */}
       <div className="mx-auto max-w-2xl">
-        <AddInline label="Add another entry to this day" onClick={() => addEntry()} className="mb-6" />
         {display.map((e, i) => (
           <article key={e.id} className="group relative">
             {i > 0 && <div className="mx-auto my-8 select-none text-center text-lg leading-none text-stone-200" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</div>}
@@ -798,7 +796,6 @@ function InfluenceColumn({ tone, title, items, onAdd, onPatch, onRemove }) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commit()}
-          placeholder={out ? 'Something to keep out' : 'Something to let in'}
           className="flex-1 bg-transparent border-b border-stone-200 pb-1.5 text-sm outline-none placeholder-stone-300 focus:border-stone-900"
         />
       </div>
