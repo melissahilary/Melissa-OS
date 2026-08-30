@@ -152,6 +152,39 @@ function MoodTracker({ cycleConfig = {} }) {
   })()
   const todayPhase = flags.phases ? phaseForConfig(phaseCfg, parseKey(selKey)) : null
 
+  // ── the day she just recorded, resolved ── One box does all the telling:
+  // what the three she chose come to, where that sits in her cycle, and how it
+  // compares with the rest of that phase.
+  const pickLabels = selected.map((id) => (moodMeta(id) || {}).label).filter(Boolean)
+  const domainsIn = (band) => selected
+    .map((id) => moodMeta(id))
+    .filter((m) => m && m.band === band)
+    .map((m) => DOMAINS[m.domain].toLowerCase())
+  const listOf = (arr) => (arr.length === 1 ? arr[0] : `${arr.slice(0, -1).join(', ')} and ${arr[arr.length - 1]}`)
+  const moodSentence = (() => {
+    const up = domainsIn('up'), down = domainsIn('down'), even = domainsIn('even')
+    const parts = []
+    if (up.length) parts.push(`${listOf(up)} ${up.length > 1 ? 'are' : 'is'} holding`)
+    if (even.length && !up.length) parts.push(`${listOf(even)} ${even.length > 1 ? 'are' : 'is'} steady`)
+    if (down.length) parts.push(`${listOf(down)} ${down.length > 1 ? 'are' : 'is'} what's pulling the day down`)
+    if (!parts.length) return ''
+    return `${parts.join('; ')}.`.replace(/^./, (c) => c.toUpperCase())
+  })()
+  // Today against the rest of this phase.
+  const phaseRow = todayPhase ? byPhase.find((r) => r.id === todayPhase.id) : null
+  const cycleSentence = (() => {
+    if (!todayPhase) return ''
+    const name = (PHASES[todayPhase.id] || {}).name.toLowerCase()
+    if (!phaseRow || phaseRow.total < 2) return `This is the first read of your ${name} phase this month.`
+    const others = phaseRow.total - 1
+    const dom = BANDS.reduce((best, b) => (phaseRow[b.id] > phaseRow[best.id] ? b : best), BANDS[1])
+    if (!selBucket) return `Your ${name} days this month have run mostly ${dom.label.toLowerCase()} — ${phaseRow[dom.id]} of ${phaseRow.total}.`
+    const same = dom.id === selBucket
+    return same
+      ? `That is how your ${name} phase has been running — ${phaseRow[dom.id]} of ${phaseRow.total} days there read the same.`
+      : `Your ${name} days have mostly run ${dom.label.toLowerCase()} (${phaseRow[dom.id]} of ${phaseRow.total}) — today sits ${bandMeta(selBucket).dir > dom.dir ? 'steadier' : 'harder'} than that.`
+  })()
+
   // ── the verdict, in words ── The panel's job is to say what the month came
   // to, not to hand her three numbers and let her work it out.
   const dominant = logged
@@ -256,17 +289,6 @@ function MoodTracker({ cycleConfig = {} }) {
             ))}
           </div>
 
-          {/* Where the three you picked land */}
-          {selBucket && (
-            <div className="mt-6 flex items-center gap-3 rounded-2xl border border-stone-200 bg-white/50 px-5 py-4">
-              <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: bandMeta(selBucket).tint }} />
-              <span className="flex-1 text-sm text-stone-600">
-                {selected.length === MAX_PICKS ? 'This day reads' : `${selected.length} of ${MAX_PICKS} — so far this day reads`}{' '}
-                <span className="font-serif text-lg text-stone-900">{bandMeta(selBucket).label}</span>
-              </span>
-              <button onClick={() => setStore((p) => { const o = { ...(p && typeof p === 'object' ? p : {}) }; delete o[selKey]; return o })} className="text-xs text-stone-400 hover:text-stone-700">clear</button>
-            </div>
-          )}
         </div>
 
         {/* ── The month, and what it says ── */}
@@ -300,73 +322,77 @@ function MoodTracker({ cycleConfig = {} }) {
             })}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-            {BANDS.map((b) => (
-              <span key={b.id} className="flex items-center gap-1.5 text-[10.5px] text-stone-400">
-                <span className="h-2 w-2 rounded-full" style={{ background: b.tint }} />{b.label}
-              </span>
-            ))}
-            {flags.phases && <span className="text-[10.5px] text-stone-400">· the line beneath each day is your cycle phase</span>}
-          </div>
 
-          {logged > 0 && (
-            <div className="mt-8 rounded-2xl border border-stone-200 bg-white/40 p-6">
-              <div className="mb-5 flex items-baseline justify-between">
-                <span className="kicker text-stone-400">The read</span>
-                <span className="text-xs tabular-nums text-stone-300">{logged} day{logged === 1 ? '' : 's'} logged</span>
-              </div>
+          {/* ── The read — the one place the day is resolved ── */}
+          <div className="mt-8 rounded-2xl border border-stone-200 bg-white/40 p-6">
+            <div className="mb-5 flex items-baseline justify-between">
+              <span className="kicker text-stone-400">The read</span>
+              {todayPhase && (
+                <span className="flex items-center gap-1.5 text-[11px] text-stone-500">
+                  <span className="h-2 w-2 rounded-full" style={{ background: colors[todayPhase.id] }} />
+                  Day {todayPhase.cycleDay} · {(PHASES[todayPhase.id] || {}).name}
+                </span>
+              )}
+            </div>
 
-              {/* The verdict, said plainly — not left for her to work out of a bar */}
-              <div className="flex items-start gap-4">
-                <span className="mt-1.5 h-4 w-4 shrink-0 rounded-full" style={{ background: bandMeta(dominant).tint }} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-serif text-3xl leading-none text-stone-900">
-                    {logged === 1 ? bandMeta(dominant).label : `Mostly ${bandMeta(dominant).label.toLowerCase()}`}
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-stone-500">{readSentence}</p>
-                  {logged > 1 && (
-                    <p className="mt-2.5 text-xs text-stone-400">
-                      {BANDS.filter((b) => bandCount[b.id]).map((b) => `${bandCount[b.id]} ${b.label.toLowerCase()}`).join(' · ')}
+            {selBucket ? (
+              <>
+                <div className="flex items-start gap-4">
+                  <span className="mt-1.5 h-4 w-4 shrink-0 rounded-full" style={{ background: bandMeta(selBucket).tint }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-serif text-3xl leading-none text-stone-900">{bandMeta(selBucket).label}</p>
+                    <p className="mt-2 text-sm text-stone-500">{pickLabels.join(' · ')}</p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {moodSentence && (
+                    <p className="flex gap-2.5 text-sm leading-relaxed text-stone-700">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" />{moodSentence}
+                    </p>
+                  )}
+                  {cycleSentence && (
+                    <p className="flex gap-2.5 text-sm leading-relaxed text-stone-700">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" />{cycleSentence}
                     </p>
                   )}
                 </div>
-              </div>
+              </>
+            ) : (
+              <p className="font-serif italic text-lg text-stone-400">
+                Choose your top three and this reads the day{todayPhase ? ' against your cycle' : ''}.
+              </p>
+            )}
 
-              {/* What it means — only once there is enough to mean anything */}
-              {insights.length > 0 && (
-                <div className="mt-5 space-y-2 border-t border-stone-100 pt-4">
-                  {insights.map((t, i) => (
-                    <p key={i} className="flex gap-2.5 text-sm leading-relaxed text-stone-700">
-                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-stone-400" />{t}
-                    </p>
-                  ))}
+            {/* The month behind it — every phase, how its days have run */}
+            {byPhase.length > 1 && (
+              <div className="mt-6 border-t border-stone-100 pt-5">
+                <div className="mb-3 flex items-baseline justify-between">
+                  <span className="kicker text-stone-400">Across your cycle</span>
+                  <span className="text-[11px] tabular-nums text-stone-300">{logged} day{logged === 1 ? '' : 's'} logged</span>
                 </div>
-              )}
-
-              {byPhase.length > 1 && (
-                <div className="mt-5 border-t border-stone-100 pt-4">
-                  <p className="kicker mb-3 text-stone-400">Against your cycle</p>
-                  <div className="space-y-2.5">
-                    {byPhase.map((r) => {
-                      const P = PHASES[r.id] || {}
-                      const here = todayPhase && todayPhase.id === r.id
-                      return (
-                        <div key={r.id} className={`flex items-center gap-3 rounded-lg ${here ? 'bg-stone-500/5 px-2 py-1.5' : 'px-2'}`}>
-                          <span className="flex w-24 shrink-0 items-center gap-2 text-sm text-stone-600">
-                            <span className="h-2 w-2 rounded-full" style={{ background: colors[r.id] }} />{P.name || r.id}
-                          </span>
-                          <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
-                            {BANDS.map((b) => (r[b.id] ? <span key={b.id} style={{ width: `${(r[b.id] / r.total) * 100}%`, background: b.tint }} /> : null))}
-                          </div>
-                          <span className="w-8 text-right text-[11px] tabular-nums text-stone-400">{r.total}d</span>
+                <div className="space-y-2.5">
+                  {byPhase.map((r) => {
+                    const P = PHASES[r.id] || {}
+                    const here = todayPhase && todayPhase.id === r.id
+                    return (
+                      <div key={r.id} className={`flex items-center gap-3 rounded-lg ${here ? 'bg-stone-500/5 px-2 py-1.5' : 'px-2'}`}>
+                        <span className="flex w-24 shrink-0 items-center gap-2 text-sm text-stone-600">
+                          <span className="h-2 w-2 rounded-full" style={{ background: colors[r.id] }} />{P.name || r.id}
+                        </span>
+                        <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
+                          {BANDS.map((b) => (r[b.id] ? <span key={b.id} title={`${r[b.id]} ${b.label.toLowerCase()}`} style={{ width: `${(r[b.id] / r.total) * 100}%`, background: b.tint }} /> : null))}
                         </div>
-                      )
-                    })}
-                  </div>
+                        <span className="w-8 text-right text-[11px] tabular-nums text-stone-400">{r.total}d</span>
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
-            </div>
-          )}
+                {insights.length > 0 && (
+                  <p className="mt-3 text-[11px] italic leading-relaxed text-stone-500">{insights[0]}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -404,7 +430,7 @@ function Gratitude() {
   const monthCells = monthGrid(new Date(today.getFullYear(), today.getMonth(), 1))
   const monthIdx = today.getMonth()
   const countFor = (k) => (Array.isArray(map[k]) ? map[k] : []).filter((l) => (l || '').trim()).length
-  const daysKept = monthCells.filter((c) => c.getMonth() === monthIdx && countFor(dateKey(c)) === 3).length
+  const daysLogged = monthCells.filter((c) => c.getMonth() === monthIdx && countFor(dateKey(c)) === 3).length
 
   // Enter keeps the line and moves the cursor to the next one still waiting.
   // The next box is already mounted, so it has to be focused by hand.
@@ -473,7 +499,7 @@ function Gratitude() {
             <div className="mb-4 flex items-baseline justify-between">
               <span className="kicker text-stone-400">{MONTHS[monthIdx]}</span>
               <span className="text-xs text-stone-400">
-                <span className="font-serif text-lg text-stone-900">{daysKept}</span> day{daysKept === 1 ? '' : 's'} kept
+                <span className="font-serif text-lg text-stone-900">{daysLogged}</span> day{daysLogged === 1 ? '' : 's'} logged
               </span>
             </div>
             <div className="grid grid-cols-7 gap-1.5">
@@ -496,7 +522,7 @@ function Gratitude() {
                 )
               })}
             </div>
-            <p className="mt-3 text-[10.5px] text-stone-400">Filled where all three were kept.</p>
+            <p className="mt-3 text-[10.5px] text-stone-400">Filled on days you wrote all three.</p>
           </div>
 
           {pastKeys.length > 0 && (
