@@ -6,6 +6,7 @@ import { useLifeStage } from '../lib/lifeStage'
 import {
   dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
 } from '../lib/date'
+import { fmtSpan } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
 import MonthGrid from './shared/MonthGrid'
@@ -676,7 +677,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     activities.forEach((a) => {
       if (!active(a, k)) return
       if (a.type === 'event') {
-        out.push({ id: a.id, title: a.title, part: eventPartsOf(a)[0], time: a.details.time || '', done: isDoneOn(a, k), order: a.order })
+        out.push({ id: a.id, title: a.title, part: eventPartsOf(a)[0], time: a.details.time || '', endTime: a.details.endTime || '', done: isDoneOn(a, k), order: a.order })
       } else if (a.type === 'protocol') {
         const secs = daySectionsOf(a)
         if (secs.includes('day')) {
@@ -705,7 +706,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       if (a.type === 'meal_item' || a.type === 'supplement') return
       const moved = a.details?.block
       const time = a.details?.time || ''
-      const add = (part, blk) => out.push({ id: a.id, title: a.title, part, block: moved || blk || PART_TO_BLOCK[part] || 'morning', time, done: isDoneOn(a, k), order: a.order })
+      const add = (part, blk) => out.push({ id: a.id, title: a.title, part, block: moved || blk || PART_TO_BLOCK[part] || 'morning', time, endTime: a.details?.endTime || '', done: isDoneOn(a, k), order: a.order })
       if (a.type === 'event') { [...new Set(eventPartsOf(a))].forEach((part) => add(part)); return }
       const secs = daySectionsOf(a)
       if (secs.length) {
@@ -770,10 +771,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // Add a one-time appointment on the selected day, at a time. Shows in the day's
   // agenda and on the calendars.
   const partForTime = (t) => { if (!t) return 'morning'; const h = parseInt(t.slice(0, 2), 10); return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening' }
-  const addEvent = (title, time) =>
+  const addEvent = (title, time, endTime) =>
     add(blankActivity('event', {
       title, category: 'personal', frequency: 'once', seriesStart: selectedKey,
-      details: { time: time || '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' },
+      details: { time: time || '', endTime: time ? (endTime || '') : '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' },
     }))
 
   const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
@@ -1213,7 +1214,7 @@ function TaskRow({ task, onToggle, onOpen }) {
     <div className="flex items-center gap-3 py-1">
       <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={task.done} onClick={() => onToggle(task.id)} /></span>
       <button onClick={() => onOpen(task.id)} className={`flex-1 text-left text-sm ${task.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
-        {fmtApptTime(task.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtApptTime(task.time)}</span>}
+        {fmtApptTime(task.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtSpan(task.time, task.endTime)}</span>}
         {task.title || 'Untitled'}
       </button>
     </div>
@@ -1301,6 +1302,7 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
   const [where, setWhere] = useState(null)
   const [val, setVal] = useState('')
   const [time, setTime] = useState('')
+  const [endTime, setEndTime] = useState('')
 
   useEffect(() => {
     const onEsc = (e) => { if (e.key === 'Escape') onClose() }
@@ -1311,7 +1313,7 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
   const commit = () => {
     const t = val.trim()
     if (!t || !type) return
-    if (type.appt) { if (onAddEvent) onAddEvent(t, time) }
+    if (type.appt) { if (onAddEvent) onAddEvent(t, time, endTime) }
     else if (!where) return
     else if (type.key === 'todo') onAddTask(where.block, t)
     else onAddMeal({ name: t, kind: type.kind, slot: where.slot })
@@ -1346,9 +1348,13 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
               <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder="What is it?" className="mb-3 w-full rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm outline-none placeholder-stone-300 focus:border-stone-400" />
               <div className="flex items-center gap-2">
                 <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm text-stone-600 outline-none focus:border-stone-400" />
+                {!!time && <>
+                  <span className="text-sm text-stone-400">to</span>
+                  <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm text-stone-600 outline-none focus:border-stone-400" />
+                </>}
                 <button onClick={commit} className="ml-auto shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
               </div>
-              <button onClick={() => { setType(null); setVal(''); setTime('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
+              <button onClick={() => { setType(null); setVal(''); setTime(''); setEndTime('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
             </div>
           ) : !where ? (
             /* Step 2 — when? any time of day or mealtime. */

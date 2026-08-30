@@ -5,7 +5,7 @@ import { useRegisterAdd } from './AddButton'
 import { usePhaseColors } from '../../hooks/usePhaseColors'
 import { phaseForConfig } from '../../lib/cycle'
 import { useLifeStage } from '../../lib/lifeStage'
-import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW } from '../../lib/date'
+import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW, fmtSpan } from '../../lib/date'
 import { blankActivity } from '../../lib/activities'
 import { occursOnCal, DayItemForm } from './CategoryCalendar'
 
@@ -127,7 +127,7 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
               .sort((a, b) => (a.details?.time || '99:99').localeCompare(b.details?.time || '99:99'))
               .map((a) => (
                 <button key={a.id} onClick={() => setEditing({ dayKey: sel.k, activity: a })} className="group flex w-full items-baseline gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/60">
-                  <span className="w-16 shrink-0 text-right text-xs tabular-nums text-stone-400">{fmtTime(a.details?.time) || '—'}</span>
+                  <span className="w-24 shrink-0 text-right text-xs tabular-nums text-stone-400">{fmtSpan(a.details?.time, a.details?.endTime) || '—'}</span>
                   <span className="flex-1 font-serif text-lg leading-tight text-stone-800">{a.title || noun}</span>
                   {(a.frequency === 'asneeded' || a.frequency === 'once') && <span className="kicker text-stone-300">once</span>}
                 </button>
@@ -149,7 +149,7 @@ export default function CategorySchedule({ category, noun = 'Item', cycleConfig 
                   <button key={`${a.id}:${k}`} onClick={() => setSelKey(k)} className="flex w-full items-baseline gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-white/60">
                     <span className="w-16 shrink-0 text-right text-xs tabular-nums text-stone-400">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
                     <span className="flex-1 text-sm text-stone-700">{a.title || noun}</span>
-                    {fmtTime(a.details?.time) && <span className="text-xs tabular-nums text-stone-400">{fmtTime(a.details?.time)}</span>}
+                    {fmtTime(a.details?.time) && <span className="text-xs tabular-nums text-stone-400">{fmtSpan(a.details?.time, a.details?.endTime)}</span>}
                   </button>
                 )
               })}

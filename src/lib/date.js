@@ -94,3 +94,22 @@ export function moonPhaseIndex(date) {
   const age = ((diffDays % SYNODIC) + SYNODIC) % SYNODIC
   return Math.round(age / (SYNODIC / 8)) % 8
 }
+
+// ── clock ───────────────────────────────────────────────────────────
+// "14:30" → "2:30 PM". A span reads "9:30–10:30 AM" when both sides share a
+// meridiem, and "11:30 AM–1:00 PM" when they don't.
+export const fmtClock = (t) => {
+  if (!t || !/^\d{1,2}:\d{2}$/.test(t)) return ''
+  const [h, m] = t.split(':').map(Number)
+  const ap = h < 12 ? 'AM' : 'PM'
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${ap}`
+}
+export const fmtSpan = (start, end) => {
+  const a = fmtClock(start)
+  if (!a) return ''
+  const b = fmtClock(end)
+  if (!b) return a
+  const [at, ap] = a.split(' ')
+  const [bt, bp] = b.split(' ')
+  return ap === bp ? `${at}–${bt} ${bp}` : `${a}–${b}`
+}

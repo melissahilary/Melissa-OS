@@ -75,14 +75,14 @@ function Circle() {
   const open = people.find((x) => x.id === openId) || null
   const dueCount = scored.filter((x) => x.overdue).length
 
-  const planTime = (p, dk, time, title) => {
+  const planTime = (p, dk, time, title, endTime) => {
     const a = blankActivity('event', {
       title: title || `With ${p.name || 'someone'}`,
       category: 'relationship',
       frequency: 'once',
       date: dk,
       time: time || '',
-      details: { personId: p.id },
+      details: { personId: p.id, endTime: time ? (endTime || '') : '' },
     })
     addActivity(a)
     touch(p.id)
@@ -201,6 +201,7 @@ function PlanTimeSheet({ person, hint, onCommit, onClose }) {
   const [title, setTitle] = useState(hint ? `${person.name || 'Their'}${person.name ? '’s' : ''} ${hint.toLowerCase()}` : `With ${person.name || 'someone'}`)
   const [dk, setDk] = useState(dateKey(new Date()))
   const [time, setTime] = useState('')
+  const [endTime, setEndTime] = useState('')
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} />
@@ -218,11 +219,20 @@ function PlanTimeSheet({ person, hint, onCommit, onClose }) {
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full border-b border-stone-200 bg-transparent pb-1.5 text-sm outline-none focus:border-stone-900" />
             </div>
           </div>
-          {(person.giftIdeas || '').trim() && <p className="text-xs italic text-stone-400">Gift ideas on file: {person.giftIdeas}</p>}
+          {!!time && (
+            <div className="flex items-end gap-3">
+              <span className="pb-1.5 text-sm text-stone-400">to</span>
+              <div className="flex-1">
+                <p className="kicker mb-1.5 text-stone-400">Ends</p>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full border-b border-stone-200 bg-transparent pb-1.5 text-sm outline-none focus:border-stone-900" />
+              </div>
+            </div>
+          )}
+          {(person.giftIdeas || '').trim() &&<p className="text-xs italic text-stone-400">Gift ideas on file: {person.giftIdeas}</p>}
         </div>
         <div className="flex items-center justify-end gap-2 px-6 pb-6 pt-4">
           <button onClick={onClose} className="rounded-full border border-stone-300 px-5 py-2.5 text-sm text-stone-700 hover:border-stone-900">Cancel</button>
-          <button onClick={() => onCommit(person, dk, time, title)} className="rounded-full bg-stone-900 px-6 py-2.5 text-sm text-cream hover:bg-stone-700">Put it on the calendar</button>
+          <button onClick={() => onCommit(person, dk, time, title, endTime)} className="rounded-full bg-stone-900 px-6 py-2.5 text-sm text-cream hover:bg-stone-700">Put it on the calendar</button>
         </div>
       </div>
     </div>

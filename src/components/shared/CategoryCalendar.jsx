@@ -3,7 +3,7 @@ import { X, AlignLeft } from 'lucide-react'
 import * as store from '../../lib/dataStore'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity, activityOccursOn, daySectionsOf } from '../../lib/activities'
-import { dateKey, parseKey, monthGrid, MONTHS, DOW, isSameDay, longDate } from '../../lib/date'
+import { dateKey, parseKey, monthGrid, MONTHS, DOW, isSameDay, longDate, fmtSpan } from '../../lib/date'
 import { phaseForConfig, PHASES } from '../../lib/cycle'
 import { useRegisterAdd } from './AddButton'
 import MonthGrid from './MonthGrid'
@@ -175,7 +175,7 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
                   <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" title={PARTS.find((p) => p.id === partOf(a))?.label} />
                   <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
                     <p className="font-serif text-base leading-snug text-stone-900">
-                      {fmtTime(a.details?.time) && <span className="mr-2 text-sm text-stone-400 tabular-nums">{fmtTime(a.details?.time)}</span>}
+                      {fmtTime(a.details?.time) && <span className="mr-2 text-sm text-stone-400 tabular-nums">{fmtSpan(a.details?.time, a.details?.endTime)}</span>}
                       {a.title || noun}
                       {a.notes && a.notes.trim() && <AlignLeft size={11} className="ml-2 inline-block align-middle text-stone-300" aria-label="Has notes" />}
                       {a.status === 'paused' && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.14em] text-stone-400">paused</span>}
