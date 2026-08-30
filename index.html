@@ -16,5 +16,31 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- If the app's script never runs — a stale page pointing at a bundle that
+         no longer exists, or a script blocked on the way in — React never mounts
+         and the page would simply sit white with nothing to explain it. The
+         ErrorBoundary can't catch that, because nothing ever rendered. So: if
+         the root is still empty a few seconds in, say so and offer a way out. -->
+    <script>
+      (function () {
+        var HANG = 6000
+        setTimeout(function () {
+          var root = document.getElementById('root')
+          if (!root || root.childElementCount > 0) return
+          root.innerHTML =
+            '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#FAFAF7;padding:24px;font-family:Inter,system-ui,sans-serif">' +
+            '<div style="max-width:26rem;text-align:center">' +
+            '<p style="font-family:\'Cormorant Garamond\',Georgia,serif;font-style:italic;font-size:28px;color:#1C1C1A;margin:0">This page didn\'t finish loading.</p>' +
+            '<p style="font-size:14px;line-height:1.6;color:#78716C;margin:12px 0 0">Your data is safe — it lives in your account, not in this page. Reloading almost always fixes it.</p>' +
+            '<button id="mos-hard-reload" style="margin-top:24px;border:0;border-radius:999px;background:#1C1C1A;color:#FAFAF7;padding:12px 28px;font-size:14px;cursor:pointer">Reload</button>' +
+            '</div></div>'
+          var btn = document.getElementById('mos-hard-reload')
+          if (btn) btn.addEventListener('click', function () {
+            // Come back for a fresh page rather than the cached one that failed.
+            location.replace(location.pathname + '?r=' + Date.now())
+          })
+        }, HANG)
+      })()
+    </script>
   </body>
 </html>
