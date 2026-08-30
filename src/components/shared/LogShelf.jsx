@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { dateKey, parseKey, longDate } from '../../lib/date'
 import * as store from '../../lib/dataStore'
+import CadencePicker, { cadenceLabel } from './CadencePicker'
 
 // Two reusable record shapes shared across pillars:
 //   CategoryLog   — dated entries (a visit / a session), newest first, with an
@@ -128,7 +129,7 @@ export function CategoryShelf({ storeKey, blurb, suggestions, notePlaceholder })
           {items.map((it) => (
             <button key={it.id} onClick={() => setOpenId(it.id)} className="rounded-2xl border border-stone-200 bg-cream/50 p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm">
               <p className="truncate font-serif text-xl leading-tight text-stone-900">{it.name || 'Untitled'}</p>
-              <p className="mt-1 truncate text-xs text-stone-400">{[it.brand, it.note, it.cadence].filter(Boolean).join(' · ') || 'tap to fill in'}</p>
+              <p className="mt-1 truncate text-xs text-stone-400">{[it.brand, cadenceLabel(it.cadence)].filter(Boolean).join(' · ') || 'tap to fill in'}</p>
               {it.lastBought && <p className="mt-2 text-[11px] tabular-nums text-stone-300">replaced {it.lastBought}</p>}
             </button>
           ))}
@@ -143,11 +144,11 @@ export function CategoryShelf({ storeKey, blurb, suggestions, notePlaceholder })
           <div className="relative w-full max-w-md rounded-t-3xl border border-stone-200 bg-cream shadow-2xl sm:rounded-3xl">
             <div className="space-y-5 px-6 pb-2 pt-6">
               <input autoFocus value={open.name} onChange={(e) => update(open.id, { name: e.target.value })} placeholder="Name it" className="w-full border-b border-stone-200 bg-transparent pb-2 font-serif text-2xl text-stone-900 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-900" />
-              <div className="grid grid-cols-2 gap-4">
-                <div><p className="kicker mb-1.5 text-stone-400">Brand</p><input value={open.brand || ''} onChange={(e) => update(open.id, { brand: e.target.value })} placeholder="who makes it" className={inputCls} /></div>
-                <div><p className="kicker mb-1.5 text-stone-400">How often</p><input value={open.cadence || ''} onChange={(e) => update(open.id, { cadence: e.target.value })} placeholder="daily · weekly" className={inputCls} /></div>
+              <div><p className="kicker mb-1.5 text-stone-400">Brand</p><input value={open.brand || ''} onChange={(e) => update(open.id, { brand: e.target.value })} placeholder="who makes it" className={inputCls} /></div>
+              <div>
+                <p className="kicker mb-2 text-stone-400">How often</p>
+                <CadencePicker value={open.cadence} onChange={(c) => update(open.id, { cadence: c })} />
               </div>
-              <div><p className="kicker mb-1.5 text-stone-400">What it&apos;s for</p><input value={open.note || ''} onChange={(e) => update(open.id, { note: e.target.value })} placeholder={notePlaceholder || 'what it does for you'} className={inputCls} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="kicker mb-1.5 text-stone-400">Last replaced</p><input type="date" value={open.lastBought || ''} onChange={(e) => update(open.id, { lastBought: e.target.value })} className={inputCls} /></div>
                 <div><p className="kicker mb-1.5 text-stone-400">Link</p><input value={open.link || ''} onChange={(e) => update(open.id, { link: e.target.value })} placeholder="where to rebuy" className={inputCls} /></div>

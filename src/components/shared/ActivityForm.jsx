@@ -146,9 +146,13 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
                 </div>
                 <p className="mt-1.5 text-xs italic text-stone-400">Pick one or more.</p>
               </div>
-              <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+              {/* Start and end — an appointment has a length, not a number of minutes */}
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-4">
                 <div><span className={labelCls}>Time</span><input type="time" value={draft.details.time || ''} onChange={(e) => setD('time', e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
-                <div><span className={labelCls}>Duration (min)</span><input type="number" value={draft.details.durationMinutes || ''} onChange={(e) => setD('durationMinutes', e.target.value)} className="w-20 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
+                {!!draft.details.time && <>
+                  <span className="pb-1 text-sm text-stone-400">to</span>
+                  <div><span className={labelCls}>Ends</span><input type="time" value={draft.details.endTime || ''} onChange={(e) => setD('endTime', e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
+                </>}
               </div>
               {Scheduling}
               <div><span className={labelCls}>Description</span><textarea value={draft.details.description || ''} onChange={(e) => setD('description', e.target.value)} className="w-full min-h-[80px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm outline-none focus:border-stone-900" /></div>
@@ -199,7 +203,13 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
               </div>
               <div><span className={labelCls}>Phase</span><Chips value={draft.phase} options={PHASE_OPTS} onToggle={(v) => toggleArr('phase', v)} colored /></div>
               {TimeOfDay}
-              <div><span className={labelCls}>Time (optional)</span><input type="time" value={draft.details.time || ''} onChange={(e) => setD('time', e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-4">
+                <div><span className={labelCls}>Time (optional)</span><input type="time" value={draft.details.time || ''} onChange={(e) => setD('time', e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
+                {!!draft.details.time && <>
+                  <span className="pb-1 text-sm text-stone-400">to</span>
+                  <div><span className={labelCls}>Ends</span><input type="time" value={draft.details.endTime || ''} onChange={(e) => setD('endTime', e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" /></div>
+                </>}
+              </div>
               {Scheduling}
               <div><span className={labelCls}>Status</span>
                 <select value={draft.status} onChange={(e) => set('status', e.target.value)} className={lineCls}>

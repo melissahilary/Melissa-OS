@@ -219,6 +219,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
   const [end, setEnd] = useState(a0.seriesEnd || '')
   const [noEnd, setNoEnd] = useState(!a0.seriesEnd)
   const [time, setTime] = useState(a0.details?.time || '')
+  const [endTime, setEndTime] = useState(a0.details?.endTime || '')
 
   const toggleDay = (d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   const recurring = pattern !== 'once'
@@ -232,7 +233,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
     const nm = name.trim() || firstLine(text, noun)
     const startK = start || dayKey
     const tod = [...new Set(sections.map((s) => SECTION_TOD[s]))]
-    const base = { ...a0, title: nm, category, daySections: sections, daySection: undefined, timeOfDay: tod, notes: text.trim(), details: { ...(a0.details || {}), time: time || '' } }
+    const base = { ...a0, title: nm, category, daySections: sections, daySection: undefined, timeOfDay: tod, notes: text.trim(), details: { ...(a0.details || {}), time: time || '', endTime: time ? (endTime || '') : '' } }
     if (pattern === 'once') {
       // A one-time event can span multiple days: keep the end date only if it's
       // on or after the start; otherwise it's a single day.
@@ -274,11 +275,15 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
           </div>
           <div>
             <span className="kicker text-stone-400 mb-1.5 block">Time</span>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-              {time && <button type="button" onClick={() => setTime('')} className="text-xs text-stone-400 hover:text-stone-700">clear</button>}
+              {time && <>
+                <span className="text-sm text-stone-400">to</span>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
+              </>}
+              {time && <button type="button" onClick={() => { setTime(''); setEndTime('') }} className="text-xs text-stone-400 hover:text-stone-700">clear</button>}
             </div>
-            <p className="mt-1.5 text-xs italic text-stone-400">Add a time to schedule an appointment; leave blank for an all-day item.</p>
+            <p className="mt-1.5 text-xs italic text-stone-400">{time ? 'Add an end time to give the appointment its length.' : 'Add a time to schedule an appointment; leave blank for an all-day item.'}</p>
           </div>
           <div>
             <span className="kicker text-stone-400 mb-2 block">Type of Event</span>

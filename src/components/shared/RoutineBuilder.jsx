@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, Check, Plus, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
+import { PATTERNS as SHARED_PATTERNS, UNITS } from './CadencePicker'
 import { dateKey } from '../../lib/date'
 import { upsertShelfItem } from '../../lib/goalRoutes'
 
@@ -11,21 +12,18 @@ import { upsertShelfItem } from '../../lib/goalRoutes'
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 // The same expansive recurrence vocabulary as the main calendar.
+// The same vocabulary the Repeat control on an event uses, so "how often" reads
+// identically wherever it's set — plus "Specific days", which a routine needs.
 const FREQS = [
-  { id: 'daily', label: 'Daily' },
-  { id: 'days', label: 'Specific days' },
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'biweekly', label: 'Bi-weekly' },
-  { id: 'monthly', label: 'Monthly' },
+  ...SHARED_PATTERNS.filter((p) => p.id !== 'once' && p.id !== 'asneeded' && p.id !== 'custom')
+    .flatMap((p) => (p.id === 'weekly' ? [p, { id: 'days', label: 'Specific days' }] : [p])),
   { id: 'custom', label: 'Custom' },
   { id: 'asneeded', label: 'As needed' },
 ]
 const WD = [
   { d: 1, l: 'M' }, { d: 2, l: 'T' }, { d: 3, l: 'W' }, { d: 4, l: 'T' }, { d: 5, l: 'F' }, { d: 6, l: 'S' }, { d: 0, l: 'S' },
 ]
-const UNITS = [
-  { id: 'day', label: 'days' }, { id: 'week', label: 'weeks' }, { id: 'month', label: 'months' },
-]
+
 export const freqLabel = (s) => {
   const f = s.freq || 'daily'
   if (f === 'days') { const n = (s.days || []).length; return n ? `${n}× a week` : 'Specific days' }

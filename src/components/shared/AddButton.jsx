@@ -139,6 +139,7 @@ function QuickAdd({ onClose, onDone, fullEditor }) {
   const [mealtime, setMealtime] = useState('breakfast')
   const [date, setDate] = useState(dateKey(new Date()))
   const [time, setTime] = useState('')
+  const [endTime, setEndTime] = useState('')
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -159,7 +160,7 @@ function QuickAdd({ onClose, onDone, fullEditor }) {
       add(blankActivity('protocol', { title: t, category: 'wellness', frequency: 'daily', seriesStart: dateKey(new Date()), timeOfDay: [blockMeta.part], details: { block } }))
       onDone(`To-do added · ${blockMeta.label}`, { page: 'today' })
     } else if (type === 'appt') {
-      add(blankActivity('event', { title: t, category: 'personal', frequency: 'once', seriesStart: date, details: { time: time || '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' } }))
+      add(blankActivity('event', { title: t, category: 'personal', frequency: 'once', seriesStart: date, details: { time: time || '', endTime: time ? (endTime || '') : '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' } }))
       onDone(`Appointment set · ${date}${time ? ` at ${time}` : ''}`, { page: 'today' })
     } else if (type === 'food' || type === 'drink') {
       add(blankActivity('meal_item', { title: t, category: 'nutrition', frequency: 'daily', details: { slot: type === 'drink' ? mt.drink : mt.food, beverage: type === 'drink' } }))
@@ -234,6 +235,10 @@ function QuickAdd({ onClose, onDone, fullEditor }) {
               <span className="kicker text-stone-400">When</span>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-full border border-stone-300 bg-transparent px-3.5 py-1.5 text-xs text-stone-700 outline-none focus:border-stone-900" />
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-full border border-stone-300 bg-transparent px-3.5 py-1.5 text-xs text-stone-700 outline-none focus:border-stone-900" />
+              {!!time && <>
+                <span className="text-xs text-stone-400">to</span>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="rounded-full border border-stone-300 bg-transparent px-3.5 py-1.5 text-xs text-stone-700 outline-none focus:border-stone-900" />
+              </>}
             </div>
           )}
           {type === 'goal' && <p className="text-xs italic text-stone-400">It lands on your Dream Planning board — open it there to add the why, milestones, and the plan.</p>}
