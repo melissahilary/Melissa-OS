@@ -168,3 +168,23 @@ input[type='number'] {
 @media (prefers-reduced-motion: reduce) {
   [style*='mos-listen'] { animation: none !important; }
 }
+
+/* ── The vision, flipped. One interaction: the card turns rather than opening a
+   modal, so the picture and what it means are two sides of one object. */
+.mos-flip { perspective: 1400px; }
+.mos-flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 560ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.mos-flip.is-back .mos-flip-inner { transform: rotateY(180deg); }
+.mos-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.mos-face-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mos-flip-inner { transition: none; }
+}

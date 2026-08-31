@@ -252,7 +252,17 @@ export default function DreamDashboard({ cycleConfig = {} }) {
         />
       )}
       {tab === 'projects' && <DreamProjects goals={active} />}
-      {tab === 'board' && <DreamBoard />}
+      {tab === 'board' && (
+        <DreamBoard
+          goals={active}
+          activities={activities}
+          onCreateGoal={(title) => {
+            const g = { id: uid(), title, vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [] }
+            setGoals((p) => [...p, g])
+            return g
+          }}
+        />
+      )}
       {tab === 'collections' && <DreamCollections goals={active} projects={Array.isArray(projectsRaw) ? projectsRaw : []} />}
       {tab === 'goals' && (
         <>
