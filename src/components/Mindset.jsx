@@ -483,13 +483,27 @@ function GratitudeCard({ part, mode, evening, opensAt, lineAt, setLine }) {
   )
 }
 
+// Full cup, empty cup — the whole question, without a clinical word in sight.
+function Cup({ full = false, size = 21 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      {full && <path d="M6.7 11h8.6l-.55 5.1a2.9 2.9 0 0 1-2.88 2.6h-1.76a2.9 2.9 0 0 1-2.88-2.6L6.7 11Z" fill="currentColor" opacity="0.9" />}
+      <path d="M6 7.2h10l-1.05 9.1a3 3 0 0 1-2.98 2.7h-1.94a3 3 0 0 1-2.98-2.7L6 7.2Z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
+      <path d="M15.7 10h1.5a2.15 2.15 0 0 1 0 4.3h-1.1" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function Gratitude() {
   const [store, setStore] = useLocalStorage('mos:gratitude', {})
   const map = store && typeof store === 'object' ? store : {}
   const today = new Date()
   const todayKey = dateKey(today)
   const day = normGDay(map[todayKey])
-  const mode = day.mode
+  // The cup is not remembered. Every visit opens at full — a hard day is a
+  // choice she makes in the moment, never a label the planner keeps on her —
+  // and the other cup is one tap away. What she writes under either is kept.
+  const [mode, setMode] = useState('high')
   const [locRaw] = useLocalStorage('mos:settings:location', 'Alameda')
   const sunset = sunsetOn(today, locRaw)
   const evening = sunset ? today.getTime() >= sunset.getTime() : today.getHours() >= FALLBACK_EVENING_HOUR
@@ -505,12 +519,6 @@ function Gratitude() {
     return () => clearTimeout(id)
   }, [evening, sunset ? sunset.getTime() : 0])
 
-  const setDay = (patch) =>
-    setStore((prev) => {
-      const p = prev && typeof prev === 'object' ? prev : {}
-      const cur = normGDay(p[todayKey])
-      return { ...p, [todayKey]: { ...cur, ...patch } }
-    })
   const setLine = (promptId, idx, val) =>
     setStore((prev) => {
       const p = prev && typeof prev === 'object' ? prev : {}
@@ -551,16 +559,21 @@ function Gratitude() {
     return null
   })()
 
-  const capChip = (on) =>
-    `rounded-full px-4 py-1.5 text-xs transition-colors ${on ? 'bg-stone-900 text-cream' : 'border border-stone-300 text-stone-600 hover:border-stone-500'}`
+  const capCup = (on) =>
+    `flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-400 hover:border-stone-500 hover:text-stone-600'}`
 
   return (
     <>
-      {/* It asks how she is before it asks her to be grateful. */}
-      <div className="mb-9 flex flex-wrap items-center justify-center gap-2.5">
-        <span className="text-sm text-stone-500">How much do you have today?</span>
-        <button onClick={() => setDay({ mode: 'high' })} className={capChip(mode === 'high')}>High capacity</button>
-        <button onClick={() => setDay({ mode: 'low' })} className={capChip(mode === 'low')}>Low capacity</button>
+      {/* It asks how she is before it asks her to be grateful — and answers in
+          cups rather than clinical words. */}
+      <p className="mb-5 text-center font-serif text-2xl text-stone-800">How much have you got today?</p>
+      <div className="mb-9 flex items-center justify-center gap-3">
+        <button onClick={() => setMode('high')} className={capCup(mode === 'high')} title="A full cup" aria-label="A full cup" aria-pressed={mode === 'high'}>
+          <Cup full />
+        </button>
+        <button onClick={() => setMode('low')} className={capCup(mode === 'low')} title="An empty cup" aria-label="An empty cup" aria-pressed={mode === 'low'}>
+          <Cup />
+        </button>
       </div>
 
       <div className="mx-auto max-w-xl md:max-w-none md:grid md:grid-cols-2 md:gap-6 xl:gap-8">
