@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, X, Check, ChevronRight, Target, Sparkles, Calendar, ListChecks, FolderKanban, NotebookPen, Image as ImageIcon } from 'lucide-react'
+import { Plus, X, Check, ChevronRight, Target, Sparkles, Calendar, ListChecks, FolderKanban, Image as ImageIcon } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
@@ -9,7 +9,14 @@ import ActivityForm from './shared/ActivityForm'
 import { routeStepToSection } from '../lib/goalRoutes'
 import DreamBoard from './DreamBoard'
 import { phaseForConfig } from '../lib/cycle'
-import { useLifeStage } from '../lib/lifeStage'
+import { useLifeStage, LIFE_STAGES } from '../lib/lifeStage'
+import { isoWeek } from '../lib/week'
+import DreamWeek from './DreamWeek'
+import DreamProjects from './DreamProjects'
+import DreamCollections from './DreamCollections'
+import * as store from '../lib/dataStore'
+import { adherenceOf, trajectoryOf, evidenceOf, recruitsFor } from '../lib/goalSignals'
+import { BY_ID } from '../lib/biomarkers'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -59,13 +66,14 @@ const normGoal = (g) => {
     tags: Array.isArray(g.tags) ? g.tags : [],
     notes: Array.isArray(g.notes) ? g.notes : [], // { id, text, date } — the comment log
     links: Array.isArray(g.links) ? g.links : [], // { id, label, url } — attachments-lite
+    evidence: g.evidence && typeof g.evidence === 'object' ? g.evidence : {}, // { marker }
+    achievedOn: g.achievedOn || '',
+    stages: Array.isArray(g.stages) ? g.stages : [], // empty = every stage
   }
 }
 const msDone = (m) => !!m.done
-const pct = (g) => (g.milestones.length ? Math.round(g.milestones.filter(msDone).length / g.milestones.length * 100) : 0)
 
 // A goal's steps live in the planner, tagged by goalId; group them by milestone.
-function everDone(a) { return !!(a.completions && Object.keys(a.completions).length) }
 function healthOf(g, steps) {
   const done = g.milestones.filter(msDone).length, tot = g.milestones.length
   if (g.target && g.target < todayKey() && done < tot) return 'stall'
@@ -86,21 +94,11 @@ function stepActivity(goalId, milestoneId, s) {
   return blankActivity('protocol', { title: s.title, category: P.cat, frequency, timeOfDay: ['morning'], details: { ...details, block: 'morning', categoryFields: {} } })
 }
 
-function Ring({ p, size = 46 }) {
-  const r = (size - 6) / 2, c = 2 * Math.PI * r
-  return (
-    <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E7E2D6" strokeWidth="3.5" />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1C1C1A" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - p / 100)} style={{ transition: 'stroke-dashoffset .5s ease' }} />
-    </svg>
-  )
-}
-
 export default function DreamDashboard({ cycleConfig = {} }) {
   const [rawGoals, setRawGoals] = useLocalStorage('mos:dream:goals', [])
   const goals = (Array.isArray(rawGoals) ? rawGoals : []).map(normGoal)
   const { activities, add, update, remove, toggleComplete } = useActivities()
-  const { flags: lifeFlags } = useLifeStage()
+  const { flags: lifeFlags, stage } = useLifeStage()
   const [openId, setOpenId] = useState(null)
   const [openMs, setOpenMs] = useState(() => new Set())
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
@@ -152,40 +150,80 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const toggleMsOpen = (mi) => setOpenMs((s) => { const n = new Set(s); n.has(mi) ? n.delete(mi) : n.add(mi); return n })
 
   // ── stats ──
-  const active = goals.filter((g) => g.status !== 'achieved')
+  const active = goals.filter((g) => g.status !== 'achieved' && (!g.stages.length || g.stages.includes(stage)))
   const withHealth = active.map((g) => ({ g, h: healthOf(g, stepsOf(g.id)) }))
   const on = withHealth.filter((x) => x.h === 'on').length
   const attn = withHealth.length - on
   const achieved = goals.filter((g) => g.status === 'achieved')
   const openGoalObj = goals.find((g) => g.id === openId) || null
 
-  // ── this week's tasks (appointments + goal steps + one-time to-dos) ──
   const now = new Date()
-  const weekMon = addDays(now, -((now.getDay() + 6) % 7))
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekMon, i))
-  const isWeekTask = (a) => a.status !== 'archived' && a.type !== 'meal_item' && a.type !== 'supplement' && (a.type === 'event' || (a.details && a.details.goalId) || a.frequency === 'once' || a.frequency === 'asneeded')
-  const weekDays = weekDates.map((d) => { const dk = dateKey(d); return { d, dk, items: activities.filter((a) => isWeekTask(a) && activityOccursOn(a, dk)) } })
-  const weekTotal = weekDays.reduce((n, x) => n + x.items.length, 0)
-  const weekDone = weekDays.reduce((n, x) => n + x.items.filter((a) => isDoneOn(a, x.dk)).length, 0)
 
   // The state line's other two readings. Projects live in their own store, and
   // the phase only belongs on the line for the stages that actually have one.
   const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
   const movingProjects = (Array.isArray(projectsRaw) ? projectsRaw : []).filter((p) => p.status !== 'done').length
   const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
+  const [labRecord] = useLocalStorage('mos:labs', { markers: {}, readings: [] })
+  const [boardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
+  const boardItems = (boardRaw && Array.isArray(boardRaw.items) ? boardRaw.items : []).filter((it) => it.goalId)
+
+  // The board's pictures live in private storage, so a goal card showing what
+  // she pinned needs them signed first.
+  const [boardUrls, setBoardUrls] = useState({})
+  useEffect(() => {
+    let alive = true
+    const missing = boardItems.filter((it) => it.path && !boardUrls[it.path]).map((it) => it.path)
+    if (!missing.length) return undefined
+    ;(async () => {
+      const pairs = await Promise.all([...new Set(missing)].map(async (pth) => [pth, await store.signedPhotoUrl(pth)]))
+      if (alive) setBoardUrls((prev) => ({ ...prev, ...Object.fromEntries(pairs.filter(([, u]) => u)) }))
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardItems.map((it) => it.path).join(',')])
+
+  const imagesForGoal = (gid) => boardItems
+    .filter((it) => it.goalId === gid)
+    .map((it) => ({ id: it.id, url: it.dataUrl || boardUrls[it.path] || '' }))
+    .filter((x) => x.url)
+
+  // Adherence — the leading indicator, and the only honest one: of the protocols
+  // that came due this last week, how many actually got ticked. Read straight
+  // off what she checked on the home page, across every pillar.
+  const adherence = (() => {
+    const days = Array.from({ length: 7 }, (_, i) => dateKey(addDays(now, -i)))
+    let due = 0
+    let met = 0
+    activities.forEach((a) => {
+      if (a.status === 'archived' || a.type !== 'protocol') return
+      days.forEach((dk) => {
+        if (!activityOccursOn(a, dk)) return
+        due += 1
+        if (isDoneOn(a, dk)) met += 1
+      })
+    })
+    return due ? Math.round((met / due) * 100) : null
+  })()
 
   const TABS = [
     { id: 'week', label: 'This Week', icon: ListChecks },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'goals', label: 'Goals', icon: Target },
-    { id: 'board', label: 'Dream Board', icon: ImageIcon },
-    { id: 'collections', label: 'Collections', icon: Sparkles },
-    { id: 'recap', label: 'Recap', icon: NotebookPen },
+    { id: 'board', label: 'Mood Board', icon: ImageIcon },
+    { id: 'collections', label: 'Wishlist', icon: Sparkles },
   ]
 
   return (
     <section>
-      <Header goalCount={active.length} projectCount={movingProjects} phase={statePhase} />
+      <Header
+        goalCount={active.length}
+        projectCount={movingProjects}
+        phase={statePhase}
+        cycleLength={Number(cycleConfig && cycleConfig.cycleLength) || 28}
+        fertile={lifeFlags.fertile}
+        adherence={adherence}
+      />
 
       {/* section tabs */}
       <div className="no-scrollbar mb-8 flex items-center justify-center gap-1.5 overflow-x-auto">
@@ -200,17 +238,28 @@ export default function DreamDashboard({ cycleConfig = {} }) {
         })}
       </div>
 
-      {tab === 'week' && <ThisWeek weekDays={weekDays} todayKeyStr={dateKey(now)} onToggle={(id, dk) => toggleComplete(id, dk)} onOpenItem={setEditItem} />}
-      {tab === 'projects' && <Projects />}
+      {tab === 'week' && (
+        <DreamWeek
+          activities={activities}
+          add={add}
+          update={update}
+          toggleComplete={toggleComplete}
+          onOpenItem={setEditItem}
+          cycleConfig={cycleConfig}
+          goals={active}
+          projects={Array.isArray(projectsRaw) ? projectsRaw : []}
+          phases={lifeFlags.phases}
+        />
+      )}
+      {tab === 'projects' && <DreamProjects goals={active} />}
       {tab === 'board' && <DreamBoard />}
-      {tab === 'collections' && <Collections />}
-      {tab === 'recap' && <DailyRecap />}
+      {tab === 'collections' && <DreamCollections goals={active} projects={Array.isArray(projectsRaw) ? projectsRaw : []} />}
       {tab === 'goals' && (
         <>
           <div className="mb-7 flex items-center justify-between">
             {/* View switcher — the same goals, three readings */}
             <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
-              {[['board', 'Board'], ['timeline', 'Timeline'], ['metrics', 'Metrics']].map(([id, label]) => (
+              {[['board', 'Board'], ['timeline', 'Timeline']].map(([id, label]) => (
                 <button key={id} onClick={() => setGoalView(id)} className={`rounded-full px-4 py-1.5 text-xs transition-colors ${goalView === id ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:text-stone-800'}`}>{label}</button>
               ))}
             </div>
@@ -218,7 +267,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           </div>
 
           {goalView === 'timeline' && <GoalTimeline goals={active} onOpen={openGoal} />}
-          {goalView === 'metrics' && <GoalMetrics goals={active} achieved={achieved} stepsOf={stepsOf} onPillar={(id) => { setBoardFilter(id); setGoalView('board') }} />}
 
           {goalView === 'board' && boardFilter && (
             <div className="mb-4 flex justify-center">
@@ -239,9 +287,18 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                   </div>
                   <div className="min-h-[60px] space-y-3">
                     {inp.map((g) => (
-                      <GoalCard key={g.id} goal={g} steps={stepsOf(g.id)} onOpen={() => openGoal(g.id)} onDragStart={() => setDragId(g.id)} onDragEnd={() => setDragId(null)} />
+                      <GoalCard
+                        key={g.id}
+                        goal={g}
+                        steps={stepsOf(g.id)}
+                        projects={Array.isArray(projectsRaw) ? projectsRaw : []}
+                        images={imagesForGoal(g.id)}
+                        labRecord={labRecord}
+                        onOpen={() => openGoal(g.id)}
+                        onDragStart={() => setDragId(g.id)}
+                        onDragEnd={() => setDragId(null)}
+                      />
                     ))}
-                    {inp.length === 0 && <p className="py-6 text-center text-xs italic text-stone-300">Nothing here.</p>}
                   </div>
                 </div>
               )
@@ -251,12 +308,22 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           {goalView === 'board' && achieved.length > 0 && (
             <div className="mt-10 border-t border-stone-200 pt-6">
               <p className="kicker mb-3 text-stone-400">Achieved · {achieved.length}</p>
-              <div className="flex flex-wrap gap-2">
-                {achieved.map((g) => (
-                  <button key={g.id} onClick={() => openGoal(g.id)} className="flex items-center gap-2 rounded-full border border-stone-200 px-4 py-1.5 text-sm text-stone-500 transition-colors hover:border-stone-400">
-                    <Check size={13} style={{ color: HEALTH.on.c }} /><span className="font-serif text-base line-through">{g.title || 'Untitled'}</span>
-                  </button>
-                ))}
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {achieved.map((g) => {
+                  const ev = evidenceOf(g, labRecord)
+                  return (
+                    <button key={g.id} onClick={() => openGoal(g.id)} className="flex items-start gap-2.5 rounded-2xl border border-stone-200 p-3 text-left transition-colors hover:border-stone-400">
+                      <Check size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
+                      <span className="min-w-0">
+                        <span className="block truncate font-serif text-base text-stone-700">{g.title || 'Untitled'}</span>
+                        <span className="block text-[11px] tabular-nums text-stone-400">
+                          {g.achievedOn ? fmtShort(g.achievedOn) : ''}
+                          {ev ? `${g.achievedOn ? ' · ' : ''}${ev.label} ${ev.first} → ${ev.last}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -280,6 +347,16 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           onRunAI={() => runAI(openGoalObj)}
           onAcceptAI={(plan) => acceptPlan(openGoalObj, plan)}
           onDismissAI={() => setAi(null)}
+          labRecord={labRecord}
+          stage={stage}
+          onRecruit={(rows) => rows.forEach((r) => add(blankActivity('protocol', {
+            title: r.title,
+            category: pillarMeta(openGoalObj.pillar).cat,
+            frequency: r.cadence === 'once' ? 'once' : r.cadence,
+            seriesStart: todayKey(),
+            timeOfDay: ['morning'],
+            details: { goalId: openGoalObj.id, section: '', pillarId: openGoalObj.pillar, block: 'morning', categoryFields: {} },
+          })))}
         />
       )}
 
@@ -297,35 +374,83 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   )
 }
 
-function GoalCard({ goal, steps, onOpen, onDragStart, onDragEnd }) {
-  const p = pct(goal), h = HEALTH[healthOf(goal, steps)], pl = pillarMeta(goal.pillar)
-  const done = goal.milestones.filter(msDone).length
+// The trajectory — weekly adherence as a line. Where a percentage bar says how
+// much of a list is crossed off, this says whether the effort is holding.
+function Trajectory({ points }) {
+  const vals = points.filter((v) => v != null)
+  if (vals.length < 2) return null
+  const W = 88
+  const H = 20
+  const step = W / (points.length - 1)
+  let d = ''
+  points.forEach((v, i) => {
+    if (v == null) return
+    const x = i * step
+    const y = H - 2 - (v / 100) * (H - 4)
+    d += `${d ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`
+  })
+  const lastIdx = points.map((v, i) => (v == null ? -1 : i)).filter((i) => i >= 0).pop()
+  const lastV = points[lastIdx]
+  return (
+    <svg width={W} height={H} aria-hidden className="shrink-0">
+      <path d={d} fill="none" stroke="#A8A29E" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lastIdx * step} cy={H - 2 - (lastV / 100) * (H - 4)} r="2.2" fill="#1C1917" />
+    </svg>
+  )
+}
+
+function GoalCard({ goal, steps, projects = [], images = [], labRecord, onOpen, onDragStart, onDragEnd }) {
+  const pl = pillarMeta(goal.pillar)
   const d = daysUntil(goal.target)
+  const adh = adherenceOf(steps)
+  const traj = trajectoryOf(steps)
+  const ev = evidenceOf(goal, labRecord)
+  const project = projects.find((p) => p.goalId === goal.id)
+
   return (
     <div role="button" tabIndex={0} draggable onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}
       onDragStart={onDragStart} onDragEnd={onDragEnd}
+      title={goal.vision || undefined}
       className="w-full cursor-pointer rounded-2xl border border-stone-200 bg-white/50 p-4 text-left shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center gap-3">
-        <div className="relative flex items-center justify-center">
-          <Ring p={p} />
-          <span className="absolute text-[10px] font-medium text-stone-600 tabular-nums">{p}%</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate font-serif text-lg text-stone-900">{goal.title || 'Untitled goal'}</h3>
-          <p className="kicker mt-0.5 text-stone-400">{goal.milestones.length ? `${done}/${goal.milestones.length} milestones` : 'needs a plan'}</p>
-        </div>
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: h.c, boxShadow: '0 0 0 3px var(--tw-ring-offset-color,#faf8f3)' }} title={h.label} />
+
+      <div className="flex items-start gap-3">
+        <h3 className="min-w-0 flex-1 font-serif text-lg leading-snug text-stone-900">{goal.title || 'Untitled goal'}</h3>
+        <Trajectory points={traj} />
       </div>
+
+      {/* The two indicators, in the order they move. */}
+      <p className="mt-2 text-[12px] tabular-nums text-stone-500">
+        {adh ? <span>Adherence {adh.pct}%</span> : <span className="text-stone-400">No practices yet</span>}
+        {ev && (
+          <>
+            <span className="mx-1.5 text-stone-300">·</span>
+            <span>{ev.label} {ev.first} → {ev.last}</span>
+          </>
+        )}
+      </p>
+
+      {/* What the board is picturing, and the work it turned into. */}
+      {images.length > 0 && (
+        <div className="mt-3 flex gap-1">
+          {images.slice(0, 4).map((im) => (
+            <span key={im.id} className="h-10 w-10 overflow-hidden rounded-md bg-stone-100">
+              <img src={im.url} alt="" className="h-full w-full object-cover" />
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-600"><span className="h-1.5 w-1.5 rounded-full" style={{ background: pl.tint }} />{pl.label}</span>
+        {steps.length > 0 && <span className="rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">{steps.length} practice{steps.length === 1 ? '' : 's'}</span>}
+        {project && <span className="truncate rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">{project.name}</span>}
         {goal.target && <span className="rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">◷ {fmtShort(goal.target)}{d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}</span>}
-        {!goal.milestones.length && <span className="rounded-full px-2.5 py-1 text-[11px] text-cream" style={{ background: HEALTH.risk.c }}>✦ plan it</span>}
       </div>
     </div>
   )
 }
 
-function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI }) {
+function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI, labRecord, onRecruit, stage }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
   useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])
@@ -365,6 +490,8 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
 
           {/* tags */}
           <TagEditor tags={goal.tags || []} onChange={(tags) => onUpdate({ tags })} />
+
+          <GoalSignals goal={goal} steps={steps} labRecord={labRecord} onUpdate={onUpdate} onRecruit={onRecruit} stage={stage} />
 
           {/* path */}
           <div className="mt-7 mb-1 flex items-center gap-2.5">
@@ -438,13 +565,121 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
 
           <div className="mt-7 flex items-center justify-between border-t border-stone-200 pt-4">
             <button onClick={onRemove} className="text-xs text-stone-400 hover:text-phase-menstrual">Delete goal</button>
-            <button onClick={() => onUpdate({ status: goal.status === 'achieved' ? 'active' : 'achieved' })}
+            <button onClick={() => onUpdate(goal.status === 'achieved' ? { status: 'active', achievedOn: '' } : { status: 'achieved', achievedOn: todayKey() })}
               className={`rounded-full px-5 py-2 text-sm transition-colors ${goal.status === 'achieved' ? 'border border-stone-300 text-stone-600 hover:border-stone-500' : 'bg-stone-900 text-cream hover:bg-stone-700'}`}>
               {goal.status === 'achieved' ? 'Reopen' : 'Mark achieved'}
             </button>
           </div>
         </div>
       </aside>
+    </div>
+  )
+}
+
+// ── The two indicators, and the machinery behind them ───────────────
+// Recruiting is the join between intention and behaviour: a goal with no
+// practices is a wish, and this is the one control that turns it into work the
+// planner will actually ask for. Evidence is the other end — the number in the
+// body the whole thing was for.
+function GoalSignals({ goal, steps, labRecord, onUpdate, onRecruit, stage }) {
+  const [proposing, setProposing] = useState(false)
+  const [picking, setPicking] = useState(false)
+  const [keep, setKeep] = useState([])
+
+  const adh = adherenceOf(steps)
+  const ev = evidenceOf(goal, labRecord)
+  const suggestions = recruitsFor(goal.pillar).filter((r) => !steps.some((a) => (a.title || '').toLowerCase() === r.title.toLowerCase()))
+
+  const startProposing = () => { setKeep(suggestions.map((r) => r.title)); setProposing(true) }
+  const accept = () => { onRecruit(suggestions.filter((r) => keep.includes(r.title))); setProposing(false) }
+
+  const watched = Object.keys((labRecord && labRecord.markers) || {})
+
+  return (
+    <div className="mt-7 border-t border-stone-200 pt-5">
+      <div className="flex items-baseline gap-3">
+        <span className="kicker text-stone-400">Adherence</span>
+        <span className="font-serif text-2xl text-stone-900 tabular-nums">{adh ? `${adh.pct}%` : '—'}</span>
+        {adh && <span className="text-[11px] text-stone-400 tabular-nums">{adh.met} of {adh.due}, last 30 days</span>}
+      </div>
+
+      {steps.length === 0 && !proposing && (
+        <button onClick={startProposing} className="mt-2 text-xs tracking-[0.12em] text-stone-900 underline underline-offset-4">
+          RECRUIT PRACTICES
+        </button>
+      )}
+
+      {proposing && (
+        <div className="mt-3 rounded-xl border border-stone-300 p-3.5">
+          <p className="mb-2 text-[12px] text-stone-500">These land in {pillarMeta(goal.pillar).label} and on your day, like any other protocol.</p>
+          {suggestions.map((r) => {
+            const on = keep.includes(r.title)
+            return (
+              <label key={r.title} className="flex cursor-pointer items-center gap-2.5 py-1">
+                <input type="checkbox" checked={on} onChange={() => setKeep((k) => (on ? k.filter((x) => x !== r.title) : [...k, r.title]))} className="h-3.5 w-3.5 shrink-0 accent-stone-900" />
+                <span className="flex-1 text-sm text-stone-800">{r.title}</span>
+                <span className="text-[10px] tracking-[0.1em] text-stone-400">{r.cadence.toUpperCase()}</span>
+              </label>
+            )
+          })}
+          <div className="mt-3 flex items-center gap-3">
+            <button onClick={accept} disabled={!keep.length} className="rounded-full bg-stone-900 px-4 py-1.5 text-xs text-cream disabled:opacity-30">Add {keep.length}</button>
+            <button onClick={() => setProposing(false)} className="text-xs text-stone-400 hover:text-stone-700">Not now</button>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 flex items-baseline gap-3">
+        <span className="kicker text-stone-400">Evidence</span>
+        {ev ? (
+          <span className="font-serif text-lg text-stone-900 tabular-nums">
+            {ev.label} {ev.first} → {ev.last} <span className="text-xs text-stone-400">{ev.unit}</span>
+          </span>
+        ) : (
+          <button onClick={() => setPicking((v) => !v)} className="text-xs tracking-[0.12em] text-stone-900 underline underline-offset-4">
+            {picking ? 'CANCEL' : 'ATTACH A MARKER'}
+          </button>
+        )}
+        {ev && <button onClick={() => onUpdate({ evidence: {} })} className="ml-auto text-[11px] text-stone-400 hover:text-stone-700">change</button>}
+      </div>
+
+      {picking && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {(watched.length ? watched : ['ferritin', 'vitamin_d', 'hba1c', 'estradiol', 'tsh']).map((id) => (
+            <button
+              key={id}
+              onClick={() => { onUpdate({ evidence: { marker: id } }); setPicking(false) }}
+              className="rounded-full border border-stone-300 px-3 py-1 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream"
+            >
+              {(BY_ID[id] || {}).label || id}
+            </button>
+          ))}
+          {!watched.length && <span className="w-full text-[11px] text-stone-400">Readings you keep in Testing → Results will appear here.</span>}
+        </div>
+      )}
+
+      {/* A goal can belong to a stage of life and step aside when that stage
+          passes, rather than being deleted or nagging from the wrong season. */}
+      <div className="mt-5">
+        <p className="kicker mb-1.5 text-stone-400">Belongs to</p>
+        <div className="flex flex-wrap gap-1.5">
+          {LIFE_STAGES.map((ls) => {
+            const on = goal.stages.includes(ls.id)
+            return (
+              <button
+                key={ls.id}
+                onClick={() => onUpdate({ stages: on ? goal.stages.filter((x) => x !== ls.id) : [...goal.stages, ls.id] })}
+                className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-500'}`}
+              >
+                {ls.label}
+              </button>
+            )
+          })}
+        </div>
+        <p className="mt-1.5 text-[11px] text-stone-400">
+          {goal.stages.length ? `Hidden outside these stages. You are ${stage}.` : 'Every stage.'}
+        </p>
+      </div>
     </div>
   )
 }
@@ -525,172 +760,48 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
 // read as a second homepage rather than the workspace it is. So: the section's
 // name, and under it a state line — not prose, and not encouragement. Just the
 // readings, including the zeroes.
-const isoWeek = (d) => {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-  // Thursday decides the year a week belongs to.
-  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7))
-  const jan1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
-  return Math.ceil(((t - jan1) / 86400000 + 1) / 7)
-}
+function Header({ goalCount, projectCount, phase, cycleLength, fertile, adherence }) {
+  const now = new Date()
+  const mon = addDays(now, -((now.getDay() + 6) % 7))
+  const sun = addDays(mon, 6)
+  const span = mon.getMonth() === sun.getMonth()
+    ? `${MONTHS_SHORT[mon.getMonth()].toUpperCase()} ${mon.getDate()}–${sun.getDate()}`
+    : `${MONTHS_SHORT[mon.getMonth()].toUpperCase()} ${mon.getDate()}–${MONTHS_SHORT[sun.getMonth()].toUpperCase()} ${sun.getDate()}`
 
-function Header({ goalCount, projectCount, phase }) {
-  const state = [
-    `WEEK ${isoWeek(new Date())}`,
-    `${goalCount} GOAL${goalCount === 1 ? '' : 'S'}`,
-    `${projectCount} PROJECT${projectCount === 1 ? '' : 'S'}`,
+  const day = phase ? phase.cycleDay : null
+  // The most-checked number in a woman's life, and absent from every planner
+  // header ever built.
+  const untilPeriod = day != null && cycleLength ? (cycleLength - day + 1) % cycleLength : null
+  // The fertile window is roughly the five days before ovulation and the day of
+  // it. Shown only where the life stage actually asks the question.
+  const inFertile = fertile && day != null && day >= 10 && day <= 16
+
+  const body = [
+    day != null ? `DAY ${day}` : null,
     phase ? phase.name.toUpperCase() : null,
+    inFertile ? 'FERTILE' : null,
+    untilPeriod != null ? (untilPeriod === 0 ? 'PERIOD TODAY' : `PERIOD IN ${untilPeriod}`) : null,
   ].filter(Boolean)
 
-  return (
-    <div className="mb-9 text-center">
-      <h1 className="font-serif text-4xl text-stone-900 md:text-5xl">Becoming</h1>
-      <p className="mt-3 text-[11px] tracking-[0.2em] text-stone-400">{state.join(' · ')}</p>
-    </div>
-  )
-}
+  const work = [
+    adherence != null ? `PROTOCOLS ${adherence}%` : null,
+    `${projectCount} PROJECT${projectCount === 1 ? '' : 'S'}`,
+    `${goalCount} GOAL${goalCount === 1 ? '' : 'S'}`,
+  ].filter(Boolean)
 
-// ── This Week — appointments, goal steps, and one-time to-dos, by day ──
-function ThisWeek({ weekDays, todayKeyStr, onToggle, onOpenItem }) {
-  const total = weekDays.reduce((n, x) => n + x.items.length, 0)
-  if (total === 0) return <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">Nothing scheduled this week yet.<br /><span className="text-sm not-italic text-stone-400">Appointments and goal steps you add will gather here.</span></p>
-  return (
-    <div className="space-y-4">
-      {weekDays.map(({ d, dk, items }) => {
-        if (items.length === 0) return null
-        const isToday = dk === todayKeyStr
-        return (
-          <div key={dk} className={`rounded-2xl border p-5 ${isToday ? 'border-stone-300' : 'border-stone-200'}`} style={{ background: isToday ? '#F3F1EA' : 'rgba(255,255,255,0.35)' }}>
-            <div className="mb-3 flex items-baseline gap-2.5">
-              <h3 className="font-serif italic text-xl text-stone-900">{DOW_LONG[d.getDay()]}</h3>
-              <span className="text-sm not-italic text-stone-400 tabular-nums">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
-              {isToday && <span className="ml-1 rounded-full bg-stone-900 px-2 py-0.5 text-[10px] tracking-[0.14em] text-cream">TODAY</span>}
-            </div>
-            <div className="space-y-0.5">
-              {items.map((a) => {
-                const done = isDoneOn(a, dk)
-                const time = a.details && a.details.time
-                return (
-                  <div key={a.id} className="flex items-center gap-3 py-1.5">
-                    <Checkbox checked={done} onClick={() => onToggle(a.id, dk)} />
-                    <button onClick={() => onOpenItem && onOpenItem(a)} className={`flex-1 text-left text-sm ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
-                      {a.type === 'event' && time ? <span className="mr-2 font-serif text-stone-500 tabular-nums">{time}</span> : null}
-                      {a.title || 'Untitled'}
-                    </button>
-                    {a.details && a.details.section && <span className="whitespace-nowrap text-[11px] text-stone-400">{a.details.section}</span>}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })}
-    </div>
+  const Zone = ({ parts, className = '' }) => (
+    <span className={`whitespace-nowrap text-[11px] tracking-[0.18em] text-stone-400 ${className}`}>{parts.join(' · ')}</span>
   )
-}
 
-// ── Projects — work with its own little list of tasks ──
-function Projects() {
-  const [stored, setProjects] = useLocalStorage('mos:dream:projects', [])
-  const projects = Array.isArray(stored) ? stored : []
-  const [open, setOpen] = useState(() => new Set())
-  const [draft, setDraft] = useState('')
-  const add = () => { const t = draft.trim(); if (!t) return; setProjects((p) => [{ id: uid(), title: t, due: '', status: 'active', tasks: [] }, ...(Array.isArray(p) ? p : [])]); setDraft('') }
-  const update = (id, patch) => setProjects((p) => (Array.isArray(p) ? p : []).map((x) => (x.id === id ? { ...x, ...patch } : x)))
-  const remove = (id) => setProjects((p) => (Array.isArray(p) ? p : []).filter((x) => x.id !== id))
-  const toggleOpen = (id) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const activeP = projects.filter((p) => p.status !== 'done')
-  const doneP = projects.filter((p) => p.status === 'done')
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 focus-within:border-stone-400">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="New project…" className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300" />
-        <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
+    <div className="mb-9">
+      <h1 className="text-center font-serif text-4xl text-stone-900 md:text-5xl">Becoming</h1>
+      {/* Three readings, spread — the week, the body, the work. */}
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5 sm:justify-between">
+        <Zone parts={[`WEEK ${isoWeek(now)}`, span]} />
+        {body.length > 0 && <Zone parts={body} className="text-stone-500" />}
+        <Zone parts={work} />
       </div>
-      {activeP.length === 0 && doneP.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No projects yet.<br /><span className="text-sm not-italic text-stone-400">A project is a piece of work with its own little list of tasks.</span></p>
-      ) : (
-        <div className="space-y-3">
-          {activeP.map((p) => <ProjectCard key={p.id} project={p} open={open.has(p.id)} onToggleOpen={() => toggleOpen(p.id)} onUpdate={(patch) => update(p.id, patch)} onRemove={() => remove(p.id)} />)}
-        </div>
-      )}
-      {doneP.length > 0 && (
-        <div className="mt-8 border-t border-stone-200 pt-5">
-          <p className="kicker mb-3 text-stone-400">Done · {doneP.length}</p>
-          <div className="flex flex-wrap gap-2">
-            {doneP.map((p) => (
-              <button key={p.id} onClick={() => update(p.id, { status: 'active' })} className="flex items-center gap-2 rounded-full border border-stone-200 px-4 py-1.5 text-sm text-stone-500 hover:border-stone-400"><Check size={13} style={{ color: HEALTH.on.c }} /><span className="font-serif text-base line-through">{p.title}</span></button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ProjectCard({ project, open, onToggleOpen, onUpdate, onRemove }) {
-  const [taskDraft, setTaskDraft] = useState('')
-  const tasks = Array.isArray(project.tasks) ? project.tasks : []
-  const done = tasks.filter((t) => t.done).length
-  const pctv = tasks.length ? Math.round((done / tasks.length) * 100) : 0
-  const setTask = (id, patch) => onUpdate({ tasks: tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) })
-  const addTask = () => { const t = taskDraft.trim(); if (!t) return; onUpdate({ tasks: [...tasks, { id: uid(), title: t, done: false }] }); setTaskDraft('') }
-  const removeTask = (id) => onUpdate({ tasks: tasks.filter((t) => t.id !== id) })
-  return (
-    <div className="rounded-2xl border border-stone-200 bg-white/50 p-4 shadow-sm">
-      <button onClick={onToggleOpen} className="flex w-full items-center gap-3 text-left">
-        <span className="font-serif text-lg text-stone-900">{project.title || 'Untitled project'}</span>
-        <span className="text-[11px] tabular-nums text-stone-400">{tasks.length ? `${done}/${tasks.length}` : ''}</span>
-        <ChevronRight size={15} className={`ml-auto text-stone-300 transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      {tasks.length > 0 && <div className="mt-2 h-1 w-full overflow-hidden rounded bg-stone-100"><div className="h-full rounded" style={{ width: `${pctv}%`, background: '#1C1C1A' }} /></div>}
-      {open && (
-        <div className="mt-3 space-y-0.5 border-t border-stone-100 pt-3">
-          {tasks.map((t) => (
-            <div key={t.id} className="group flex items-center gap-3 py-1">
-              <Checkbox checked={t.done} onClick={() => setTask(t.id, { done: !t.done })} />
-              <span className={`flex-1 text-sm ${t.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{t.title}</span>
-              <button onClick={() => removeTask(t.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={13} /></button>
-            </div>
-          ))}
-          <input value={taskDraft} onChange={(e) => setTaskDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask()} placeholder="+ add a task" className="mt-1 w-full bg-transparent py-1 text-sm italic text-stone-400 placeholder-stone-400 outline-none" />
-          <div className="mt-3 flex items-center justify-between">
-            <button onClick={onRemove} className="text-xs text-stone-400 hover:text-phase-menstrual">Delete</button>
-            <button onClick={() => onUpdate({ status: 'done' })} className="rounded-full bg-stone-900 px-4 py-1.5 text-xs text-cream hover:bg-stone-700">Mark done</button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Daily Recap — a few honest lines a day, gathered as you go ──
-function DailyRecap() {
-  const [stored, setRecaps] = useLocalStorage('mos:dream:recaps', {})
-  const recaps = stored && typeof stored === 'object' ? stored : {}
-  const tk = dateKey(new Date())
-  const setToday = (v) => setRecaps((p) => ({ ...(p && typeof p === 'object' ? p : {}), [tk]: v }))
-  const past = Object.keys(recaps).filter((k) => k !== tk && (recaps[k] || '').trim()).sort((a, b) => (a < b ? 1 : -1))
-  const now = new Date()
-  return (
-    <div className="mx-auto max-w-2xl">
-      <div className="rounded-2xl border border-stone-200 bg-cream/50 p-5">
-        <p className="kicker mb-1 text-stone-400">{DOW_LONG[now.getDay()]}, {MONTHS[now.getMonth()]} {now.getDate()}</p>
-        <h3 className="mb-3 font-serif italic text-2xl text-stone-900">How did today go?</h3>
-        <textarea value={recaps[tk] || ''} onChange={(e) => setToday(e.target.value)} placeholder="A few honest lines — what moved, how you felt, what tomorrow needs…" rows={4} className="w-full resize-y rounded-xl bg-white/50 px-4 py-3 font-serif text-lg leading-relaxed text-stone-800 placeholder-stone-300 outline-none focus:bg-white/70" />
-      </div>
-      {past.length > 0 && (
-        <div className="mt-8">
-          <p className="kicker mb-4 text-stone-400">Past days</p>
-          <div className="space-y-5">
-            {past.map((k) => { const d = parseKey(k); return (
-              <div key={k} className="border-l-2 border-stone-200 pl-4">
-                <p className="kicker mb-1 text-stone-400">{DOW_LONG[d.getDay()]} · {MONTHS_SHORT[d.getMonth()]} {d.getDate()}</p>
-                <p className="whitespace-pre-line font-serif text-lg leading-relaxed text-stone-700">{recaps[k]}</p>
-              </div>
-            ) })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -840,117 +951,3 @@ function GoalTimeline({ goals, onOpen }) {
   )
 }
 
-// ── Metrics — the honest numbers behind the board ──
-// ── Collections — the dream lists that used to be scattered chapter pages:
-// wardrobe, home, cars, assets, outings, self. Each is a living checklist —
-// nothing was lost when the dashboard took over; it all lives here now.
-const COLLECTIONS = [
-  { key: 'mos:dream:wardrobe', label: 'Wardrobe', hint: 'Pieces to acquire' },
-  { key: 'mos:dream:home', label: 'Home', hint: 'For the house' },
-  { key: 'mos:dream:devices', label: 'Cars', hint: 'The garage of dreams' },
-  { key: 'mos:dream:investments', label: 'Investments & assets', hint: 'What you will own' },
-  { key: 'mos:dream:outings', label: 'Outings', hint: 'Tables, trips, experiences' },
-  { key: 'mos:dream:self', label: 'Dream self', hint: 'Who you are becoming' },
-  { key: 'mos:dream:skincare', label: 'Skincare wishlist', hint: 'Coveted, not yet owned' },
-  { key: 'mos:dream:haircare', label: 'Haircare wishlist', hint: 'Coveted, not yet owned' },
-]
-
-function Collections() {
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {COLLECTIONS.map((c) => <CollectionCard key={c.key} storeKey={c.key} label={c.label} hint={c.hint} />)}
-    </div>
-  )
-}
-
-function CollectionCard({ storeKey, label, hint }) {
-  const [stored, setItems] = useLocalStorage(storeKey, [])
-  const items = Array.isArray(stored) ? stored : []
-  const [draft, setDraft] = useState('')
-  const commit = () => {
-    const t = draft.trim()
-    if (!t) return
-    setItems((p) => [...(Array.isArray(p) ? p : []), { id: uid(), text: t, done: false }])
-    setDraft('')
-  }
-  const toggle = (id) => setItems((p) => (Array.isArray(p) ? p : []).map((x) => (x.id === id ? { ...x, done: !x.done } : x)))
-  const rm = (id) => setItems((p) => (Array.isArray(p) ? p : []).filter((x) => x.id !== id))
-  const doneN = items.filter((x) => x.done).length
-  return (
-    <div className="rounded-2xl border border-stone-200 bg-white/40 p-5">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <div>
-          <p className="font-serif text-xl text-stone-900">{label}</p>
-          <p className="text-xs text-stone-400">{hint}</p>
-        </div>
-        {items.length > 0 && <span className="text-xs tabular-nums text-stone-400">{doneN}/{items.length}</span>}
-      </div>
-      <div className="mb-2 flex items-center gap-2">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && commit()} placeholder="Add to the list…" className="flex-1 border-b border-stone-200 bg-transparent pb-1 text-sm outline-none placeholder:text-stone-300 focus:border-stone-900" />
-      </div>
-      {items.length > 0 && (
-        <div className="max-h-56 space-y-0.5 overflow-y-auto">
-          {items.map((it) => (
-            <div key={it.id} className="group flex items-center gap-2.5 rounded-lg px-1 py-1.5">
-              <button onClick={() => toggle(it.id)} aria-label={it.done ? 'Uncheck' : 'Check'} className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors ${it.done ? 'border-stone-900 bg-stone-900' : 'border-stone-300 hover:border-stone-500'}`}>
-                {it.done && <Check size={10} className="text-cream" />}
-              </button>
-              <span className={`flex-1 text-sm ${it.done ? 'text-stone-300 line-through' : 'text-stone-700'}`}>{it.text}</span>
-              <button onClick={() => rm(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={13} /></button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function GoalMetrics({ goals, achieved, stepsOf, onPillar }) {
-  const withSteps = goals.map((g) => ({ g, steps: stepsOf(g.id) }))
-  const health = { on: 0, risk: 0, stall: 0 }
-  withSteps.forEach(({ g, steps }) => { health[healthOf(g, steps)]++ })
-  const msAll = goals.flatMap((g) => g.milestones)
-  const msDoneN = msAll.filter(msDone).length
-  const weekAgo = daysAgoKey(6)
-  const stepsWeek = withSteps.reduce((n, { steps }) => n + steps.reduce((m, a) => m + Object.keys(a.completions || {}).filter((k) => k >= weekAgo).length, 0), 0)
-  const byPillar = {}
-  goals.forEach((g) => { byPillar[g.pillar] = (byPillar[g.pillar] || 0) + 1 })
-  const pillarRows = Object.entries(byPillar).sort((a, b) => b[1] - a[1])
-  const maxP = Math.max(1, ...pillarRows.map(([, n]) => n))
-  const Tile = ({ label, value, sub, color }) => (
-    <div className="rounded-2xl border border-stone-200 bg-white/40 p-5">
-      <p className="kicker text-stone-400">{label}</p>
-      <p className="mt-2 font-serif text-4xl leading-none tabular-nums" style={{ color: color || 'var(--mos-stone-900, #1c1917)' }}>{value}</p>
-      {sub && <p className="mt-1.5 text-xs text-stone-400">{sub}</p>}
-    </div>
-  )
-  return (
-    <div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile label="In motion" value={goals.length} sub={`${achieved.length} achieved all-time`} />
-        <Tile label="On track" value={health.on} color={HEALTH.on.c} />
-        <Tile label="Need attention" value={health.risk + health.stall} sub={`${health.stall} stalled`} color={HEALTH.risk.c} />
-        <Tile label="Steps this week" value={stepsWeek} sub={`${msDoneN}/${msAll.length} milestones reached`} />
-      </div>
-      {pillarRows.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-stone-200 bg-white/40 p-6">
-          <p className="kicker mb-4 text-stone-400">Where your goals live — tap a bar to see them</p>
-          <div className="space-y-1">
-            {pillarRows.map(([id, n]) => {
-              const P = pillarMeta(id)
-              return (
-                <button key={id} onClick={() => onPillar && onPillar(id)} className="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-stone-500/5">
-                  <span className="w-28 shrink-0 truncate text-sm text-stone-600">{P.label}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
-                    <div className="h-full rounded-full" style={{ width: `${(n / maxP) * 100}%`, background: P.tint }} />
-                  </div>
-                  <span className="w-5 text-right text-xs tabular-nums text-stone-500">{n}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}

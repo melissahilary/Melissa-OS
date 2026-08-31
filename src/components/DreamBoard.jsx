@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, ImagePlus, Loader2, Minus, Plus as PlusIcon } from 'lucide-react'
+import { Shuffle, Grid3x3, Columns3, LayoutGrid, X, ImagePlus, Loader2, Minus, Plus as PlusIcon } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { dateKey, parseKey, MONTHS_SHORT } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 import * as store from '../lib/dataStore'
 
@@ -10,13 +11,15 @@ import * as store from '../lib/dataStore'
 // Four templates read the same pictures four ways: arrange by hand, or let the
 // board compose itself.
 
+const fmtArrived = (k) => { const d = parseKey(k); return d ? `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}` : '' }
+
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 const TEMPLATES = [
-  { id: 'scrapbook', label: 'Scrapbook', note: 'Tilted and taped — arrange by hand' },
-  { id: 'gallery', label: 'Gallery', note: 'A clean editorial grid' },
-  { id: 'mosaic', label: 'Mosaic', note: 'Varied heights, poured into columns' },
-  { id: 'collage', label: 'Collage', note: 'Dense and overlapping, edge to edge' },
+  { id: 'scrapbook', label: 'Scrapbook', note: 'Scrapbook', icon: Shuffle },
+  { id: 'gallery', label: 'Gallery', note: 'Gallery', icon: Grid3x3 },
+  { id: 'mosaic', label: 'Mosaic', note: 'Mosaic', icon: Columns3 },
+  { id: 'collage', label: 'Collage', note: 'Collage', icon: LayoutGrid },
 ]
 
 const SIZES = { S: 150, M: 225, L: 330 }
@@ -53,6 +56,9 @@ const normItem = (it) => ({
   size: SIZES[it.size] ? it.size : 'M',
   goalId: it.goalId || '',
   caption: it.caption || '',
+  // A board of things you actually received is the strongest artefact in the
+  // section — so an image can graduate from wanted to got, with the date.
+  arrivedOn: it.arrivedOn || '',
 })
 
 export default function DreamBoard() {
@@ -153,7 +159,10 @@ export default function DreamBoard() {
     setDrag(null); setDragPos(null)
   }
 
-  const shown = filter ? items.filter((it) => it.goalId === filter) : items
+  const [showArrived, setShowArrived] = useState('all') // all | open | arrived
+  const byArrival = showArrived === 'all' ? items : items.filter((it) => (showArrived === 'arrived' ? it.arrivedOn : !it.arrivedOn))
+  const shown = filter ? byArrival.filter((it) => it.goalId === filter) : byArrival
+  const arrivedCount = items.filter((it) => it.arrivedOn).length
   const goalTitle = (id) => (goals.find((g) => g.id === id) || {}).title || ''
   // Only offer filters for goals that actually have pictures pinned to them.
   const taggedGoals = goals.filter((g) => items.some((it) => it.goalId === g.id))
@@ -172,14 +181,18 @@ export default function DreamBoard() {
       {/* The bench — templates, zoom, and the way in */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex flex-wrap rounded-full border border-stone-200 bg-cream p-0.5">
-          {TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setBoard({ template: t.id })}
-              title={t.note}
-              className={`rounded-full px-4 py-1.5 text-xs transition-colors ${template === t.id ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:text-stone-800'}`}
-            >{t.label}</button>
-          ))}
+          {TEMPLATES.map((t) => {
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                onClick={() => setBoard({ template: t.id })}
+                title={t.label}
+                aria-label={t.label}
+                className={`flex h-8 w-9 items-center justify-center rounded-full transition-colors ${template === t.id ? 'bg-stone-900 text-cream' : 'text-stone-400 hover:text-stone-800'}`}
+              ><Icon size={14} strokeWidth={1.7} /></button>
+            )
+          })}
         </div>
         <div className="flex items-center gap-2">
           {template === 'scrapbook' && items.length > 0 && (
@@ -194,6 +207,15 @@ export default function DreamBoard() {
           </button>
         </div>
       </div>
+
+      {arrivedCount > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-1.5">
+          <span className="kicker mr-1 text-stone-400">Showing</span>
+          {[['all', 'Everything'], ['open', 'Still wanted'], ['arrived', `Arrived · ${arrivedCount}`]].map(([id, label]) => (
+            <button key={id} onClick={() => setShowArrived(id)} className={`rounded-full border px-3.5 py-1 text-xs transition-colors ${showArrived === id ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{label}</button>
+          ))}
+        </div>
+      )}
 
       {/* Filter by the goal a picture belongs to */}
       {taggedGoals.length > 0 && (
@@ -215,25 +237,16 @@ export default function DreamBoard() {
       )}
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-200 px-6 py-16 text-center">
-          <p className="font-serif italic text-2xl text-stone-500">Nothing pinned yet.</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-stone-400">
-            Photographs of the life you're building — the house, the shape, the table, the trip. Tag each one to a goal and the board becomes a map of where you're going.
-          </p>
-          <button onClick={pickFiles} className="mt-6 inline-flex items-center gap-2 rounded-full bg-stone-900 px-6 py-3 text-sm text-cream transition-colors hover:bg-stone-700">
-            <ImagePlus size={16} strokeWidth={1.75} /> Pin your first picture
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) onFiles({ target: { files: e.dataTransfer.files } }) }}
+          className="rounded-2xl border border-dashed border-stone-300 px-6 py-20 text-center transition-colors hover:border-stone-400"
+        >
+          <p className="font-serif italic text-xl text-stone-400">Drop pictures here</p>
+          <button onClick={pickFiles} className="mt-5 inline-flex items-center gap-2 rounded-full bg-stone-900 px-6 py-3 text-sm text-cream transition-colors hover:bg-stone-700">
+            <ImagePlus size={16} strokeWidth={1.75} /> Choose photos
           </button>
-          <div className="mx-auto mt-8 grid max-w-lg grid-cols-2 gap-2 sm:grid-cols-4">
-            {TEMPLATES.map((t) => (
-              <button key={t.id} onClick={() => setBoard({ template: t.id })} className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${template === t.id ? 'border-stone-900 bg-white/60' : 'border-stone-200 hover:border-stone-400'}`}>
-                <span className="block text-[9.5px] tracking-[0.16em] text-stone-400">{t.label.toUpperCase()}</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-stone-500">{t.note}</span>
-              </button>
-            ))}
-          </div>
         </div>
-      ) : shown.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">Nothing pinned to that goal yet.</p>
       ) : template === 'scrapbook' ? (
         <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white/30" style={{ height: canvasH * zoom + 2 }}>
           <div
@@ -412,7 +425,15 @@ function PhotoSheet({ it, src, goals, scrapbook, onEdit, onRemove, onClose }) {
 
         <div className="flex items-center justify-between px-6 pb-6 pt-4">
           <button onClick={onRemove} className="text-xs text-stone-400 hover:text-phase-menstrual">Remove</button>
-          <button onClick={onClose} className="rounded-full bg-stone-900 px-8 py-2.5 text-sm text-cream hover:bg-stone-700">Done</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onEdit({ arrivedOn: it.arrivedOn ? '' : dateKey(new Date()) })}
+              className={`rounded-full border px-4 py-2 text-xs transition-colors ${it.arrivedOn ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-900'}`}
+            >
+              {it.arrivedOn ? `Arrived ${fmtArrived(it.arrivedOn)}` : 'Mark as arrived'}
+            </button>
+            <button onClick={onClose} className="rounded-full bg-stone-900 px-8 py-2.5 text-sm text-cream hover:bg-stone-700">Done</button>
+          </div>
         </div>
       </div>
     </div>
