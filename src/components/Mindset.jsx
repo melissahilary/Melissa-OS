@@ -525,6 +525,7 @@ function Gratitude() {
   const shown = peek || mode
   const [cupsSeen, setCupsSeen] = useLocalStorage('mos:gratitude:cupsSeen', false)
   const chooseCup = (m) => { setMode(m); if (!cupsSeen) setCupsSeen(true) }
+  const showCupLine = !cupsSeen && Object.keys(map).length === 0
   const [locRaw] = useLocalStorage('mos:settings:location', 'Alameda')
   const sunset = sunsetOn(today, locRaw)
   const evening = sunset ? today.getTime() >= sunset.getTime() : today.getHours() >= FALLBACK_EVENING_HOUR
@@ -653,7 +654,7 @@ function Gratitude() {
       {/* It asks how she is before it asks her to be grateful — and answers in
           cups rather than clinical words. */}
       <p className="mb-5 text-center font-serif text-2xl text-stone-800">How much have you got today?</p>
-      <div className="mb-9 flex items-center justify-center gap-3">
+      <div className={`flex items-center justify-center gap-3 ${showCupLine ? 'mb-4' : 'mb-9'}`}>
         <button
           onClick={() => chooseCup('high')}
           onMouseEnter={() => setPeek('high')}
@@ -680,9 +681,9 @@ function Gratitude() {
         </button>
       </div>
 
-      {!cupsSeen && Object.keys(map).length === 0 && (
-        <p className="mb-9 -mt-5 text-center text-xs italic text-stone-400">
-          Choose how much you&rsquo;ve got. Both count the same.
+      {showCupLine && (
+        <p className="mb-9 text-center text-[12px] leading-relaxed text-stone-400">
+          Choose how much you&rsquo;ve got. <span className="text-stone-500">Both count the same.</span>
         </p>
       )}
 
@@ -693,7 +694,6 @@ function Gratitude() {
       <div className="mb-9 text-center">
         <p className="mx-auto max-w-2xl font-serif italic text-lg leading-relaxed text-stone-600">&ldquo;{quote.text}&rdquo;</p>
         <p className="mt-2 text-[10.5px] tracking-[0.2em] text-stone-400">{quote.who.toUpperCase()}</p>
-        <p className="mt-4 text-[11px] tracking-[0.18em] text-stone-300">{longDate(today).toUpperCase()}</p>
       </div>
 
       <div className="mx-auto max-w-xl md:max-w-none md:grid md:grid-cols-2 md:gap-6 xl:gap-8">
