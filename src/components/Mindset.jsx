@@ -444,6 +444,27 @@ const normGDay = (v) => {
 }
 const dayHasWriting = (v) => Object.values(normGDay(v).entries).some((arr) => (Array.isArray(arr) ? arr : []).some((l) => (l || '').trim()))
 
+// The hour the evening card opens. Set as a pair rather than a sentence: the
+// reason in small caps to answer the kicker across from it, and the hour in the
+// serif this house sets every other number in. A time is a number, and the old
+// italic run-on read as a note someone pencilled in the margin.
+function ShutUntil({ at }) {
+  const [clock, meridiem] = String(at || '').split(' ')
+  return (
+    <span className="ml-auto shrink-0 text-right leading-none">
+      <span className="block whitespace-nowrap text-[9px] tracking-[0.16em] text-stone-400">
+        {at ? 'OPENS AT SUNSET' : 'OPENS THIS EVENING'}
+      </span>
+      {at && (
+        <span className="mt-1.5 block font-serif text-[17px] leading-none text-stone-600">
+          {clock}
+          {meridiem && <span className="ml-1 align-baseline text-[10px] tracking-[0.1em] text-stone-400">{meridiem}</span>}
+        </span>
+      )}
+    </span>
+  )
+}
+
 // Defined out here on purpose: a component declared inside Gratitude would be a
 // new type on every render, so React would tear the inputs down and rebuild them
 // between keystrokes and typing would lose focus after a single character.
@@ -459,7 +480,7 @@ function GratitudeCard({ part, mode, evening, opensAt, lineAt, setLine }) {
       <div className="mb-6 flex items-center gap-2.5">
         {isPM ? <Moon size={15} strokeWidth={1.6} className="text-stone-500" /> : <Sun size={15} strokeWidth={1.6} className="text-stone-500" />}
         <span className="kicker text-stone-500">{isPM ? 'Evening' : 'Morning'}</span>
-        {shut && <span className="ml-auto text-[11px] italic text-stone-400">{opensAt ? `opens at sunset · ${opensAt}` : 'opens this evening'}</span>}
+        {shut && <ShutUntil at={opensAt} />}
       </div>
 
       <div className={shut ? 'pointer-events-none select-none opacity-35' : ''}>
