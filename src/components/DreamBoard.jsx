@@ -124,7 +124,15 @@ export default function DreamBoard() {
     const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
     return { ...cur, ...patch }
   })
-  const setItems = (fn) => setBoard({ items: fn(all) })
+  // Always against the newest stored items, never the render-time copy. Adds and
+  // reads land out of order — a picture is on the board before it has been read,
+  // and several files arrive at once — so a writer holding the array from its
+  // own render would put back a board that predates them and drop the lot.
+  const setItems = (fn) => setRaw((prev) => {
+    const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
+    const items = (Array.isArray(cur.items) ? cur.items : []).map(normVision)
+    return { ...cur, items: fn(items) }
+  })
   const updateItem = (id, patch) => setItems((arr) => arr.map((x) => (x.id === id ? { ...x, ...patch } : x)))
 
   useEffect(() => {
@@ -594,11 +602,15 @@ function Back({ it, dupes, onFlip, onEdit, onRemove }) {
       <div className="mt-auto pt-2">
         <div className="mb-2 h-px bg-stone-200" />
         <div className="flex items-center gap-1.5">
+          {/* Everything lands in Want. Nothing becomes Have unless she says so,
+              so this reads as the action she is taking rather than the state the
+              card is already in — a dark button labelled "Have" on a card that
+              isn't hers yet says the opposite of the truth. */}
           <button
             onClick={() => onEdit({ haveOn: it.haveOn ? '' : dateKey(new Date()) })}
             className={`rounded-full px-3.5 py-1.5 text-[11px] transition-colors ${it.haveOn ? 'border border-stone-300 text-stone-500 hover:border-stone-900' : 'bg-stone-900 text-cream hover:opacity-90'}`}
           >
-            {it.haveOn ? 'Want' : 'Have'}
+            {it.haveOn ? 'Move to want' : 'Mark as have'}
           </button>
           <button onClick={onRemove} className="ml-auto text-[10px] text-stone-400 transition-colors hover:text-phase-menstrual">Delete</button>
         </div>
