@@ -559,6 +559,23 @@ function Gratitude() {
     .filter((k) => k !== todayKey && dayHasWriting(map[k]))
     .sort((a, b) => (a < b ? 1 : -1))
 
+  // A clean start. Deleting the old record on the server alone doesn't hold —
+  // a tab still open re-uploads what it has in memory — so the reset lives in
+  // the app, runs once per account, and is remembered by the date it started
+  // from. Everything written before that date goes; nothing after it is touched.
+  const [freshStart, setFreshStart] = useLocalStorage('mos:gratitude:freshStart', '')
+  useEffect(() => {
+    if (freshStart) return
+    setStore((prev) => {
+      const p = prev && typeof prev === 'object' ? prev : {}
+      const kept = {}
+      Object.keys(p).forEach((k) => { if (k >= todayKey) kept[k] = p[k] })
+      return kept
+    })
+    setFreshStart(todayKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freshStart])
+
   // Whether the day is closed: every prompt in the set she is holding has at
   // least one line. This is what the page waits for before it gives anything
   // back — the fifth field landing.
