@@ -4,7 +4,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
 import CategorySchedule from './shared/CategorySchedule'
-import { dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW } from '../lib/date'
+import { dateKey, parseKey, longDate, isSameDay, monthGrid, addDays, MONTHS, DOW } from '../lib/date'
 import { phaseForConfig, PHASES } from '../lib/cycle'
 import { usePhaseColors } from '../hooks/usePhaseColors'
 import { useLifeStage } from '../lib/lifeStage'
@@ -417,14 +417,23 @@ function Gratitude() {
 
   const kept = (i) => !!(lines[i] || '').trim()
 
-  // The practice map — how many graces each day of this month holds. This is
-  // what belongs beside the writing: evidence of the habit, not a second copy
-  // of what she just wrote.
-  const gAnchor = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthCells = monthGrid(gAnchor)
-  const monthIdx = gAnchor.getMonth()
+  // A month grid would spend thirty-one cells saying yes or no. What is worth
+  // the space beside the writing is the writing — everything she has been
+  // grateful for — with the evidence of the habit kept to a single line.
   const countFor = (k) => (Array.isArray(map[k]) ? map[k] : []).filter((l) => (l || '').trim()).length
-  const daysLogged = monthCells.filter((c) => c.getMonth() === monthIdx && countFor(dateKey(c)) === 3).length
+  const daysWritten = Object.keys(map).filter((k) => countFor(k) > 0).length
+  const thingsWritten = Object.keys(map).reduce((n, k) => n + countFor(k), 0)
+  // Days kept in an unbroken run back from today (today itself is optional —
+  // an unfinished today shouldn't read as a broken streak).
+  const streak = (() => {
+    let n = 0
+    for (let i = 0; i < 400; i += 1) {
+      const k = dateKey(addDays(today, -i))
+      if (countFor(k) === 3) n += 1
+      else if (i > 0) break
+    }
+    return n
+  })()
 
   // Enter keeps the line and moves the cursor to the next one still waiting.
   // The next box is already mounted, so it has to be focused by hand.
@@ -501,44 +510,20 @@ function Gratitude() {
         </div>
 
         {/* ── Archive — every day kept, stored beside the practice ── */}
-        {/* ── The record — the shape of the practice, and the days before this
-            one. Never a second copy of what she has just written. ── */}
+        {/* ── Everything she has been grateful for. Rereading it is the part of
+            the practice that does the work, so it gets the room. ── */}
         <div className="mt-14 xl:col-span-6 xl:mt-0">
-          <div>
-            <p className="mb-4 text-center font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {gAnchor.getFullYear()}</p>
-            <div className="grid grid-cols-7 gap-1.5">
-              {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
-              {monthCells.map((c, i) => {
-                const inMonth = c.getMonth() === monthIdx
-                const k = dateKey(c)
-                const n = inMonth ? countFor(k) : 0
-                const isToday = k === todayKey
-                const ahead = k > todayKey
-                return (
-                  <div
-                    key={i}
-                    title={inMonth && !ahead ? `${longDate(c)} — ${n} of 3` : ''}
-                    className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-lg text-xs ${inMonth ? '' : 'opacity-0'} ${ahead ? 'opacity-40' : ''} ${isToday ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
-                    style={{
-                      background: ahead ? 'transparent' : n === 3 ? '#1C1C1A' : n > 0 ? 'rgba(28,28,26,0.16)' : '#F1F0ED',
-                      color: n === 3 && !ahead ? '#FAFAF7' : ahead ? '#D6D3D1' : '#A8A29E',
-                    }}
-                  >{c.getDate()}</div>
-                )
-              })}
-            </div>
-            <p className="mt-4 text-center text-xs text-stone-400">
-              <span className="font-serif text-lg text-stone-900">{daysLogged}</span> day{daysLogged === 1 ? '' : 's'} logged this month
-            </p>
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-stone-200 pb-3">
+            <span className="font-serif text-lg text-stone-800">Everything you&rsquo;ve been grateful for</span>
+            <span className="text-xs text-stone-400">
+              {thingsWritten > 0
+                ? <>{thingsWritten} thing{thingsWritten === 1 ? '' : 's'} · {daysWritten} day{daysWritten === 1 ? '' : 's'}{streak > 1 ? ` · ${streak} in a row` : ''}</>
+                : 'Nothing yet'}
+            </span>
           </div>
 
-          {pastKeys.length > 0 && (
-            <div className="mt-8">
-              <div className="mb-5 flex items-baseline gap-3">
-                <span className="kicker text-stone-400">Before today</span>
-                <span className="h-px flex-1 bg-stone-200" />
-                <span className="text-xs tabular-nums text-stone-300">{pastKeys.length}</span>
-              </div>
+          {pastKeys.length > 0 ? (
+            <div>
               <div className={pastKeys.length > 1 ? 'columns-1 gap-4 md:columns-2' : ''}>
                 {pastKeys.map((k) => (
                   <div key={k} className="mb-4 break-inside-avoid rounded-2xl border border-stone-200 bg-white/50 p-5">
@@ -552,6 +537,10 @@ function Gratitude() {
                 ))}
               </div>
             </div>
+          ) : (
+            <p className="py-10 text-center font-serif italic text-lg text-stone-300">
+              What you write today will keep here.
+            </p>
           )}
         </div>
       </div>
