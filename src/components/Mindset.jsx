@@ -484,18 +484,24 @@ function GratitudeCard({ part, mode, evening, opensAt, lineAt, setLine }) {
 }
 
 // Full cup, half cup — the whole question, without a clinical word in sight.
-// Half rather than empty on purpose: on a hard day she still has something,
-// and the symbol shouldn't tell her otherwise.
+// Half rather than empty on purpose: on a hard day she still has something, and
+// the symbol shouldn't tell her otherwise. Drawn as a plain vessel — no handle,
+// no steam — on a lighter line than the sun and moon, so it reads as a measure
+// of what's in it rather than competing with the glyph on the morning card.
 const CUP_FILL = {
-  full: 'M6.55 8.9h8.9l-.72 7.4a2.9 2.9 0 0 1-2.88 2.6h-1.76a2.9 2.9 0 0 1-2.88-2.6L6.55 8.9Z',
-  half: 'M7.08 13.5h7.84l-.19 2.8a2.9 2.9 0 0 1-2.88 2.6h-1.76a2.9 2.9 0 0 1-2.88-2.6l-.13-2.8Z',
+  full: 'M7.52 8.3H16.48L15.4 17.5a1.95 1.95 0 0 1-1.9 1.55h-3a1.95 1.95 0 0 1-1.9-1.55L7.52 8.3Z',
+  half: 'M8.14 13.2H15.86L15.4 17.5a1.95 1.95 0 0 1-1.9 1.55h-3a1.95 1.95 0 0 1-1.9-1.55l-.46-4.3Z',
 }
-function Cup({ level = 'full', size = 21 }) {
+function Cup({ level = 'full', size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d={CUP_FILL[level] || CUP_FILL.full} fill="currentColor" opacity="0.9" />
-      <path d="M6 7.2h10l-1.05 9.1a3 3 0 0 1-2.98 2.7h-1.94a3 3 0 0 1-2.98-2.7L6 7.2Z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
-      <path d="M15.7 10h1.5a2.15 2.15 0 0 1 0 4.3h-1.1" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" />
+      <path d={CUP_FILL[level] || CUP_FILL.full} fill="currentColor" opacity="0.85" />
+      <path
+        d="M6.9 7H17.1L15.75 17.6a2.2 2.2 0 0 1-2.18 1.9h-3.14a2.2 2.2 0 0 1-2.18-1.9L6.9 7Z"
+        stroke="currentColor"
+        strokeWidth="1.05"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -510,6 +516,12 @@ function Gratitude() {
   // choice she makes in the moment, never a label the planner keeps on her —
   // and the other cup is one tap away. What she writes under either is kept.
   const [mode, setMode] = useState('high')
+  // Hovering a cup previews its prompts. She can look at Half without having
+  // chosen it; only a tap holds it.
+  const [peek, setPeek] = useState(null)
+  const shown = peek || mode
+  const [cupsSeen, setCupsSeen] = useLocalStorage('mos:gratitude:cupsSeen', false)
+  const chooseCup = (m) => { setMode(m); if (!cupsSeen) setCupsSeen(true) }
   const [locRaw] = useLocalStorage('mos:settings:location', 'Alameda')
   const sunset = sunsetOn(today, locRaw)
   const evening = sunset ? today.getTime() >= sunset.getTime() : today.getHours() >= FALLBACK_EVENING_HOUR
@@ -565,8 +577,12 @@ function Gratitude() {
     return null
   })()
 
-  const capCup = (on) =>
-    `flex items-center gap-2 rounded-full border py-2 pl-3.5 pr-4 text-sm transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-500 hover:border-stone-500 hover:text-stone-700'}`
+  const capCup = (held, looking) =>
+    `flex items-center gap-2 rounded-full border py-2 pl-3.5 pr-4 text-sm transition-colors ${
+      held ? 'border-stone-900 bg-stone-900 text-cream'
+        : looking ? 'border-stone-900 text-stone-800'
+          : 'border-stone-300 text-stone-500 hover:text-stone-700'
+    }`
 
   return (
     <>
@@ -574,17 +590,41 @@ function Gratitude() {
           cups rather than clinical words. */}
       <p className="mb-5 text-center font-serif text-2xl text-stone-800">How much have you got today?</p>
       <div className="mb-9 flex items-center justify-center gap-3">
-        <button onClick={() => setMode('high')} className={capCup(mode === 'high')} aria-label="A full cup" aria-pressed={mode === 'high'}>
+        <button
+          onClick={() => chooseCup('high')}
+          onMouseEnter={() => setPeek('high')}
+          onMouseLeave={() => setPeek(null)}
+          onFocus={() => setPeek('high')}
+          onBlur={() => setPeek(null)}
+          className={capCup(mode === 'high', shown === 'high')}
+          aria-label="A full cup"
+          aria-pressed={mode === 'high'}
+        >
           <Cup level="full" /> Full
         </button>
-        <button onClick={() => setMode('low')} className={capCup(mode === 'low')} aria-label="A half cup" aria-pressed={mode === 'low'}>
+        <button
+          onClick={() => chooseCup('low')}
+          onMouseEnter={() => setPeek('low')}
+          onMouseLeave={() => setPeek(null)}
+          onFocus={() => setPeek('low')}
+          onBlur={() => setPeek(null)}
+          className={capCup(mode === 'low', shown === 'low')}
+          aria-label="A half cup"
+          aria-pressed={mode === 'low'}
+        >
           <Cup level="half" /> Half
         </button>
       </div>
 
+      {!cupsSeen && Object.keys(map).length === 0 && (
+        <p className="mb-9 -mt-5 text-center text-xs italic text-stone-400">
+          Choose how much you&rsquo;ve got. Both count the same.
+        </p>
+      )}
+
       <div className="mx-auto max-w-xl md:max-w-none md:grid md:grid-cols-2 md:gap-6 xl:gap-8">
-        <GratitudeCard part="am" mode={mode} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} />
-        <div className="mt-6 md:mt-0"><GratitudeCard part="pm" mode={mode} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} /></div>
+        <GratitudeCard part="am" mode={shown} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} />
+        <div className="mt-6 md:mt-0"><GratitudeCard part="pm" mode={shown} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} /></div>
       </div>
 
       {lookBack && (
