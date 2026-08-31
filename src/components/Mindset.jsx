@@ -9,7 +9,7 @@ import { phaseForConfig, PHASES } from '../lib/cycle'
 import { usePhaseColors } from '../hooks/usePhaseColors'
 import { useLifeStage } from '../lib/lifeStage'
 import { sunsetOn, clockOf } from '../lib/sun'
-import { quoteFor, lensFor } from '../lib/gratitudeContent'
+import { quoteFor } from '../lib/gratitudeContent'
 import { allLines, subjectsOf, compileMonth, monthAsText, domainOf } from '../lib/gratitudeInsights'
 import { saveDayCard } from '../lib/dayCard'
 
@@ -584,7 +584,6 @@ function Gratitude() {
   const filled = (pid) => (Array.isArray(day.entries[pid]) ? day.entries[pid] : []).some((l) => (l || '').trim())
   const complete = promptSet.every((pr) => filled(pr.id))
   const quote = quoteFor(today)
-  const lens = lensFor(today)
 
   // Everything ever written, and the subjects that keep returning.
   const written = allLines(map, normGDay)
@@ -687,10 +686,11 @@ function Gratitude() {
         </p>
       )}
 
-      {/* The week's lens — same frame, looked through differently. */}
-      <p className="mb-7 text-center text-[11px] tracking-[0.22em] text-stone-400">{lens.toUpperCase()}</p>
+      {/* The lens that sat here is gone, but the air it held is kept — the quote
+          wants that distance from the cups. */}
+      <div aria-hidden className="mb-7 h-4" />
 
-      {/* The day's line, and the day it belongs to. */}
+      {/* The day's line. */}
       <div className="mb-9 text-center">
         <p className="mx-auto max-w-2xl font-serif italic text-lg leading-relaxed text-stone-600">&ldquo;{quote.text}&rdquo;</p>
         <p className="mt-2 text-[10.5px] tracking-[0.2em] text-stone-400">{quote.who.toUpperCase()}</p>

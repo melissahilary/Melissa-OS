@@ -1,7 +1,6 @@
-// ── The written furniture of the gratitude spread: a line for the day and a
-// lens for the week. Both are chosen deterministically from the date, so the
-// page is the same all day and the same on every device she opens it on —
-// nothing is stored, and nothing has to be.
+// ── The day's line. Chosen deterministically from the date, so the page is the
+// same all day and the same on every device she opens it on — nothing is
+// stored, and nothing has to be.
 
 // Kept to lines that have outlived their authors, which is the register the
 // rest of the house is written in.
@@ -44,28 +43,7 @@ export const QUOTES = [
   { text: 'None is so rich as to throw away a friend.', who: 'Turkish proverb' },
 ]
 
-// A lens for the week — the same page, looked through differently.
-export const WEEK_LENSES = [
-  'This week, notice people.',
-  'This week, notice your body.',
-  'This week, notice what you almost missed.',
-  'This week, notice the ordinary.',
-  'This week, notice what someone did for you.',
-  'This week, notice light.',
-  'This week, notice what you made.',
-  'This week, notice rest.',
-  'This week, notice what fed you.',
-  'This week, notice a small kindness.',
-  'This week, notice what money bought that mattered.',
-  'This week, notice what you are no longer afraid of.',
-]
-
 // Days since an arbitrary epoch — a stable index for any date.
 const dayIndex = (d) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000)
 
 export const quoteFor = (date) => QUOTES[((dayIndex(date) % QUOTES.length) + QUOTES.length) % QUOTES.length]
-
-export const lensFor = (date) => {
-  const week = Math.floor(dayIndex(date) / 7)
-  return WEEK_LENSES[((week % WEEK_LENSES.length) + WEEK_LENSES.length) % WEEK_LENSES.length]
-}
