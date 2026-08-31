@@ -133,7 +133,7 @@ const SUBNAV = {
   mindset: [
     { id: 'schedule', label: 'Protocol' },
     { id: 'influences', label: 'Influences' },
-    { id: 'journal', label: 'Journal' },
+    { id: 'journal', label: 'Brain Dump' },
     { id: 'mood', label: 'Mood' },
     { id: 'gratitude', label: 'Gratitude' },
   ],
