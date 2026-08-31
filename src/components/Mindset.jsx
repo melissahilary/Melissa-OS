@@ -483,11 +483,17 @@ function GratitudeCard({ part, mode, evening, opensAt, lineAt, setLine }) {
   )
 }
 
-// Full cup, empty cup — the whole question, without a clinical word in sight.
-function Cup({ full = false, size = 21 }) {
+// Full cup, half cup — the whole question, without a clinical word in sight.
+// Half rather than empty on purpose: on a hard day she still has something,
+// and the symbol shouldn't tell her otherwise.
+const CUP_FILL = {
+  full: 'M6.55 8.9h8.9l-.72 7.4a2.9 2.9 0 0 1-2.88 2.6h-1.76a2.9 2.9 0 0 1-2.88-2.6L6.55 8.9Z',
+  half: 'M7.08 13.5h7.84l-.19 2.8a2.9 2.9 0 0 1-2.88 2.6h-1.76a2.9 2.9 0 0 1-2.88-2.6l-.13-2.8Z',
+}
+function Cup({ level = 'full', size = 21 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      {full && <path d="M6.7 11h8.6l-.55 5.1a2.9 2.9 0 0 1-2.88 2.6h-1.76a2.9 2.9 0 0 1-2.88-2.6L6.7 11Z" fill="currentColor" opacity="0.9" />}
+      <path d={CUP_FILL[level] || CUP_FILL.full} fill="currentColor" opacity="0.9" />
       <path d="M6 7.2h10l-1.05 9.1a3 3 0 0 1-2.98 2.7h-1.94a3 3 0 0 1-2.98-2.7L6 7.2Z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
       <path d="M15.7 10h1.5a2.15 2.15 0 0 1 0 4.3h-1.1" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" />
     </svg>
@@ -560,7 +566,7 @@ function Gratitude() {
   })()
 
   const capCup = (on) =>
-    `flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-400 hover:border-stone-500 hover:text-stone-600'}`
+    `flex items-center gap-2 rounded-full border py-2 pl-3.5 pr-4 text-sm transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-500 hover:border-stone-500 hover:text-stone-700'}`
 
   return (
     <>
@@ -568,11 +574,11 @@ function Gratitude() {
           cups rather than clinical words. */}
       <p className="mb-5 text-center font-serif text-2xl text-stone-800">How much have you got today?</p>
       <div className="mb-9 flex items-center justify-center gap-3">
-        <button onClick={() => setMode('high')} className={capCup(mode === 'high')} title="A full cup" aria-label="A full cup" aria-pressed={mode === 'high'}>
-          <Cup full />
+        <button onClick={() => setMode('high')} className={capCup(mode === 'high')} aria-label="A full cup" aria-pressed={mode === 'high'}>
+          <Cup level="full" /> Full
         </button>
-        <button onClick={() => setMode('low')} className={capCup(mode === 'low')} title="An empty cup" aria-label="An empty cup" aria-pressed={mode === 'low'}>
-          <Cup />
+        <button onClick={() => setMode('low')} className={capCup(mode === 'low')} aria-label="A half cup" aria-pressed={mode === 'low'}>
+          <Cup level="half" /> Half
         </button>
       </div>
 
