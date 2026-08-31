@@ -3,6 +3,7 @@ import { X, Check, Plus, ImagePlus, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey, parseKey, MONTHS_SHORT } from '../lib/date'
 import Checkbox from './shared/Checkbox'
+import EmptyState from './shared/EmptyState'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -108,8 +109,8 @@ export default function DreamProjects({ goals = [] }) {
       {creating && <CreateSheet goals={goals} onCreate={create} onClose={() => setCreating(false)} />}
 
       {active.length === 0 && dormant.length === 0 && done.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-200 p-10 text-center">
-          <div className="flex flex-wrap justify-center gap-1.5">
+        <EmptyState glyph="▤" line="Nothing here yet." action="Add a project" onAction={() => setCreating(true)}>
+          <div className="mt-6 flex flex-wrap justify-center gap-1.5">
             {TEMPLATES.map((t) => (
               <button
                 key={t.id}
@@ -120,7 +121,7 @@ export default function DreamProjects({ goals = [] }) {
               </button>
             ))}
           </div>
-        </div>
+        </EmptyState>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {active.map((p) => <Card key={p.id} project={p} goals={goals} onOpen={() => setOpenId(p.id)} />)}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Shuffle, Grid3x3, Columns3, LayoutGrid, X, ImagePlus, Loader2, Minus, Plus as PlusIcon } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import EmptyState from './shared/EmptyState'
 import { dateKey, parseKey, MONTHS_SHORT } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 import * as store from '../lib/dataStore'
@@ -242,9 +243,10 @@ export default function DreamBoard() {
           onDrop={(e) => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) onFiles({ target: { files: e.dataTransfer.files } }) }}
           className="rounded-2xl border border-dashed border-stone-300 px-6 py-20 text-center transition-colors hover:border-stone-400"
         >
-          <p className="font-serif italic text-xl text-stone-400">Drop pictures here</p>
-          <button onClick={pickFiles} className="mt-5 inline-flex items-center gap-2 rounded-full bg-stone-900 px-6 py-3 text-sm text-cream transition-colors hover:bg-stone-700">
-            <ImagePlus size={16} strokeWidth={1.75} /> Choose photos
+          <p aria-hidden className="font-serif text-3xl leading-none text-stone-300">❖</p>
+          <p className="mt-4 font-serif italic text-lg text-stone-400">Nothing here yet.</p>
+          <button onClick={pickFiles} className="mt-5 inline-flex items-center gap-2 rounded-full bg-stone-900 px-6 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
+            <ImagePlus size={15} strokeWidth={1.75} /> Add a picture
           </button>
         </div>
       ) : template === 'scrapbook' ? (
