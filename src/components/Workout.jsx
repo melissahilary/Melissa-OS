@@ -8,6 +8,7 @@ import PhaseColorEditor from './shared/PhaseColorEditor'
 import { usePhaseColors } from '../hooks/usePhaseColors'
 import { CategoryLog } from './shared/LogShelf'
 import { useLifeStage } from '../lib/lifeStage'
+import Labs from './Labs'
 
 // Hormone-specific sub-sections. Labs lead with the date because timing is the
 // data — a draw on day 3 is a different point than day 21 — so a cycle-day field
@@ -19,16 +20,6 @@ const HORMONE_LOG = {
     suggestions: ['Endocrinology', 'Functional medicine', 'OBGYN', 'Follow-up consult', 'Dose adjustment'],
     place: { label: 'Who / where', placeholder: 'provider · clinic' },
     fields: [{ key: 'changes', label: 'What changed', placeholder: 'protocol / dose changes' }],
-  },
-  labs: {
-    addNoun: 'lab',
-    blurb: 'Hormone panels where timing matters — a day-3 draw is not a day-21 draw.',
-    suggestions: ['Full panel', 'Thyroid panel', 'Cortisol curve', 'Cycle-day draw'],
-    place: { label: 'Where', placeholder: 'lab · clinic' },
-    fields: [
-      { key: 'cycleDay', label: 'Cycle day', placeholder: 'e.g. day 3 / day 21' },
-      { key: 'results', label: 'Results', placeholder: 'values to remember' },
-    ],
   },
 }
 const HORMONE_SHELF = {
@@ -63,6 +54,8 @@ const anchorStart = (runStarts, todayKey) => {
 export default function Workout({ cycleConfig = {}, setCycleConfig = () => {}, goToDay = () => {}, subPage = 'cycle' }) {
   if (subPage === 'schedule' || subPage === 'monthly' || subPage === 'weekly') return <CategorySchedule category="hormones" question="What do you want to track today?" noun="Item" cycleConfig={cycleConfig} />
   if (subPage === 'protocols') return <Protocols />
+  // Hormones and every other marker share one record — two doors, one substrate.
+  if (subPage === 'labs') return <Labs cycleConfig={cycleConfig} />
   if (HORMONE_LOG[subPage]) return <CategoryLog storeKey={`mos:hormones:${subPage}`} {...HORMONE_LOG[subPage]} />
   return <MyBody cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} goToDay={goToDay} />
 }
