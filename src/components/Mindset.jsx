@@ -8,6 +8,7 @@ import { dateKey, parseKey, longDate, isSameDay, monthGrid, addDays, MONTHS, DOW
 import { phaseForConfig, PHASES } from '../lib/cycle'
 import { usePhaseColors } from '../hooks/usePhaseColors'
 import { useLifeStage } from '../lib/lifeStage'
+import { sunsetOn, clockOf } from '../lib/sun'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -397,11 +398,15 @@ function MoodTracker({ cycleConfig = {} }) {
 // The evening card stays shut until evening, which is the one thing paper can't
 // do — it turns a form into a ritual you come back to.
 //
+// The evening opens at her sunset, not at a number someone picked — computed
+// from her own coordinates, with a fixed hour only as a fallback when we don't
+// know where she is.
+//
 // And before it asks for gratitude it asks how she is. Gratitude prompts can
 // sharpen self-criticism in active depression, and forced gratitude in grief
 // reads as invalidating, so there are two sets: high capacity, and a low
 // capacity set whose floor is deliberately on the ground. Paper cannot ask.
-const EVENING_HOUR = 17
+const FALLBACK_EVENING_HOUR = 17
 
 const PROMPTS = {
   high: [
@@ -439,7 +444,7 @@ const dayHasWriting = (v) => Object.values(normGDay(v).entries).some((arr) => (A
 // Defined out here on purpose: a component declared inside Gratitude would be a
 // new type on every render, so React would tear the inputs down and rebuild them
 // between keystrokes and typing would lose focus after a single character.
-function GratitudeCard({ part, mode, evening, lineAt, setLine }) {
+function GratitudeCard({ part, mode, evening, opensAt, lineAt, setLine }) {
   const isPM = part === 'pm'
   const shut = isPM && !evening
   const list = PROMPTS[mode].filter((x) => x.part === part)
@@ -451,7 +456,7 @@ function GratitudeCard({ part, mode, evening, lineAt, setLine }) {
       <div className="mb-6 flex items-center gap-2.5">
         {isPM ? <Moon size={15} strokeWidth={1.6} className="text-stone-500" /> : <Sun size={15} strokeWidth={1.6} className="text-stone-500" />}
         <span className="kicker text-stone-500">{isPM ? 'Evening' : 'Morning'}</span>
-        {shut && <span className="ml-auto text-[11px] italic text-stone-400">opens this evening</span>}
+        {shut && <span className="ml-auto text-[11px] italic text-stone-400">{opensAt ? `opens at sunset · ${opensAt}` : 'opens this evening'}</span>}
       </div>
 
       <div className={shut ? 'pointer-events-none select-none opacity-35' : ''}>
@@ -485,7 +490,20 @@ function Gratitude() {
   const todayKey = dateKey(today)
   const day = normGDay(map[todayKey])
   const mode = day.mode
-  const evening = today.getHours() >= EVENING_HOUR
+  const [locRaw] = useLocalStorage('mos:settings:location', 'Alameda')
+  const sunset = sunsetOn(today, locRaw)
+  const evening = sunset ? today.getTime() >= sunset.getTime() : today.getHours() >= FALLBACK_EVENING_HOUR
+  const opensAt = sunset ? clockOf(sunset) : ''
+
+  // If she is still on the page when the sun goes down, the card opens itself.
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (evening || !sunset) return undefined
+    const ms = sunset.getTime() - Date.now()
+    if (ms <= 0 || ms > 12 * 3600 * 1000) return undefined
+    const id = setTimeout(() => setTick((n) => n + 1), ms + 1000)
+    return () => clearTimeout(id)
+  }, [evening, sunset ? sunset.getTime() : 0])
 
   const setDay = (patch) =>
     setStore((prev) => {
@@ -546,8 +564,8 @@ function Gratitude() {
       </div>
 
       <div className="mx-auto max-w-xl md:max-w-none md:grid md:grid-cols-2 md:gap-6 xl:gap-8">
-        <GratitudeCard part="am" mode={mode} evening={evening} lineAt={lineAt} setLine={setLine} />
-        <div className="mt-6 md:mt-0"><GratitudeCard part="pm" mode={mode} evening={evening} lineAt={lineAt} setLine={setLine} /></div>
+        <GratitudeCard part="am" mode={mode} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} />
+        <div className="mt-6 md:mt-0"><GratitudeCard part="pm" mode={mode} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} /></div>
       </div>
 
       {lookBack && (
