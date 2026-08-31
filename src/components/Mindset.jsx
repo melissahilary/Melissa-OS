@@ -686,9 +686,9 @@ function Gratitude() {
         </p>
       )}
 
-      {/* The lens that sat here is gone, but the air it held is kept — the quote
-          wants that distance from the cups. */}
-      <div aria-hidden className="mb-7 h-4" />
+      {/* The lens that sat here is gone. Its air is kept, less a little — enough
+          distance to set the quote apart from the cups, not enough to strand it. */}
+      <div aria-hidden className="h-7" />
 
       {/* The day's line. */}
       <div className="mb-9 text-center">
