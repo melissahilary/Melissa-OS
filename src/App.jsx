@@ -40,6 +40,7 @@ import Relationship from './components/Relationship'
 import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import AskConcierge from './components/AskConcierge'
+import Dictation from './components/shared/Dictation'
 
 const PILLARS = [
   { id: 'mindset', label: 'Mindset', icon: Compass },
@@ -333,6 +334,10 @@ export default function App() {
       </button>
 
       <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} />
+
+      {/* Speaking, anywhere there is somewhere to write. Mounted once rather
+          than threaded through every field — including the ones not built yet. */}
+      <Dictation />
     </div>
     </AddProvider>
   )

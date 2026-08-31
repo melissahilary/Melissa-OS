@@ -6,6 +6,7 @@ import SectionTitle from './shared/SectionTitle'
 import LocationField from './shared/LocationField'
 import { SIGNS } from '../lib/astrology/natal'
 import { LIFE_STAGES, useLifeStage, stageMeta } from '../lib/lifeStage'
+import { speechSupported } from '../lib/speech'
 
 // Pillars that can be hidden/shown (data is kept either way).
 const SECTIONS = [
@@ -130,6 +131,9 @@ export default function Settings() {
   const nf = notifs && typeof notifs === 'object' ? notifs : {}
   const toggleNotif = (id) => setNotifs((prev) => { const cur = prev && typeof prev === 'object' ? prev : {}; return { ...cur, [id]: !cur[id] } })
   const [theme, setTheme] = useLocalStorage('mos:settings:theme', 'porcelain')
+  // Speaking instead of typing, everywhere. On by default — it is the way in.
+  const [dictationRaw, setDictation] = useLocalStorage('mos:settings:dictation', true)
+  const dictation = dictationRaw !== false
   const { stage: lifeStage, setStage: setLifeStage, journey } = useLifeStage()
   const [pregRaw, setPreg] = useLocalStorage('mos:pregnancy', {})
   const preg = pregRaw && typeof pregRaw === 'object' ? pregRaw : {}
@@ -427,6 +431,24 @@ export default function Settings() {
                   <div className="mt-3 flex items-center gap-2 border-t border-stone-100 pt-3">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#7C8B6B]" />
                     <span className="text-[10px] tracking-[0.12em] text-stone-400">CONNECTED · ANSWERS GROUNDED IN YOUR DATA</span>
+                  </div>
+                )}
+              </div>
+
+              <div className={`mt-3 rounded-2xl border p-5 transition-all ${dictation ? 'border-stone-900 bg-white/60' : 'border-stone-200'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-serif text-lg leading-tight text-stone-900">Dictation</p>
+                    <p className="mt-0.5 text-xs text-stone-400">
+                      A microphone on every field in the house. Focus anywhere you can write and speak instead
+                      — or press ⌘⇧D. Your device does the listening, through the same speech service as its keyboard.
+                    </p>
+                  </div>
+                  <Toggle on={dictation} onClick={() => setDictation(!dictation)} title={dictation ? 'On' : 'Off'} />
+                </div>
+                {!speechSupported() && (
+                  <div className="mt-3 border-t border-stone-100 pt-3">
+                    <span className="text-[10px] tracking-[0.12em] text-stone-400">THIS BROWSER HAS NO SPEECH ENGINE · TRY SAFARI OR CHROME</span>
                   </div>
                 )}
               </div>

@@ -153,3 +153,18 @@ input[type='number'] {
 @media (prefers-reduced-motion: reduce) {
   .mos-settle { animation: none; }
 }
+
+/* The mic, while it is listening. A live microphone has to be unmistakable —
+   this is the one place a pulse is information rather than decoration. */
+@keyframes mos-listen {
+  0%   { opacity: 0.55; transform: scale(1); }
+  70%  { opacity: 0;    transform: scale(1.85); }
+  100% { opacity: 0;    transform: scale(1.85); }
+}
+@keyframes mos-listen-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*='mos-listen'] { animation: none !important; }
+}
