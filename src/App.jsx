@@ -434,7 +434,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
               }`}
             >
               <Sparkles size={17} strokeWidth={1.5} className="transition-transform duration-500 group-hover:rotate-12" />
-              Dream Planning
+              Becoming
             </button>
           </div>
         </div>
