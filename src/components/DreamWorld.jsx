@@ -45,8 +45,8 @@ const FREQS = ['once', 'daily', 'weekly', 'monthly', 'yearly']
 
 // Dream Planning is the Dashboard — nothing else. (The old chapter pages remain
 // exported below only so any legacy imports keep resolving.)
-export default function DreamWorld() {
-  return <DreamDashboard />
+export default function DreamWorld({ cycleConfig }) {
+  return <DreamDashboard cycleConfig={cycleConfig} />
 }
 // eslint-disable-next-line no-unused-vars
 function _LegacyDreamPages({ page }) {

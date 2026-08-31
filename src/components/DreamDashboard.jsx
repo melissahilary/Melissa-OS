@@ -8,6 +8,8 @@ import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { routeStepToSection } from '../lib/goalRoutes'
 import DreamBoard from './DreamBoard'
+import { phaseForConfig } from '../lib/cycle'
+import { useLifeStage } from '../lib/lifeStage'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -94,10 +96,11 @@ function Ring({ p, size = 46 }) {
   )
 }
 
-export default function DreamDashboard() {
+export default function DreamDashboard({ cycleConfig = {} }) {
   const [rawGoals, setRawGoals] = useLocalStorage('mos:dream:goals', [])
   const goals = (Array.isArray(rawGoals) ? rawGoals : []).map(normGoal)
   const { activities, add, update, remove, toggleComplete } = useActivities()
+  const { flags: lifeFlags } = useLifeStage()
   const [openId, setOpenId] = useState(null)
   const [openMs, setOpenMs] = useState(() => new Set())
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
@@ -165,6 +168,12 @@ export default function DreamDashboard() {
   const weekTotal = weekDays.reduce((n, x) => n + x.items.length, 0)
   const weekDone = weekDays.reduce((n, x) => n + x.items.filter((a) => isDoneOn(a, x.dk)).length, 0)
 
+  // The state line's other two readings. Projects live in their own store, and
+  // the phase only belongs on the line for the stages that actually have one.
+  const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
+  const movingProjects = (Array.isArray(projectsRaw) ? projectsRaw : []).filter((p) => p.status !== 'done').length
+  const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
+
   const TABS = [
     { id: 'week', label: 'This Week', icon: ListChecks },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
@@ -176,7 +185,7 @@ export default function DreamDashboard() {
 
   return (
     <section>
-      <Briefing on={on} attn={attn} weekTotal={weekTotal} weekDone={weekDone} goalCount={active.length} />
+      <Header goalCount={active.length} projectCount={movingProjects} phase={statePhase} />
 
       {/* section tabs */}
       <div className="no-scrollbar mb-8 flex items-center justify-center gap-1.5 overflow-x-auto">
@@ -511,21 +520,31 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
   )
 }
 
-// ── Briefing — the one thing you read first ──
-function Briefing({ on, attn, weekTotal, weekDone, goalCount }) {
-  const h = new Date().getHours()
-  const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
-  const now = new Date()
-  const dateStr = `${DOW_LONG[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`
-  const line = goalCount === 0
-    ? 'A quiet slate — set a goal whenever you are ready.'
-    : `${goalCount} goal${goalCount > 1 ? 's' : ''} in motion${attn > 0 ? `, ${attn} asking for attention` : ', all on track'}.`
-  const weekLine = weekTotal === 0 ? 'Nothing on the calendar this week yet.' : `${weekDone} of ${weekTotal} tasks done this week.`
+// ── The header ──
+// Today already owns the date and the greeting; repeating them here made this
+// read as a second homepage rather than the workspace it is. So: the section's
+// name, and under it a state line — not prose, and not encouragement. Just the
+// readings, including the zeroes.
+const isoWeek = (d) => {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  // Thursday decides the year a week belongs to.
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7))
+  const jan1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
+  return Math.ceil(((t - jan1) / 86400000 + 1) / 7)
+}
+
+function Header({ goalCount, projectCount, phase }) {
+  const state = [
+    `WEEK ${isoWeek(new Date())}`,
+    `${goalCount} GOAL${goalCount === 1 ? '' : 'S'}`,
+    `${projectCount} PROJECT${projectCount === 1 ? '' : 'S'}`,
+    phase ? phase.name.toUpperCase() : null,
+  ].filter(Boolean)
+
   return (
-    <div className="mb-8">
-      <p className="kicker text-stone-400">{dateStr}</p>
-      <h2 className="mt-1 font-serif italic text-3xl md:text-4xl text-stone-900">{greet}, Melissa.</h2>
-      <p className="mt-3 max-w-xl font-serif text-lg leading-relaxed text-stone-600">{line} {weekLine}</p>
+    <div className="mb-9 text-center">
+      <h1 className="font-serif text-4xl text-stone-900 md:text-5xl">Becoming</h1>
+      <p className="mt-3 text-[11px] tracking-[0.2em] text-stone-400">{state.join(' · ')}</p>
     </div>
   )
 }
