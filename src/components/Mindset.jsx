@@ -9,6 +9,9 @@ import { phaseForConfig, PHASES } from '../lib/cycle'
 import { usePhaseColors } from '../hooks/usePhaseColors'
 import { useLifeStage } from '../lib/lifeStage'
 import { sunsetOn, clockOf } from '../lib/sun'
+import { quoteFor, lensFor } from '../lib/gratitudeContent'
+import { allLines, subjectsOf, compileMonth, monthAsText, domainOf } from '../lib/gratitudeInsights'
+import { saveDayCard } from '../lib/dayCard'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -556,6 +559,50 @@ function Gratitude() {
     .filter((k) => k !== todayKey && dayHasWriting(map[k]))
     .sort((a, b) => (a < b ? 1 : -1))
 
+  // Whether the day is closed: every prompt in the set she is holding has at
+  // least one line. This is what the page waits for before it gives anything
+  // back — the fifth field landing.
+  const promptSet = PROMPTS[mode]
+  const filled = (pid) => (Array.isArray(day.entries[pid]) ? day.entries[pid] : []).some((l) => (l || '').trim())
+  const complete = promptSet.every((pr) => filled(pr.id))
+  const quote = quoteFor(today)
+  const lens = lensFor(today)
+
+  // Everything ever written, and the subjects that keep returning.
+  const written = allLines(map, normGDay)
+  const subjects = subjectsOf(written)
+  const [subject, setSubject] = useState('')
+
+  const [saving, setSaving] = useState(false)
+  const keepTheDay = async () => {
+    setSaving(true)
+    try {
+      await saveDayCard({
+        dateLine: longDate(today),
+        entries: promptSet.map((pr) => ({
+          label: pr.label,
+          values: (Array.isArray(day.entries[pr.id]) ? day.entries[pr.id] : []).filter((l) => (l || '').trim()),
+        })),
+        quote,
+      }, `gratitude-${todayKey}.png`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // What this month came to.
+  const month = compileMonth(written, today.getFullYear(), today.getMonth())
+  const [openMonth, setOpenMonth] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const copyMonth = async () => {
+    const text = monthAsText(month, MONTHS[today.getMonth()], today.getFullYear())
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    } catch { /* clipboard unavailable */ }
+  }
+
   // The one thing paper cannot do: hand back writing already done.
   const lookBack = (() => {
     const tries = [
@@ -622,10 +669,36 @@ function Gratitude() {
         </p>
       )}
 
+      {/* The week's lens — same frame, looked through differently. */}
+      <p className="mb-7 text-center text-[11px] tracking-[0.22em] text-stone-400">{lens.toUpperCase()}</p>
+
+      {/* The day's line, and the day it belongs to. */}
+      <div className="mb-9 text-center">
+        <p className="mx-auto max-w-2xl font-serif italic text-lg leading-relaxed text-stone-600">&ldquo;{quote.text}&rdquo;</p>
+        <p className="mt-2 text-[10.5px] tracking-[0.2em] text-stone-400">{quote.who.toUpperCase()}</p>
+        <p className="mt-4 text-[11px] tracking-[0.18em] text-stone-300">{longDate(today).toUpperCase()}</p>
+      </div>
+
       <div className="mx-auto max-w-xl md:max-w-none md:grid md:grid-cols-2 md:gap-6 xl:gap-8">
         <GratitudeCard part="am" mode={shown} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} />
         <div className="mt-6 md:mt-0"><GratitudeCard part="pm" mode={shown} evening={evening} opensAt={opensAt} lineAt={lineAt} setLine={setLine} /></div>
       </div>
+
+      {complete && (
+        <div className="mos-settle mx-auto mt-10 max-w-2xl rounded-2xl border border-stone-300 bg-white/60 p-8 text-center shadow-sm">
+          <p className="text-[10.5px] tracking-[0.2em] text-stone-400">{longDate(today).toUpperCase()}</p>
+          <span aria-hidden className="mx-auto mt-4 block h-px w-10 bg-stone-300" />
+          <p className="mx-auto mt-5 max-w-xl font-serif italic text-xl leading-relaxed text-stone-700">&ldquo;{quote.text}&rdquo;</p>
+          <p className="mt-3 text-[10.5px] tracking-[0.2em] text-stone-400">{quote.who.toUpperCase()}</p>
+          <button
+            onClick={keepTheDay}
+            disabled={saving}
+            className="mt-7 rounded-full border border-stone-300 px-6 py-2.5 text-sm text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream disabled:opacity-50"
+          >
+            {saving ? 'Making it…' : 'Keep this day'}
+          </button>
+        </div>
+      )}
 
       {lookBack && (
         <p className="mx-auto mt-8 max-w-3xl text-center font-serif text-lg leading-relaxed text-stone-500">
@@ -633,17 +706,44 @@ function Gratitude() {
         </p>
       )}
 
-      {pastKeys.length > 0 && (
+      {/* What keeps coming back — proof it is reading, not counting. */}
+      {subjects.length > 0 && (
         <div className="mx-auto mt-14 max-w-4xl">
-          <div className="mb-5 flex items-baseline gap-3">
-            <span className="kicker text-stone-400">The record</span>
+          <div className="mb-4 flex items-baseline gap-3">
+            <span className="kicker text-stone-400">What keeps coming back</span>
             <span className="h-px flex-1 bg-stone-200" />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {subjects.map((sub) => {
+              const on = subject === sub.key
+              return (
+                <button
+                  key={sub.key}
+                  onClick={() => setSubject(on ? '' : sub.key)}
+                  className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
+                >
+                  <span className={sub.person ? 'font-serif text-[13px]' : ''}>{sub.label}</span>
+                  <span className={`ml-1.5 tabular-nums ${on ? 'text-cream/60' : 'text-stone-400'}`}>{sub.count}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {pastKeys.length > 0 && (
+        <div className="mx-auto mt-12 max-w-4xl">
+          <div className="mb-5 flex items-baseline gap-3">
+            <span className="kicker text-stone-400">{subject ? `The record · ${subject}` : 'The record'}</span>
+            <span className="h-px flex-1 bg-stone-200" />
+            {subject && <button onClick={() => setSubject('')} className="text-xs text-stone-400 hover:text-stone-700">show all</button>}
           </div>
           <div className="columns-1 gap-4 md:columns-2">
             {pastKeys.map((k) => {
               const d = normGDay(map[k])
+              const hits = (v) => !subject || v.toLowerCase().includes(subject)
               const written = Object.entries(d.entries)
-                .map(([pid, arr]) => ({ pr: promptMeta(pid), vals: (Array.isArray(arr) ? arr : []).filter((l) => (l || '').trim()) }))
+                .map(([pid, arr]) => ({ pr: promptMeta(pid), vals: (Array.isArray(arr) ? arr : []).filter((l) => (l || '').trim() && hits(l)) }))
                 .filter((x) => x.pr && x.vals.length)
               if (!written.length) return null
               return (
@@ -663,6 +763,56 @@ function Gratitude() {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {/* The month, compiled — what makes this a record of a life rather than
+          a diary: the subjects that recurred, where the gratitude sat, and the
+          lines worth reading back. */}
+      {month.written > 0 && (
+        <div className="mx-auto mt-12 max-w-4xl">
+          <button onClick={() => setOpenMonth((v) => !v)} className="flex w-full items-baseline gap-3 text-left">
+            <span className="kicker text-stone-400">{MONTHS[today.getMonth()]}</span>
+            <span className="h-px flex-1 bg-stone-200" />
+            <span className="text-xs text-stone-400">{month.written} across {month.days} day{month.days === 1 ? '' : 's'}</span>
+            <span className="text-stone-300">{openMonth ? '−' : '+'}</span>
+          </button>
+
+          {openMonth && (
+            <div className="mt-5 rounded-2xl border border-stone-200 bg-white/40 p-6">
+              {month.split.length > 0 && (
+                <div>
+                  <p className="kicker mb-3 text-stone-400">Where it sat</p>
+                  <div className="space-y-1.5">
+                    {month.split.map((d) => (
+                      <div key={d.id} className="flex items-center gap-3">
+                        <span className="w-24 shrink-0 text-sm text-stone-600">{d.label}</span>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100">
+                          <div className="h-full rounded-full bg-stone-400" style={{ width: `${(d.n / month.written) * 100}%` }} />
+                        </div>
+                        <span className="w-6 text-right text-[11px] tabular-nums text-stone-400">{d.n}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {month.best.length > 0 && (
+                <div className="mt-6 border-t border-stone-100 pt-5">
+                  <p className="kicker mb-3 text-stone-400">Lines worth keeping</p>
+                  <div className="space-y-2.5">
+                    {month.best.map((b, i) => (
+                      <p key={i} className="border-l border-stone-200 pl-3.5 font-serif text-[17px] leading-relaxed text-stone-700">{b.text}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button onClick={copyMonth} className="mt-6 rounded-full border border-stone-300 px-5 py-2 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+                {copied ? 'Copied' : 'Copy the month'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
