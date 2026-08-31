@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Plus, Check, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { X, Plus, Check, Sun, Moon, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
@@ -392,158 +392,202 @@ function MoodTracker({ cycleConfig = {} }) {
   )
 }
 
-// ── Gratitude — three graces a day. A blank line lies dormant; write one and
-// press enter and it inks in with a check and the cursor moves on. Beside the
-// writing sits the record of the practice itself — the month as a map of how
-// consistently three were kept — and the days before this one. Today is never
-// reprinted there; it is already on the page.
+// ── Gratitude — a morning half and an evening half, the way the paper spread
+// works: cream and a sun on the left, a warmer grey and a moon on the right.
+// The evening card stays shut until evening, which is the one thing paper can't
+// do — it turns a form into a ritual you come back to.
+//
+// And before it asks for gratitude it asks how she is. Gratitude prompts can
+// sharpen self-criticism in active depression, and forced gratitude in grief
+// reads as invalidating, so there are two sets: high capacity, and a low
+// capacity set whose floor is deliberately on the ground. Paper cannot ask.
+const EVENING_HOUR = 17
+
+const PROMPTS = {
+  high: [
+    { id: 'good-now', part: 'am', label: "What's good, right now", lines: 3 },
+    { id: 'goes-well', part: 'am', label: 'Today goes well if…', lines: 3 },
+    { id: 'someone-who', part: 'am', label: "Today I'm someone who…", lines: 1 },
+    { id: 'moments', part: 'pm', label: 'Three moments worth keeping', lines: 3 },
+    { id: 'taught', part: 'pm', label: 'One thing today taught me', lines: 1 },
+  ],
+  low: [
+    { id: 'okay', part: 'am', label: 'One thing that was okay', lines: 1 },
+    { id: 'smallest', part: 'am', label: 'The smallest useful thing I could do today', lines: 1 },
+    { id: 'allowed', part: 'am', label: "Today I'm allowed to…", lines: 1 },
+    { id: 'got-me-through', part: 'pm', label: 'One thing that got me through', lines: 1 },
+    { id: 'need-tomorrow', part: 'pm', label: 'What I need tomorrow', lines: 1 },
+  ],
+}
+const ALL_PROMPTS = [...PROMPTS.high, ...PROMPTS.low]
+const promptMeta = (id) => ALL_PROMPTS.find((x) => x.id === id)
+
+// A day was once three lines in an array. Those were answers to the morning
+// gratitude prompt, so that is where they still live.
+const normGDay = (v) => {
+  if (Array.isArray(v)) return { mode: 'high', entries: { 'good-now': v.filter((l) => (l || '').trim()) } }
+  if (v && typeof v === 'object') {
+    return {
+      mode: v.mode === 'low' ? 'low' : 'high',
+      entries: v.entries && typeof v.entries === 'object' ? v.entries : {},
+    }
+  }
+  return { mode: 'high', entries: {} }
+}
+const dayHasWriting = (v) => Object.values(normGDay(v).entries).some((arr) => (Array.isArray(arr) ? arr : []).some((l) => (l || '').trim()))
+
+// Defined out here on purpose: a component declared inside Gratitude would be a
+// new type on every render, so React would tear the inputs down and rebuild them
+// between keystrokes and typing would lose focus after a single character.
+function GratitudeCard({ part, mode, evening, lineAt, setLine }) {
+  const isPM = part === 'pm'
+  const shut = isPM && !evening
+  const list = PROMPTS[mode].filter((x) => x.part === part)
+  return (
+    <section
+      className={`rounded-2xl border p-6 transition-colors md:p-7 ${isPM ? 'border-stone-300/70' : 'border-stone-200'}`}
+      style={{ background: isPM ? '#EAE6DF' : '#FDFBF6' }}
+    >
+      <div className="mb-6 flex items-center gap-2.5">
+        {isPM ? <Moon size={15} strokeWidth={1.6} className="text-stone-500" /> : <Sun size={15} strokeWidth={1.6} className="text-stone-500" />}
+        <span className="kicker text-stone-500">{isPM ? 'Evening' : 'Morning'}</span>
+        {shut && <span className="ml-auto text-[11px] italic text-stone-400">opens this evening</span>}
+      </div>
+
+      <div className={shut ? 'pointer-events-none select-none opacity-35' : ''}>
+        {list.map((pr, i) => (
+          <div key={pr.id} className={i > 0 ? 'mt-7' : ''}>
+            <p className="mb-2.5 font-serif text-lg leading-snug text-stone-800">{pr.label}</p>
+            <div className="space-y-2">
+              {Array.from({ length: pr.lines }, (_, idx) => (
+                <div key={idx} className="flex items-center gap-3 border-b border-stone-300/50 pb-1.5 transition-colors focus-within:border-stone-900">
+                  {pr.lines > 1 && <span className="w-3 shrink-0 font-serif text-sm text-stone-300">{idx + 1}</span>}
+                  <input
+                    value={lineAt(pr.id, idx)}
+                    onChange={(e) => setLine(pr.id, idx, e.target.value)}
+                    disabled={shut}
+                    className="flex-1 bg-transparent py-0.5 font-serif text-[17px] text-stone-800 outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function Gratitude() {
   const [store, setStore] = useLocalStorage('mos:gratitude', {})
   const map = store && typeof store === 'object' ? store : {}
   const today = new Date()
   const todayKey = dateKey(today)
-  const lines = Array.isArray(map[todayKey]) ? map[todayKey] : ['', '', '']
-  // Which line is being written right now. A line with words in it and no cursor
-  // is a kept one — that's what earns the ink and the check.
-  const [editing, setEditing] = useState(-1)
+  const day = normGDay(map[todayKey])
+  const mode = day.mode
+  const evening = today.getHours() >= EVENING_HOUR
 
-  const setLine = (idx, val) =>
+  const setDay = (patch) =>
     setStore((prev) => {
       const p = prev && typeof prev === 'object' ? prev : {}
-      const cur = Array.isArray(p[todayKey]) ? [...p[todayKey]] : ['', '', '']
-      cur[idx] = val
-      return { ...p, [todayKey]: cur }
+      const cur = normGDay(p[todayKey])
+      return { ...p, [todayKey]: { ...cur, ...patch } }
     })
-
-  const kept = (i) => !!(lines[i] || '').trim()
-
-  // A month grid would spend thirty-one cells saying yes or no. What is worth
-  // the space beside the writing is the writing — everything she has been
-  // grateful for — with the evidence of the habit kept to a single line.
-  const countFor = (k) => (Array.isArray(map[k]) ? map[k] : []).filter((l) => (l || '').trim()).length
-  const daysWritten = Object.keys(map).filter((k) => countFor(k) > 0).length
-  const thingsWritten = Object.keys(map).reduce((n, k) => n + countFor(k), 0)
-  // Days kept in an unbroken run back from today (today itself is optional —
-  // an unfinished today shouldn't read as a broken streak).
-  const streak = (() => {
-    let n = 0
-    for (let i = 0; i < 400; i += 1) {
-      const k = dateKey(addDays(today, -i))
-      if (countFor(k) === 3) n += 1
-      else if (i > 0) break
-    }
-    return n
-  })()
-
-  // Enter keeps the line and moves the cursor to the next one still waiting.
-  // The next box is already mounted, so it has to be focused by hand.
-  const inputRefs = useRef([])
-  const commit = (i, el) => {
-    const next = [0, 1, 2].find((j) => j > i && !(lines[j] || '').trim())
-    const target = next == null ? null : inputRefs.current[next]
-    if (target) { target.focus(); return }
-    if (el) el.blur()
-    setEditing(next == null ? -1 : next)
+  const setLine = (promptId, idx, val) =>
+    setStore((prev) => {
+      const p = prev && typeof prev === 'object' ? prev : {}
+      const cur = normGDay(p[todayKey])
+      const arr = Array.isArray(cur.entries[promptId]) ? [...cur.entries[promptId]] : []
+      arr[idx] = val
+      return { ...p, [todayKey]: { ...cur, entries: { ...cur.entries, [promptId]: arr } } }
+    })
+  const lineAt = (promptId, idx) => {
+    const arr = Array.isArray(day.entries[promptId]) ? day.entries[promptId] : []
+    return arr[idx] || ''
   }
 
+  // The record: every day that holds writing. A day she missed is simply not
+  // here — no grid, no run of red, exactly like an undated page.
   const pastKeys = Object.keys(map)
-    .filter((k) => k !== todayKey && (map[k] || []).some((l) => (l || '').trim()))
+    .filter((k) => k !== todayKey && dayHasWriting(map[k]))
     .sort((a, b) => (a < b ? 1 : -1))
+
+  // The one thing paper cannot do: hand back writing already done.
+  const lookBack = (() => {
+    const tries = [
+      { years: 1, months: 0, say: 'A year ago today' },
+      { years: 0, months: 6, say: 'Six months ago today' },
+      { years: 0, months: 3, say: 'Three months ago today' },
+      { years: 0, months: 1, say: 'A month ago today' },
+    ]
+    for (const t of tries) {
+      const d = new Date(today.getFullYear() - t.years, today.getMonth() - t.months, today.getDate())
+      const k = dateKey(d)
+      if (!dayHasWriting(map[k])) continue
+      const entries = normGDay(map[k]).entries
+      for (const pid of ['good-now', 'okay', 'moments', 'got-me-through']) {
+        const first = (Array.isArray(entries[pid]) ? entries[pid] : []).find((l) => (l || '').trim())
+        if (first) return { say: t.say, text: first.trim() }
+      }
+    }
+    return null
+  })()
+
+  const capChip = (on) =>
+    `rounded-full px-4 py-1.5 text-xs transition-colors ${on ? 'bg-stone-900 text-cream' : 'border border-stone-300 text-stone-600 hover:border-stone-500'}`
 
   return (
     <>
-      <p className="mb-10 text-center font-serif text-2xl text-stone-800">What are you grateful for today?</p>
+      {/* It asks how she is before it asks her to be grateful. */}
+      <div className="mb-9 flex flex-wrap items-center justify-center gap-2.5">
+        <span className="text-sm text-stone-500">How much do you have today?</span>
+        <button onClick={() => setDay({ mode: 'high' })} className={capChip(mode === 'high')}>High capacity</button>
+        <button onClick={() => setDay({ mode: 'low' })} className={capChip(mode === 'low')}>Low capacity</button>
+      </div>
 
-      <div className="mx-auto max-w-xl xl:max-w-none xl:grid xl:grid-cols-12 xl:gap-14">
-        {/* ── The three lines — one ruled page, not three boxes ── */}
-        <div className="xl:col-span-6">
-          {/* The same working header the feelings grid carries: the task, and
-              how far along she is. */}
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
-            <span className="font-serif text-lg text-stone-800">Your top three</span>
-            <span className="flex items-center gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="h-2 w-2 rounded-full transition-colors"
-                  style={{ background: kept(i) ? '#1C1C1A' : 'rgba(120,113,108,0.22)' }}
-                />
-              ))}
-              <span className="ml-1 text-[11px] tabular-nums text-stone-400">{[0, 1, 2].filter(kept).length} of 3</span>
-            </span>
+      <div className="mx-auto max-w-xl md:max-w-none md:grid md:grid-cols-2 md:gap-6 xl:gap-8">
+        <GratitudeCard part="am" mode={mode} evening={evening} lineAt={lineAt} setLine={setLine} />
+        <div className="mt-6 md:mt-0"><GratitudeCard part="pm" mode={mode} evening={evening} lineAt={lineAt} setLine={setLine} /></div>
+      </div>
+
+      {lookBack && (
+        <p className="mx-auto mt-8 max-w-3xl text-center font-serif text-lg leading-relaxed text-stone-500">
+          {lookBack.say} you were grateful for <span className="text-stone-800">{lookBack.text}</span>.
+        </p>
+      )}
+
+      {pastKeys.length > 0 && (
+        <div className="mx-auto mt-14 max-w-4xl">
+          <div className="mb-5 flex items-baseline gap-3">
+            <span className="kicker text-stone-400">The record</span>
+            <span className="h-px flex-1 bg-stone-200" />
           </div>
-          <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white/50 shadow-sm">
-            {[0, 1, 2].map((i) => {
-              const isKept = kept(i)
-              const isEditing = editing === i
+          <div className="columns-1 gap-4 md:columns-2">
+            {pastKeys.map((k) => {
+              const d = normGDay(map[k])
+              const written = Object.entries(d.entries)
+                .map(([pid, arr]) => ({ pr: promptMeta(pid), vals: (Array.isArray(arr) ? arr : []).filter((l) => (l || '').trim()) }))
+                .filter((x) => x.pr && x.vals.length)
+              if (!written.length) return null
               return (
-                <div
-                  key={i}
-                  className={`flex items-center gap-4 px-6 py-5 transition-colors ${i > 0 ? 'border-t border-stone-100' : ''} ${isEditing ? 'bg-white' : ''}`}
-                >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center">
-                    {isKept && !isEditing
-                      ? <Check size={15} strokeWidth={2.5} className="text-stone-900" />
-                      : <span className={`font-serif text-xl leading-none ${isEditing ? 'text-stone-400' : 'text-stone-200'}`}>{i + 1}</span>}
-                  </span>
-                  {isKept && !isEditing ? (
-                    <button onClick={() => setEditing(i)} className="flex-1 text-left font-serif text-lg leading-snug text-stone-800">
-                      {lines[i]}
-                    </button>
-                  ) : (
-                    <input
-                      ref={(el) => { inputRefs.current[i] = el }}
-                      autoFocus={isEditing}
-                      value={lines[i] || ''}
-                      onChange={(e) => setLine(i, e.target.value)}
-                      onFocus={() => setEditing(i)}
-                      onBlur={() => setEditing((cur) => (cur === i ? -1 : cur))}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(i, e.currentTarget) } }}
-                      placeholder="I'm grateful for…"
-                      className={`flex-1 bg-transparent font-serif text-lg outline-none placeholder-stone-300 ${isEditing ? 'text-stone-800' : 'text-stone-400'}`}
-                    />
-                  )}
+                <div key={k} className="mb-4 break-inside-avoid rounded-2xl border border-stone-200 bg-white/50 p-5">
+                  <p className="kicker mb-3 text-stone-400">{longDate(parseKey(k))}</p>
+                  <div className="space-y-4">
+                    {written.map(({ pr, vals }) => (
+                      <div key={pr.id}>
+                        <p className="mb-1 text-[11px] italic text-stone-400">{pr.label}</p>
+                        {vals.map((l, i) => (
+                          <p key={i} className="border-l border-stone-200 pl-3.5 font-serif text-[17px] leading-relaxed text-stone-700">{l}</p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )
             })}
           </div>
         </div>
-
-        {/* ── Archive — every day kept, stored beside the practice ── */}
-        {/* ── Everything she has been grateful for. Rereading it is the part of
-            the practice that does the work, so it gets the room. ── */}
-        <div className="mt-14 xl:col-span-6 xl:mt-0">
-          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-stone-200 pb-3">
-            <span className="font-serif text-lg text-stone-800">Everything you&rsquo;ve been grateful for</span>
-            <span className="text-xs text-stone-400">
-              {thingsWritten > 0
-                ? <>{thingsWritten} thing{thingsWritten === 1 ? '' : 's'} · {daysWritten} day{daysWritten === 1 ? '' : 's'}{streak > 1 ? ` · ${streak} in a row` : ''}</>
-                : 'Nothing yet'}
-            </span>
-          </div>
-
-          {pastKeys.length > 0 ? (
-            <div>
-              <div className={pastKeys.length > 1 ? 'columns-1 gap-4 md:columns-2' : ''}>
-                {pastKeys.map((k) => (
-                  <div key={k} className="mb-4 break-inside-avoid rounded-2xl border border-stone-200 bg-white/50 p-5">
-                    <p className="kicker mb-3 text-stone-400">{longDate(parseKey(k))}</p>
-                    <div className="space-y-2">
-                      {(map[k] || []).filter((l) => (l || '').trim()).map((l, idx) => (
-                        <p key={idx} className="border-l border-stone-200 pl-3.5 font-serif text-[17px] leading-relaxed text-stone-700">{l}</p>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="py-10 text-center font-serif italic text-lg text-stone-300">
-              What you write today will keep here.
-            </p>
-          )}
-        </div>
-      </div>
+      )}
     </>
   )
 }
