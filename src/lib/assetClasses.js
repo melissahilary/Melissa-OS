@@ -47,7 +47,7 @@ export const ASSET_GROUPS = [
     classes: [
       { id: 'treatments', label: 'Treatments', glyph: '✧', pillar: 'aesthetics', fields: [f('provider', 'Provider'), f('interval', 'Interval'), f('lastdone', 'Last done', 'date'), f('nextdue', 'Next due', 'date'), f('downtime', 'Downtime')] },
       { id: 'practitioners', label: 'Practitioners', glyph: '✚', fields: [f('specialty', 'Specialty'), f('location', 'Location'), f('lastseen', 'Last seen', 'date'), f('nextdue', 'Next due', 'date'), f('referral', 'Referred by')] },
-      { id: 'labs', label: 'Testing & labs', glyph: '⚗', pillar: 'diagnostics', fields: [f('panel', 'Panel'), f('provider', 'Provider'), f('lastrun', 'Last run', 'date'), f('retest', 'Retest interval')] },
+      { id: 'labs', label: 'Testing & labs', glyph: '⊙', pillar: 'diagnostics', fields: [f('panel', 'Panel'), f('provider', 'Provider'), f('lastrun', 'Last run', 'date'), f('retest', 'Retest interval')] },
       { id: 'memberships', label: 'Memberships', glyph: '◎', fields: [f('kind', 'Gym · studio · clinic'), f('renewal', 'Renews', 'date'), f('visits', 'Visits', 'count')] },
       { id: 'courses', label: 'Programmes & courses', glyph: '❑', fields: [f('provider', 'Provider'), f('start', 'Starts', 'date'), f('completed', 'Completed', 'date')] },
     ],
@@ -66,7 +66,7 @@ export const ASSET_GROUPS = [
       { id: 'books', label: 'Books', glyph: '❏', fields: [f('author', 'Author'), f('status', 'Status'), f('source', 'Source')] },
       { id: 'plants', label: 'Plants', glyph: '❦', fields: [f('room', 'Room'), f('light', 'Light'), f('water', 'Water every'), f('repot', 'Repot', 'date')] },
       { id: 'renovation', label: 'Renovation & materials', glyph: '▧', fields: [f('room', 'Room'), f('trade', 'Trade'), f('quote', 'Quote', 'money'), f('leadtime', 'Lead time'), f('ordered', 'Ordered', 'date')] },
-      { id: 'maintenance', label: 'Tools & maintenance', glyph: '⚒', fields: [f('interval', 'Service interval'), f('warranty', 'Warranty until', 'date')] },
+      { id: 'maintenance', label: 'Tools & maintenance', glyph: '⊞', fields: [f('interval', 'Service interval'), f('warranty', 'Warranty until', 'date')] },
     ],
   },
   {
@@ -75,7 +75,7 @@ export const ASSET_GROUPS = [
     classes: [
       { id: 'cars', label: 'Cars', glyph: '⬓', fields: [f('make', 'Make'), f('model', 'Model'), f('year', 'Year'), f('reg', 'Registration'), f('mileage', 'Mileage', 'num'), f('service', 'Service due', 'date'), f('mot', 'MOT', 'date'), f('insurance', 'Insurance renews', 'date'), f('valuation', 'Valuation', 'money')] },
       { id: 'bicycles', label: 'Bicycles', glyph: '◍', sized: true, fields: [f('brand', 'Brand'), f('size', 'Frame size'), f('service', 'Service', 'date')] },
-      { id: 'othervehicles', label: 'Other vehicles', glyph: '⛵', fields: [f('kind', 'Boat · motorbike'), f('reg', 'Registration'), f('service', 'Service', 'date'), f('insurance', 'Insurance renews', 'date'), f('storage', 'Mooring / storage')] },
+      { id: 'othervehicles', label: 'Other vehicles', glyph: '◭', fields: [f('kind', 'Boat · motorbike'), f('reg', 'Registration'), f('service', 'Service', 'date'), f('insurance', 'Insurance renews', 'date'), f('storage', 'Mooring / storage')] },
     ],
   },
   {
@@ -85,7 +85,7 @@ export const ASSET_GROUPS = [
       { id: 'property', label: 'Property', glyph: '⌂', fields: [f('address', 'Address'), f('purchase', 'Purchase price', 'money'), f('valuation', 'Valuation', 'money'), f('mortgage', 'Mortgage renews', 'date'), f('insurance', 'Insurance renews', 'date'), f('works', 'Works due')] },
       { id: 'investments', label: 'Investments', glyph: '◮', fields: [f('kind', 'Type'), f('since', 'Held since', 'date'), f('value', 'Value', 'money')] },
       { id: 'collectibles', label: 'Collectibles', glyph: '❋', fields: [f('category', 'Category'), f('provenance', 'Provenance'), f('valuation', 'Valuation', 'money'), f('insured', 'Insured', 'bool')] },
-      { id: 'insurance', label: 'Insurance policies', glyph: '⛨', fields: [f('kind', 'Type'), f('provider', 'Provider'), f('premium', 'Premium', 'money'), f('renewal', 'Renews', 'date'), f('cover', 'Cover')] },
+      { id: 'insurance', label: 'Insurance policies', glyph: '⬠', fields: [f('kind', 'Type'), f('provider', 'Provider'), f('premium', 'Premium', 'money'), f('renewal', 'Renews', 'date'), f('cover', 'Cover')] },
       { id: 'subscriptions', label: 'Subscriptions', glyph: '↻', fields: [f('service', 'Service'), f('renewal', 'Renews', 'date'), f('usage', 'Usage')] },
     ],
   },
@@ -93,7 +93,7 @@ export const ASSET_GROUPS = [
     id: 'life',
     label: 'Life and experience',
     classes: [
-      { id: 'travel', label: 'Travel', glyph: '✈', fields: [f('destination', 'Destination'), f('season', 'Season'), f('booked', 'Booked', 'bool'), f('dates', 'Dates')] },
+      { id: 'travel', label: 'Travel', glyph: '⌖', fields: [f('destination', 'Destination'), f('season', 'Season'), f('booked', 'Booked', 'bool'), f('dates', 'Dates')] },
       { id: 'restaurants', label: 'Restaurants & bars', glyph: '❦', fields: [f('city', 'City'), f('occasion', 'Occasion'), f('booked', 'Booked', 'bool'), f('been', 'Been', 'bool')] },
       { id: 'places', label: 'Places to see', glyph: '◈', fields: [f('city', 'City'), f('kind', 'Type'), f('been', 'Been', 'bool')] },
       { id: 'recipes', label: 'Recipes', glyph: '❧', pillar: 'nutrition', fields: [f('source', 'Source'), f('occasion', 'Occasion'), f('cooked', 'Cooked', 'count')] },
@@ -116,7 +116,7 @@ export const ASSET_GROUPS = [
     id: 'people',
     label: 'People',
     classes: [
-      { id: 'circle', label: 'Circle', glyph: '❤', pillar: 'relationship', fields: [f('relationship', 'Relationship'), f('lastcontact', 'Last contact', 'date'), f('birthday', 'Birthday', 'date'), f('notes', 'Notes')] },
+      { id: 'circle', label: 'Circle', glyph: '♡', pillar: 'relationship', fields: [f('relationship', 'Relationship'), f('lastcontact', 'Last contact', 'date'), f('birthday', 'Birthday', 'date'), f('notes', 'Notes')] },
       { id: 'vendors', label: 'Vendors & services', glyph: '✚', fields: [f('trade', 'Trade'), f('lastused', 'Last used', 'date'), f('rating', 'Rating')] },
       { id: 'gifting', label: 'Gifting register', glyph: '❃', sized: true, fields: [f('person', 'Person'), f('ideas', 'Ideas'), f('history', 'Given before'), f('size', 'Sizes')] },
     ],
