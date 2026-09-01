@@ -17,7 +17,7 @@ import DreamProjects from './DreamProjects'
 import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
 import * as store from '../lib/dataStore'
-import { adherenceOf, trajectoryOf, evidenceOf } from '../lib/goalSignals'
+import { adherenceOf, trajectoryOf } from '../lib/goalSignals'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -70,7 +70,6 @@ const normGoal = (g) => {
     tags: Array.isArray(g.tags) ? g.tags : [],
     notes: Array.isArray(g.notes) ? g.notes : [], // { id, text, date } — the comment log
     links: Array.isArray(g.links) ? g.links : [], // { id, label, url } — attachments-lite
-    evidence: g.evidence && typeof g.evidence === 'object' ? g.evidence : {}, // { marker }
     achievedOn: g.achievedOn || '',
     stages: Array.isArray(g.stages) ? g.stages : [], // empty = every stage
   }
@@ -169,7 +168,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   // for the stages that actually have one.
   const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
   const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
-  const [labRecord] = useLocalStorage('mos:labs', { markers: {}, readings: [] })
   const [boardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
   const boardItems = (boardRaw && Array.isArray(boardRaw.items) ? boardRaw.items : []).filter((it) => it.goalId)
 
@@ -296,7 +294,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                         steps={stepsOf(g.id)}
                         projects={Array.isArray(projectsRaw) ? projectsRaw : []}
                         images={imagesForGoal(g.id)}
-                        labRecord={labRecord}
                         onOpen={() => openGoal(g.id)}
                         onDragStart={() => setDragId(g.id)}
                         onDragEnd={() => setDragId(null)}
@@ -312,21 +309,15 @@ export default function DreamDashboard({ cycleConfig = {} }) {
             <div className="mt-10 border-t border-stone-200 pt-6">
               <p className="kicker mb-3 text-stone-400">Achieved · {achieved.length}</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {achieved.map((g) => {
-                  const ev = evidenceOf(g, labRecord)
-                  return (
+                {achieved.map((g) => (
                     <button key={g.id} onClick={() => openGoal(g.id)} className="flex items-start gap-2.5 rounded-2xl border border-stone-200 p-3 text-left transition-colors hover:border-stone-400">
                       <LoggedIcon size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
                       <span className="min-w-0">
                         <span className="block truncate font-serif text-base text-stone-700">{g.title || 'Untitled'}</span>
-                        <span className="block text-[11px] tabular-nums text-stone-400">
-                          {g.achievedOn ? fmtShort(g.achievedOn) : ''}
-                          {ev ? `${g.achievedOn ? ' · ' : ''}${ev.label} ${ev.first} → ${ev.last}` : ''}
-                        </span>
+                        <span className="block text-[11px] tabular-nums text-stone-400">{g.achievedOn ? fmtShort(g.achievedOn) : ''}</span>
                       </span>
                     </button>
-                  )
-                })}
+                ))}
               </div>
             </div>
           )}
@@ -337,7 +328,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
         <GoalPanel
           goal={openGoalObj}
           steps={stepsOf(openGoalObj.id)}
-          health={healthOf(openGoalObj, stepsOf(openGoalObj.id))}
           openMs={openMs}
           onToggleMsOpen={toggleMsOpen}
           onUpdate={(patch) => updateGoal(openGoalObj.id, patch)}
@@ -350,7 +340,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           onRunAI={() => runAI(openGoalObj)}
           onAcceptAI={(plan) => acceptPlan(openGoalObj, plan)}
           onDismissAI={() => setAi(null)}
-          labRecord={labRecord}
           stage={stage}
           onRecruit={(rows) => rows.forEach((r) => add(blankActivity('protocol', {
             title: r.title,
@@ -402,11 +391,10 @@ function Trajectory({ points }) {
   )
 }
 
-function GoalCard({ goal, steps, projects = [], images = [], labRecord, onOpen, onDragStart, onDragEnd }) {
+function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart, onDragEnd }) {
   const d = daysUntil(goal.target)
   const adh = adherenceOf(steps)
   const traj = trajectoryOf(steps)
-  const ev = evidenceOf(goal, labRecord)
   const project = projects.find((p) => p.goalId === goal.id)
 
   return (
@@ -453,7 +441,7 @@ function GoalCard({ goal, steps, projects = [], images = [], labRecord, onOpen, 
   )
 }
 
-function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI, labRecord, onRecruit, stage }) {
+function GoalPanel({ goal, steps, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
   useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])

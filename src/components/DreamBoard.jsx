@@ -33,6 +33,13 @@ const TEMPLATES = [
 const SIZES = { S: 150, M: 225, L: 330 }
 const sizeW = (s) => SIZES[s] || SIZES.M
 
+// Signatures last eight hours; the board re-signs itself every seven, so a page
+// left open overnight still has its pictures in the morning.
+const SIGN_SECONDS = 28800
+const SIGN_REFRESH_MS = 7 * 60 * 60 * 1000
+
+const KEY = 'mos:dream:board'
+
 const fmtDay = (k) => { const d = parseKey(k); return d ? `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}` : '' }
 const elapsed = (a, b) => {
   const x = parseKey(a)
@@ -99,7 +106,7 @@ const normVision = (it) => ({
 })
 
 export default function DreamBoard() {
-  const [raw, setRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
+  const [raw, setRaw] = useLocalStorage(KEY, { template: 'scrapbook', items: [] })
   const board = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : { template: 'scrapbook', items: [] }
   const all = useMemo(() => (Array.isArray(board.items) ? board.items : []).map(normVision), [board.items])
   const template = TEMPLATES.some((t) => t.id === board.template) ? board.template : 'scrapbook'
@@ -114,6 +121,8 @@ export default function DreamBoard() {
   const [dragPos, setDragPos] = useState(null)
   const [adding, setAdding] = useState(false)
   const [linkDraft, setLinkDraft] = useState('')
+  const [rejected, setRejected] = useState([]) // files the browser could not read
+  const [saveState, setSaveState] = useState(() => store.getSaveState())
   const fileRef = useRef(null)
   const canvasRef = useRef(null)
   const reading = useRef(new Set())
@@ -136,18 +145,31 @@ export default function DreamBoard() {
   })
   const updateItem = (id, patch) => setItems((arr) => arr.map((x) => (x.id === id ? { ...x, ...patch } : x)))
 
+  // The bucket is private, so every picture needs a signed URL, and a signature
+  // expires. Asking once was enough to draw the board and not enough to keep it:
+  // a request that failed was never retried, so the square stayed empty as
+  // though the photograph had gone, and a board left open past the expiry went
+  // blank the same way. Ask again for anything still missing, and re-sign the
+  // whole board well before the signatures run out.
+  const [signTick, setSignTick] = useState(0)
+  useEffect(() => {
+    const retry = setInterval(() => setSignTick((n) => n + 1), 20000)
+    const refresh = setInterval(() => { setUrls({}); setSignTick((n) => n + 1) }, SIGN_REFRESH_MS)
+    return () => { clearInterval(retry); clearInterval(refresh) }
+  }, [])
+
   useEffect(() => {
     let alive = true
-    const missing = all.filter((it) => it.path && !urls[it.path]).map((it) => it.path)
+    const missing = [...new Set(all.filter((it) => it.path && !urls[it.path]).map((it) => it.path))]
     if (!missing.length) return undefined
     ;(async () => {
-      const pairs = await Promise.all([...new Set(missing)].map(async (p) => [p, await store.signedPhotoUrl(p)]))
+      const pairs = await Promise.all(missing.map(async (p) => [p, await store.signedPhotoUrl(p, SIGN_SECONDS)]))
       if (!alive) return
       setUrls((u) => { const next = { ...u }; pairs.forEach(([p, url]) => { if (url) next[p] = url }); return next })
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all.map((i) => i.path).join(',')])
+  }, [all.map((i) => i.path).join(','), signTick])
 
   const srcOf = (it) => it.dataUrl || it.remote || urls[it.path] || ''
   const pickFiles = () => fileRef.current && fileRef.current.click()
@@ -182,10 +204,18 @@ export default function DreamBoard() {
     const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
     if (e.target && 'value' in e.target) e.target.value = ''
     if (!files.length) return
+    setRejected([])
     setBusy((n) => n + files.length)
     files.forEach((file, i) => {
       processImage(file, 1400, async (out) => {
-        if (!out) { setBusy((n) => Math.max(0, n - 1)); return }
+        // A file the browser cannot decode — most often an iPhone HEIC opened
+        // on a desktop browser — used to disappear without a word, which looks
+        // exactly like a photo that was added and didn't stay. Say so instead.
+        if (!out) {
+          setRejected((r) => [...r, file.name || 'that photo'])
+          setBusy((n) => Math.max(0, n - 1))
+          return
+        }
         let path = ''
         if (out.blob) path = (await store.uploadPhoto(out.blob)) || ''
         const id = uid()
@@ -195,6 +225,10 @@ export default function DreamBoard() {
           y: 24 + Math.floor((arr.length + i) / 3) * 250,
           rot: Math.round((Math.random() * 7 - 3.5) * 10) / 10,
         })])
+        // A photograph is not a keystroke. The file is already in the bucket, so
+        // anything that ends the page before the debounce fires would leave an
+        // uploaded picture with nothing on the board pointing at it.
+        store.flush(KEY)
         setBusy((n) => Math.max(0, n - 1))
         setAdding(false)
         readImage(id, out.thumb)
@@ -204,6 +238,8 @@ export default function DreamBoard() {
 
   // A link brings the picture and where it came from — which paper cannot do
   // and no board bothers to keep.
+  useEffect(() => store.subscribeSave(setSaveState), [])
+
   const addFromUrl = async () => {
     const u = linkDraft.trim()
     if (!u) return
@@ -220,8 +256,11 @@ export default function DreamBoard() {
           x: 6 + (arr.length % 3) * 30, y: 24 + Math.floor(arr.length / 3) * 250,
           rot: Math.round((Math.random() * 7 - 3.5) * 10) / 10,
         })])
+        store.flush(KEY)
+      } else {
+        setRejected((r) => [...r, u])
       }
-    } catch { /* nothing arrived; the board is unchanged */ }
+    } catch { setRejected((r) => [...r, u]) }
     setBusy((n) => Math.max(0, n - 1))
   }
 
@@ -385,6 +424,23 @@ export default function DreamBoard() {
       {busy > 0 && (
         <p className="mb-4 flex items-center justify-center gap-2 text-xs italic text-stone-400">
           Adding {busy} picture{busy > 1 ? 's' : ''}…
+        </p>
+      )}
+
+      {/* The two ways a picture fails to arrive, both of which used to be
+          silent, and both of which look identical to her: it didn't stay. */}
+      {rejected.length > 0 && (
+        <p className="mb-4 flex flex-wrap items-center justify-center gap-2 text-center text-xs text-stone-500">
+          <span>
+            {rejected.length} {rejected.length === 1 ? 'photo' : 'photos'} couldn’t be read — HEIC photos from an
+            iPhone often need to be saved as JPEG first.
+          </span>
+          <button onClick={() => setRejected([])} className="underline underline-offset-4 hover:text-stone-900">Dismiss</button>
+        </p>
+      )}
+      {saveState.state === 'error' && (
+        <p className="mb-4 text-center text-xs text-stone-500">
+          The board hasn’t saved yet — still trying. Keep this page open.
         </p>
       )}
 

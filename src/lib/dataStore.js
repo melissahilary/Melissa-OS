@@ -14,7 +14,10 @@ const TABLE = 'planner_state'
 const cache = new Map()
 const subscribers = new Map() // key -> Set<cb>
 const statusSubs = new Set()
+const saveSubs = new Set()
 const writeTimers = new Map()
+const pending = new Set() // keys changed but not yet confirmed saved
+const failures = new Map() // key -> the last error, after the retries ran out
 
 let user = null
 let phase = 'loading' // loading | signed-out | ready
@@ -42,6 +45,19 @@ export function subscribeStatus(cb) {
   statusSubs.add(cb)
   return () => statusSubs.delete(cb)
 }
+function notifySave() {
+  const s = getSaveState()
+  saveSubs.forEach((cb) => cb(s))
+}
+export function subscribeSave(cb) {
+  saveSubs.add(cb)
+  return () => saveSubs.delete(cb)
+}
+export function getSaveState() {
+  if (failures.size) return { state: 'error', keys: [...failures.keys()], message: [...failures.values()][0] }
+  if (pending.size) return { state: 'saving', keys: [...pending], message: '' }
+  return { state: 'saved', keys: [], message: '' }
+}
 export function getStatus() {
   return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '' }
 }
@@ -58,11 +74,49 @@ export function set(key, value) {
 }
 
 function scheduleUpsert(key) {
+  pending.add(key)
+  notifySave()
   clearTimeout(writeTimers.get(key))
   writeTimers.set(key, setTimeout(() => upsert(key), 400))
 }
-async function upsert(key) {
+
+// A write that hasn't landed yet. The debounce is there so typing doesn't send a
+// request per keystroke, but anything still sitting in it when the tab goes away
+// is a change she made and will not find again — so leaving the page sends it
+// now rather than waiting out the idle.
+export function flush(key) {
+  const keys = key ? [key] : [...pending]
+  keys.forEach((k) => {
+    clearTimeout(writeTimers.get(k))
+    writeTimers.delete(k)
+    upsert(k)
+  })
+}
+
+// Closing the tab, switching apps, locking the phone — each of these can end the
+// page inside the debounce window, and a change still sitting in it is a change
+// she made and will not find again. Send what's waiting at the first sign she is
+// leaving — which is what makes a photo added and immediately navigated away
+// from still be there tomorrow — and push again when a dropped connection comes
+// back.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush() })
+  window.addEventListener('pagehide', () => flush())
+  window.addEventListener('online', () => {
+    const stuck = [...failures.keys()]
+    failures.clear()
+    notifySave()
+    stuck.forEach((k) => upsert(k))
+  })
+}
+
+// Saving is otherwise invisible, and invisible is fine until it fails. A dropped
+// connection used to lose the change in a console warning nobody reads; now it
+// retries, and if it still won't go the app can say so.
+const RETRY_MS = [1200, 3500, 9000]
+async function upsert(key, attempt = 0) {
   if (!user) return
+  let failed = null
   try {
     const { error } = await supabase
       .from(TABLE)
@@ -70,13 +124,32 @@ async function upsert(key) {
         { user_id: user.id, key, value: cache.get(key), updated_at: new Date().toISOString() },
         { onConflict: 'user_id,key' },
       )
-    if (error) console.warn('[mos] save failed', key, error.message)
+    failed = error ? error.message : null
   } catch (e) {
-    console.warn('[mos] save error', key, e)
+    failed = String((e && e.message) || e)
+  }
+  if (!failed) {
+    pending.delete(key)
+    failures.delete(key)
+    notifySave()
+    return
+  }
+  console.warn('[mos] save failed', key, failed)
+  if (attempt < RETRY_MS.length) {
+    writeTimers.set(key, setTimeout(() => upsert(key, attempt + 1), RETRY_MS[attempt]))
+  } else {
+    failures.set(key, failed)
+    notifySave()
   }
 }
 
 async function loadAll() {
+  // Whatever was in flight belongs to the state we are about to replace.
+  writeTimers.forEach((t) => clearTimeout(t))
+  writeTimers.clear()
+  pending.clear()
+  failures.clear()
+  notifySave()
   cache.clear()
   try {
     const { data, error } = await supabase.from(TABLE).select('key,value')
