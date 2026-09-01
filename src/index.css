@@ -8,19 +8,27 @@
 
 /* ── Ground. The four themes are hers and are left exactly as she chose them;
    the ivory-to-ink ramp above them belongs to the brand and does not shift.
-   Écru is canonical — it is the ground everything else is drawn against. ── */
+   Écru is canonical — it is the ground everything else is drawn against.
+
+   Each ground is written twice: once as a hex, for anything that reads the
+   variable directly, and once as channels, which is the only form that lets a
+   utility carry an opacity. ── */
 :root,
 :root[data-mos-theme='ecru'] {
   --mos-cream: #FAF6ED;
+  --mos-cream-rgb: 250 246 237;
 }
 :root[data-mos-theme='porcelain'] {
   --mos-cream: #FAFAF7;
+  --mos-cream-rgb: 250 250 247;
 }
 :root[data-mos-theme='rosewater'] {
   --mos-cream: #FBF6F4;
+  --mos-cream-rgb: 251 246 244;
 }
 :root[data-mos-theme='sage'] {
   --mos-cream: #F7F8F4;
+  --mos-cream-rgb: 247 248 244;
 }
 
 body {
@@ -248,6 +256,44 @@ button.rounded-full:not(.font-serif) {
   letter-spacing: 0.14em;
   font-size: 0.82em;
 }
+
+/* ── The legibility floor ──────────────────────────────────────────────
+   The ivory ramp is a ramp of *surfaces*. Spelled as type on the ivory ground
+   it falls under the threshold at which a person reads without leaning in:
+   stone-300 is 1.6:1, stone-400 is 2.2:1, stone-500 is 3.3:1 — and between them
+   they set nearly every label, date, count and caption in the house. These
+   three rules lift the type and nothing else, so a border-stone-300 is still a
+   hairline and a bg-stone-200 is still a tile. Same family, same restraint,
+   several steps further down the ladder. */
+.text-stone-200,
+.text-stone-300 { color: #7E7057; }  /* 4.5:1 — faint marks */
+.text-stone-400 { color: #6E6250; }  /* 5.5:1 — secondary text */
+.text-stone-500 { color: #5F5442; }  /* 6.9:1 — labels and kickers */
+.kicker { color: #7E7057; }
+
+input::placeholder,
+textarea::placeholder,
+.placeholder-stone-200::placeholder,
+.placeholder-stone-300::placeholder,
+.placeholder-stone-400::placeholder { color: #8A7B61; }
+
+/* On a night surface the ladder runs the other way, so the same utilities have
+   to go back up. Without this, lifting the type would bury it. */
+.bg-stone-900 .text-stone-300,
+.bg-stone-800 .text-stone-300,
+.bg-ink .text-stone-300,
+.bg-stone-900 .text-stone-500,
+.bg-stone-800 .text-stone-500,
+.bg-ink .text-stone-500 { color: #B4A68D; }
+.bg-stone-900 .text-stone-400,
+.bg-stone-800 .text-stone-400,
+.bg-ink .text-stone-400 { color: #CEC3AF; }
+.bg-stone-900 input::placeholder,
+.bg-stone-800 input::placeholder,
+.bg-ink input::placeholder,
+.bg-stone-900 textarea::placeholder,
+.bg-stone-800 textarea::placeholder,
+.bg-ink textarea::placeholder { color: #96866C; }
 
 /* Hairlines sit at 18% ink. */
 .border-stone-100 { border-color: #EFEAE0; }

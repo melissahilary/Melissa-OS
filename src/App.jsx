@@ -457,8 +457,12 @@ function SubNav({ items, activeId, onPick }) {
               <button
                 key={s.id}
                 onClick={() => onPick(s.id)}
+                // Navigation is not secondary text. Every section reads in ink;
+                // the current one is the filled tile. Setting the rest at
+                // stone-400 made the way through the app the palest thing on
+                // the page, legible only once the pointer was already on it.
                 className={`whitespace-nowrap rounded-full px-4 py-1.5 font-serif text-[15px] transition-colors ${
-                  on ? 'bg-stone-900 text-cream' : 'text-stone-400 hover:text-stone-800'
+                  on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-100'
                 }`}
               >
                 {s.label}

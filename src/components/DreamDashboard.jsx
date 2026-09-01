@@ -214,7 +214,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           const active2 = tab === t.id
           const Icon = t.icon
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-colors ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:bg-stone-500/5'}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-colors ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
               <Icon size={14} strokeWidth={1.75} />{t.label}
             </button>
           )
@@ -408,14 +408,10 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
         <Trajectory points={traj} />
       </div>
 
-      {/* The two indicators, in the order they move. Silent until there is
-          something true to say — a goal she just wrote is only its own words. */}
-      {(adh || ev) && (
-        <p className="mt-2 text-[12px] tabular-nums text-stone-500">
-          {adh && <span>Adherence {adh.pct}%</span>}
-          {adh && ev && <span className="mx-1.5 text-stone-300">·</span>}
-          {ev && <span>{ev.label} {ev.first} → {ev.last}</span>}
-        </p>
+      {/* The one indicator. Silent until there is something true to say — a
+          goal she just wrote is only its own words. */}
+      {adh && (
+        <p className="mt-2 text-[12px] tabular-nums text-stone-500">Adherence {adh.pct}%</p>
       )}
 
       {/* What the board is picturing, and the work it turned into. */}

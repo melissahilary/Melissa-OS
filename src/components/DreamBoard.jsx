@@ -394,7 +394,6 @@ export default function DreamBoard() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="The green kitchen. The one with the arched doorway."
           className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-300"
           aria-label="Search the board"
         />
@@ -568,7 +567,6 @@ function AddPanel({ draft, setDraft, onPick, onDropFiles, onAddUrl }) {
               className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-300"
             />
           </div>
-          <p className="mt-1.5 text-[11px] text-stone-400">From a shop, Pinterest, anywhere</p>
         </div>
         <button
           onClick={onAddUrl}

@@ -39,12 +39,30 @@ const DOMAIN_ORDER = ['mood', 'anxiety', 'irritability', 'energy', 'focus', 'dri
 
 // Three bands, three colours — the day takes the colour of the band it lands in,
 // so a month reads as a pattern rather than a bag of eighteen hues.
+//
+// All three are house colours, and all three are far enough apart to be told
+// apart across a room. Dysregulated used to be ivory 100, which is the same
+// value as an empty square: the days most worth seeing were the ones that
+// couldn't be seen. It is walnut now.
 const BANDS = [
   { id: 'up', label: 'Regulated', tint: '#16130F', dir: 1 },
   { id: 'even', label: 'Even', tint: '#B4A68D', dir: 0 },
-  { id: 'down', label: 'Dysregulated', tint: '#EFEAE0', dir: -1 },
+  { id: 'down', label: 'Dysregulated', tint: '#8A5A32', dir: -1 },
 ]
 const bandMeta = (id) => BANDS.find((b) => b.id === id) || BANDS[1]
+
+// A day with nothing in it, and the line around a day still to come.
+const UNLOGGED = '#EFEAE0'
+const HAIRLINE = '#CEC3AF'
+
+// Which ink a number takes on a given tile. Chosen from the tile's luminance
+// rather than by hand, so a tint can change without a number going dark on dark.
+function onTint(hex) {
+  if (!hex) return '#6E4526'
+  const n = parseInt(hex.slice(1), 16)
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
+  return lum > 0.62 ? '#16130F' : '#FAF6ED'
+}
 
 // Six domains × three levels. Every row is the same question asked at a
 // different intensity, which is what makes a month of it readable.
@@ -165,20 +183,6 @@ function MoodTracker({ cycleConfig = {} }) {
   // what the three she chose come to, where that sits in her cycle, and how it
   // compares with the rest of that phase.
   const pickLabels = selected.map((id) => (moodMeta(id) || {}).label).filter(Boolean)
-  const domainsIn = (band) => selected
-    .map((id) => moodMeta(id))
-    .filter((m) => m && m.band === band)
-    .map((m) => DOMAINS[m.domain].toLowerCase())
-  const listOf = (arr) => (arr.length === 1 ? arr[0] : `${arr.slice(0, -1).join(', ')} and ${arr[arr.length - 1]}`)
-  const moodSentence = (() => {
-    const up = domainsIn('up'), down = domainsIn('down'), even = domainsIn('even')
-    const parts = []
-    if (up.length) parts.push(`${listOf(up)} ${up.length > 1 ? 'are' : 'is'} holding`)
-    if (even.length && !up.length) parts.push(`${listOf(even)} ${even.length > 1 ? 'are' : 'is'} steady`)
-    if (down.length) parts.push(`${listOf(down)} ${down.length > 1 ? 'are' : 'is'} what's pulling the day down`)
-    if (!parts.length) return ''
-    return `${parts.join('; ')}.`.replace(/^./, (c) => c.toUpperCase())
-  })()
   // Today against the rest of this phase.
   const phaseRow = todayPhase ? byPhase.find((r) => r.id === todayPhase.id) : null
   const cycleSentence = (() => {
@@ -308,7 +312,7 @@ function MoodTracker({ cycleConfig = {} }) {
             <button onClick={() => shift(1)} disabled={atCurrentMonth} className={`transition-colors ${atCurrentMonth ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}><NextIcon size={20} /></button>
           </div>
           <div className="grid grid-cols-7 gap-1.5">
-            {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
+            {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-500">{d[0]}</div>)}
             {cells.map((c, i) => {
               const inMonth = c.getMonth() === monthIdx
               const key = dateKey(c)
@@ -323,10 +327,20 @@ function MoodTracker({ cycleConfig = {} }) {
                   onClick={() => inMonth && !ahead && setSelKey(key)}
                   disabled={!inMonth || ahead}
                   title={inMonth && ahead ? 'Not yet' : undefined}
-                  className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-lg text-xs transition-all ${inMonth ? '' : 'pointer-events-none opacity-0'} ${ahead ? 'cursor-default opacity-40' : ''} ${isSel ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
-                  style={{ backgroundColor: ahead ? 'transparent' : (tint || '#F1F0ED') }}
+                  className={`relative flex aspect-square items-center justify-center overflow-hidden text-xs tabular-nums transition-colors ${inMonth ? '' : 'pointer-events-none opacity-0'} ${ahead ? 'cursor-default' : ''} ${isSel ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
+                  style={{
+                    backgroundColor: ahead ? 'transparent' : (tint || UNLOGGED),
+                    // A day still to come is an outline, not a ghost. Dropping it
+                    // to 40% left a whole month ahead of today — all of
+                    // September, in September — as pale marks on pale paper.
+                    // (An outline rather than a shadow: the brand's no-shadow
+                    // rule is an !important, and it would eat an inset ring.)
+                    outline: ahead ? `1px solid ${HAIRLINE}` : 'none',
+                    outlineOffset: '-1px',
+                    color: ahead ? '#75684F' : onTint(tint),
+                  }}
                 >
-                  <span className={ahead ? 'text-stone-300' : tint ? 'text-cream/90' : 'text-stone-400'}>{c.getDate()}</span>
+                  <span>{c.getDate()}</span>
                   {ph && <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px]" style={{ backgroundColor: colors[ph.id] }} />}
                 </button>
               )
@@ -351,7 +365,6 @@ function MoodTracker({ cycleConfig = {} }) {
                   )}
                 </div>
                 <div className="mt-4 space-y-2">
-                  {moodSentence && <p className="text-sm leading-relaxed text-stone-700">{moodSentence}</p>}
                   {cycleSentence && <p className="text-sm leading-relaxed text-stone-700">{cycleSentence}</p>}
                 </div>
               </>
@@ -491,7 +504,7 @@ function GratitudeCard({ part, mode, evening, opensAt, lineAt, setLine }) {
             <div className="space-y-2">
               {Array.from({ length: pr.lines }, (_, idx) => (
                 <div key={idx} className="flex items-center gap-3 border-b border-stone-300/50 pb-1.5 transition-colors focus-within:border-stone-900">
-                  {pr.lines > 1 && <span className="w-3 shrink-0 font-serif text-sm text-stone-300">{idx + 1}</span>}
+                  {pr.lines > 1 && <span className="w-3 shrink-0 font-serif text-sm text-stone-400">{idx + 1}</span>}
                   <input
                     value={lineAt(pr.id, idx)}
                     onChange={(e) => setLine(pr.id, idx, e.target.value)}
@@ -940,7 +953,7 @@ function Journal() {
             {i > 0 && <div className="mx-auto my-8 select-none text-center text-lg leading-none text-stone-200" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</div>}
             {/* A dark writing box — light text on ink, so it's unmistakably the
                 space to write in. */}
-            <div className="relative rounded-2xl px-6 py-6 shadow-sm md:px-8 md:py-7" style={{ backgroundColor: '#1C1C1A' }}>
+            <div className="relative bg-stone-900 rounded-2xl px-6 py-6 shadow-sm md:px-8 md:py-7">
               {dayList.length > 1 && (
                 <button onClick={() => removeEntry(e.id)} className="absolute right-3 top-3 z-10 text-cream/40 opacity-0 transition-opacity hover:text-cream group-hover:opacity-100" title="Delete entry"><CloseIcon size={16} /></button>
               )}

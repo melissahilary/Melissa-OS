@@ -12,8 +12,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Page ground. Still a variable so a theme can retint the whole house.
-        cream: 'var(--mos-cream, #F7F4ED)',
+        // Page ground. Still a variable so a theme can retint the whole house —
+        // but held as channels, because a bare `var(--x)` makes Tailwind refuse
+        // to emit `text-cream/90` at all. That silence was the worst kind of
+        // bug: light type on a dark tile fell back to inherited ink and simply
+        // disappeared, in twenty places, with nothing in the console.
+        cream: 'rgb(var(--mos-cream-rgb, 247 244 237) / <alpha-value>)',
         // Ivory into ink. Fixed, not themed: the ground belongs to her, this
         // ramp belongs to the brand.
         stone: {
