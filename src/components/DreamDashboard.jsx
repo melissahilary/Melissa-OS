@@ -427,7 +427,6 @@ function Trajectory({ points }) {
 }
 
 function GoalCard({ goal, steps, projects = [], images = [], labRecord, onOpen, onDragStart, onDragEnd }) {
-  const pl = pillarMeta(goal.pillar)
   const d = daysUntil(goal.target)
   const adh = adherenceOf(steps)
   const traj = trajectoryOf(steps)
@@ -445,16 +444,15 @@ function GoalCard({ goal, steps, projects = [], images = [], labRecord, onOpen, 
         <Trajectory points={traj} />
       </div>
 
-      {/* The two indicators, in the order they move. */}
-      <p className="mt-2 text-[12px] tabular-nums text-stone-500">
-        {adh ? <span>Adherence {adh.pct}%</span> : <span className="text-stone-400">No practices yet</span>}
-        {ev && (
-          <>
-            <span className="mx-1.5 text-stone-300">·</span>
-            <span>{ev.label} {ev.first} → {ev.last}</span>
-          </>
-        )}
-      </p>
+      {/* The two indicators, in the order they move. Silent until there is
+          something true to say — a goal she just wrote is only its own words. */}
+      {(adh || ev) && (
+        <p className="mt-2 text-[12px] tabular-nums text-stone-500">
+          {adh && <span>Adherence {adh.pct}%</span>}
+          {adh && ev && <span className="mx-1.5 text-stone-300">·</span>}
+          {ev && <span>{ev.label} {ev.first} → {ev.last}</span>}
+        </p>
+      )}
 
       {/* What the board is picturing, and the work it turned into. */}
       {images.length > 0 && (
@@ -467,12 +465,14 @@ function GoalCard({ goal, steps, projects = [], images = [], labRecord, onOpen, 
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-600"><span className="h-1.5 w-1.5 rounded-full" style={{ background: pl.tint }} />{pl.label}</span>
-        {steps.length > 0 && <span className="rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">{steps.length} practice{steps.length === 1 ? '' : 's'}</span>}
-        {project && <span className="truncate rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">{project.name}</span>}
-        {goal.target && <span className="rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">◷ {fmtShort(goal.target)}{d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}</span>}
-      </div>
+      {/* Only what she put there herself: the project it belongs to, the date
+          she set. The pillar lives in the panel, not on the face of the card. */}
+      {(project || goal.target) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3">
+          {project && <span className="truncate rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">{project.name}</span>}
+          {goal.target && <span className="rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">◷ {fmtShort(goal.target)}{d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}</span>}
+        </div>
+      )}
     </div>
   )
 }
