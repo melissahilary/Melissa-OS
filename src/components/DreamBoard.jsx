@@ -575,10 +575,12 @@ function Back({ it, dupes, onFlip, onEdit, onRemove }) {
         value={it.caption || it.title}
         onChange={(e) => onEdit({ caption: e.target.value })}
         placeholder={it.read ? 'Untitled' : 'Reading…'}
-        className="mb-2.5 w-full bg-transparent pr-5 font-serif text-[15px] leading-tight text-stone-900 outline-none placeholder:italic placeholder:text-stone-300"
+        className="mb-2.5 w-full shrink-0 bg-transparent pr-5 font-serif text-[15px] leading-tight text-stone-900 outline-none placeholder:italic placeholder:text-stone-300"
       />
 
-      <div className="space-y-1.5">
+      {/* The facts give up the room, never the actions. A wide picture makes a
+          short card, and on a short card this is the part that has to yield. */}
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
         <Row label="SAVED">{fmtDay(it.savedOn)}</Row>
         {it.haveOn && (
           <Row label="ACHIEVED">
@@ -600,7 +602,7 @@ function Back({ it, dupes, onFlip, onEdit, onRemove }) {
         <p className="mt-2 text-[11px] text-stone-400">Saved {dupes.length + 1} times.</p>
       )}
 
-      <div className="mt-auto pt-2">
+      <div className="mt-auto shrink-0 pt-2">
         <div className="mb-2 h-px bg-stone-200" />
         <div className="flex items-center gap-1.5">
           {/* Everything lands in Want. Nothing becomes Have unless she says so,

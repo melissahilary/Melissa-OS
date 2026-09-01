@@ -177,6 +177,11 @@ input[type='number'] {
   transform: rotateY(180deg);
   overflow: hidden;
 }
+/* A wide picture makes a short card, and a short card cannot hold the back's
+   title, its dates and its two actions. While the card is showing its back it
+   grows to the height that fits them — the front's proportions are the
+   picture's business, the back's are the reader's. */
+.mos-flip.is-back .mos-flip-inner { min-height: 152px; }
 @media (prefers-reduced-motion: reduce) {
   .mos-flip-inner { transition: none; }
 }

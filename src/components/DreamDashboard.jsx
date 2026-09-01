@@ -10,15 +10,14 @@ import ActivityForm from './shared/ActivityForm'
 import { routeStepToSection } from '../lib/goalRoutes'
 import DreamBoard from './DreamBoard'
 import { phaseForConfig } from '../lib/cycle'
-import { useLifeStage, LIFE_STAGES } from '../lib/lifeStage'
+import { useLifeStage } from '../lib/lifeStage'
 import { isoWeek } from '../lib/week'
 import DreamWeek from './DreamWeek'
 import DreamProjects from './DreamProjects'
 import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
 import * as store from '../lib/dataStore'
-import { adherenceOf, trajectoryOf, evidenceOf, recruitsFor } from '../lib/goalSignals'
-import { BY_ID } from '../lib/biomarkers'
+import { adherenceOf, trajectoryOf, evidenceOf } from '../lib/goalSignals'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -161,18 +160,14 @@ export default function DreamDashboard({ cycleConfig = {} }) {
 
   // ── stats ──
   const active = goals.filter((g) => g.status !== 'achieved' && (!g.stages.length || g.stages.includes(stage)))
-  const withHealth = active.map((g) => ({ g, h: healthOf(g, stepsOf(g.id)) }))
-  const on = withHealth.filter((x) => x.h === 'on').length
-  const attn = withHealth.length - on
   const achieved = goals.filter((g) => g.status === 'achieved')
   const openGoalObj = goals.find((g) => g.id === openId) || null
 
   const now = new Date()
 
-  // The state line's other two readings. Projects live in their own store, and
-  // the phase only belongs on the line for the stages that actually have one.
+  // Projects live in their own store; the phase only belongs on the state line
+  // for the stages that actually have one.
   const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
-  const movingProjects = (Array.isArray(projectsRaw) ? projectsRaw : []).filter((p) => p.status !== 'done').length
   const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
   const [labRecord] = useLocalStorage('mos:labs', { markers: {}, readings: [] })
   const [boardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
@@ -198,23 +193,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     .map((it) => ({ id: it.id, url: it.dataUrl || boardUrls[it.path] || '' }))
     .filter((x) => x.url)
 
-  // Adherence — the leading indicator, and the only honest one: of the protocols
-  // that came due this last week, how many actually got ticked. Read straight
-  // off what she checked on the home page, across every pillar.
-  const adherence = (() => {
-    const days = Array.from({ length: 7 }, (_, i) => dateKey(addDays(now, -i)))
-    let due = 0
-    let met = 0
-    activities.forEach((a) => {
-      if (a.status === 'archived' || a.type !== 'protocol') return
-      days.forEach((dk) => {
-        if (!activityOccursOn(a, dk)) return
-        due += 1
-        if (isDoneOn(a, dk)) met += 1
-      })
-    })
-    return due ? Math.round((met / due) * 100) : null
-  })()
 
   const TABS = [
     { id: 'week', label: 'This Week', icon: ListChecks },
@@ -227,12 +205,9 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   return (
     <section>
       <Header
-        goalCount={active.length}
-        projectCount={movingProjects}
         phase={statePhase}
         cycleLength={Number(cycleConfig && cycleConfig.cycleLength) || 28}
         fertile={lifeFlags.fertile}
-        adherence={adherence}
       />
 
       {/* section tabs */}
@@ -483,7 +458,6 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
   useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])
 
-  const pl = pillarMeta(goal.pillar), h = HEALTH[health]
   const done = goal.milestones.filter(msDone).length
   const stepsByMs = (mid) => steps.filter((a) => a.details && a.details.milestoneId === mid)
 
@@ -501,28 +475,12 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <input value={goal.vision} onChange={(e) => onUpdate({ vision: e.target.value })} placeholder="Why this matters — one line"
-            className="w-full border-b border-transparent bg-transparent py-1 font-serif italic text-lg leading-snug text-stone-600 placeholder-stone-300 outline-none transition-colors hover:border-stone-200 focus:border-stone-400" />
-
-          {/* calm meta line */}
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-stone-400">
-            <PillarPicker value={goal.pillar} onChange={(v) => onUpdate({ pillar: v })} />
-            <span className="h-3 w-px bg-stone-200" />
-            <label className="flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-stone-600 hover:bg-stone-500/5">
-              <Calendar size={13} className="opacity-70" />
-              <input type="date" value={goal.target} onChange={(e) => onUpdate({ target: e.target.value })} className="cursor-pointer bg-transparent text-xs text-stone-600 outline-none" aria-label="Target date" />
-            </label>
-            <span className="h-3 w-px bg-stone-200" />
-            <span className="inline-flex items-center gap-1.5 text-stone-600"><span className="h-2 w-2 rounded-full" style={{ background: h.c }} />{h.label}</span>
-          </div>
-
-          {/* tags */}
-          <TagEditor tags={goal.tags || []} onChange={(tags) => onUpdate({ tags })} />
-
-          <GoalSignals goal={goal} steps={steps} labRecord={labRecord} onUpdate={onUpdate} onRecruit={onRecruit} stage={stage} />
+          {/* The goal, and the ladder to it. Nothing between the two — the
+              classification, the tags, the scores and the log were the planner
+              asking her to file the thing rather than do it. */}
 
           {/* path */}
-          <div className="mt-7 mb-1 flex items-center gap-2.5">
+          <div className="mb-1 flex items-center gap-2.5">
             <span className="kicker text-stone-400">The path · {done}/{goal.milestones.length || 0} milestones</span>
             <span className="h-px flex-1 bg-stone-200" />
           </div>
@@ -585,12 +543,6 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
             </button>
           )}
 
-          {/* links — attachments, the light way */}
-          <LinksSection links={goal.links || []} onChange={(links) => onUpdate({ links })} />
-
-          {/* the log — comments to your future self */}
-          <NotesLog notes={goal.notes || []} onChange={(notes) => onUpdate({ notes })} />
-
           <div className="mt-7 flex items-center justify-between border-t border-stone-200 pt-4">
             <button onClick={onRemove} className="text-xs text-stone-400 hover:text-phase-menstrual">Delete goal</button>
             <button onClick={() => onUpdate(goal.status === 'achieved' ? { status: 'active', achievedOn: '' } : { status: 'achieved', achievedOn: todayKey() })}
@@ -601,126 +553,6 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
         </div>
       </aside>
     </div>
-  )
-}
-
-// ── The two indicators, and the machinery behind them ───────────────
-// Recruiting is the join between intention and behaviour: a goal with no
-// practices is a wish, and this is the one control that turns it into work the
-// planner will actually ask for. Evidence is the other end — the number in the
-// body the whole thing was for.
-function GoalSignals({ goal, steps, labRecord, onUpdate, onRecruit, stage }) {
-  const [proposing, setProposing] = useState(false)
-  const [picking, setPicking] = useState(false)
-  const [keep, setKeep] = useState([])
-
-  const adh = adherenceOf(steps)
-  const ev = evidenceOf(goal, labRecord)
-  const suggestions = recruitsFor(goal.pillar).filter((r) => !steps.some((a) => (a.title || '').toLowerCase() === r.title.toLowerCase()))
-
-  const startProposing = () => { setKeep(suggestions.map((r) => r.title)); setProposing(true) }
-  const accept = () => { onRecruit(suggestions.filter((r) => keep.includes(r.title))); setProposing(false) }
-
-  const watched = Object.keys((labRecord && labRecord.markers) || {})
-
-  return (
-    <div className="mt-7 border-t border-stone-200 pt-5">
-      <div className="flex items-baseline gap-3">
-        <span className="kicker text-stone-400">Adherence</span>
-        <span className="font-serif text-2xl text-stone-900 tabular-nums">{adh ? `${adh.pct}%` : '—'}</span>
-        {adh && <span className="text-[11px] text-stone-400 tabular-nums">{adh.met} of {adh.due}, last 30 days</span>}
-      </div>
-
-      {steps.length === 0 && !proposing && (
-        <button onClick={startProposing} className="mt-2 text-xs tracking-[0.12em] text-stone-900 underline underline-offset-4">
-          RECRUIT PRACTICES
-        </button>
-      )}
-
-      {proposing && (
-        <div className="mt-3 rounded-xl border border-stone-300 p-3.5">
-          <p className="mb-2 text-[12px] text-stone-500">These land in {pillarMeta(goal.pillar).label} and on your day, like any other protocol.</p>
-          {suggestions.map((r) => {
-            const on = keep.includes(r.title)
-            return (
-              <label key={r.title} className="flex cursor-pointer items-center gap-2.5 py-1">
-                <input type="checkbox" checked={on} onChange={() => setKeep((k) => (on ? k.filter((x) => x !== r.title) : [...k, r.title]))} className="h-3.5 w-3.5 shrink-0 accent-stone-900" />
-                <span className="flex-1 text-sm text-stone-800">{r.title}</span>
-                <span className="text-[10px] tracking-[0.1em] text-stone-400">{r.cadence.toUpperCase()}</span>
-              </label>
-            )
-          })}
-          <div className="mt-3 flex items-center gap-3">
-            <button onClick={accept} disabled={!keep.length} className="rounded-full bg-stone-900 px-4 py-1.5 text-xs text-cream disabled:opacity-30">Add {keep.length}</button>
-            <button onClick={() => setProposing(false)} className="text-xs text-stone-400 hover:text-stone-700">Not now</button>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-5 flex items-baseline gap-3">
-        <span className="kicker text-stone-400">Evidence</span>
-        {ev ? (
-          <span className="font-serif text-lg text-stone-900 tabular-nums">
-            {ev.label} {ev.first} → {ev.last} <span className="text-xs text-stone-400">{ev.unit}</span>
-          </span>
-        ) : (
-          <button onClick={() => setPicking((v) => !v)} className="text-xs tracking-[0.12em] text-stone-900 underline underline-offset-4">
-            {picking ? 'CANCEL' : 'ATTACH A MARKER'}
-          </button>
-        )}
-        {ev && <button onClick={() => onUpdate({ evidence: {} })} className="ml-auto text-[11px] text-stone-400 hover:text-stone-700">change</button>}
-      </div>
-
-      {picking && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {(watched.length ? watched : ['ferritin', 'vitamin_d', 'hba1c', 'estradiol', 'tsh']).map((id) => (
-            <button
-              key={id}
-              onClick={() => { onUpdate({ evidence: { marker: id } }); setPicking(false) }}
-              className="rounded-full border border-stone-300 px-3 py-1 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream"
-            >
-              {(BY_ID[id] || {}).label || id}
-            </button>
-          ))}
-          {!watched.length && <span className="w-full text-[11px] text-stone-400">Readings you keep in Testing → Results will appear here.</span>}
-        </div>
-      )}
-
-      {/* A goal can belong to a stage of life and step aside when that stage
-          passes, rather than being deleted or nagging from the wrong season. */}
-      <div className="mt-5">
-        <p className="kicker mb-1.5 text-stone-400">Belongs to</p>
-        <div className="flex flex-wrap gap-1.5">
-          {LIFE_STAGES.map((ls) => {
-            const on = goal.stages.includes(ls.id)
-            return (
-              <button
-                key={ls.id}
-                onClick={() => onUpdate({ stages: on ? goal.stages.filter((x) => x !== ls.id) : [...goal.stages, ls.id] })}
-                className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-500'}`}
-              >
-                {ls.label}
-              </button>
-            )
-          })}
-        </div>
-        <p className="mt-1.5 text-[11px] text-stone-400">
-          {goal.stages.length ? `Hidden outside these stages. You are ${stage}.` : 'Every stage.'}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function PillarPicker({ value, onChange }) {
-  const P = pillarMeta(value)
-  return (
-    <span className="relative inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-stone-600 hover:bg-stone-500/5">
-      <span className="h-2 w-2 rounded-full" style={{ background: P.tint }} />{P.label}
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Home pillar">
-        {PILLAR_IDS.map((id) => <option key={id} value={id}>{PILLARS[id].label}</option>)}
-      </select>
-    </span>
   )
 }
 
@@ -788,7 +620,7 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
 // read as a second homepage rather than the workspace it is. So: the section's
 // name, and under it a state line — not prose, and not encouragement. Just the
 // readings, including the zeroes.
-function Header({ goalCount, projectCount, phase, cycleLength, fertile, adherence }) {
+function Header({ phase, cycleLength, fertile }) {
   const now = new Date()
   const mon = addDays(now, -((now.getDay() + 6) % 7))
   const sun = addDays(mon, 6)
@@ -811,12 +643,6 @@ function Header({ goalCount, projectCount, phase, cycleLength, fertile, adherenc
     untilPeriod != null ? (untilPeriod === 0 ? 'PERIOD TODAY' : `PERIOD IN ${untilPeriod}`) : null,
   ].filter(Boolean)
 
-  const work = [
-    adherence != null ? `PROTOCOLS ${adherence}%` : null,
-    `${projectCount} PROJECT${projectCount === 1 ? '' : 'S'}`,
-    `${goalCount} GOAL${goalCount === 1 ? '' : 'S'}`,
-  ].filter(Boolean)
-
   const Zone = ({ parts, className = '' }) => (
     <span className={`whitespace-nowrap text-[11px] tracking-[0.18em] text-stone-400 ${className}`}>{parts.join(' · ')}</span>
   )
@@ -824,103 +650,12 @@ function Header({ goalCount, projectCount, phase, cycleLength, fertile, adherenc
   return (
     <div className="mb-9">
       <h1 className="text-center font-serif text-4xl text-stone-900 md:text-5xl">Becoming</h1>
-      {/* Three readings, spread — the week, the body, the work. */}
+      {/* Two readings, spread — the week and the body. The tally of what she
+          owes was the page grading her before she had read a word of it. */}
       <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5 sm:justify-between">
         <Zone parts={[`WEEK ${isoWeek(now)}`, span]} />
         {body.length > 0 && <Zone parts={body} className="text-stone-500" />}
-        <Zone parts={work} />
       </div>
-    </div>
-  )
-}
-
-// ── Tags — light labels for filtering the mind, not bureaucracy ──
-function TagEditor({ tags, onChange }) {
-  const [v, setV] = useState('')
-  const commit = () => { const t = v.trim().toLowerCase(); if (t && !tags.includes(t)) onChange([...tags, t]); setV('') }
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-      {tags.map((t) => (
-        <span key={t} className="group inline-flex items-center gap-1 rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-600">
-          {t}
-          <button onClick={() => onChange(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`} className="text-stone-300 hover:text-stone-600"><CloseIcon size={10} /></button>
-        </span>
-      ))}
-      <input
-        value={v}
-        onChange={(e) => setV(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit() } }}
-        onBlur={commit}
-        placeholder={tags.length ? '+ tag' : '+ add a tag'}
-        className="w-20 bg-transparent text-[11px] italic text-stone-400 outline-none placeholder:text-stone-300"
-      />
-    </div>
-  )
-}
-
-// ── Links — reference material pinned to the goal (a URL is the lightest file) ──
-function LinksSection({ links, onChange }) {
-  const [label, setLabel] = useState('')
-  const [url, setUrl] = useState('')
-  const add = () => {
-    const u = url.trim()
-    if (!u) return
-    const withProto = /^https?:\/\//i.test(u) ? u : `https://${u}`
-    onChange([...links, { id: uid(), label: label.trim() || u.replace(/^https?:\/\//i, '').slice(0, 40), url: withProto }])
-    setLabel(''); setUrl('')
-  }
-  return (
-    <div className="mt-7">
-      <div className="mb-1 flex items-center gap-2.5">
-        <span className="kicker text-stone-400">Attached</span>
-        <span className="h-px flex-1 bg-stone-200" />
-      </div>
-      {links.length > 0 && (
-        <div className="space-y-1 pt-1">
-          {links.map((l) => (
-            <div key={l.id} className="group flex items-center gap-2.5 py-1">
-              <span className="text-stone-300">↗</span>
-              <a href={l.url} target="_blank" rel="noreferrer" className="flex-1 truncate text-sm text-stone-700 underline-offset-2 hover:underline">{l.label}</a>
-              <button onClick={() => onChange(links.filter((x) => x.id !== l.id))} aria-label="Remove link" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={12} /></button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="mt-1.5 flex items-center gap-2">
-        <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Paste a link…" className="flex-1 bg-transparent border-b border-stone-200 pb-1 text-sm text-stone-700 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-400" />
-        <input value={label} onChange={(e) => setLabel(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="name (optional)" className="w-28 bg-transparent border-b border-stone-200 pb-1 text-xs text-stone-500 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-400" />
-      </div>
-    </div>
-  )
-}
-
-// ── The log — dated notes on the goal, newest first ──
-function NotesLog({ notes, onChange }) {
-  const [v, setV] = useState('')
-  const add = () => {
-    const t = v.trim()
-    if (!t) return
-    onChange([{ id: uid(), text: t, date: todayKey() }, ...notes])
-    setV('')
-  }
-  return (
-    <div className="mt-7">
-      <div className="mb-1 flex items-center gap-2.5">
-        <span className="kicker text-stone-400">The log</span>
-        <span className="h-px flex-1 bg-stone-200" />
-      </div>
-      <input value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="Leave a note on this goal…" className="mt-1 w-full bg-transparent border-b border-stone-200 pb-1.5 text-sm text-stone-800 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-400" />
-      {notes.length > 0 && (
-        <div className="mt-3 space-y-3">
-          {notes.map((n) => (
-            <div key={n.id} className="group flex items-baseline gap-3">
-              <span className="shrink-0 text-[11px] tabular-nums text-stone-400">{fmtShort(n.date)}</span>
-              <p className="flex-1 text-sm leading-relaxed text-stone-700">{n.text}</p>
-              <button onClick={() => onChange(notes.filter((x) => x.id !== n.id))} aria-label="Remove note" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={12} /></button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
