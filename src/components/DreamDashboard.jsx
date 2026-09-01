@@ -40,10 +40,13 @@ const PILLARS = {
 const pillarMeta = (id) => PILLARS[id] || PILLARS.mindset
 const PILLAR_IDS = Object.keys(PILLARS)
 
+// The columns name a horizon rather than an attitude. "On deck" says nothing
+// about when; six to twelve months does, and it is the thing she is actually
+// deciding when she drags a goal across.
 const PHASES = [
-  { id: 'now', label: 'Now', note: 'Working on' },
-  { id: 'next', label: 'Next', note: 'On deck' },
-  { id: 'later', label: 'Later', note: 'Someday' },
+  { id: 'now', label: 'Now', note: 'Next 6 months' },
+  { id: 'next', label: 'Next', note: '6–12 months' },
+  { id: 'later', label: 'Later', note: 'Beyond a year' },
 ]
 const HEALTH = { on: { c: '#7C8B6B', label: 'On track' }, risk: { c: '#B0873F', label: 'At risk' }, stall: { c: '#A0654C', label: 'Stalled' } }
 
@@ -292,9 +295,12 @@ export default function DreamDashboard({ cycleConfig = {} }) {
               const inp = active.filter((g) => g.phase === ph.id && (!boardFilter || g.pillar === boardFilter))
               return (
                 <div key={ph.id} onDragOver={(e) => { e.preventDefault() }} onDrop={() => { if (dragId) { updateGoal(dragId, { phase: ph.id }); setDragId(null) } }}>
-                  <div className="mb-3 flex items-baseline justify-between border-b border-stone-200 pb-2">
-                    <span className="font-serif text-lg text-stone-800">{ph.label}</span>
-                    <span className="kicker text-stone-400">{inp.length} · {ph.note}</span>
+                  <div className="mb-3 border-b border-stone-200 pb-2">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[11px] tracking-[0.18em] text-stone-900">{ph.label.toUpperCase()}</span>
+                      <span className="text-[11px] tabular-nums text-stone-400">{inp.length}</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-stone-500">{ph.note}</p>
                   </div>
                   <div className="min-h-[60px] space-y-3">
                     {inp.map((g) => (
