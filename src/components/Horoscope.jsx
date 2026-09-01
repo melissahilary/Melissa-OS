@@ -228,7 +228,7 @@ function HoroscopeCard({ data, onEdit }) {
 
       {safe.aspects.length > 0 ? (
         summary && (
-          <p className="mx-auto max-w-2xl text-center text-base leading-relaxed" style={{ color: inkA(0.66) }}>{summary}</p>
+          <p className="mx-auto max-w-2xl text-center font-serif text-xl leading-relaxed" style={{ color: inkA(0.72) }}>{summary}</p>
         )
       ) : (
         <p className="py-2 text-center font-serif italic text-lg" style={{ color: inkA(0.4) }}>
@@ -253,7 +253,7 @@ function PlanetPopup({ ruler, onClose }) {
             <p className="mt-3 font-serif text-2xl text-stone-900">{ruler.planet}</p>
             <p className="kicker text-stone-400 mt-1">{ruler.day}'s planet</p>
           </div>
-          <p className="border-t border-stone-100 pt-4 text-sm leading-relaxed text-stone-600">{ruler.energy}</p>
+          <p className="border-t border-stone-100 pt-4 font-serif text-base leading-relaxed text-stone-700">{ruler.energy}</p>
         </div>
       </div>
     </div>

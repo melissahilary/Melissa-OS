@@ -6,54 +6,25 @@
   color-scheme: light;
 }
 
-/* ── The wardrobe — four elegant palettes. "Porcelain" is the house default; the
-   others tint the entire neutral system. Chosen in Settings → Appearance. ── */
+/* ── Ground. The four themes are hers and are left exactly as she chose them;
+   the ivory-to-ink ramp above them belongs to the brand and does not shift.
+   Écru is canonical — it is the ground everything else is drawn against. ── */
 :root,
-:root[data-mos-theme='porcelain'] {
-  --mos-cream: #fafaf7;
-}
 :root[data-mos-theme='ecru'] {
-  --mos-cream: #faf6ed;
-  --mos-stone-50: #fbf8f1;
-  --mos-stone-100: #f4efe4;
-  --mos-stone-200: #e8e1d1;
-  --mos-stone-300: #d6ccb7;
-  --mos-stone-400: #a89c86;
-  --mos-stone-500: #7d7260;
-  --mos-stone-600: #5c5347;
-  --mos-stone-700: #46403a;
-  --mos-stone-800: #2b2620;
-  --mos-stone-900: #1d1913;
+  --mos-cream: #FAF6ED;
+}
+:root[data-mos-theme='porcelain'] {
+  --mos-cream: #FAFAF7;
 }
 :root[data-mos-theme='rosewater'] {
-  --mos-cream: #fbf6f4;
-  --mos-stone-50: #fbf7f6;
-  --mos-stone-100: #f6efed;
-  --mos-stone-200: #eadfdc;
-  --mos-stone-300: #d8c8c4;
-  --mos-stone-400: #a99a96;
-  --mos-stone-500: #7d706d;
-  --mos-stone-600: #5c514f;
-  --mos-stone-700: #453d3c;
-  --mos-stone-800: #2a2423;
-  --mos-stone-900: #1d1817;
+  --mos-cream: #FBF6F4;
 }
 :root[data-mos-theme='sage'] {
-  --mos-cream: #f7f8f4;
-  --mos-stone-50: #f8f9f6;
-  --mos-stone-100: #f0f2ec;
-  --mos-stone-200: #e2e5db;
-  --mos-stone-300: #ccd1c2;
-  --mos-stone-400: #9aa08f;
-  --mos-stone-500: #6f7566;
-  --mos-stone-600: #52574c;
-  --mos-stone-700: #3f433b;
-  --mos-stone-800: #262922;
-  --mos-stone-900: #191b16;
+  --mos-cream: #F7F8F4;
 }
 
 body {
-  background-color: var(--mos-cream, #fafaf7);
+  background-color: var(--mos-cream, #FAF6ED);
 }
 
 html,
@@ -64,33 +35,54 @@ body,
 
 body {
   margin: 0;
-  background-color: #fafaf7;
-  color: #1c1917;
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background-color: #FAF6ED;
+  color: #16130F;
+  font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
+  line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* The didone is set tight; at display sizes the default tracking is too loose. */
+.font-serif {
+  letter-spacing: -0.015em;
 }
 
 /* Tracked-out caps used for tiny labels throughout the app */
 .kicker {
   font-size: 10px;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: #96866C;
+}
+
+/* Small caps anywhere in the app are mono — a label, a date, a dose, a phase,
+   a lab value. Tracked utilities are the app's own signature for this, so they
+   pick up the face without every call site being edited. */
+[class*='tracking-['],
+.tabular-nums {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-feature-settings: 'tnum';
+}
+
+/* Buttons carry verbs, and verbs are set in mono. */
+button {
+  font-family: inherit;
 }
 
 /* Thin, quiet scrollbars to keep the editorial feel */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d6d3d1 transparent;
+  scrollbar-color: #CEC3AF transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #d6d3d1;
+  background-color: #CEC3AF;
   border-radius: 9999px;
 }
 *::-webkit-scrollbar-track {
@@ -188,3 +180,115 @@ input[type='number'] {
 @media (prefers-reduced-motion: reduce) {
   .mos-flip-inner { transition: none; }
 }
+
+/* ── The brand, applied to what the components already spell ──────────
+   These rules exist so the whole house changes without editing two hundred
+   call sites. Each one implements a decision from the guidelines. */
+
+/* Square, everywhere. Radius belongs to objects in photographs, not to layout.
+   A pill button is the most generic thing an interface can wear. Genuine
+   hardware — dots, rings, avatars — keeps its circle. */
+button.rounded-full,
+a.rounded-full,
+select.rounded-full,
+.rounded-full.border,
+input.rounded-full {
+  border-radius: 0;
+}
+button.rounded-full.h-4,
+button.rounded-full.h-5,
+button.rounded-full.w-4,
+button.rounded-full.w-5,
+span.rounded-full,
+i.rounded-full,
+[aria-hidden].rounded-full {
+  border-radius: 9999px;
+}
+
+/* Depth is the photograph's job. Separation is a hairline or 28px of space. */
+[class*='shadow'],
+[style*='box-shadow'] {
+  box-shadow: none !important;
+}
+
+/* Buttons carry verbs, and verbs are set in mono. Only the action buttons —
+   which in this app are the pill-shaped ones — take it. A great many clickable
+   surfaces here are whole rows and cards, and setting those in mono would put
+   the typewriter face on marker names and body copy. */
+button.rounded-full:not(.font-serif) {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.86em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Two numeral treatments, and no third. Tabular mono for anything in a column;
+   the didone for a number read once. */
+.tabular-nums {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-feature-settings: 'tnum';
+  letter-spacing: 0;
+}
+.font-serif.tabular-nums {
+  font-family: 'Bodoni Moda', ui-serif, Georgia, serif;
+}
+
+/* No script enters the system. The wordmark is the name in the didone,
+   letter-spaced, upper case. */
+.font-cursive,
+[style*='Pinyon'] {
+  font-family: 'Bodoni Moda', ui-serif, Georgia, serif !important;
+  font-style: normal !important;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.82em;
+}
+
+/* Hairlines sit at 18% ink. */
+.border-stone-100 { border-color: #EFEAE0; }
+.border-stone-200 { border-color: #E2DACB; }
+
+/* ── Motion. Four movements in the whole product, and none of them announce
+   anything. Nothing bounces, nothing springs, nothing slides in. ── */
+
+/* Cross — hover and focus, the only motion that may be instant. */
+.transition-colors,
+.transition-opacity,
+.transition-all,
+.transition-shadow,
+.transition-transform {
+  transition-duration: 160ms;
+  transition-timing-function: linear;
+}
+
+/* Reveal — a sheet or side panel arrives on opacity and 8px, never a slide.
+   The transforms that carried panels in from off-screen are removed. */
+.translate-x-full { transform: none; opacity: 0; }
+.translate-x-0 { transform: none; opacity: 1; }
+aside.translate-x-full,
+aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+
+/* Settle — an entry is logged. Already 700ms ease-out. */
+
+/* Breath — the live microphone ring, and nothing else in the product loops.
+   Spinners and skeleton shimmer are not movements this system has: loading is
+   a mono line of text. */
+.animate-spin { animation: none; }
+.animate-pulse { animation: none; background-color: #EFEAE0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Focus: a 1px cobalt ring with a 2px offset. Never removed, never colour-only. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 1px solid #1D2FC4;
+  outline-offset: 2px;
+}
+
+/* Mono labels never sit in chrome grey on ivory — ink 700 is the floor. */
+.kicker { color: #6E4526; }

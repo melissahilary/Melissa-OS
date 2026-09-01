@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { X, Plus, ExternalLink, Loader2, Share2, GripVertical, Check } from 'lucide-react'
+import { X, Plus, ExternalLink, Share2, GripVertical, Check } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PILLAR_TAGS } from './DreamProjects'
 import EmptyState from './shared/EmptyState'
@@ -274,7 +274,7 @@ function ListView({ list, goals, projects, onUpdate, onRemove, onBack }) {
           placeholder="Paste a link, or type a name and a price"
           className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-300"
         />
-        {busy && <Loader2 size={14} className="shrink-0 animate-spin text-stone-300" />}
+        {busy > 0 && <span className="shrink-0 text-[10px] tracking-[0.16em] text-stone-500">READING</span>}
       </div>
 
       {list.items.length === 0 ? (
@@ -550,7 +550,7 @@ function ShareSheet({ list, onClose }) {
               {items.length} {items.length === 1 ? 'piece' : 'pieces'} across {pages} card{pages === 1 ? '' : 's'} · {FORMATS[format].w}×{FORMATS[format].h}
             </p>
             <button onClick={download} disabled={busy || !items.length} className="mt-4 flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-opacity hover:opacity-90 disabled:opacity-30">
-              {busy && <Loader2 size={13} className="animate-spin" />}
+              {busy > 0 && <span className="shrink-0 text-[10px] tracking-[0.16em] text-stone-500">READING</span>}
               Download {pages === 1 ? 'the card' : `${pages} cards`}
             </button>
           </>

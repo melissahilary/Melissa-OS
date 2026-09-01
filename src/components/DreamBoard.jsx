@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Shuffle, Grid3x3, Columns3, X, ImagePlus, Loader2, Minus, Plus as PlusIcon, Link2, Search } from 'lucide-react'
+import { Shuffle, Grid3x3, Columns3, X, ImagePlus, Minus, Plus as PlusIcon, Link2, Search } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import EmptyState from './shared/EmptyState'
 import { dateKey, parseKey, MONTHS, MONTHS_SHORT } from '../lib/date'
@@ -383,7 +383,7 @@ export default function DreamBoard() {
 
       {busy > 0 && (
         <p className="mb-4 flex items-center justify-center gap-2 text-xs italic text-stone-400">
-          <Loader2 size={13} className="animate-spin" /> Adding {busy} picture{busy > 1 ? 's' : ''}…
+          Adding {busy} picture{busy > 1 ? 's' : ''}…
         </p>
       )}
 

@@ -4,13 +4,26 @@
 
 const W = 1080
 const H = 1350
-const CREAM = '#FAF8F3'
+const CREAM = '#FAF6ED'
 const INK = '#1C1C1A'
 const MUTED = '#8A837A'
 const RULE = '#DDD7C8'
 
-const SERIF = "'Cormorant Garamond', Georgia, serif"
-const SANS = "'Inter', system-ui, sans-serif"
+const SERIF = "'Bodoni Moda', Georgia, serif"
+const SANS = "'JetBrains Mono', ui-monospace, monospace"
+
+// Bottom left, Bodoni, 2.6% of the card's width.
+function wordmark(ctx, w, h, margin) {
+  const size = Math.round(w * 0.026)
+  ctx.save()
+  ctx.textAlign = 'left'
+  ctx.fillStyle = MUTED
+  ctx.font = `400 ${size}px ${SERIF}`
+  ctx.letterSpacing = `${(size * 0.14).toFixed(1)}px`
+  ctx.fillText('MEZZANINE', margin, h - margin * 0.52)
+  ctx.letterSpacing = '0px'
+  ctx.restore()
+}
 
 // Break text to a width, returning the lines.
 function wrap(ctx, text, maxWidth) {
@@ -118,6 +131,8 @@ export async function drawDayCard({ dateLine, entries, quote }) {
     ctx.fillText(String(quote.who || '').toUpperCase(), W / 2, qy + 26)
     ctx.letterSpacing = '0px'
   }
+
+  wordmark(ctx, W, H, M)
 
   return c
 }

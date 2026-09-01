@@ -370,7 +370,7 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
           <button
             onClick={onGoHome}
             title="Home — Today"
-            style={{ fontFamily: "'Pinyon Script', cursive" }}
+            style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}
             className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-2xl"
           >
             Melissa's Digital Planner
@@ -406,7 +406,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
         <div className="mx-auto w-full max-w-xl pb-16 pt-14 md:pt-20">
           {/* The index hero — the cursive wordmark now reads "Pillars of Health";
               tapping it still returns home to Today. */}
-          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Pinyon Script', cursive" }} className="block w-full text-center text-4xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-6xl">Pillars of Health</button>
+          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }} className="block w-full text-center text-4xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-6xl">Pillars of Health</button>
 
           <div className="mx-auto mt-12 grid w-fit grid-cols-1 gap-x-16 sm:grid-cols-2">
             {pillars.map((p) => {

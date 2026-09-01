@@ -8,13 +8,26 @@
 
 import { fmtMoney, classMeta } from './assetClasses'
 
-const CREAM = '#FAF8F3'
+const CREAM = '#FAF6ED'
 const INK = '#1C1C1A'
 const MUTED = '#8A837A'
 const RULE = '#DDD7C8'
 
-const SERIF = "'Cormorant Garamond', Georgia, serif"
-const SANS = "'Inter', system-ui, sans-serif"
+const SERIF = "'Bodoni Moda', Georgia, serif"
+const SANS = "'JetBrains Mono', ui-monospace, monospace"
+
+// Bottom left, Bodoni, 2.6% of the card's width.
+function wordmark(ctx, w, h, margin) {
+  const size = Math.round(w * 0.026)
+  ctx.save()
+  ctx.textAlign = 'left'
+  ctx.fillStyle = MUTED
+  ctx.font = `400 ${size}px ${SERIF}`
+  ctx.letterSpacing = `${(size * 0.14).toFixed(1)}px`
+  ctx.fillText('MEZZANINE', margin, h - margin * 0.52)
+  ctx.letterSpacing = '0px'
+  ctx.restore()
+}
 
 export const FORMATS = {
   story: { id: 'story', label: 'Story', w: 1080, h: 1920, perPage: 6 },
@@ -166,6 +179,8 @@ export async function drawListCard({ listName, classId, items, page = 1, pages =
     smallCaps(ctx, `${page}/${pages}`, F.w - M, footY, 24, '4px')
     ctx.textAlign = 'left'
   }
+
+  wordmark(ctx, F.w, F.h, M)
 
   return c
 }

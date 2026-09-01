@@ -238,7 +238,7 @@ const byTime = (a, b) => {
 }
 
 const Cursive = ({ children, className = '' }) => (
-  <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>
+  <span className={className} style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>
     {children}
   </span>
 )
@@ -1414,7 +1414,7 @@ function TodayNotes() {
 
   return (
     <section className="mb-14">
-      <h2 className="mb-4 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>Today's Notes.</h2>
+      <h2 className="mb-4 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>Today's Notes.</h2>
 
       <div className="mx-auto mb-8 flex w-full max-w-xl items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400 xl:max-w-none">
         <input
@@ -1494,7 +1494,7 @@ function ShoppingList() {
 
   return (
     <section className="mb-16">
-      <h2 className="mb-6 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Pinyon Script', cursive" }}>Shopping List.</h2>
+      <h2 className="mb-6 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>Shopping List.</h2>
 
       <div className="mx-auto w-full max-w-xl xl:max-w-none">
         <div className="mb-6 flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400">

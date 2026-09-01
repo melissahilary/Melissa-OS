@@ -551,8 +551,8 @@ export function placeValue(marker, canonicalValue, ctx = {}) {
 export const STATE_COLOR = {
   optimal: '#7C8B6B',
   in: '#A3A093',
-  low: '#A0654C',
-  high: '#A0654C',
+  low: '#7A1220',
+  high: '#7A1220',
   unknown: '#C4BFB6',
 }
 export const STATE_LABEL = {

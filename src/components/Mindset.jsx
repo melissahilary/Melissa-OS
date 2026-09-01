@@ -39,9 +39,9 @@ const DOMAIN_ORDER = ['mood', 'anxiety', 'irritability', 'energy', 'focus', 'dri
 // Three bands, three colours — the day takes the colour of the band it lands in,
 // so a month reads as a pattern rather than a bag of eighteen hues.
 const BANDS = [
-  { id: 'up', label: 'Regulated', tint: '#7C8B6B', dir: 1 },
-  { id: 'even', label: 'Even', tint: '#A3A093', dir: 0 },
-  { id: 'down', label: 'Dysregulated', tint: '#A0654C', dir: -1 },
+  { id: 'up', label: 'Regulated', tint: '#16130F', dir: 1 },
+  { id: 'even', label: 'Even', tint: '#B4A68D', dir: 0 },
+  { id: 'down', label: 'Dysregulated', tint: '#EFEAE0', dir: -1 },
 ]
 const bandMeta = (id) => BANDS.find((b) => b.id === id) || BANDS[1]
 
