@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { computeTransits } from '../lib/astrology/transits'
@@ -245,7 +245,7 @@ function PlanetPopup({ ruler, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex justify-end px-4 pt-3">
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-6 pb-6">
           <div className="mb-4 flex flex-col items-center text-center">
@@ -388,7 +388,7 @@ function SignsModal({ signs, onSave, onClose }) {
       <div className="w-full max-w-md bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">Your chart</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
         <div className="px-6 py-5 space-y-5">

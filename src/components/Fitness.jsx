@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { X, Calendar } from 'lucide-react'
+import { Calendar } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
 import { parseKey, dateKey, addDays, MONTHS, MONTHS_SHORT, isSameDay } from '../lib/date'
@@ -196,7 +197,7 @@ function Workouts() {
                       )}
                       <p className="kicker text-stone-400 mt-2">{PART_LABEL[workoutPart(a)]} · {patternLabel(a)}</p>
                     </button>
-                    <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={16} /></button>
+                    <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={16} /></button>
                   </div>
                 ))}
               </div>
@@ -271,7 +272,7 @@ function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
           <span className="kicker text-stone-400">{isNew ? 'New Workout' : 'Workout'}</span>
           <div className="flex items-center gap-4">
             {readOnly && <button onClick={() => setReadOnly(false)} className="text-sm text-stone-600 hover:text-stone-900">Edit</button>}
-            <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+            <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
           </div>
         </div>
 

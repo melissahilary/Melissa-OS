@@ -41,20 +41,21 @@ import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import AskConcierge from './components/AskConcierge'
 import Dictation from './components/shared/Dictation'
+import { markFor, AddIcon, CloseIcon, NextIcon, PrevIcon } from './components/shared/marks'
 
 const PILLARS = [
-  { id: 'mindset', label: 'Mindset', icon: Compass },
-  { id: 'brainhealth', label: 'Brain Health', icon: Brain },
-  { id: 'skincare', label: 'Skincare', icon: Flower2 },
-  { id: 'haircare', label: 'Haircare', icon: Scissors },
-  { id: 'aesthetics', label: 'Aesthetics', icon: Gem },
-  { id: 'bodycare', label: 'Bodycare', icon: Droplets },
-  { id: 'fitness', label: 'Fitness', icon: Dumbbell },
-  { id: 'menu', label: 'Nutrition', icon: UtensilsCrossed },
-  { id: 'workout', label: 'Cycle', icon: Activity },
-  { id: 'diagnostics', label: 'Testing', icon: FlaskConical },
-  { id: 'relationship', label: 'Relationships', icon: Heart },
-  { id: 'spirituality', label: 'Spirituality', icon: Sun },
+  { id: 'mindset', label: 'Mindset', icon: markFor('mindset') },
+  { id: 'brainhealth', label: 'Brain Health', icon: markFor('brainhealth') },
+  { id: 'skincare', label: 'Skincare', icon: markFor('skincare') },
+  { id: 'haircare', label: 'Haircare', icon: markFor('haircare') },
+  { id: 'aesthetics', label: 'Aesthetics', icon: markFor('aesthetics') },
+  { id: 'bodycare', label: 'Bodycare', icon: markFor('bodycare') },
+  { id: 'fitness', label: 'Fitness', icon: markFor('fitness') },
+  { id: 'menu', label: 'Nutrition', icon: markFor('menu') },
+  { id: 'workout', label: 'Cycle', icon: markFor('workout') },
+  { id: 'diagnostics', label: 'Testing', icon: markFor('diagnostics') },
+  { id: 'relationship', label: 'Relationships', icon: markFor('relationship') },
+  { id: 'spirituality', label: 'Spirituality', icon: markFor('spirituality') },
 ]
 
 const PILLAR_COMPONENTS = {
@@ -328,7 +329,7 @@ export default function App() {
         title="Settings"
         aria-label="Settings"
         className="fixed bottom-6 left-6 z-40 flex h-11 w-11 items-center justify-center shadow-lg transition-opacity hover:opacity-90"
-        style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7', borderRadius: '9999px' }}
+        style={{ backgroundColor: '#16130F', color: '#F7F4ED', borderRadius: 0 }}
       >
         <SettingsIcon size={18} />
       </button>
@@ -414,7 +415,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
               const Icon = p.icon
               return (
                 <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 py-3.5 text-left">
-                  <Icon size={19} strokeWidth={1.5} className={`shrink-0 transition-colors ${on ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-700'}`} />
+                  <Icon size={20} className="shrink-0 transition-colors" style={{ color: on ? '#1D2FC4' : 'rgba(22,19,15,0.6)' }} />
                   <span className="relative inline-block font-serif text-2xl leading-tight">
                     <span className={`transition-colors ${on ? 'text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
                     <span className={`absolute -bottom-1 left-0 h-px bg-stone-900 transition-all duration-300 ${on ? 'w-full' : 'w-0 group-hover:w-full'}`} />
@@ -433,7 +434,6 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
                 active === 'dream' ? 'bg-stone-900 text-cream' : 'bg-stone-900 text-cream/95 shadow-md'
               }`}
             >
-              <Sparkles size={17} strokeWidth={1.5} className="transition-transform duration-500 group-hover:rotate-12" />
               Becoming
             </button>
           </div>
@@ -560,7 +560,7 @@ function DreamSubNav({ dreamPage, setDreamPage, onExit }) {
             className="group flex items-center gap-2 py-1 text-stone-900"
             aria-expanded={open}
           >
-            <CurrentIcon size={16} strokeWidth={1.75} className="text-stone-500" />
+            <CurrentIcon size={16} style={{ color: '#94989C' }} />
             <span className="font-serif text-[17px]">{labelOf(dreamPage)}</span>
             <ChevronDown size={15} className={`text-stone-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
           </button>
@@ -592,7 +592,7 @@ function DreamSubNav({ dreamPage, setDreamPage, onExit }) {
                         on ? 'bg-stone-100/70 text-stone-900' : 'text-stone-500 hover:bg-stone-100/60 hover:text-stone-800'
                       } ${dragId === id ? 'opacity-40' : ''} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
-                      <Icon size={15} strokeWidth={1.75} className={on ? 'text-stone-700' : 'text-stone-400'} />
+                      <Icon size={16} style={{ color: on ? '#1D2FC4' : 'rgba(22,19,15,0.6)' }} />
                       <span className="flex-1 font-serif text-[15px]">{labelOf(id)}</span>
                       {on && <span className="select-none text-sm leading-none text-stone-400" style={{ fontFamily: "'Cormorant Garamond', serif" }}>❦</span>}
                     </button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { X, Check } from 'lucide-react'
+import { CloseIcon, LoggedIcon } from './marks'
 import { PHASES, DEFAULT_PHASE_TINT } from '../../lib/cycle'
 
 // A curated set of muted, editorial calendar washes — warm clays, blush, sand,
@@ -30,7 +30,7 @@ export default function PhaseColorEditor({ phaseId, value, onSave, onReset, onCl
       <div className="w-full max-w-sm border border-stone-300 bg-cream shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
           <span className="kicker text-stone-400">Recolour · {label}</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
 
         <div className="px-5 py-5">
@@ -53,7 +53,7 @@ export default function PhaseColorEditor({ phaseId, value, onSave, onReset, onCl
                   className={`flex aspect-square items-center justify-center rounded-full border transition-transform hover:scale-110 ${on ? 'border-stone-900' : 'border-black/10'}`}
                   style={{ backgroundColor: c }}
                 >
-                  {on && <Check size={14} className="text-stone-700" strokeWidth={2.5} />}
+                  {on && <LoggedIcon size={14} className="text-stone-700" strokeWidth={2.5} />}
                 </button>
               )
             })}

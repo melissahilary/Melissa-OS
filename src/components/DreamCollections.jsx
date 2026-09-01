@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
-import { X, Plus, ExternalLink, Share2, GripVertical, Check } from 'lucide-react'
+import { ExternalLink, Share2, GripVertical } from 'lucide-react'
+import { AddIcon, CloseIcon, LoggedIcon, AestheticsMark } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PILLAR_TAGS } from './DreamProjects'
 import EmptyState from './shared/EmptyState'
@@ -91,13 +92,13 @@ export default function DreamCollections({ goals = [], projects = [] }) {
   if (creating) return <ChooseClass onCreate={create} onCancel={() => setCreating(false)} />
 
   if (!lists.length) {
-    return <EmptyState glyph="◈" line="Nothing here yet." action="Add a list" onAction={() => setCreating(true)} />
+    return <EmptyState mark={AestheticsMark} line="Nothing here yet." action="Add a list" onAction={() => setCreating(true)} />
   }
 
   return (
     <div>
       <button onClick={() => setCreating(true)} className="mb-5 flex items-center gap-2 text-sm text-stone-500 transition-colors hover:text-stone-900">
-        <Plus size={14} strokeWidth={1.8} /> New list
+        <AddIcon size={14} strokeWidth={1.8} /> New list
       </button>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {lists.map((c) => {
@@ -108,7 +109,7 @@ export default function DreamCollections({ goals = [], projects = [] }) {
               <div className="flex h-24 gap-px bg-stone-100">
                 {covers.length
                   ? covers.map((i) => <img key={i.id} src={i.image} alt="" className="h-full flex-1 object-cover" />)
-                  : <span className="flex h-full w-full items-center justify-center font-serif text-2xl text-stone-300">{classMeta(c.cls).glyph}</span>}
+                  : <span className="flex h-full w-full items-center justify-center text-[10px] tracking-[0.2em] text-stone-400">{classMeta(c.cls).label.toUpperCase()}</span>}
               </div>
               <div className="p-4">
                 <p className="font-serif text-lg text-stone-900">{c.label}</p>
@@ -174,8 +175,8 @@ function ChooseClass({ onCreate, onCancel }) {
             <p className="mb-2 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
             <div className="flex flex-wrap gap-1.5">
               {g.classes.map((c) => (
-                <button key={c.id} onClick={() => setCls(c.id)} className="inline-flex items-center gap-2 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
-                  <span className="font-serif text-sm leading-none">{c.glyph}</span>{c.label}
+                <button key={c.id} onClick={() => setCls(c.id)} className="rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -266,7 +267,7 @@ function ListView({ list, goals, projects, onUpdate, onRemove, onBack }) {
       </div>
 
       <div className="mb-5 flex items-center gap-2.5 border-b border-stone-200 pb-1.5 focus-within:border-stone-900">
-        <Plus size={14} className="shrink-0 text-stone-300" />
+        <AddIcon size={14} className="shrink-0 text-stone-300" />
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -278,7 +279,7 @@ function ListView({ list, goals, projects, onUpdate, onRemove, onBack }) {
       </div>
 
       {list.items.length === 0 ? (
-        <EmptyState glyph={cls.glyph} line="Nothing here yet." />
+        <EmptyState line="Nothing here yet." />
       ) : (
         <>
           <div className="mb-4 flex flex-wrap gap-1.5">
@@ -348,13 +349,13 @@ function ItemCard({ item: it, cls, currency, goals, projects, onPatch, onAcquire
             aria-label={owned ? 'Owned' : 'Mark as owned'}
             className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors ${owned ? 'border-stone-900 bg-stone-900' : 'border-stone-300 hover:border-stone-900'}`}
           >
-            {owned && <Check size={10} className="text-cream" />}
+            {owned && <LoggedIcon size={10} className="text-cream" />}
           </button>
           <p className="min-w-0 flex-1 text-sm leading-snug text-stone-800">
             {it.brand && <span className="text-stone-500">{it.brand} </span>}
             {it.title || 'Untitled'}
           </p>
-          <button onClick={onDrop} className="shrink-0 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={13} /></button>
+          <button onClick={onDrop} className="shrink-0 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={13} /></button>
         </div>
 
         <div className="mt-1.5 flex flex-wrap items-center gap-2 pl-[1.55rem]">
@@ -506,7 +507,7 @@ function ShareSheet({ list, onClose }) {
             <h3 className="font-serif text-2xl text-stone-900">Send {list.label}</h3>
             <p className="mt-0.5 text-[10px] tracking-[0.16em] text-stone-400">{cls.label.toUpperCase()}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
 
         <div className="mb-5 inline-flex rounded-full border border-stone-200 bg-white/60 p-0.5">

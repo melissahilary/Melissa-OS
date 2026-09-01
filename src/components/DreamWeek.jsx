@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Wand2, Check } from 'lucide-react'
+import { Wand2 } from 'lucide-react'
+import { LoggedIcon, NextIcon, PrevIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { isDoneOn, activityOccursOn, blankActivity } from '../lib/activities'
 import { dateKey, parseKey, addDays, MONTHS_SHORT, DOW } from '../lib/date'
@@ -96,9 +97,9 @@ export default function DreamWeek({ activities, add, update, toggleComplete, onO
     <div>
       {/* The week, named and numbered, with one line that holds it. */}
       <div className="mb-5 flex items-center gap-3">
-        <button onClick={() => setOffset((o) => o - 1)} aria-label="Previous week" className="shrink-0 text-stone-300 hover:text-stone-900"><ChevronLeft size={17} /></button>
+        <button onClick={() => setOffset((o) => o - 1)} aria-label="Previous week" className="shrink-0 text-stone-300 hover:text-stone-900"><PrevIcon size={17} /></button>
         <span className="shrink-0 text-[11px] tracking-[0.2em] text-stone-400">WEEK {weekNo} · {span}</span>
-        <button onClick={() => setOffset((o) => o + 1)} aria-label="Next week" className="shrink-0 text-stone-300 hover:text-stone-900"><ChevronRight size={17} /></button>
+        <button onClick={() => setOffset((o) => o + 1)} aria-label="Next week" className="shrink-0 text-stone-300 hover:text-stone-900"><NextIcon size={17} /></button>
         <span className="ml-auto shrink-0 text-[11px] tracking-[0.14em] text-stone-400 tabular-nums">{done}/{total}</span>
         <button onClick={() => setProposal(propose(days, goals, projects, activities, cycleConfig, phases))} className="flex shrink-0 items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
           <Wand2 size={12} strokeWidth={1.7} /> Plan the week
@@ -318,7 +319,7 @@ function WeekClose({ columns, carriedCount }) {
           <div className="flex flex-wrap gap-1.5">
             {moved.slice(0, 8).map(({ a }) => (
               <span key={a.id} className="inline-flex items-center gap-1.5 rounded-full bg-white/60 px-2.5 py-1 text-[11px] text-stone-600">
-                <Check size={10} style={{ color: '#7C8B6B' }} />{a.title}
+                <LoggedIcon size={10} style={{ color: '#7C8B6B' }} />{a.title}
               </span>
             ))}
           </div>

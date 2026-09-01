@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { X, Dumbbell } from 'lucide-react'
+import { Dumbbell } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
@@ -111,7 +112,7 @@ export default function FitnessPlan() {
           <div className="relative w-full max-w-md rounded-t-3xl border border-stone-200 bg-cream shadow-2xl sm:rounded-3xl">
             <div className="flex items-center justify-between px-6 pb-1 pt-5">
               <span className="kicker text-stone-400">Workout</span>
-              <button onClick={close} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+              <button onClick={close} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
             </div>
             <div className="space-y-5 px-6 pb-2 pt-2">
               <input autoFocus value={open.name} onChange={(e) => update(open.id, { name: e.target.value })} placeholder="Name it — e.g. Lower Power" className="w-full border-b border-stone-200 bg-transparent pb-2 font-serif text-2xl text-stone-900 outline-none placeholder:italic placeholder:text-stone-300 focus:border-stone-900" />

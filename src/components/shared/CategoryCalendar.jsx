@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { X, AlignLeft } from 'lucide-react'
+import { AlignLeft } from 'lucide-react'
+import { CloseIcon } from './marks'
 import * as store from '../../lib/dataStore'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity, activityOccursOn, daySectionsOf } from '../../lib/activities'
@@ -182,7 +183,7 @@ export default function CategoryCalendar({ category, cycleConfig = {}, noun = 'I
                     </p>
                   </button>
                   {a.status === 'paused' && <button onClick={() => update(a.id, { status: 'active' })} title="Resume — bring back to Today" className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-400 hover:text-stone-900">resume</button>}
-                  <button onClick={() => remove(a.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><X size={15} /></button>
+                  <button onClick={() => remove(a.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><CloseIcon size={15} /></button>
                 </div>
               ))}
           </div>
@@ -262,7 +263,7 @@ export function DayItemForm({ entry, noun, category, isNew, onSave, onDelete, on
       <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-stone-200 bg-cream shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">{longDate(parseKey(dayKey))}</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
         <div className="max-h-[64vh] space-y-6 overflow-y-auto px-6 py-6">
           <div>

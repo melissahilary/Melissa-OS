@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { NextIcon, PrevIcon } from './marks'
 import { useActivities } from '../../hooks/useActivities'
 import { useRegisterAdd } from './AddButton'
 import { usePhaseColors } from '../../hooks/usePhaseColors'
@@ -84,8 +84,8 @@ export default function CategorySchedule({ category, noun = 'Item', question = '
 
       {/* The ribbon */}
       <div className="relative">
-        <button onClick={() => scrollBy(-360)} aria-label="Earlier" className="absolute -left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-1.5 text-stone-400 shadow-sm hover:text-stone-900"><ChevronLeft size={16} /></button>
-        <button onClick={() => scrollBy(360)} aria-label="Later" className="absolute -right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-1.5 text-stone-400 shadow-sm hover:text-stone-900"><ChevronRight size={16} /></button>
+        <button onClick={() => scrollBy(-360)} aria-label="Earlier" className="absolute -left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-1.5 text-stone-400 shadow-sm hover:text-stone-900"><PrevIcon size={16} /></button>
+        <button onClick={() => scrollBy(360)} aria-label="Later" className="absolute -right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-1.5 text-stone-400 shadow-sm hover:text-stone-900"><NextIcon size={16} /></button>
         <div ref={ribbonRef} className="no-scrollbar flex gap-1.5 overflow-x-auto scroll-smooth px-1 pb-2">
           {days.map(({ d, k, items }) => {
             const on = k === sel.k

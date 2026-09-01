@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './marks'
 import { MEAL_SLOTS, slotMeta, MEAL_FREQ_OPTS, WEEKDAYS, mealOccursOn, blankMeal } from '../../lib/meals'
 
 // Editable meal slots, shared by My Dream Day and Meal Planning Schedule.
@@ -39,7 +39,7 @@ function SlotList({ slot, kind, label, placeholder, sub, dateKeyStr, meals, onAd
             <span key={m.id} className="group inline-flex items-center gap-1 border border-stone-300 bg-white/50 px-2 py-0.5 text-xs text-stone-700">
               {m.name}
               <button onClick={() => onRemove(m.id)} className="text-stone-300 transition-colors hover:text-stone-700">
-                <X size={11} />
+                <CloseIcon size={11} />
               </button>
             </span>
           ))}

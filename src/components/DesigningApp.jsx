@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import { useRegisterAdd } from './shared/AddButton'
@@ -86,7 +86,7 @@ function PagesList({ pages, onAdd, onStatus, onRemove }) {
               {PAGE_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             <button onClick={() => onRemove(p.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100">
-              <X size={14} />
+              <CloseIcon size={14} />
             </button>
           </div>
         ))}
@@ -119,7 +119,7 @@ function TextList({ title, items, onAdd, onRemove, mono = false }) {
           <div key={it.id} className="group flex items-start gap-3 py-2">
             <span className={`flex-1 text-sm text-stone-700 ${mono ? 'font-mono text-xs' : ''}`}>{it.text}</span>
             <button onClick={() => onRemove(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100">
-              <X size={14} />
+              <CloseIcon size={14} />
             </button>
           </div>
         ))}

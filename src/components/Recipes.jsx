@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PHASES } from '../lib/cycle'
 import { useRegisterAdd } from './shared/AddButton'
@@ -326,7 +327,7 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
             className="w-full bg-transparent font-serif italic text-3xl text-stone-900 placeholder-stone-300 outline-none"
           />
           <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900">
-            <X size={20} />
+            <CloseIcon size={20} />
           </button>
         </div>
 
@@ -393,7 +394,7 @@ function RecipeModal({ config, recipe, isNew, onClose, onSave, onDelete }) {
                     {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                   <button onClick={() => removeIngredient(x.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100">
-                    <X size={14} />
+                    <CloseIcon size={14} />
                   </button>
                 </div>
               ))}

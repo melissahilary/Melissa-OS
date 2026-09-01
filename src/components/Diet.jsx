@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Plus, Minus } from 'lucide-react'
+import { Minus } from 'lucide-react'
+import { AddIcon, CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, activityOccursOn, isDoneOn } from '../lib/activities'
@@ -184,7 +185,7 @@ function StaplesView({ foods, add, update, remove }) {
         <div className="flex items-center gap-1.5 rounded-full bg-stone-500/5 px-2 py-1">
           <button onClick={() => setFreq((f) => Math.max(1, f - 1))} className="text-stone-400 hover:text-stone-800" aria-label="Fewer"><Minus size={14} /></button>
           <span className="w-14 text-center text-xs tabular-nums text-stone-600">{freq}×/wk</span>
-          <button onClick={() => setFreq((f) => Math.min(7, f + 1))} className="text-stone-400 hover:text-stone-800" aria-label="More"><Plus size={14} /></button>
+          <button onClick={() => setFreq((f) => Math.min(7, f + 1))} className="text-stone-400 hover:text-stone-800" aria-label="More"><AddIcon size={14} /></button>
         </div>
         <button onClick={commit} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
       </div>
@@ -211,7 +212,7 @@ function StaplesView({ foods, add, update, remove }) {
                 })}
               </div>
               <span className="w-8 shrink-0 text-right text-xs tabular-nums text-stone-400">{jsDays.size}×</span>
-              <button onClick={() => remove(a.id)} aria-label="Remove" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={15} /></button>
+              <button onClick={() => remove(a.id)} aria-label="Remove" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={15} /></button>
             </div>
           )
         })}

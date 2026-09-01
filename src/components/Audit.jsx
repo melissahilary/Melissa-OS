@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey, parseKey, MONTHS } from '../lib/date'
 import SectionTitle from './shared/SectionTitle'
@@ -136,7 +137,7 @@ function AuditDetail({ card, onChange, onDelete, onClose }) {
             autoFocus
             className="w-full bg-transparent font-serif italic text-3xl text-stone-900 placeholder-stone-300 outline-none"
           />
-          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
         <div className="px-6 py-5">

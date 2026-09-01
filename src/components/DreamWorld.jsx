@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { DOW_LONG, monthGrid, dateKey, parseKey, isSameDay, MONTHS, DOW, moonPhaseIndex } from '../lib/date'
 import MoonIcon from './shared/MoonIcon'
@@ -102,7 +102,7 @@ function DayCol({ day, items, onAdd, onEdit, onRemove }) {
         {items.map((it) => (
           <div key={it.id} className="group flex items-center gap-2">
             <InlineText value={it.text} onChange={(t) => onEdit(it.id, t)} className="flex-1 text-sm text-stone-700 bg-transparent outline-none" />
-            <button onClick={() => onRemove(it.id)} className="hidden text-stone-300 hover:text-stone-700 group-hover:block"><X size={13} /></button>
+            <button onClick={() => onRemove(it.id)} className="hidden text-stone-300 hover:text-stone-700 group-hover:block"><CloseIcon size={13} /></button>
           </div>
         ))}
       </div>
@@ -388,7 +388,7 @@ function EventDetail({ ev, dateLabel, onChange, onDelete, onClose }) {
       <div className="w-full max-w-md bg-cream border border-stone-300 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between">
           <span className="kicker text-stone-400">{dateLabel}</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
 
         <input
@@ -480,7 +480,7 @@ function ListBody({ placeholder, items, setItems, checkable }) {
               onChange={(t) => editText(it.id, t)}
               className={`flex-1 text-sm bg-transparent outline-none ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}
             />
-            <button onClick={() => remove(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={14} /></button>
+            <button onClick={() => remove(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={14} /></button>
           </div>
         ))}
       </div>

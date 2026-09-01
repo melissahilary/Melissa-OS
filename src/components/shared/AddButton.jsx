@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { X, Plus, Check, CircleCheck, CalendarClock, Utensils, GlassWater, Pill, Target, ShoppingBag, StickyNote } from 'lucide-react'
+import { CircleCheck, CalendarClock, Utensils, GlassWater, Pill, Target, ShoppingBag, StickyNote } from 'lucide-react'
+import { AddIcon, CloseIcon, LoggedIcon } from './marks'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity } from '../../lib/activities'
@@ -30,7 +31,7 @@ export function AddChooser({ options, onPick, onClose, recommended }) {
       <div className="w-full max-w-xs bg-cream border border-stone-300 p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <span className="kicker text-stone-400">Add to your day</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="max-h-[64vh] space-y-2 overflow-y-auto">
           {(options || []).map((o) => (
@@ -116,7 +117,7 @@ export function AddProvider({ children }) {
           className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105"
           style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7' }}
         >
-          <Plus size={22} strokeWidth={1.75} />
+          <AddIcon size={22} strokeWidth={1.75} />
         </button>
       )}
 
@@ -124,7 +125,7 @@ export function AddProvider({ children }) {
 
       {toast && (
         <button onClick={() => goTo(toast.dest)} className="fixed bottom-24 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream shadow-xl transition-transform hover:scale-[1.02]">
-          <Check size={14} strokeWidth={2.5} /> {toast.text}
+          <LoggedIcon size={14} strokeWidth={2.5} /> {toast.text}
           {toast.dest && <span className="ml-1 border-l border-cream/30 pl-2.5 text-cream/80">View →</span>}
         </button>
       )}
@@ -195,7 +196,7 @@ function QuickAdd({ onClose, onDone, fullEditor }) {
       <div className="relative w-full max-w-md rounded-t-3xl border border-stone-200 bg-cream shadow-2xl sm:rounded-3xl">
         <div className="flex items-center justify-between px-6 pb-1 pt-5">
           <span className="kicker text-stone-400">Add</span>
-          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
 
         {/* What is it? — the name comes first, big and serif */}

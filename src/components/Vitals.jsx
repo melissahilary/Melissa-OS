@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 
@@ -189,7 +189,7 @@ function ConnectModal({ metric, onPick, onClose }) {
       <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between px-6 pt-4">
           <span className="flex items-center gap-2 kicker text-stone-400"><Mark mark="heart" /> Apple Health</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-6 pb-6 pt-3">
           <p className="font-serif text-2xl text-stone-900">{LABEL[metric]} <span className="text-stone-400">· via Apple Health</span></p>
@@ -234,7 +234,7 @@ function VitalPopover({ metric, v, waterOz, sleepMin, stepsVal, bpVal, onLogWate
       <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
           <span className="flex items-center gap-2 kicker text-stone-400">{device && <Mark mark={dev(device).mark} />}{device ? dev(device).name : LABEL[metric]}</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-6 pb-6 pt-3">
           <p className="kicker text-stone-400">{LABEL[metric]}</p>

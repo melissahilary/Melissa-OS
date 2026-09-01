@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Shuffle, Grid3x3, Columns3, X, ImagePlus, Minus, Plus as PlusIcon, Link2, Search } from 'lucide-react'
+import { Shuffle, Grid3x3, Columns3, ImagePlus, Minus, Link2, Search } from 'lucide-react'
+import { AddIcon, CloseIcon, AestheticsMark } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import EmptyState from './shared/EmptyState'
 import { dateKey, parseKey, MONTHS, MONTHS_SHORT } from '../lib/date'
@@ -296,7 +297,7 @@ export default function DreamBoard() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) onFiles({ target: { files: e.dataTransfer.files } }) }}
         >
-          <EmptyState glyph="❖" line="Nothing here yet." action="Choose photos" onAction={pickFiles} />
+          <EmptyState mark={AestheticsMark} line="Nothing here yet." action="Choose photos" onAction={pickFiles} />
         </div>
       </div>
     )
@@ -326,7 +327,7 @@ export default function DreamBoard() {
             <div className="flex items-center gap-1 rounded-full border border-stone-200 px-1 py-0.5">
               <button onClick={() => setZoom((z) => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))} aria-label="Zoom out" className="flex h-6 w-6 items-center justify-center text-stone-400 hover:text-stone-900"><Minus size={13} /></button>
               <span className="w-9 text-center text-[10px] tabular-nums text-stone-400">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom((z) => Math.min(1.3, Math.round((z + 0.1) * 10) / 10))} aria-label="Zoom in" className="flex h-6 w-6 items-center justify-center text-stone-400 hover:text-stone-900"><PlusIcon size={13} /></button>
+              <button onClick={() => setZoom((z) => Math.min(1.3, Math.round((z + 0.1) * 10) / 10))} aria-label="Zoom in" className="flex h-6 w-6 items-center justify-center text-stone-400 hover:text-stone-900"><AddIcon size={13} /></button>
             </div>
           )}
           {/* One way in. Both routes live inside it, so she never has to choose
@@ -358,7 +359,7 @@ export default function DreamBoard() {
           className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-300"
           aria-label="Search the board"
         />
-        {query && <button onClick={() => setQuery('')} aria-label="Clear" className="shrink-0 text-stone-300 hover:text-stone-700"><X size={13} /></button>}
+        {query && <button onClick={() => setQuery('')} aria-label="Clear" className="shrink-0 text-stone-300 hover:text-stone-700"><CloseIcon size={13} /></button>}
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
@@ -404,7 +405,7 @@ export default function DreamBoard() {
       )}
 
       {shown.length === 0 ? (
-        <EmptyState glyph="❖" line="Nothing here yet." />
+        <EmptyState mark={AestheticsMark} line="Nothing here yet." />
       ) : template === 'scrapbook' ? (
         <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white/30" style={{ height: canvasH * zoom + 2 }}>
           <div
@@ -567,7 +568,7 @@ function Back({ it, dupes, onFlip, onEdit, onRemove }) {
 
   return (
     <div className="flex h-full flex-col p-3.5">
-      <button onClick={onFlip} aria-label="Turn back" className="absolute right-2 top-2 text-stone-300 hover:text-stone-900"><X size={13} /></button>
+      <button onClick={onFlip} aria-label="Turn back" className="absolute right-2 top-2 text-stone-300 hover:text-stone-900"><CloseIcon size={13} /></button>
 
       {/* Named from what is visible, so the card has a title she never wrote. */}
       <input

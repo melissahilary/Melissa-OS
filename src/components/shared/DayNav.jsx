@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { NextIcon, PrevIcon } from './marks'
 import { dateKey, weekDays, addDays, isSameDay, DOW, DOW_LONG, MONTHS } from '../../lib/date'
 
 // Day navigation: prev/next arrows + a week of day initials.
@@ -13,7 +13,7 @@ export function DayNav({ selected, setSelected, today }) {
         className="text-stone-400 hover:text-stone-900"
         aria-label="Previous day"
       >
-        <ChevronLeft size={20} />
+        <PrevIcon size={20} />
       </button>
       <div className="flex items-center gap-1.5">
         {days.map((d) => {
@@ -43,7 +43,7 @@ export function DayNav({ selected, setSelected, today }) {
         className="text-stone-400 hover:text-stone-900"
         aria-label="Next day"
       >
-        <ChevronRight size={20} />
+        <NextIcon size={20} />
       </button>
     </div>
   )

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, X, Check, ChevronRight, Target, Sparkles, Calendar, ListChecks, FolderKanban, Image as ImageIcon } from 'lucide-react'
+import { Target, Sparkles, Calendar, ListChecks, FolderKanban, Image as ImageIcon } from 'lucide-react'
+import { AddIcon, CloseIcon, LoggedIcon, NextIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
@@ -273,7 +274,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                 <button key={id} onClick={() => setGoalView(id)} className={`rounded-full px-4 py-1.5 text-xs transition-colors ${goalView === id ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:text-stone-800'}`}>{label}</button>
               ))}
             </div>
-            <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><Plus size={15} strokeWidth={1.75} /> New goal</button>
+            <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
           </div>
 
           {goalView === 'timeline' && <GoalTimeline goals={active} onOpen={openGoal} />}
@@ -281,7 +282,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           {goalView === 'board' && boardFilter && (
             <div className="mb-4 flex justify-center">
               <button onClick={() => setBoardFilter(null)} className="flex items-center gap-2 rounded-full border border-stone-900 bg-stone-900 px-4 py-1.5 text-xs text-cream transition-colors hover:bg-stone-700">
-                {pillarMeta(boardFilter).label} only <X size={12} />
+                {pillarMeta(boardFilter).label} only <CloseIcon size={12} />
               </button>
             </div>
           )}
@@ -323,7 +324,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                   const ev = evidenceOf(g, labRecord)
                   return (
                     <button key={g.id} onClick={() => openGoal(g.id)} className="flex items-start gap-2.5 rounded-2xl border border-stone-200 p-3 text-left transition-colors hover:border-stone-400">
-                      <Check size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
+                      <LoggedIcon size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
                       <span className="min-w-0">
                         <span className="block truncate font-serif text-base text-stone-700">{g.title || 'Untitled'}</span>
                         <span className="block text-[11px] tabular-nums text-stone-400">
@@ -479,7 +480,7 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
       <aside className={`relative flex h-full w-full max-w-[470px] flex-col border-l border-stone-200 bg-cream shadow-2xl transition-transform duration-300 ${mounted ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-start gap-3 border-b border-stone-200 px-6 py-5">
           <input value={goal.title} onChange={(e) => onUpdate({ title: e.target.value })} placeholder="Name the goal" autoFocus className="flex-1 bg-transparent font-serif text-2xl text-stone-900 placeholder-stone-300 outline-none" />
-          <button onClick={onClose} aria-label="Close" className="mt-1 text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} aria-label="Close" className="mt-1 text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -523,12 +524,12 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
                     <button onClick={() => setMilestone(m.id, { done: !m.done })} aria-label="Mark milestone reached"
                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums transition-all"
                       style={m.done ? { background: '#1C1C1A', borderColor: '#1C1C1A', color: '#FAF8F3' } : { borderColor: '#D8D2C6', color: '#9A9488' }}>
-                      {m.done ? <Check size={13} strokeWidth={2.5} /> : mi + 1}
+                      {m.done ? <LoggedIcon size={13} strokeWidth={2.5} /> : mi + 1}
                     </button>
                     <button onClick={() => onToggleMsOpen(mi)} className="flex flex-1 items-center gap-2 text-left">
                       <span className={`flex-1 font-serif text-lg ${m.done ? 'text-stone-400' : 'text-stone-800'}`}>{m.title || 'Milestone'}</span>
                       <span className="text-[11px] tabular-nums text-stone-400">{mSteps.length ? `${sdone}/${mSteps.length}` : ''}</span>
-                      <ChevronRight size={15} className={`text-stone-300 transition-transform ${open ? 'rotate-90' : ''}`} />
+                      <NextIcon size={15} className={`text-stone-300 transition-transform ${open ? 'rotate-90' : ''}`} />
                     </button>
                   </div>
                   {open && (
@@ -545,7 +546,7 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
                             <Checkbox checked={isDoneOn(a, todayKey())} onClick={() => onToggleStep(a.id)} />
                             <span className={`flex-1 text-sm ${isDoneOn(a, todayKey()) ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{a.title}</span>
                             <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-stone-400" title={`${P.label} · ${a.details?.section || ''}`}><span className="h-2 w-2 rounded-full" style={{ background: P.tint }} />{a.details?.section || P.label}</span>
-                            <button onClick={() => onRemoveStep(a.id)} aria-label="Remove step" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={13} /></button>
+                            <button onClick={() => onRemoveStep(a.id)} aria-label="Remove step" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={13} /></button>
                           </div>
                         )
                       })}
@@ -747,7 +748,7 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
             </div>
             {m.steps.map((s, j) => { const P = pillarMeta(s.pillar); return (
               <div key={j} className="flex items-start gap-2.5 py-1 pl-7.5" style={{ paddingLeft: '1.9rem' }}>
-                <Check size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
+                <LoggedIcon size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
                 <div className="min-w-0">
                   <div className="text-sm text-stone-800">{s.title}</div>
                   <div className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-stone-400"><span className="h-2 w-2 rounded-full" style={{ background: P.tint }} /><span className="text-stone-500">{P.label}</span> · {s.section}</div>
@@ -825,7 +826,7 @@ function TagEditor({ tags, onChange }) {
       {tags.map((t) => (
         <span key={t} className="group inline-flex items-center gap-1 rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-600">
           {t}
-          <button onClick={() => onChange(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`} className="text-stone-300 hover:text-stone-600"><X size={10} /></button>
+          <button onClick={() => onChange(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`} className="text-stone-300 hover:text-stone-600"><CloseIcon size={10} /></button>
         </span>
       ))}
       <input
@@ -863,7 +864,7 @@ function LinksSection({ links, onChange }) {
             <div key={l.id} className="group flex items-center gap-2.5 py-1">
               <span className="text-stone-300">↗</span>
               <a href={l.url} target="_blank" rel="noreferrer" className="flex-1 truncate text-sm text-stone-700 underline-offset-2 hover:underline">{l.label}</a>
-              <button onClick={() => onChange(links.filter((x) => x.id !== l.id))} aria-label="Remove link" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={12} /></button>
+              <button onClick={() => onChange(links.filter((x) => x.id !== l.id))} aria-label="Remove link" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={12} /></button>
             </div>
           ))}
         </div>
@@ -898,7 +899,7 @@ function NotesLog({ notes, onChange }) {
             <div key={n.id} className="group flex items-baseline gap-3">
               <span className="shrink-0 text-[11px] tabular-nums text-stone-400">{fmtShort(n.date)}</span>
               <p className="flex-1 text-sm leading-relaxed text-stone-700">{n.text}</p>
-              <button onClick={() => onChange(notes.filter((x) => x.id !== n.id))} aria-label="Remove note" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={12} /></button>
+              <button onClick={() => onChange(notes.filter((x) => x.id !== n.id))} aria-label="Remove note" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={12} /></button>
             </div>
           ))}
         </div>

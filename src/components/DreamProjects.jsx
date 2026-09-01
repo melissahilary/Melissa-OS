@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { X, Check, Plus, ImagePlus, ChevronRight } from 'lucide-react'
+import { ImagePlus } from 'lucide-react'
+import { AddIcon, CloseIcon, LoggedIcon, NextIcon, FitnessMark } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey, parseKey, MONTHS_SHORT } from '../lib/date'
 import Checkbox from './shared/Checkbox'
@@ -103,13 +104,13 @@ export default function DreamProjects({ goals = [] }) {
         onClick={() => setCreating(true)}
         className="mb-5 flex items-center gap-2 text-sm text-stone-500 transition-colors hover:text-stone-900"
       >
-        <Plus size={14} strokeWidth={1.8} /> New project
+        <AddIcon size={14} strokeWidth={1.8} /> New project
       </button>
 
       {creating && <CreateSheet goals={goals} onCreate={create} onClose={() => setCreating(false)} />}
 
       {active.length === 0 && dormant.length === 0 && done.length === 0 ? (
-        <EmptyState glyph="▤" line="Nothing here yet." action="Add a project" onAction={() => setCreating(true)}>
+        <EmptyState mark={FitnessMark} line="Nothing here yet." action="Add a project" onAction={() => setCreating(true)}>
           <div className="mt-6 flex flex-wrap justify-center gap-1.5">
             {TEMPLATES.map((t) => (
               <button
@@ -145,7 +146,7 @@ export default function DreamProjects({ goals = [] }) {
           <div className="flex flex-wrap gap-2">
             {done.map((p) => (
               <button key={p.id} onClick={() => setOpenId(p.id)} className="flex items-center gap-2 rounded-full border border-stone-200 px-4 py-1.5 text-sm text-stone-500 hover:border-stone-400">
-                <Check size={13} style={{ color: '#7C8B6B' }} />{p.name || 'Untitled'}
+                <LoggedIcon size={13} style={{ color: '#7C8B6B' }} />{p.name || 'Untitled'}
               </button>
             ))}
           </div>
@@ -318,7 +319,7 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
             <ImagePlus size={13} strokeWidth={1.6} />{p.cover ? 'Change cover' : 'Add a cover'}
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) shrink(f, 1200, (d) => onUpdate({ cover: d })) }} />
-          <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-cream/90 p-1.5 text-stone-600 backdrop-blur hover:text-stone-900"><X size={16} /></button>
+          <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-cream/90 p-1.5 text-stone-600 backdrop-blur hover:text-stone-900"><CloseIcon size={16} /></button>
         </div>
 
         <div className="p-6">
@@ -383,12 +384,12 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
                 <div key={t.id} className="group flex items-center gap-3 py-1">
                   <Checkbox checked={t.done} onClick={() => setTask(t.id, { done: !t.done })} />
                   <span className={`flex-1 text-sm ${t.done ? 'text-stone-300' : 'text-stone-800'}`}>{t.title}</span>
-                  <button onClick={() => rmTask(t.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={13} /></button>
+                  <button onClick={() => rmTask(t.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={13} /></button>
                 </div>
               ))}
             </div>
             <div className="mt-1 flex items-center gap-2.5 border-b border-stone-200 pb-1.5 focus-within:border-stone-900">
-              <Plus size={13} className="shrink-0 text-stone-300" />
+              <AddIcon size={13} className="shrink-0 text-stone-300" />
               <input value={taskDraft} onChange={(e) => setTaskDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask()} className="flex-1 bg-transparent py-1 text-sm outline-none" />
             </div>
           </div>
@@ -399,11 +400,11 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
               {p.people.map((x) => (
                 <div key={x.id} className="group flex items-center gap-2 py-1">
                   <span className="flex-1 text-sm text-stone-700">{x.name}</span>
-                  <button onClick={() => onUpdate({ people: p.people.filter((y) => y.id !== x.id) })} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={12} /></button>
+                  <button onClick={() => onUpdate({ people: p.people.filter((y) => y.id !== x.id) })} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={12} /></button>
                 </div>
               ))}
               <div className="flex items-center gap-2.5 border-b border-stone-200 pb-1.5 focus-within:border-stone-900">
-                <Plus size={13} className="shrink-0 text-stone-300" />
+                <AddIcon size={13} className="shrink-0 text-stone-300" />
                 <input value={personDraft} onChange={(e) => setPersonDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPerson()} placeholder="practitioner · vendor" className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-300" />
               </div>
             </div>
@@ -412,11 +413,11 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
               {p.links.map((x) => (
                 <div key={x.id} className="group flex items-center gap-2 py-1">
                   <a href={x.url} target="_blank" rel="noreferrer" className="flex-1 truncate text-sm text-stone-700 underline decoration-stone-300 underline-offset-2 hover:decoration-stone-900">{x.label}</a>
-                  <button onClick={() => onUpdate({ links: p.links.filter((y) => y.id !== x.id) })} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={12} /></button>
+                  <button onClick={() => onUpdate({ links: p.links.filter((y) => y.id !== x.id) })} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={12} /></button>
                 </div>
               ))}
               <div className="flex items-center gap-2.5 border-b border-stone-200 pb-1.5 focus-within:border-stone-900">
-                <Plus size={13} className="shrink-0 text-stone-300" />
+                <AddIcon size={13} className="shrink-0 text-stone-300" />
                 <input value={linkDraft} onChange={(e) => setLinkDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addLink()} placeholder="quote · contract · link" className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-300" />
               </div>
             </div>

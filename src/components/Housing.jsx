@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { X, ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
+import { CloseIcon, NextIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import { useRegisterAdd } from './shared/AddButton'
@@ -131,9 +132,9 @@ function PropertyCard({ property: p, index, open, onToggle, onUpdate, onRemove }
         </button>
         <span className="px-2.5 py-1 text-xs text-white" style={{ backgroundColor: STAGE_COLOR[p.stage] }}>{p.stage}</span>
         <button onClick={onToggle} className="text-stone-400 hover:text-stone-900">
-          {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          {open ? <ChevronDown size={18} /> : <NextIcon size={18} />}
         </button>
-        <button onClick={onRemove} className="text-stone-300 hover:text-stone-700"><X size={16} /></button>
+        <button onClick={onRemove} className="text-stone-300 hover:text-stone-700"><CloseIcon size={16} /></button>
       </div>
 
       {open && (

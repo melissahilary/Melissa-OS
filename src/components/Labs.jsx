@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { X, Plus, Link2, ClipboardPaste, PenLine, ChevronRight, Upload } from 'lucide-react'
+import { Link2, ClipboardPaste, PenLine, Upload } from 'lucide-react'
+import { AddIcon, CloseIcon, NextIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useLifeStage } from '../lib/lifeStage'
 import { phaseForConfig } from '../lib/cycle'
@@ -387,7 +388,7 @@ function ConnectPanel({ onPaste }) {
                   <span className="block text-[11px] text-stone-400">{s.holds}</span>
                 </span>
                 <span className="shrink-0 text-[10px] tracking-[0.14em] text-stone-400">EXPORT</span>
-                <ChevronRight size={14} className={`shrink-0 text-stone-300 transition-transform ${on ? 'rotate-90' : ''}`} />
+                <NextIcon size={14} className={`shrink-0 text-stone-300 transition-transform ${on ? 'rotate-90' : ''}`} />
               </button>
               {on && (
                 <div className="pb-4 pl-0 pr-8">
@@ -585,7 +586,7 @@ function MarkerRow({ marker, readings, ctx, onOpen }) {
       <span className="w-28 shrink-0 sm:w-40">
         {placed ? <Reading marker={marker} canonical={canonical} placed={placed} /> : <span className="block h-[3px] rounded-full bg-stone-100" />}
       </span>
-      <ChevronRight size={14} className="shrink-0 text-stone-300" />
+      <NextIcon size={14} className="shrink-0 text-stone-300" />
     </button>
   )
 }
@@ -606,7 +607,7 @@ function MarkerSheet({ marker, entry, readings, ctx, onClose, onNotes, onDropRea
             <h3 className="font-serif text-2xl leading-tight text-stone-900">{marker.label}</h3>
             {!custom && <p className="mt-0.5 text-[11px] tracking-[0.14em] text-stone-400">{(PANELS.find((p) => p.id === marker.panel) || {}).label?.toUpperCase()}</p>}
           </div>
-          <button onClick={onClose} aria-label="Close" className="shrink-0 text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Close" className="shrink-0 text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
 
         {latest && placed && (
@@ -652,7 +653,7 @@ function MarkerSheet({ marker, entry, readings, ctx, onClose, onNotes, onDropRea
                     {r.cycleDay && <span className="text-[10px] text-stone-400">· day {r.cycleDay}</span>}
                     {p && <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: STATE_COLOR[p.state] }} title={STATE_LABEL[p.state]} />}
                     <button onClick={() => onDropReading(r.id)} className="shrink-0 text-stone-300 opacity-0 transition-opacity hover:text-stone-900 group-hover:opacity-100" aria-label="Remove reading">
-                      <X size={12} />
+                      <CloseIcon size={12} />
                     </button>
                   </div>
                 )

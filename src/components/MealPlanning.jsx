@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { X, Pencil, ChevronDown, ChevronRight, Calendar, Share2, Check, CircleCheck, CircleAlert, CircleX, CirclePause } from 'lucide-react'
+import { Pencil, ChevronDown, Calendar, Share2, CircleCheck, CircleAlert, CircleX, CirclePause } from 'lucide-react'
+import { CloseIcon, LoggedIcon, NextIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { categorize, GROCERY_CATEGORIES } from '../lib/groceryCategories'
 import Diet from './Diet'
@@ -533,7 +534,7 @@ function GroceryList() {
             )
           })}
         </div>
-        <button onClick={() => remove(item.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={14} /></button>
+        <button onClick={() => remove(item.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={14} /></button>
       </div>
     )
   }
@@ -542,7 +543,7 @@ function GroceryList() {
     <section className="mb-10">
       <header className="mb-4 flex items-center justify-between">
         <button onClick={shareList} disabled={!active.length} className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-stone-500 transition-colors hover:text-stone-900 disabled:opacity-40 disabled:hover:text-stone-500">
-          {copied ? <><Check size={13} /> Copied</> : <><Share2 size={13} /> Share list</>}
+          {copied ? <><LoggedIcon size={13} /> Copied</> : <><Share2 size={13} /> Share list</>}
         </button>
         <span className="text-sm text-stone-400">{active.length} on the list</span>
       </header>
@@ -585,7 +586,7 @@ function GroceryList() {
         <div className="mt-10 border-t border-stone-200 pt-4">
           <button onClick={() => setPausedOpen((o) => !o)} className="flex w-full items-center justify-between">
             <span className="kicker text-stone-400">Paused · {paused.length}</span>
-            {pausedOpen ? <ChevronDown size={14} className="text-stone-400" /> : <ChevronRight size={14} className="text-stone-400" />}
+            {pausedOpen ? <ChevronDown size={14} className="text-stone-400" /> : <NextIcon size={14} className="text-stone-400" />}
           </button>
           {pausedOpen && (
             <div className="mt-4 divide-y divide-stone-100">

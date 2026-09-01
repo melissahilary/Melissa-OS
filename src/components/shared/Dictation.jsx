@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Mic } from 'lucide-react'
+import { MicIcon } from './marks'
 import { createListener, speechSupported, tidy } from '../../lib/speech'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 
@@ -200,7 +200,7 @@ export default function Dictation() {
             style={{ border: `1px solid ${box.dark ? '#FAF8F3' : '#1C1C1A'}`, animation: 'mos-listen 1.6s ease-out infinite' }}
           />
         )}
-        <Mic size={12} strokeWidth={1.9} />
+        <MicIcon size={16} live={listening} />
       </button>
 
       {(listening || error) && (
@@ -217,7 +217,7 @@ export default function Dictation() {
             <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#A0654C', animation: 'mos-listen-dot 1.4s ease-in-out infinite' }} />
           )}
           <span className="whitespace-nowrap text-[10px] tracking-[0.16em]">
-            {error ? error.toUpperCase() : 'LISTENING · ESC TO STOP'}
+            {error ? error.toUpperCase() : 'RECORDING · ESC TO STOP'}
           </span>
         </div>
       )}

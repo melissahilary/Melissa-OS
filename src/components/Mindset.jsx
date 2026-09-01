@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Plus, Check, Sun, Moon, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { Sun, Moon, ArrowRight, ArrowLeft, CalendarDays } from 'lucide-react'
+import { AddIcon, CloseIcon, LoggedIcon, NextIcon, PrevIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useRegisterAdd } from './shared/AddButton'
 import InlineText from './shared/InlineText'
@@ -302,9 +303,9 @@ function MoodTracker({ cycleConfig = {} }) {
         {/* ── The month, and what it says ── */}
         <div className="mt-14 xl:col-span-6 xl:mt-0">
           <div className="mb-4 flex items-center justify-between">
-            <button onClick={() => shift(-1)} className="text-stone-300 transition-colors hover:text-stone-900"><ChevronLeft size={20} /></button>
+            <button onClick={() => shift(-1)} className="text-stone-300 transition-colors hover:text-stone-900"><PrevIcon size={20} /></button>
             <p className="font-serif text-xl text-stone-800">{MONTHS[monthIdx]} {anchor.getFullYear()}</p>
-            <button onClick={() => shift(1)} disabled={atCurrentMonth} className={`transition-colors ${atCurrentMonth ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}><ChevronRight size={20} /></button>
+            <button onClick={() => shift(1)} disabled={atCurrentMonth} className={`transition-colors ${atCurrentMonth ? 'text-stone-200' : 'text-stone-300 hover:text-stone-900'}`}><NextIcon size={20} /></button>
           </div>
           <div className="grid grid-cols-7 gap-1.5">
             {DOW.map((d) => <div key={d} className="pb-1 text-center text-[10px] tracking-wider text-stone-300">{d[0]}</div>)}
@@ -914,7 +915,7 @@ function Journal() {
           calendar to leap through time. A day other than today names itself in
           the question, so the date is never a line of its own. */}
       <div className="mx-auto mb-8 flex max-w-2xl items-center justify-between">
-        <button onClick={() => shift(-1)} title="Previous day" className="text-stone-300 transition-colors hover:text-stone-900"><ChevronLeft size={20} /></button>
+        <button onClick={() => shift(-1)} title="Previous day" className="text-stone-300 transition-colors hover:text-stone-900"><PrevIcon size={20} /></button>
         <div className="flex flex-col items-center px-3 text-center">
           <p className="font-serif text-2xl text-stone-800">
             {isToday ? "What's on your mind today?" : `What was on your mind on ${longDate(selected)}?`}
@@ -929,7 +930,7 @@ function Journal() {
           </button>
           {!isToday && <button onClick={() => setSelectedKey(dateKey(today))} className="mt-1 text-xs italic text-stone-400 underline underline-offset-2 hover:text-stone-700">Back to today</button>}
         </div>
-        <button onClick={() => shift(1)} title="Next day" className="text-stone-300 transition-colors hover:text-stone-900"><ChevronRight size={20} /></button>
+        <button onClick={() => shift(1)} title="Next day" className="text-stone-300 transition-colors hover:text-stone-900"><NextIcon size={20} /></button>
       </div>
 
       {/* The page — an unadorned writing surface, a comfortable measure wide */}
@@ -941,7 +942,7 @@ function Journal() {
                 space to write in. */}
             <div className="relative rounded-2xl px-6 py-6 shadow-sm md:px-8 md:py-7" style={{ backgroundColor: '#1C1C1A' }}>
               {dayList.length > 1 && (
-                <button onClick={() => removeEntry(e.id)} className="absolute right-3 top-3 z-10 text-cream/40 opacity-0 transition-opacity hover:text-cream group-hover:opacity-100" title="Delete entry"><X size={16} /></button>
+                <button onClick={() => removeEntry(e.id)} className="absolute right-3 top-3 z-10 text-cream/40 opacity-0 transition-opacity hover:text-cream group-hover:opacity-100" title="Delete entry"><CloseIcon size={16} /></button>
               )}
               <input
                 value={e.title}
@@ -960,7 +961,7 @@ function Journal() {
         ))}
 
         <button onClick={addEntry} className="mt-6 flex items-center gap-1.5 text-sm italic text-stone-400 transition-colors hover:text-stone-900">
-          <Plus size={14} /> New entry
+          <AddIcon size={14} /> New entry
         </button>
       </div>
 
@@ -1011,9 +1012,9 @@ function JournalCalendar({ selectedKey, today, hasEntry, onPick, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-sm border border-stone-300 bg-cream shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
-          <button onClick={() => step(-1)} className="text-stone-400 hover:text-stone-900"><ChevronLeft size={18} /></button>
+          <button onClick={() => step(-1)} className="text-stone-400 hover:text-stone-900"><PrevIcon size={18} /></button>
           <span className="font-serif text-lg text-stone-900">{MONTHS[month.getMonth()]} {month.getFullYear()}</span>
-          <button onClick={() => step(1)} className="text-stone-400 hover:text-stone-900"><ChevronRight size={18} /></button>
+          <button onClick={() => step(1)} className="text-stone-400 hover:text-stone-900"><NextIcon size={18} /></button>
         </div>
         <div className="grid grid-cols-7 gap-y-1 px-4 py-4">
           {DOW.map((d) => <div key={d} className="pb-1 text-center kicker text-stone-300">{d[0]}</div>)}
@@ -1086,7 +1087,7 @@ function InfluenceColumn({ tone, title, items, onAdd, onPatch, onRemove }) {
       <h3 className="mb-4 font-serif text-xl text-stone-900">{title}</h3>
 
       <div className="mb-2 flex items-center gap-2">
-        <Plus size={14} className="shrink-0 text-stone-300" />
+        <AddIcon size={14} className="shrink-0 text-stone-300" />
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -1105,7 +1106,7 @@ function InfluenceColumn({ tone, title, items, onAdd, onPatch, onRemove }) {
               onChange={(t) => onPatch(it.id, { text: t })}
               className="min-w-0 flex-1 bg-transparent text-sm text-stone-800 outline-none"
             />
-            <button onClick={() => onRemove(it.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><X size={14} /></button>
+            <button onClick={() => onRemove(it.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><CloseIcon size={14} /></button>
           </div>
         ))}
         {!items.length && <p className="py-3 text-sm italic text-stone-300">Nothing yet.</p>}

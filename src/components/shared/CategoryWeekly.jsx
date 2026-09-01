@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { X, ChevronLeft, ChevronRight, CalendarDays, AlignLeft } from 'lucide-react'
+import { CalendarDays, AlignLeft } from 'lucide-react'
+import { CloseIcon, NextIcon, PrevIcon } from './marks'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity } from '../../lib/activities'
 import { dateKey, parseKey, addDays, DOW_LONG, MONTHS_SHORT, isSameDay } from '../../lib/date'
@@ -48,7 +49,7 @@ export default function CategoryWeekly({ category, noun = 'Item' }) {
     <div className="mb-14">
       {/* Week rail */}
       <div className="mb-8 flex items-center justify-center gap-5">
-        <button onClick={() => shiftWeek(-1)} title="Previous week" className="text-stone-300 transition-colors hover:text-stone-900"><ChevronLeft size={20} /></button>
+        <button onClick={() => shiftWeek(-1)} title="Previous week" className="text-stone-300 transition-colors hover:text-stone-900"><PrevIcon size={20} /></button>
         <div className="flex items-center gap-2">
           <span className="font-serif text-xl text-stone-900">{weekLabel}</span>
           <label className="relative inline-flex cursor-pointer items-center text-stone-300 hover:text-stone-700">
@@ -56,7 +57,7 @@ export default function CategoryWeekly({ category, noun = 'Item' }) {
             <input type="date" value={anchorKey} onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()} onChange={(e) => e.target.value && setAnchorKey(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
           </label>
         </div>
-        <button onClick={() => shiftWeek(1)} title="Next week" className="text-stone-300 transition-colors hover:text-stone-900"><ChevronRight size={20} /></button>
+        <button onClick={() => shiftWeek(1)} title="Next week" className="text-stone-300 transition-colors hover:text-stone-900"><NextIcon size={20} /></button>
       </div>
 
       <div className="divide-y divide-stone-200 border-t border-stone-200">
@@ -91,7 +92,7 @@ export default function CategoryWeekly({ category, noun = 'Item' }) {
                           </p>
                         </button>
                         {a.status === 'paused' && <button onClick={() => update(a.id, { status: 'active' })} title="Resume — bring back to Today" className="shrink-0 text-[9px] uppercase tracking-[0.14em] text-stone-400 hover:text-stone-900">resume</button>}
-                        <button onClick={() => remove(a.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><X size={15} /></button>
+                        <button onClick={() => remove(a.id)} title="Remove" className="hover-reveal shrink-0 text-stone-300 hover:text-stone-700"><CloseIcon size={15} /></button>
                       </div>
                     )
                   })

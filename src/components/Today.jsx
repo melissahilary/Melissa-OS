@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Trash2, ChevronDown, ChevronRight, Pause, BookOpen, ShoppingBag } from 'lucide-react'
+import { Trash2, ChevronDown, Pause, BookOpen, ShoppingBag } from 'lucide-react'
+import { CloseIcon, NextIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig, PHASES } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
@@ -446,7 +447,7 @@ function WeatherPopup({ w, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex justify-end px-4 pt-3">
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-6 pb-6">
           <div className="divide-y divide-stone-100">
@@ -520,7 +521,7 @@ function CyclePopup({ cycleConfig, today, onEdit, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-12 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex justify-end px-4 pt-3">
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-6 pb-6">
           <div className="divide-y divide-stone-100">
@@ -547,7 +548,7 @@ function UvPopup({ uv, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex justify-end px-4 pt-3">
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-6 pb-6">
           <p className="kicker text-stone-400 mb-1">Gear</p>
@@ -615,7 +616,7 @@ function MoonPopup({ info, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex justify-end px-4 pt-3">
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-6 pb-6">
           <div className="mb-5 flex flex-col items-center">
@@ -1054,7 +1055,7 @@ function Collapsible({ label, open, onToggle, children }) {
     <div>
       <button onClick={onToggle} className="mb-2 flex w-full items-center justify-between px-2 py-1.5" style={{ backgroundColor: '#F0EFED' }}>
         <span className="kicker text-stone-500">{label}</span>
-        {open ? <ChevronDown size={13} className="text-stone-400" /> : <ChevronRight size={13} className="text-stone-400" />}
+        {open ? <ChevronDown size={13} className="text-stone-400" /> : <NextIcon size={13} className="text-stone-400" />}
       </button>
       {open && children}
     </div>
@@ -1331,7 +1332,7 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
           <span className="kicker text-stone-400">
             {!type ? 'Add' : type.label}{type && where ? ` · ${where.label}` : ''}
           </span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="px-5 py-5">
           {/* Step 1 — what are we adding? */}
@@ -1518,7 +1519,7 @@ function ShoppingList() {
               <div key={it.id} className="group flex items-center gap-3 px-5 py-3">
                 <Checkbox checked={it.bought} onClick={() => toggle(it.id)} />
                 <span className={`flex-1 text-sm ${it.bought ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.text}</span>
-                <button onClick={() => remove(it.id)} aria-label="Remove" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={14} /></button>
+                <button onClick={() => remove(it.id)} aria-label="Remove" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={14} /></button>
               </div>
             ))}
           </div>
@@ -1563,7 +1564,7 @@ function ShoppingArchive({ items, onAddAgain, onClose }) {
       <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="font-serif italic text-2xl text-stone-900">Basket</span>
-          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
         <div className="space-y-3 border-b border-stone-200 px-6 py-4">
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search what you've bought…" className="w-full bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
@@ -1634,7 +1635,7 @@ function NotesArchive({ notes, onOpen, onClose }) {
       <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="font-serif italic text-2xl text-stone-900">All notes</span>
-          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
         <div className="space-y-3 border-b border-stone-200 px-6 py-4">
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search notes…" className="w-full bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900" />
@@ -1701,7 +1702,7 @@ function NoteDetail({ note, onChange, onDelete, onClose }) {
             autoFocus
             className="w-full bg-transparent font-serif italic text-3xl text-stone-900 placeholder-stone-300 outline-none"
           />
-          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
         <div className="px-6 py-5">

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
-import { X, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
+import { ChevronDown, Copy } from 'lucide-react'
+import { CloseIcon, LoggedIcon, NextIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import { useRegisterAdd } from './shared/AddButton'
@@ -78,7 +79,7 @@ function Checklist({ title, items, onAdd, onToggle, onRemove }) {
             <Checkbox checked={it.done} onClick={() => onToggle(it.id)} />
             <span className={`flex-1 text-sm ${it.done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{it.text}</span>
             <button onClick={() => onRemove(it.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100">
-              <X size={14} />
+              <CloseIcon size={14} />
             </button>
           </div>
         ))}
@@ -129,7 +130,7 @@ function JobsPipeline({ data, setData }) {
             <div key={job.id} className="border border-stone-200">
               <div className="flex items-center gap-3 px-4 py-3">
                 <button onClick={() => setExpanded(open ? null : job.id)} className="text-stone-400 hover:text-stone-900">
-                  {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  {open ? <ChevronDown size={16} /> : <NextIcon size={16} />}
                 </button>
                 <div className="flex-1">
                   <p className="text-sm text-stone-900">{job.role || 'Untitled role'}</p>
@@ -144,7 +145,7 @@ function JobsPipeline({ data, setData }) {
                 >
                   {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <button onClick={() => remove(job.id)} className="text-stone-300 hover:text-stone-700"><X size={15} /></button>
+                <button onClick={() => remove(job.id)} className="text-stone-300 hover:text-stone-700"><CloseIcon size={15} /></button>
               </div>
 
               {open && (
@@ -161,7 +162,7 @@ function JobsPipeline({ data, setData }) {
                     <div className="mb-1.5 flex items-center justify-between">
                       <label className="kicker text-stone-400">Thank-you note</label>
                       <button onClick={() => copy(job.id, job.thankYou)} className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-900">
-                        {copied === job.id ? <Check size={13} /> : <Copy size={13} />}
+                        {copied === job.id ? <LoggedIcon size={13} /> : <Copy size={13} />}
                         {copied === job.id ? 'Copied' : 'Copy'}
                       </button>
                     </div>

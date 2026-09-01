@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './marks'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { dateKey, parseKey, longDate } from '../../lib/date'
 import * as store from '../../lib/dataStore'
@@ -70,7 +70,7 @@ export function CategoryLog({ storeKey, blurb, suggestions, addNoun = 'entry', p
         <div className="space-y-4">
           {ordered.map((it) => (
             <div key={it.id} className="group relative rounded-2xl border border-stone-200 bg-cream/50 p-5">
-              <button onClick={() => remove(it.id)} aria-label="Remove" className="absolute right-3 top-3 text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><X size={15} /></button>
+              <button onClick={() => remove(it.id)} aria-label="Remove" className="absolute right-3 top-3 text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={15} /></button>
               <input value={it.title} onChange={(e) => update(it.id, { title: e.target.value })} className="w-full bg-transparent pr-6 font-serif text-xl text-stone-900 outline-none" />
               <p className="mb-4 mt-0.5 text-xs text-stone-400">{it.date ? longDate(parseKey(it.date)) : ''}</p>
               <div className="grid grid-cols-2 gap-x-6 gap-y-4">

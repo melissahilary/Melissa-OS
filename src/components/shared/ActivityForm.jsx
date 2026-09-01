@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
+import { CloseIcon } from './marks'
 import {
   FREQUENCIES, PARTS, ACTIVITY_CATEGORIES, PHASE_OPTS, WEEKDAYS, NO_DAYS_FREQ, blankActivity,
   DAY_SECTIONS, sectionToPart,
@@ -130,7 +131,7 @@ export default function ActivityForm({ activity, isNew, allowedCategories, onSav
             <span className="kicker text-stone-400">{TYPE_LABEL}</span>
             <input value={draft.title} onChange={(e) => set('title', e.target.value)} placeholder={`${TYPE_LABEL} name`} autoFocus className="mt-1 w-full bg-transparent font-serif italic text-3xl text-stone-900 placeholder-stone-300 outline-none" />
           </div>
-          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
         <div className="max-h-[64vh] overflow-y-auto px-6 py-5 space-y-6">

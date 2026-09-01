@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Copy, Check, LogOut, Upload, Trash2, Mail, X, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
+import { Copy, LogOut, Upload, Trash2, Mail, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
+import { CloseIcon, LoggedIcon } from './shared/marks'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
@@ -324,7 +325,7 @@ export default function Settings() {
                           <span className="block font-serif text-lg leading-tight text-stone-900">{t.label}</span>
                           <span className="text-xs text-stone-400">{t.blurb}</span>
                         </span>
-                        {on && <Check size={16} className="text-stone-900" />}
+                        {on && <LoggedIcon size={16} className="text-stone-900" />}
                       </div>
                     </button>
                   )
@@ -341,7 +342,7 @@ export default function Settings() {
                   return (
                     <div key={s.id} className={`rounded-2xl border transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200 hover:border-stone-400'}`}>
                       <button onClick={() => setLifeStage(s.id)} className="flex w-full items-start gap-4 p-4 text-left">
-                        <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${on ? 'border-stone-900 bg-stone-900' : 'border-stone-300'}`}>{on && <Check size={12} className="text-cream" />}</span>
+                        <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${on ? 'border-stone-900 bg-stone-900' : 'border-stone-300'}`}>{on && <LoggedIcon size={12} className="text-cream" />}</span>
                         <span>
                           <span className="block font-serif text-lg text-stone-900">{s.label}</span>
                           <span className="text-sm text-stone-500">{s.blurb}</span>
@@ -527,7 +528,7 @@ export default function Settings() {
                   <div className="flex items-center gap-2">
                     <input readOnly value={link} className="flex-1 rounded-full border border-stone-300 bg-white/50 px-4 py-2 text-sm text-stone-700 outline-none" />
                     <button onClick={copyLink} className="flex shrink-0 items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">
-                      {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+                      {copied ? <><LoggedIcon size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
                     </button>
                   </div>
                 </div>
@@ -658,7 +659,7 @@ function PhotoCropper({ src, initial, onSave, onClose }) {
       <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
           <span className="kicker text-stone-400">Profile photo</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
         <div className="px-6 py-6">
           <div

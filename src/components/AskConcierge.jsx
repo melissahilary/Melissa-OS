@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { X, ArrowUp } from 'lucide-react'
+import { ArrowUp } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useLifeStage } from '../lib/lifeStage'
@@ -117,7 +118,7 @@ export default function AskConcierge({ open, onClose }) {
 
         {/* Letterhead */}
         <div className="relative border-b border-stone-200 px-8 pb-6 pt-7 text-center">
-          <button onClick={onClose} aria-label="Close" className="absolute right-5 top-5 text-stone-400 transition-colors hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} aria-label="Close" className="absolute right-5 top-5 text-stone-400 transition-colors hover:text-stone-900"><CloseIcon size={20} /></button>
           <div className="flex justify-center"><Seal /></div>
           <h2 className="mt-3 text-3xl leading-none text-stone-900" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>Esmé</h2>
           <p className="kicker mt-2 text-stone-400">The House Concierge</p>

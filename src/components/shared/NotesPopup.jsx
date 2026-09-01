@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { X, ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
+import { CloseIcon, NextIcon } from './marks'
 
 const EMPTY = {
   brand: '',
@@ -146,7 +147,7 @@ export default function NotesPopup({ open, onClose, onSave, itemName, initial, v
             <h2 className="font-serif italic text-3xl leading-tight text-stone-900">{itemName || 'Untitled'}</h2>
           </div>
           <button type="button" onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900 transition-colors">
-            <X size={20} />
+            <CloseIcon size={20} />
           </button>
         </div>
 
@@ -221,7 +222,7 @@ export default function NotesPopup({ open, onClose, onSave, itemName, initial, v
               onClick={() => setShowMore((s) => !s)}
               className="flex items-center gap-1.5 kicker text-stone-500 hover:text-stone-900 transition-colors"
             >
-              {showMore ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {showMore ? <ChevronDown size={14} /> : <NextIcon size={14} />}
               More details
             </button>
 

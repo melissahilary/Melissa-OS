@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
 import { parseKey } from '../lib/date'
@@ -118,7 +118,7 @@ function DayColumn({ label, noun, items, onAdd, onOpen, onRemove, onReorder }) {
             >
               <span className="shrink-0 text-xs tabular-nums text-stone-400">{idx + 1}</span>
               <button onClick={() => onOpen(a)} className="min-w-0 flex-1 truncate text-left text-sm text-stone-700">{a.title || noun}</button>
-              <button onClick={() => onRemove(a.id)} className="shrink-0 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><X size={12} /></button>
+              <button onClick={() => onRemove(a.id)} className="shrink-0 text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={12} /></button>
             </div>
           ))}
         </div>
@@ -148,7 +148,7 @@ function ItemForm({ entry, noun, placeholder, category, isNew, onSave, onDelete,
       <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="kicker text-stone-400">{DOW_LONG[weekday]} · {noun.toLowerCase()}</span>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
         <div className="px-6 py-5 space-y-5">

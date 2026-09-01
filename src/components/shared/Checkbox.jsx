@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check } from 'lucide-react'
+import { LoggedIcon } from './marks'
 
 // App-wide checkbox: always an empty bordered square; when checked, a thin ink
 // tick appears inside — the box itself is never filled or colored.
@@ -12,7 +12,7 @@ export default function Checkbox({ checked, onClick, size = 16, className = '' }
       style={{ width: size, height: size }}
       aria-pressed={!!checked}
     >
-      {checked && <Check size={Math.max(10, size - 4)} strokeWidth={1.75} style={{ color: '#1C1C1A' }} />}
+      {checked && <LoggedIcon size={Math.max(10, size - 4)} strokeWidth={1.75} style={{ color: '#1C1C1A' }} />}
     </button>
   )
 }

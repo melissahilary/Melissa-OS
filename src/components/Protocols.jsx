@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
-import { X, Trash2, Pin, Search, Check, CalendarPlus, ChevronLeft } from 'lucide-react'
+import { Trash2, Pin, Search, CalendarPlus } from 'lucide-react'
+import { CloseIcon, LoggedIcon, PrevIcon } from './shared/marks'
 import { PHASES } from '../lib/cycle'
 import { dateKey, parseKey } from '../lib/date'
 import { MEAL_SLOTS } from '../lib/meals'
@@ -287,7 +288,7 @@ export default function Protocols() {
   return (
     <section className="mb-10">
       <button onClick={() => setView('landing')} className="mb-5 flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors">
-        <ChevronLeft size={16} /> All categories
+        <PrevIcon size={16} /> All categories
       </button>
 
       <div className="mb-6">
@@ -356,7 +357,7 @@ function SearchBox({ value, onChange, small }) {
         placeholder="Search protocols"
         className={`w-full bg-transparent outline-none ${small ? 'text-sm' : ''} placeholder-stone-300`}
       />
-      {value && <button onClick={() => onChange('')} className="text-stone-300 hover:text-stone-700"><X size={14} /></button>}
+      {value && <button onClick={() => onChange('')} className="text-stone-300 hover:text-stone-700"><CloseIcon size={14} /></button>}
     </div>
   )
 }
@@ -525,7 +526,7 @@ function RowList({ label, value, onChange, fields, numbered, addLabel = 'Add' })
           <div key={it.id} className="flex items-center gap-2">
             {numbered && <span className="w-5 shrink-0 text-xs text-stone-400">{idx + 1}.</span>}
             {fields.map((f) => cell(f, it))}
-            <button onClick={() => del(it.id)} className="shrink-0 text-stone-300 hover:text-stone-700"><X size={14} /></button>
+            <button onClick={() => del(it.id)} className="shrink-0 text-stone-300 hover:text-stone-700"><CloseIcon size={14} /></button>
           </div>
         ))}
       </div>
@@ -674,7 +675,7 @@ function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent,
       <div className="w-full max-w-xl bg-cream rounded-2xl border border-stone-200 shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
           <input value={draft.title} onChange={(e) => set('title', e.target.value)} placeholder="Protocol name" autoFocus className="w-full bg-transparent font-serif italic text-3xl text-stone-900 placeholder-stone-300 outline-none" />
-          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><X size={20} /></button>
+          <button onClick={onClose} className="mt-1 text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
         <div className="max-h-[64vh] overflow-y-auto px-6 py-5 space-y-6">
@@ -759,7 +760,7 @@ function ProtocolModal({ protocol, isNew, onClose, onSave, onDelete, onAddEvent,
               item; Ritual, Agenda and Supplements surface directly in their
               section once the protocol is saved. */}
           {added ? (
-            <div className="flex items-center gap-1.5 text-sm text-stone-600"><Check size={15} /> Added — appears in {sectionForCategory(draft.category)}</div>
+            <div className="flex items-center gap-1.5 text-sm text-stone-600"><LoggedIcon size={15} /> Added — appears in {sectionForCategory(draft.category)}</div>
           ) : (
             <button
               type="button"

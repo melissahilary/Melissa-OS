@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import { useRegisterAdd } from './shared/AddButton'
@@ -99,7 +99,7 @@ export default function Household() {
                   onClick={() => remove(item.id)}
                   className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"
                 >
-                  <X size={14} />
+                  <CloseIcon size={14} />
                 </button>
               </div>
             ))}

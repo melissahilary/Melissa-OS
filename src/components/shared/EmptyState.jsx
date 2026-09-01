@@ -7,10 +7,10 @@ import React from 'react'
 // a paragraph, never an aside, never "your journey."
 //
 // The button always carries a verb and its object — "Add a list", not "Add".
-export default function EmptyState({ glyph, line, action, onAction, children }) {
+export default function EmptyState({ mark: Glyph, line, action, onAction, children }) {
   return (
     <div className="rounded-2xl border border-dashed border-stone-200 px-6 py-16 text-center">
-      {glyph && <p aria-hidden className="font-serif text-3xl leading-none text-stone-300">{glyph}</p>}
+      {Glyph && <span className="mx-auto block w-fit text-stone-300"><Glyph size={24} /></span>}
       <p className="mt-4 font-serif italic text-lg text-stone-400">{line}</p>
       {action && (
         <button

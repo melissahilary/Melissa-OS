@@ -292,3 +292,36 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
 
 /* Mono labels never sit in chrome grey on ivory — ink 700 is the floor. */
 .kicker { color: #6E4526; }
+
+/* ── Cobalt means due, and the section you are in. Nothing else.
+   It is never a warning, never a streak, never a success, never a chart series
+   and never a phase. If it appears twice on a screen, one of them is wrong. ── */
+
+/* The active section — the one filled tab in the strip. */
+nav .bg-stone-900,
+.bg-stone-900.text-cream:not(button):not(a) {
+  /* left to ink: only navigation takes the accent, applied below */
+}
+
+/* One cobalt action per screen: the primary, filled button. Everything else is
+   a ruled outline. */
+button.rounded-full.bg-stone-900 {
+  background-color: #1D2FC4;
+  color: #F7F4ED;
+}
+button.rounded-full.bg-stone-900:disabled {
+  background-color: #E2DACB;
+  color: #96866C;
+}
+
+/* The active pillar and the active tab. */
+[aria-current='page'],
+.mos-active {
+  background-color: #1D2FC4 !important;
+  color: #F7F4ED !important;
+}
+
+/* Links take the accent; nothing else does. */
+a:not(.no-accent):not([class*='text-']) {
+  color: #1D2FC4;
+}

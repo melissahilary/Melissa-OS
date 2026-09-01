@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Check, Plus, ChevronRight } from 'lucide-react'
+import { AddIcon, CloseIcon, LoggedIcon, NextIcon } from './marks'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { PATTERNS as SHARED_PATTERNS, UNITS } from './CadencePicker'
 import { dateKey } from '../../lib/date'
@@ -72,7 +72,7 @@ export default function RoutineBuilder({ storeKey, Icon, intro, types = [], prod
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-serif text-sm transition-all ${done ? 'border-transparent text-cream' : 'border-stone-300 text-stone-400 hover:border-stone-500'}`}
                 style={done ? { backgroundColor: '#1C1C1A' } : undefined}
               >
-                {done ? <Check size={15} strokeWidth={2} /> : i + 1}
+                {done ? <LoggedIcon size={15} strokeWidth={2} /> : i + 1}
               </button>
               <button onClick={() => setOpenId(s.id)} className="min-w-0 flex-1 text-left">
                 <p className={`truncate font-serif text-lg leading-tight ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{s.name || 'Untitled step'}</p>
@@ -82,14 +82,14 @@ export default function RoutineBuilder({ storeKey, Icon, intro, types = [], prod
                   </p>
                 )}
               </button>
-              <ChevronRight size={15} className="shrink-0 text-stone-300" />
+              <NextIcon size={15} className="shrink-0 text-stone-300" />
             </li>
           )
         })}
       </ol>
 
       <button onClick={() => setOpenId('new')} className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-dashed border-stone-200 px-4 py-3 text-left transition-colors hover:border-stone-400">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-300"><Plus size={16} /></span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-300"><AddIcon size={16} /></span>
         <span className="font-serif text-lg italic text-stone-400">Add a step…</span>
       </button>
 
@@ -110,7 +110,7 @@ function StepForm({ step, types, productLabel, onSave, onDelete, onClose }) {
       <div className="relative w-full max-w-md rounded-t-3xl border border-stone-200 bg-cream shadow-2xl sm:rounded-3xl">
         <div className="flex items-center justify-between px-6 pb-1 pt-5">
           <span className="kicker text-stone-400">{step.id === 'new' ? 'New step' : 'Step'}</span>
-          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
         <div className="space-y-5 px-6 pb-2 pt-2">
           <input
