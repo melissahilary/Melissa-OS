@@ -15,6 +15,7 @@ import { isoWeek } from '../lib/week'
 import DreamWeek from './DreamWeek'
 import DreamProjects from './DreamProjects'
 import DreamCollections from './DreamCollections'
+import AddInline from './shared/AddInline'
 import * as store from '../lib/dataStore'
 import { adherenceOf, trajectoryOf, evidenceOf, recruitsFor } from '../lib/goalSignals'
 import { BY_ID } from '../lib/biomarkers'
@@ -117,6 +118,11 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     return typeof updater === 'function' ? updater(cur) : updater
   })
   const updateGoal = (id, patch) => setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)))
+  const addGoalIn = (phase, title) => {
+    const t = (title || '').trim()
+    if (!t) return
+    setGoals((p) => [...p, { id: uid(), title: t, vision: '', pillar: 'mindset', phase, target: '', status: 'active', milestones: [] }])
+  }
   const addGoal = () => { const g = { id: uid(), title: '', vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [] }; setGoals((p) => [...p, g]); openGoal(g.id) }
   const removeGoal = (id) => { setGoals((p) => p.filter((g) => g.id !== id)); activities.filter((a) => a.details && a.details.goalId === id).forEach((a) => remove(a.id)); setOpenId(null) }
 
@@ -316,6 +322,10 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                         onDragEnd={() => setDragId(null)}
                       />
                     ))}
+                    {/* Write it into the horizon it belongs to. Enter makes it a
+                        card and stops — the details are behind the card, for
+                        whenever she wants them, rather than a form in the way. */}
+                    <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1" />
                   </div>
                 </div>
               )
