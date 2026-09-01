@@ -301,12 +301,17 @@ export default function DreamDashboard({ cycleConfig = {} }) {
               const inp = active.filter((g) => g.phase === ph.id && (!boardFilter || g.pillar === boardFilter))
               return (
                 <div key={ph.id} onDragOver={(e) => { e.preventDefault() }} onDrop={() => { if (dragId) { updateGoal(dragId, { phase: ph.id }); setDragId(null) } }}>
-                  <div className="mb-3 border-b border-stone-200 pb-2">
-                    <div className="flex items-baseline justify-between">
+                  {/* The horizon names the column from the right; the way in is
+                      the rule under it. One line does the work of three. */}
+                  <div className="mb-3">
+                    <div className="flex items-baseline justify-between gap-3">
                       <span className="text-[11px] tracking-[0.18em] text-stone-900">{ph.label.toUpperCase()}</span>
-                      <span className="text-[11px] tabular-nums text-stone-400">{inp.length}</span>
+                      <span className="text-[11px] text-stone-500">{ph.note}</span>
                     </div>
-                    <p className="mt-1 text-[11px] text-stone-500">{ph.note}</p>
+                    {/* Write it into the horizon it belongs to. Enter makes it a
+                        card and stops — the details are behind the card, for
+                        whenever she wants them, rather than a form in the way. */}
+                    <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
                   </div>
                   <div className="min-h-[60px] space-y-3">
                     {inp.map((g) => (
@@ -322,10 +327,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                         onDragEnd={() => setDragId(null)}
                       />
                     ))}
-                    {/* Write it into the horizon it belongs to. Enter makes it a
-                        card and stops — the details are behind the card, for
-                        whenever she wants them, rather than a form in the way. */}
-                    <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1" />
                   </div>
                 </div>
               )
