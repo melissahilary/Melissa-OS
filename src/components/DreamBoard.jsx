@@ -103,6 +103,10 @@ const normVision = (it) => ({
   read: !!it.read,
   // The one line she may write, if she wants to. Never required.
   caption: it.caption || '',
+  // The goal this picture is of, if she has said so. Her judgement, never the
+  // machine's — the reader describes what is in the photograph, but what the
+  // photograph is *for* is the one thing it has no business deciding.
+  goalId: it.goalId || '',
 })
 
 export default function DreamBoard() {
@@ -129,6 +133,14 @@ export default function DreamBoard() {
 
   const thisYear = new Date().getFullYear()
   const [year, setYear] = useState(thisYear)
+
+  // Goals, read only. A picture points at a goal; the goal never reaches back
+  // into the board to claim one.
+  const goalsRaw = useLocalStorage('mos:dream:goals', [])[0]
+  const goals = (Array.isArray(goalsRaw) ? goalsRaw : [])
+    .map((g) => (typeof g === 'string' ? { title: g } : (g && typeof g === 'object' ? g : {})))
+    .filter((g) => g.id && g.status !== 'achieved')
+    .map((g) => ({ id: g.id, title: g.title || 'Untitled goal' }))
 
   const setBoard = (patch) => setRaw((prev) => {
     const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
@@ -322,6 +334,7 @@ export default function DreamBoard() {
     it,
     src: srcOf(it),
     dupes: duplicatesOf(it, all),
+    goals,
     flipped: flipped.has(it.id),
     onFlip: () => toggleFlip(it.id),
     onEdit: (patch) => updateItem(it.id, patch),
@@ -579,7 +592,7 @@ function AddPanel({ draft, setDraft, onPick, onDropFiles, onAddUrl }) {
 }
 
 // ── One vision, front and back ──────────────────────────────────────
-function Vision({ it, src, dupes, flipped, onFlip, onEdit, onRemove, width, square, taped }) {
+function Vision({ it, src, dupes, goals, flipped, onFlip, onEdit, onRemove, width, square, taped }) {
   const ratio = (it.h || 3) / (it.w || 4)
   const height = square ? undefined : (width ? Math.round(width * ratio) : undefined)
 
@@ -600,7 +613,7 @@ function Vision({ it, src, dupes, flipped, onFlip, onEdit, onRemove, width, squa
         </button>
 
         <div className={`mos-face mos-face-back ${taped ? 'bg-cream shadow-[0_2px_10px_rgba(28,25,23,0.12)]' : 'rounded-xl border border-stone-200 bg-cream'}`}>
-          <Back it={it} dupes={dupes} onFlip={onFlip} onEdit={onEdit} onRemove={onRemove} />
+          <Back it={it} dupes={dupes} goals={goals} onFlip={onFlip} onEdit={onEdit} onRemove={onRemove} />
         </div>
       </div>
     </div>
@@ -609,7 +622,7 @@ function Vision({ it, src, dupes, flipped, onFlip, onEdit, onRemove, width, squa
 
 // The back holds facts and dates. Nothing here interprets the picture, decides
 // what it is for, or tells her anything about herself.
-function Back({ it, dupes, onFlip, onEdit, onRemove }) {
+function Back({ it, dupes, goals = [], onFlip, onEdit, onRemove }) {
   const took = elapsed(it.savedOn, it.haveOn)
   const facts = [it.brand, it.material, (it.colors || [])[0], it.room].filter(Boolean)
 
@@ -647,6 +660,23 @@ function Back({ it, dupes, onFlip, onEdit, onRemove }) {
             {it.sourceUrl
               ? <a href={it.sourceUrl} target="_blank" rel="noreferrer" className="underline decoration-stone-300 underline-offset-2 hover:decoration-stone-900">{it.source}</a>
               : it.source}
+          </Row>
+        )}
+
+        {/* The one thing on this card she says rather than the reader. A
+            picture pinned to a goal shows up on that goal, so the thing she is
+            working towards and the picture of it are the same object. */}
+        {goals.length > 0 && (
+          <Row label="TOWARD">
+            <select
+              value={goals.some((g) => g.id === it.goalId) ? it.goalId : ''}
+              onChange={(e) => onEdit({ goalId: e.target.value })}
+              aria-label="Pair this picture with a goal"
+              className={`-ml-0.5 w-full cursor-pointer border-b border-transparent bg-transparent py-0.5 text-[12px] outline-none transition-colors hover:border-stone-300 focus:border-stone-900 ${it.goalId ? 'text-stone-900' : 'text-stone-400'}`}
+            >
+              <option value="">Not paired</option>
+              {goals.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
           </Row>
         )}
       </div>

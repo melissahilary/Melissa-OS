@@ -174,7 +174,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   // for the stages that actually have one.
   const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
   const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
-  const [boardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
+  const [boardRaw, setBoardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
   const boardItems = (boardRaw && Array.isArray(boardRaw.items) ? boardRaw.items : []).filter((it) => it.goalId)
 
   // The board's pictures live in private storage, so a goal card showing what
@@ -194,8 +194,17 @@ export default function DreamDashboard({ cycleConfig = {} }) {
 
   const imagesForGoal = (gid) => boardItems
     .filter((it) => it.goalId === gid)
-    .map((it) => ({ id: it.id, url: it.dataUrl || boardUrls[it.path] || '' }))
+    .map((it) => ({ id: it.id, url: it.dataUrl || it.remote || boardUrls[it.path] || '', title: it.caption || it.title || '' }))
     .filter((x) => x.url)
+
+  // Unpairing is the picture's business, so it writes the board, not the goal.
+  // The photograph itself is never touched — it stays on the board, it simply
+  // stops standing for this.
+  const unpairImage = (imageId) => setBoardRaw((prev) => {
+    const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
+    const items = (Array.isArray(cur.items) ? cur.items : []).map((it) => (it && it.id === imageId ? { ...it, goalId: '' } : it))
+    return { ...cur, items }
+  })
 
 
   const TABS = [
@@ -346,6 +355,8 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           onRunAI={() => runAI(openGoalObj)}
           onAcceptAI={(plan) => acceptPlan(openGoalObj, plan)}
           onDismissAI={() => setAi(null)}
+          images={imagesForGoal(openGoalObj.id)}
+          onUnpair={unpairImage}
           stage={stage}
           onRecruit={(rows) => rows.forEach((r) => add(blankActivity('protocol', {
             title: r.title,
@@ -397,18 +408,76 @@ function Trajectory({ points }) {
   )
 }
 
+// ── The veil.
+//
+// A photograph she chose can be anything — a white kitchen, a snow road, a
+// bleached beach — and the name has to be readable on all of them, not on the
+// ones that happen to be dark. So the darkening is not a taste decision to be
+// nudged until it looks right: ivory type needs its background at or under 112
+// of grey to clear 4.5:1, and 62% ink over a *pure white* photograph lands at
+// 4.80:1. That is the floor. Anything less passes on some of her pictures and
+// fails on others, which is the same as failing.
+const VEIL = 'rgba(22, 19, 15, 0.62)'
+const VEIL_FOOT = 'linear-gradient(to bottom, rgba(22,19,15,0) 45%, rgba(22,19,15,0.42) 100%)'
+const ON_VEIL = '#FAF6ED'
+const ON_VEIL_QUIET = '#E2DACB'
+
 function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart, onDragEnd }) {
   const d = daysUntil(goal.target)
   const adh = adherenceOf(steps)
   const traj = trajectoryOf(steps)
   const project = projects.find((p) => p.goalId === goal.id)
+  const face = images[0]
 
+  const meta = [
+    adh ? `${adh.pct}%` : '',
+    project ? project.name : '',
+    goal.target ? `${fmtShort(goal.target)}${d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}` : '',
+  ].filter(Boolean)
+
+  const hold = {
+    role: 'button',
+    tabIndex: 0,
+    draggable: true,
+    onClick: onOpen,
+    onKeyDown: (e) => e.key === 'Enter' && onOpen(),
+    onDragStart,
+    onDragEnd,
+    title: goal.vision || undefined,
+  }
+
+  // A goal she has given a picture is shown as the picture. The board stops
+  // being three columns of text and becomes the thing she is building.
+  if (face) {
+    return (
+      <div {...hold} className="relative w-full cursor-pointer overflow-hidden border border-stone-200 text-left">
+        <div className="relative aspect-[4/5] w-full">
+          <img src={face.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+          <span aria-hidden className="absolute inset-0" style={{ backgroundColor: VEIL }} />
+          <span aria-hidden className="absolute inset-0" style={{ background: VEIL_FOOT }} />
+          <div className="absolute inset-0 flex flex-col justify-end p-4">
+            <h3 className="font-serif text-[21px] leading-[1.15]" style={{ color: ON_VEIL }}>
+              {goal.title || 'Untitled goal'}
+            </h3>
+            {meta.length > 0 && (
+              <p className="mt-1.5 text-[11px] tabular-nums" style={{ color: ON_VEIL_QUIET }}>{meta.join(' · ')}</p>
+            )}
+          </div>
+          {images.length > 1 && (
+            <span
+              aria-label={`${images.length} pictures`}
+              className="absolute right-2.5 top-2.5 px-1.5 py-0.5 text-[10px] tabular-nums"
+              style={{ color: ON_VEIL, backgroundColor: 'rgba(22,19,15,0.55)' }}
+            >{images.length}</span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Until it has one, it is still its own words.
   return (
-    <div role="button" tabIndex={0} draggable onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}
-      onDragStart={onDragStart} onDragEnd={onDragEnd}
-      title={goal.vision || undefined}
-      className="w-full cursor-pointer rounded-2xl border border-stone-200 bg-white/50 p-4 text-left shadow-sm transition-shadow hover:shadow-md">
-
+    <div {...hold} className="w-full cursor-pointer rounded-2xl border border-stone-200 bg-white/50 p-4 text-left shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start gap-3">
         <h3 className="min-w-0 flex-1 font-serif text-lg leading-snug text-stone-900">{goal.title || 'Untitled goal'}</h3>
         <Trajectory points={traj} />
@@ -418,17 +487,6 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
           goal she just wrote is only its own words. */}
       {adh && (
         <p className="mt-2 text-[12px] tabular-nums text-stone-500">Adherence {adh.pct}%</p>
-      )}
-
-      {/* What the board is picturing, and the work it turned into. */}
-      {images.length > 0 && (
-        <div className="mt-3 flex gap-1">
-          {images.slice(0, 4).map((im) => (
-            <span key={im.id} className="h-10 w-10 overflow-hidden rounded-md bg-stone-100">
-              <img src={im.url} alt="" className="h-full w-full object-cover" />
-            </span>
-          ))}
-        </div>
       )}
 
       {/* Only what she put there herself: the project it belongs to, the date
@@ -443,7 +501,7 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
   )
 }
 
-function GoalPanel({ goal, steps, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI }) {
+function GoalPanel({ goal, steps, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI, images = [], onUnpair }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
   useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])
@@ -467,7 +525,28 @@ function GoalPanel({ goal, steps, openMs, onToggleMsOpen, onUpdate, onClose, onR
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {/* The goal, and the ladder to it. Nothing between the two — the
               classification, the tags, the scores and the log were the planner
-              asking her to file the thing rather than do it. */}
+              asking her to file the thing rather than do it.
+
+              The exception is what it looks like. A picture she pinned to this
+              on the board belongs at the top of it, because that is the thing
+              she is actually working towards. */}
+          {images.length > 0 && (
+            <div className="mb-6 flex flex-wrap gap-2">
+              {images.map((im) => (
+                <span key={im.id} className="group relative block h-20 w-20 overflow-hidden bg-stone-100">
+                  <img src={im.url} alt={im.title} title={im.title || undefined} className="h-full w-full object-cover" />
+                  {onUnpair && (
+                    <button
+                      onClick={() => onUnpair(im.id)}
+                      aria-label="Unpair this picture"
+                      title="Unpair — the picture stays on the board"
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center bg-stone-900/70 text-cream opacity-0 transition-opacity hover:bg-stone-900 group-hover:opacity-100"
+                    ><CloseIcon size={11} /></button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* path */}
           <div className="mb-1 flex items-center gap-2.5">
