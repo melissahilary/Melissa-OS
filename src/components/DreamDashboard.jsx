@@ -55,9 +55,15 @@ const daysAgoKey = (n) => dateKey(addDays(new Date(), -n))
 const daysUntil = (key) => (key ? Math.round((parseKey(key).getTime() - parseKey(todayKey()).getTime()) / 86400000) : null)
 const fmtShort = (key) => { if (!key) return ''; const d = parseKey(key); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}` }
 
-const normMilestone = (m) => ({ id: m.id || uid(), title: m.title || '', done: !!m.done, target: m.target || '' })
-const normGoal = (g) => {
-  if (typeof g === 'string') return { id: uid(), title: g, vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [], tags: [], notes: [], links: [] }
+const normMilestone = (m) => ({ id: (m && m.id) || uid(), title: (m && m.title) || '', done: !!(m && m.done), target: (m && m.target) || '' })
+
+// Every goal that has ever been written is read through here, and it must be
+// impossible for one of them to take the page down. A goal was once a bare
+// string, and the string branch used to build its own object by hand — one that
+// was missing `stages`, so the very first filter after it read `.length` of
+// undefined and the whole of Becoming went white. One shape in, one shape out.
+const normGoal = (raw) => {
+  const g = typeof raw === 'string' ? { title: raw } : (raw && typeof raw === 'object' ? raw : {})
   return {
     id: g.id || uid(),
     title: g.title != null ? g.title : (g.text || ''),
