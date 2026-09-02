@@ -16,6 +16,7 @@ import DreamWeek from './DreamWeek'
 import DreamProjects from './DreamProjects'
 import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
+import EmptyState from './shared/EmptyState'
 import * as store from '../lib/dataStore'
 import { adherenceOf, trajectoryOf } from '../lib/goalSignals'
 
@@ -50,10 +51,46 @@ const PHASES = [
 ]
 const HEALTH = { on: { c: '#7C8B6B', label: 'On track' }, risk: { c: '#B0873F', label: 'At risk' }, stall: { c: '#A0654C', label: 'Stalled' } }
 
+// ── The readings.
+//
+// The same goals, looked at four ways, because how she needs to see them
+// changes with what she is doing. Columns to decide what belongs where; the
+// wall to remember why; the list to scan; the timeline to see what is coming.
+const VIEWS = [
+  { id: 'columns', label: 'Columns', note: 'The three horizons, side by side' },
+  { id: 'wall', label: 'Wall', note: 'Every goal as its picture' },
+  { id: 'list', label: 'List', note: 'All of them, close together' },
+  { id: 'timeline', label: 'Timeline', note: 'Everything with a date on it' },
+]
+
+// A horizon says roughly when. A date says exactly when. This filter is for the
+// second question, and it never pretends an undated goal has an answer to it —
+// "No date set" is a choice on the list rather than a silent exclusion.
+const PERIODS = [
+  { id: 'any', label: 'Any time' },
+  { id: 'd30', label: '30 days' },
+  { id: 'd90', label: '3 months' },
+  { id: 'year', label: 'This year' },
+  { id: 'none', label: 'No date' },
+]
+
 const todayKey = () => dateKey(new Date())
 const daysAgoKey = (n) => dateKey(addDays(new Date(), -n))
 const daysUntil = (key) => (key ? Math.round((parseKey(key).getTime() - parseKey(todayKey()).getTime()) / 86400000) : null)
 const fmtShort = (key) => { if (!key) return ''; const d = parseKey(key); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}` }
+
+// Overdue counts as near, not as gone: something a month late is the most
+// "next thirty days" thing she owns.
+const inPeriod = (g, id) => {
+  if (id === 'any') return true
+  if (id === 'none') return !g.target
+  if (!g.target) return false
+  const d = daysUntil(g.target)
+  if (id === 'd30') return d != null && d <= 30
+  if (id === 'd90') return d != null && d <= 92
+  if (id === 'year') return String(g.target).slice(0, 4) === String(new Date().getFullYear())
+  return true
+}
 
 const normMilestone = (m) => ({ id: (m && m.id) || uid(), title: (m && m.title) || '', done: !!(m && m.done), target: (m && m.target) || '' })
 
@@ -81,6 +118,10 @@ const normGoal = (raw) => {
   }
 }
 const msDone = (m) => !!m.done
+
+// How far along the ladder is. Only meaningful once there is a ladder — a goal
+// with no milestones is not 0% of anything, and saying so reads as a rebuke.
+const msPct = (g) => (g.milestones.length ? Math.round((g.milestones.filter(msDone).length / g.milestones.length) * 100) : null)
 
 // A goal's steps live in the planner, tagged by goalId; group them by milestone.
 function healthOf(g, steps) {
@@ -113,7 +154,8 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('week')
-  const [goalView, setGoalView] = useState('board') // board | timeline | metrics
+  const [goalView, setGoalView] = useState('columns') // see VIEWS
+  const [period, setPeriod] = useState('any')
   const [boardFilter, setBoardFilter] = useState(null) // a pillar id, from tapping a metrics bar
   const [editItem, setEditItem] = useState(null) // a week item opened from This Week
 
@@ -207,6 +249,24 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   })
 
 
+  // One working set, so every reading is looking at the same goals.
+  const inView = active.filter((g) => (!boardFilter || g.pillar === boardFilter) && inPeriod(g, period))
+  const byHorizon = (a, b) => PHASES.findIndex((x) => x.id === a.phase) - PHASES.findIndex((x) => x.id === b.phase)
+
+  const cardFor = (g, { dragging = false, plate = false } = {}) => (
+    <GoalCard
+      key={g.id}
+      goal={g}
+      steps={stepsOf(g.id)}
+      projects={Array.isArray(projectsRaw) ? projectsRaw : []}
+      images={imagesForGoal(g.id)}
+      plate={plate}
+      onOpen={() => openGoal(g.id)}
+      onDragStart={dragging ? () => setDragId(g.id) : undefined}
+      onDragEnd={dragging ? () => setDragId(null) : undefined}
+    />
+  )
+
   const TABS = [
     { id: 'week', label: 'This Week', icon: ListChecks },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
@@ -264,29 +324,62 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {tab === 'collections' && <DreamCollections goals={active} projects={Array.isArray(projectsRaw) ? projectsRaw : []} />}
       {tab === 'goals' && (
         <>
-          <div className="mb-7 flex items-center justify-between">
-            {/* View switcher — the same goals, three readings */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            {/* The same goals, four readings. */}
             <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
-              {[['board', 'Board'], ['timeline', 'Timeline']].map(([id, label]) => (
-                <button key={id} onClick={() => setGoalView(id)} className={`rounded-full px-4 py-1.5 text-xs transition-colors ${goalView === id ? 'bg-stone-900 text-cream' : 'text-stone-500 hover:text-stone-800'}`}>{label}</button>
+              {VIEWS.map((v) => (
+                <button key={v.id} onClick={() => setGoalView(v.id)} title={v.note}
+                  className={`rounded-full px-4 py-1.5 text-xs transition-colors ${goalView === v.id ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>{v.label}</button>
               ))}
             </div>
             <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
           </div>
 
-          {goalView === 'timeline' && <GoalTimeline goals={active} onOpen={openGoal} />}
+          {/* By when. Cuts across whichever reading she is in, and says what it
+              is holding back rather than quietly shortening the board. */}
+          <div className="mb-7 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <span className="mr-1 text-[10px] tracking-[0.16em] text-stone-500">BY WHEN</span>
+            {PERIODS.map((pd) => (
+              <button key={pd.id} onClick={() => setPeriod(pd.id)}
+                className={`rounded-full px-3 py-1 text-[11px] transition-colors ${period === pd.id ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>{pd.label}</button>
+            ))}
+            {period !== 'any' && (
+              <span className="ml-1 text-[11px] tabular-nums text-stone-500">{inView.length} of {active.length}</span>
+            )}
+          </div>
 
-          {goalView === 'board' && boardFilter && (
+          {goalView === 'timeline' && <GoalTimeline goals={inView} onOpen={openGoal} />}
+
+          {/* The wall. Horizon order, no headings — one continuous run of the
+              life she is building, which is the whole reason the pictures are
+              on the goals in the first place. */}
+          {goalView === 'wall' && (
+            inView.length === 0
+              ? <EmptyState mark={Target} line="Nothing in this period." />
+              : (
+                <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-3 xl:grid-cols-4">
+                  {[...inView].sort(byHorizon).map((g) => cardFor(g, { plate: true }))}
+                </div>
+              )
+          )}
+
+          {goalView === 'list' && (
+            inView.length === 0
+              ? <EmptyState mark={Target} line="Nothing in this period." />
+              : <GoalList goals={[...inView].sort(byHorizon)} imagesOf={imagesForGoal} stepsOf={stepsOf} onOpen={openGoal} />
+          )}
+
+          {goalView !== 'timeline' && boardFilter && (
             <div className="mb-4 flex justify-center">
               <button onClick={() => setBoardFilter(null)} className="flex items-center gap-2 rounded-full border border-stone-900 bg-stone-900 px-4 py-1.5 text-xs text-cream transition-colors hover:bg-stone-700">
                 {pillarMeta(boardFilter).label} only <CloseIcon size={12} />
               </button>
             </div>
           )}
-          {goalView === 'board' && (
+          {goalView === 'columns' && (
           <div className="grid gap-6 md:grid-cols-3">
             {PHASES.map((ph) => {
-              const inp = active.filter((g) => g.phase === ph.id && (!boardFilter || g.pillar === boardFilter))
+              const inp = inView.filter((g) => g.phase === ph.id)
               return (
                 <div key={ph.id} onDragOver={(e) => { e.preventDefault() }} onDrop={() => { if (dragId) { updateGoal(dragId, { phase: ph.id }); setDragId(null) } }}>
                   {/* The horizon names the column from the right; the way in is
@@ -302,25 +395,14 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                     <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
                   </div>
                   <div className="min-h-[60px] space-y-3">
-                    {inp.map((g) => (
-                      <GoalCard
-                        key={g.id}
-                        goal={g}
-                        steps={stepsOf(g.id)}
-                        projects={Array.isArray(projectsRaw) ? projectsRaw : []}
-                        images={imagesForGoal(g.id)}
-                        onOpen={() => openGoal(g.id)}
-                        onDragStart={() => setDragId(g.id)}
-                        onDragEnd={() => setDragId(null)}
-                      />
-                    ))}
+                    {inp.map((g) => cardFor(g, { dragging: true }))}
                   </div>
                 </div>
               )
             })}
           </div>
           )}
-          {goalView === 'board' && achieved.length > 0 && (
+          {goalView !== 'timeline' && achieved.length > 0 && (
             <div className="mt-10 border-t border-stone-200 pt-6">
               <p className="kicker mb-3 text-stone-400">Achieved · {achieved.length}</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -422,7 +504,7 @@ const VEIL_FOOT = 'linear-gradient(to bottom, rgba(22,19,15,0) 45%, rgba(22,19,1
 const ON_VEIL = '#FAF6ED'
 const ON_VEIL_QUIET = '#E2DACB'
 
-function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart, onDragEnd }) {
+function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart, onDragEnd, plate = false }) {
   const d = daysUntil(goal.target)
   const adh = adherenceOf(steps)
   const traj = trajectoryOf(steps)
@@ -470,6 +552,20 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
               style={{ color: ON_VEIL, backgroundColor: 'rgba(22,19,15,0.55)' }}
             >{images.length}</span>
           )}
+        </div>
+      </div>
+    )
+  }
+
+  // On the wall, a goal without a picture still holds its place in the grid —
+  // an empty plate rather than a short card, so the rows stay level and the gap
+  // reads as one waiting for its photograph.
+  if (plate) {
+    return (
+      <div {...hold} className="relative w-full cursor-pointer overflow-hidden border border-stone-200 bg-white/40 text-left transition-colors hover:border-stone-400">
+        <div className="relative flex aspect-[4/5] w-full flex-col justify-end p-4">
+          <h3 className="font-serif text-[21px] leading-[1.15] text-stone-900">{goal.title || 'Untitled goal'}</h3>
+          {meta.length > 0 && <p className="mt-1.5 text-[11px] tabular-nums text-stone-500">{meta.join(' · ')}</p>}
         </div>
       </div>
     )
@@ -729,6 +825,37 @@ function Header({ phase, cycleLength, fertile }) {
   )
 }
 
+// ── List — all of them close together, for the days when she wants to see
+// everything at once rather than be shown anything. One row, one goal: what it
+// looks like, what it is, when, and whether the practices behind it are being
+// kept.
+function GoalList({ goals, imagesOf, stepsOf, onOpen }) {
+  return (
+    <div className="border-t border-stone-200">
+      {goals.map((g) => {
+        const im = imagesOf(g.id)[0]
+        const adh = adherenceOf(stepsOf(g.id))
+        const d = daysUntil(g.target)
+        const ph = PHASES.find((x) => x.id === g.phase) || PHASES[0]
+        return (
+          <button key={g.id} onClick={() => onOpen(g.id)}
+            className="flex w-full items-center gap-4 border-b border-stone-100 px-1 py-3 text-left transition-colors hover:bg-stone-500/5">
+            <span className="h-11 w-11 shrink-0 overflow-hidden bg-stone-100">
+              {im && <img src={im.url} alt="" className="h-full w-full object-cover" />}
+            </span>
+            <span className="min-w-0 flex-1 truncate font-serif text-[17px] text-stone-900">{g.title || 'Untitled goal'}</span>
+            <span className="hidden w-20 shrink-0 text-[10px] tracking-[0.16em] text-stone-500 sm:block">{ph.label.toUpperCase()}</span>
+            <span className="w-32 shrink-0 whitespace-nowrap text-right text-[11px] tabular-nums text-stone-500">
+              {g.target ? `${fmtShort(g.target)}${d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}` : '—'}
+            </span>
+            <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-stone-500">{adh ? `${adh.pct}%` : ''}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Timeline — every dated goal and milestone on one horizon ──
 function GoalTimeline({ goals, onOpen }) {
   const dated = goals
@@ -752,13 +879,13 @@ function GoalTimeline({ goals, onOpen }) {
         </div>
         <div className="space-y-5 pt-5">
           {dated.map(({ g }) => {
-            const p = pct(g)
+            const p = msPct(g)
             const pl = pillarMeta(g.pillar)
             return (
               <button key={g.id} onClick={() => onOpen(g.id)} className="block w-full text-left">
                 <div className="mb-1 flex items-baseline gap-2">
                   <span className="font-serif text-base text-stone-900">{g.title || 'Untitled'}</span>
-                  <span className="text-[11px] tabular-nums text-stone-400">{p}%</span>
+                  {p != null && <span className="text-[11px] tabular-nums text-stone-400">{p}%</span>}
                 </div>
                 <div className="relative h-5">
                   <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-stone-200" />
