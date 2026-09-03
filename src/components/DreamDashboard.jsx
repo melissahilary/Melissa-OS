@@ -62,10 +62,12 @@ const HEALTH = { on: { c: '#7C8B6B', label: 'On track' }, risk: { c: '#B0873F', 
 // ── The readings.
 //
 // The same goals, looked at four ways, because how she needs to see them
-// changes with what she is doing. Columns to decide what belongs where; the
-// wall to remember why; the list to scan; the timeline to see what is coming.
+// changes with what she is doing. The wall is where she lands — the life she
+// is building, as pictures. Columns to decide what belongs where; the list to
+// scan; the timeline to see what is coming.
 const VIEWS = [
   { id: 'wall', label: 'Wall', note: 'Every goal as its picture', icon: WallIcon },
+  { id: 'columns', label: 'Columns', note: 'The three horizons, side by side', icon: ColumnsIcon },
   { id: 'list', label: 'List', note: 'All of them, close together', icon: ListIcon },
   { id: 'timeline', label: 'Timeline', note: 'Everything with a date on it', icon: TimelineIcon },
 ]
@@ -182,7 +184,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('week')
-  const [goalView, setGoalView] = useState('columns') // see VIEWS
+  const [goalView, setGoalView] = useState('wall') // see VIEWS
   const [period, setPeriod] = useState('any')
   const [filterOpen, setFilterOpen] = useState(false)
   const [dropAt, setDropAt] = useState(null) // { phase, index } while a card is over a column
@@ -367,7 +369,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const inView = active.filter((g) => (!boardFilter || g.pillar === boardFilter) && inPeriod(g, period))
   const byHorizon = (a, b) => PHASES.findIndex((x) => x.id === a.phase) - PHASES.findIndex((x) => x.id === b.phase)
 
-  const cardFor = (g, { dragging = false, plate = false } = {}) => (
+  const cardFor = (g, { dragging = false, plate = false, text = false } = {}) => (
     <GoalCard
       key={g.id}
       goal={g}
@@ -375,6 +377,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       projects={Array.isArray(projectsRaw) ? projectsRaw : []}
       images={imagesForGoal(g.id)}
       plate={plate}
+      text={text}
       onOpen={() => openGoal(g.id)}
       onDragStart={dragging ? () => setDragId(g.id) : undefined}
       onDragEnd={dragging ? () => setDragId(null) : undefined}
@@ -440,15 +443,12 @@ export default function DreamDashboard({ cycleConfig = {} }) {
         <>
           <div className="relative mb-7 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              {/* The columns are where she lands. The other readings are on
-                  the nav; pressing the one she is in returns her to the
-                  columns, so there is no fourth button for the ground. */}
               <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
                 {VIEWS.map((v) => {
                   const on = goalView === v.id
                   const Icon = v.icon
                   return (
-                    <button key={v.id} onClick={() => setGoalView(on ? 'columns' : v.id)} title={v.note} aria-pressed={on}
+                    <button key={v.id} onClick={() => setGoalView(v.id)} title={v.note} aria-pressed={on}
                       className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
                       <Icon size={16} />{v.label}
                     </button>
@@ -558,7 +558,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                         <React.Fragment key={g.id}>
                           {g.id !== dragId && here === others.indexOf(g) && <Line />}
                           <div className={`transition-opacity duration-150 ${dragId === g.id ? 'opacity-30' : ''}`}>
-                            {cardFor(g, { dragging: true })}
+                            {cardFor(g, { dragging: true, text: true })}
                           </div>
                         </React.Fragment>
                       )).concat(here != null && here >= others.length ? [<Line key="end" />] : [])
@@ -660,11 +660,15 @@ function Trajectory({ points }) {
 // 4.80:1. That is the floor. Anything less passes on some of her pictures and
 // fails on others, which is the same as failing.
 const VEIL = 'rgba(22, 19, 15, 0.62)'
+// The other direction: ink words over a faded picture. Ink needs its ground at
+// or above 132 of grey to clear 4.5:1, and an 82% ivory veil over a pure black
+// photograph lands at 205 — nine to one. That is the floor for the columns.
+const FADE = 'rgba(250, 246, 237, 0.82)'
 const VEIL_FOOT = 'linear-gradient(to bottom, rgba(22,19,15,0) 45%, rgba(22,19,15,0.42) 100%)'
 const ON_VEIL = '#FAF6ED'
 const ON_VEIL_QUIET = '#E2DACB'
 
-function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart, onDragEnd, plate = false }) {
+function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart, onDragEnd, plate = false, text = false }) {
   const d = daysUntil(goal.target)
   const adh = adherenceOf(steps)
   const traj = trajectoryOf(steps)
@@ -689,9 +693,10 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
     title: goal.vision || undefined,
   }
 
-  // A goal she has given a picture is shown as the picture. The board stops
-  // being three columns of text and becomes the thing she is building.
-  if (face) {
+  // A goal she has given a picture is shown as the picture — on the wall.
+  // In the columns the picture stays attached but the card is its words, so a
+  // column reads as a list she can order rather than a stack of photographs.
+  if (face && !text) {
     return (
       <div {...hold} className="relative w-full cursor-pointer overflow-hidden border border-stone-200 text-left">
         <div className="relative aspect-[4/5] w-full">
@@ -726,28 +731,39 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
     )
   }
 
-  // Until it has one, it is still its own words.
+  // Its own words — and in the columns, its picture faded behind them, so the
+  // card is still a card she can read and order, with the photograph present
+  // rather than in charge.
+  const faded = text && face
   return (
-    <div {...hold} className="w-full cursor-pointer rounded-2xl border border-stone-200 bg-white/50 p-4 text-left shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-start gap-3">
-        <h3 className="min-w-0 flex-1 font-serif text-lg leading-snug text-stone-900">{goal.title || 'Untitled goal'}</h3>
-        <Trajectory points={traj} />
-      </div>
-
-      {/* The one indicator. Silent until there is something true to say — a
-          goal she just wrote is only its own words. */}
-      {adh && (
-        <p className="mt-2 text-[12px] tabular-nums text-stone-500">Adherence {adh.pct}%</p>
+    <div {...hold} className={`relative w-full cursor-pointer overflow-hidden rounded-2xl border border-stone-200 text-left shadow-sm transition-shadow hover:shadow-md ${faded ? '' : 'bg-white/50'}`}>
+      {faded && (
+        <>
+          <img src={face.url} alt="" draggable={false} aria-hidden className="absolute inset-0 h-full w-full object-cover" />
+          <span aria-hidden className="absolute inset-0" style={{ backgroundColor: FADE }} />
+        </>
       )}
-
-      {/* Only what she put there herself: the project it belongs to, the date
-          she set. The pillar lives in the panel, not on the face of the card. */}
-      {(project || goal.target) && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3">
-          {project && <span className="truncate rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">{project.name}</span>}
-          {goal.target && <span className="rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">◷ {fmtShort(goal.target)}{d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}</span>}
+      <div className={`relative p-4 ${faded ? 'min-h-[104px]' : ''}`}>
+        <div className="flex items-start gap-3">
+          <h3 className="min-w-0 flex-1 font-serif text-lg leading-snug text-stone-900">{goal.title || 'Untitled goal'}</h3>
+          {!faded && <Trajectory points={traj} />}
         </div>
-      )}
+
+        {/* The one indicator. Silent until there is something true to say — a
+            goal she just wrote is only its own words. */}
+        {adh && (
+          <p className="mt-2 text-[12px] tabular-nums text-stone-500">Adherence {adh.pct}%</p>
+        )}
+
+        {/* Only what she put there herself: the project it belongs to, the date
+            she set. The pillar lives in the panel, not on the face of the card. */}
+        {(project || goal.target) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3">
+            {project && <span className="truncate rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">{project.name}</span>}
+            {goal.target && <span className="rounded-full bg-stone-500/5 px-2.5 py-1 text-[11px] text-stone-500">◷ {fmtShort(goal.target)}{d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}</span>}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
