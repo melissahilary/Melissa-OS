@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Target, Sparkles, Calendar, ListChecks, FolderKanban, Image as ImageIcon } from 'lucide-react'
-import { AddIcon, CloseIcon, LoggedIcon, NextIcon, ColumnsIcon, WallIcon, ListIcon, TimelineIcon, FilterIcon } from './shared/marks'
+import { AddIcon, CloseIcon, LoggedIcon, NextIcon, ColumnsIcon, WallIcon, ListIcon, TimelineIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
@@ -72,16 +72,13 @@ const VIEWS = [
   { id: 'timeline', label: 'Timeline', note: 'Everything with a date on it', icon: TimelineIcon },
 ]
 
-// A horizon says roughly when. A date says exactly when. This filter is for the
-// second question, and it never pretends an undated goal has an answer to it —
-// "No date set" is a choice on the list rather than a silent exclusion.
-const PERIODS = [
-  { id: 'any', label: 'Any time' },
-  { id: 'd30', label: '30 days' },
-  { id: 'd90', label: '3 months' },
-  { id: 'year', label: 'This year' },
-  { id: 'none', label: 'No date' },
-]
+// A column is a countable stack: eight cards of one height, then it scrolls.
+// The other readings take the same height so the four of them are one
+// instrument rather than four pages of different lengths.
+const COL_CARD_H = 98 // 96 of card, plus the hairline on each edge
+const COL_GAP = 12
+const COL_VISIBLE = 8
+const VIEW_H = COL_VISIBLE * COL_CARD_H + (COL_VISIBLE - 1) * COL_GAP
 
 const todayKey = () => dateKey(new Date())
 const daysAgoKey = (n) => dateKey(addDays(new Date(), -n))
@@ -94,19 +91,6 @@ const fmtStamp = (iso) => {
   if (Number.isNaN(d.getTime())) return ''
   const h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0')
   return `${MONTHS_SHORT[d.getMonth()].toUpperCase()} ${d.getDate()}, ${d.getFullYear()} · ${((h + 11) % 12) + 1}:${m} ${h < 12 ? 'AM' : 'PM'}`
-}
-
-// Overdue counts as near, not as gone: something a month late is the most
-// "next thirty days" thing she owns.
-const inPeriod = (g, id) => {
-  if (id === 'any') return true
-  if (id === 'none') return !g.target
-  if (!g.target) return false
-  const d = daysUntil(g.target)
-  if (id === 'd30') return d != null && d <= 30
-  if (id === 'd90') return d != null && d <= 92
-  if (id === 'year') return String(g.target).slice(0, 4) === String(new Date().getFullYear())
-  return true
 }
 
 const normMilestone = (m) => ({
@@ -147,9 +131,6 @@ const normGoal = (raw) => {
 }
 const msDone = (m) => !!m.done
 
-// How far along the ladder is. Only meaningful once there is a ladder — a goal
-// with no milestones is not 0% of anything, and saying so reads as a rebuke.
-const msPct = (g) => (g.milestones.length ? Math.round((g.milestones.filter(msDone).length / g.milestones.length) * 100) : null)
 
 // A goal's steps live in the planner, tagged by goalId; group them by milestone.
 function healthOf(g, steps) {
@@ -185,8 +166,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('week')
   const [goalView, setGoalView] = useState('wall') // see VIEWS
-  const [period, setPeriod] = useState('any')
-  const [filterOpen, setFilterOpen] = useState(false)
   const [dropAt, setDropAt] = useState(null) // { phase, index } while a card is over a column
   const [boardFilter, setBoardFilter] = useState(null) // a pillar id, from tapping a metrics bar
   const [editItem, setEditItem] = useState(null) // a week item opened from This Week
@@ -366,7 +345,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
 
 
   // One working set, so every reading is looking at the same goals.
-  const inView = active.filter((g) => (!boardFilter || g.pillar === boardFilter) && inPeriod(g, period))
+  const inView = active.filter((g) => !boardFilter || g.pillar === boardFilter)
   const byHorizon = (a, b) => PHASES.findIndex((x) => x.id === a.phase) - PHASES.findIndex((x) => x.id === b.phase)
 
   const cardFor = (g, { dragging = false, plate = false, text = false } = {}) => (
@@ -456,33 +435,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                 })}
               </div>
 
-              {/* One button. Open it and every choice says how many it holds. */}
-              <div className="relative">
-                <button onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen}
-                  className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs transition-colors ${period !== 'any' || filterOpen ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-900 hover:border-stone-900'}`}>
-                  <FilterIcon size={16} />{period === 'any' ? 'Filter' : PERIODS.find((x) => x.id === period).label}
-                  {period !== 'any' && <span className="tabular-nums opacity-70">· {inView.length}</span>}
-                </button>
-                {filterOpen && (
-                  <>
-                    <div className="fixed inset-0 z-20" onClick={() => setFilterOpen(false)} />
-                    <div className="absolute left-0 top-full z-30 mt-2 w-56 border border-stone-200 bg-cream p-1.5">
-                      <p className="px-2.5 pb-1.5 pt-1 text-[10px] tracking-[0.16em] text-stone-500">BY WHEN</p>
-                      {PERIODS.map((pd) => {
-                        const n = active.filter((g) => (!boardFilter || g.pillar === boardFilter) && inPeriod(g, pd.id)).length
-                        const on = period === pd.id
-                        return (
-                          <button key={pd.id} onClick={() => { setPeriod(pd.id); setFilterOpen(false) }}
-                            className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-[12px] transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
-                            <span>{pd.label}</span>
-                            <span className={`tabular-nums ${on ? 'text-cream/80' : 'text-stone-500'}`}>{n}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
             <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
           </div>
@@ -494,18 +446,24 @@ export default function DreamDashboard({ cycleConfig = {} }) {
               on the goals in the first place. */}
           {goalView === 'wall' && (
             inView.length === 0
-              ? <EmptyState mark={Target} line="Nothing in this period." />
+              ? <EmptyState mark={Target} line="Nothing here yet." />
               : (
-                <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-3 xl:grid-cols-4">
-                  {[...inView].sort(byHorizon).map((g) => cardFor(g, { plate: true }))}
+                <div className="mos-scroll overflow-y-auto pr-2" style={{ maxHeight: VIEW_H }}>
+                  <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-3 xl:grid-cols-4">
+                    {[...inView].sort(byHorizon).map((g) => cardFor(g, { plate: true }))}
+                  </div>
                 </div>
               )
           )}
 
           {goalView === 'list' && (
             inView.length === 0
-              ? <EmptyState mark={Target} line="Nothing in this period." />
-              : <GoalList goals={[...inView].sort(byHorizon)} imagesOf={imagesForGoal} stepsOf={stepsOf} onOpen={openGoal} />
+              ? <EmptyState mark={Target} line="Nothing here yet." />
+              : (
+                <div className="mos-scroll overflow-y-auto pr-2" style={{ maxHeight: VIEW_H }}>
+                  <GoalList goals={[...inView].sort(byHorizon)} imagesOf={imagesForGoal} stepsOf={stepsOf} onOpen={openGoal} />
+                </div>
+              )
           )}
 
           {goalView !== 'timeline' && boardFilter && (
@@ -549,7 +507,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                         whenever she wants them, rather than a form in the way. */}
                     <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
                   </div>
-                  <div className="min-h-[60px] space-y-3">
+                  <div className="mos-scroll min-h-[60px] space-y-3 overflow-y-auto pr-2" style={{ maxHeight: VIEW_H }}>
                     {(() => {
                       // The dragged card stays where it was, dimmed; the line
                       // is placed among the others.
@@ -743,7 +701,7 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
           <span aria-hidden className="absolute inset-0" style={{ backgroundColor: FADE }} />
         </>
       )}
-      <div className={`relative p-4 ${faded ? 'min-h-[104px]' : ''}`}>
+      <div className={`relative flex flex-col justify-center p-4 ${text ? 'h-24' : ''}`}>
         <div className="flex items-start gap-3">
           <h3 className="min-w-0 flex-1 font-serif text-lg leading-snug text-stone-900">{goal.title || 'Untitled goal'}</h3>
           {!faded && <Trajectory points={traj} />}
@@ -1172,55 +1130,135 @@ function GoalList({ goals, imagesOf, stepsOf, onOpen }) {
   )
 }
 
-// ── Timeline — every dated goal and milestone on one horizon ──
+// ── Timeline — the horizon, as a graph.
+//
+// A row per goal, drawn from the day she entered it to the day it is due, with
+// its steps marked along the way. The point of a chart is comparison — which
+// goals overlap, which are crowded into one month, what lands after the thing
+// it depends on — and dots floating on separate lines could answer none of
+// them, because there was nothing to read them against. So: one shared axis,
+// a month grid, and a bar with real length.
+//
+// Ivory and ink, and cobalt for today — marking what is due is the accent's
+// stated job. Walnut only for a bar that has run past its date. Square marks,
+// hairline grid, mono for every number.
+const AXIS = { line: '#E2DACB', track: '#EFEAE0', bar: '#16130F', over: '#6E4526', today: '#1D2FC4' }
+
 function GoalTimeline({ goals, onOpen }) {
-  const dated = goals
-    .map((g) => ({ g, dates: [g.target, ...g.milestones.map((m) => m.target)].filter(Boolean) }))
+  const rows = goals
+    .map((g) => {
+      const marks = g.milestones.filter((m) => m.target)
+      return { g, marks, dates: [g.createdOn, g.target, ...marks.map((m) => m.target)].filter(Boolean) }
+    })
     .filter((x) => x.dates.length)
-  if (!dated.length) {
-    return <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No target dates yet.<br /><span className="text-sm not-italic text-stone-400">Give a goal or milestone a date and it appears on the horizon.</span></p>
+    .sort((a, b) => (a.g.target || '9999-99-99').localeCompare(b.g.target || '9999-99-99'))
+
+  if (!rows.length) {
+    return (
+      <p className="border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-500">
+        No dates yet.<br /><span className="text-sm not-italic">Give a goal or a step a date and it appears on the horizon.</span>
+      </p>
+    )
   }
-  const all = dated.flatMap((x) => x.dates)
-  const t0 = Math.min(parseKey(todayKey()).getTime(), ...all.map((d) => parseKey(d).getTime()))
-  const t1 = Math.max(...all.map((d) => parseKey(d).getTime()), parseKey(todayKey()).getTime() + 86400000 * 14)
+
+  const today = parseKey(todayKey()).getTime()
+  const times = rows.flatMap((r) => r.dates.map((d) => parseKey(d).getTime()))
+  // The axis always contains today, and always opens on the first of a month
+  // and closes at the end of one, so every gridline is a real boundary.
+  const lo = new Date(Math.min(today, ...times))
+  const hi = new Date(Math.max(today, ...times))
+  const t0 = new Date(lo.getFullYear(), lo.getMonth(), 1).getTime()
+  const t1 = new Date(hi.getFullYear(), hi.getMonth() + 1, 1).getTime()
   const span = Math.max(1, t1 - t0)
-  const xOf = (d) => ((parseKey(d).getTime() - t0) / span) * 100
-  const todayX = ((parseKey(todayKey()).getTime() - t0) / span) * 100
+  const pct = (t) => ((t - t0) / span) * 100
+  const at = (key) => pct(parseKey(key).getTime())
+
+  const months = []
+  for (let d = new Date(t0); d.getTime() < t1; d.setMonth(d.getMonth() + 1)) months.push(new Date(d))
+  // A narrow month has no room for its name; every second one is labelled when
+  // the axis is long, and a January always says which year it opened.
+  const step = months.length > 14 ? 3 : months.length > 7 ? 2 : 1
+
+  const ROW = 34
+
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white/40 p-6">
-      <div className="relative">
-        {/* today line */}
-        <div className="absolute bottom-0 top-0 w-px bg-stone-900/60" style={{ left: `${todayX}%` }}>
-          <span className="absolute -top-1 left-1.5 text-[10px] tracking-[0.12em] text-stone-500">TODAY</span>
+    <div className="border border-stone-200 bg-white/40 p-5">
+      <div className="flex">
+        <div className="w-36 shrink-0 sm:w-44" />
+        <div className="relative flex-1">
+          {/* the axis */}
+          <div className="relative h-5">
+            {months.map((m, i) => (
+              i % step === 0 && (
+                <span key={i} className="absolute top-0 whitespace-nowrap text-[10px] tracking-[0.14em] text-stone-500"
+                  style={{ left: `${pct(m.getTime())}%` }}>
+                  {MONTHS_SHORT[m.getMonth()].toUpperCase()}{m.getMonth() === 0 ? ` ${String(m.getFullYear()).slice(2)}` : ''}
+                </span>
+              )
+            ))}
+            {/* Today names itself on the axis. A line she has to look up in a
+                key is a line she reads past. */}
+            <span className="absolute bottom-0 whitespace-nowrap px-1 text-[10px] tracking-[0.14em]"
+              style={{ left: `${pct(today)}%`, transform: 'translateX(-50%)', color: AXIS.today, backgroundColor: '#FAF6ED' }}>
+              TODAY
+            </span>
+          </div>
         </div>
-        <div className="space-y-5 pt-5">
-          {dated.map(({ g }) => {
-            const p = msPct(g)
-            const pl = pillarMeta(g.pillar)
+      </div>
+
+      <div className="flex">
+        <div className="w-36 shrink-0 sm:w-44">
+          {rows.map(({ g, marks }) => (
+            <button key={g.id} onClick={() => onOpen(g.id)}
+              className="flex w-full items-center pr-3 text-left transition-colors hover:text-stone-500" style={{ height: ROW }}>
+              <span className="min-w-0 flex-1 truncate font-serif text-[15px] text-stone-900">{g.title || 'Untitled'}</span>
+              {marks.length > 0 && (
+                <span className="ml-2 shrink-0 text-[10px] tabular-nums text-stone-500">{marks.filter(msDone).length}/{marks.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative flex-1 overflow-hidden" style={{ height: rows.length * ROW }}>
+          {/* the month grid, behind everything */}
+          {months.map((m, i) => (
+            <span key={i} aria-hidden className="absolute inset-y-0 w-px" style={{ left: `${pct(m.getTime())}%`, backgroundColor: AXIS.line }} />
+          ))}
+          {/* today */}
+          <span aria-hidden className="absolute inset-y-0 w-px" style={{ left: `${pct(today)}%`, backgroundColor: AXIS.today }} />
+
+          {rows.map(({ g, marks }, ri) => {
+            const from = g.createdOn || g.target
+            const to = g.target || g.createdOn
+            const x0 = Math.min(at(from), at(to))
+            const x1 = Math.max(at(from), at(to))
+            const overdue = g.target && parseKey(g.target).getTime() < today
             return (
-              <button key={g.id} onClick={() => onOpen(g.id)} className="block w-full text-left">
-                <div className="mb-1 flex items-baseline gap-2">
-                  <span className="font-serif text-base text-stone-900">{g.title || 'Untitled'}</span>
-                  {p != null && <span className="text-[11px] tabular-nums text-stone-400">{p}%</span>}
-                </div>
-                <div className="relative h-5">
-                  <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-stone-200" />
-                  {g.milestones.filter((m) => m.target).map((m) => (
-                    <span key={m.id} title={`${m.title} · ${m.target}`} className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cream" style={{ left: `${xOf(m.target)}%`, background: m.done ? '#1C1C1A' : '#C9C2B2' }} />
-                  ))}
-                  {g.target && (
-                    <span title={`Target · ${g.target}`} className="absolute top-1/2 flex h-4 w-4 -translate-x-1/2 -translate-y-1/2 rotate-45 items-center justify-center border-2 border-cream" style={{ left: `${xOf(g.target)}%`, background: pl.tint }} />
-                  )}
-                </div>
+              <button key={g.id} onClick={() => onOpen(g.id)} title={`${g.title || 'Untitled'} · ${fmtShort(from)} → ${fmtShort(to)}`}
+                className="absolute inset-x-0 block cursor-pointer" style={{ top: ri * ROW, height: ROW }}>
+                {/* the span, and its length is the point */}
+                <span aria-hidden className="absolute top-1/2 h-2 -translate-y-1/2"
+                  style={{ left: `${x0}%`, width: `${Math.max(0.4, x1 - x0)}%`, backgroundColor: overdue ? AXIS.over : AXIS.track, outline: `1px solid ${AXIS.line}`, outlineOffset: -1 }} />
+                {/* where it ends */}
+                <span aria-hidden className="absolute top-1/2 h-3 w-[3px] -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: `${at(to)}%`, backgroundColor: overdue ? AXIS.over : AXIS.bar }} />
+                {/* each step: filled once it is done */}
+                {marks.map((m) => (
+                  <span key={m.id} aria-hidden className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: `${at(m.target)}%`, backgroundColor: m.done ? AXIS.bar : '#FAF6ED', outline: `1px solid ${AXIS.bar}`, outlineOffset: -1 }} />
+                ))}
               </button>
             )
           })}
         </div>
       </div>
-      <div className="mt-5 flex items-center gap-5 border-t border-stone-100 pt-3 text-[11px] text-stone-400">
-        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-stone-300" /> milestone</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-stone-900" /> reached</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rotate-45" style={{ background: '#A0654C' }} /> goal target</span>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-stone-200 pt-3 text-[10px] tracking-[0.14em] text-stone-500">
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2" style={{ backgroundColor: '#FAF6ED', outline: `1px solid ${AXIS.bar}`, outlineOffset: -1 }} />STEP</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2" style={{ backgroundColor: AXIS.bar }} />DONE</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[3px]" style={{ backgroundColor: AXIS.bar }} />DUE</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-px" style={{ backgroundColor: AXIS.today }} />TODAY</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4" style={{ backgroundColor: AXIS.over }} />PAST ITS DATE</span>
       </div>
     </div>
   )

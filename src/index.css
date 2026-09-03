@@ -97,6 +97,29 @@ button {
   background: transparent;
 }
 
+/* A reading that scrolls says so. These panes keep a drawn track — a hairline
+   in the ivory ramp — so a column reads as a measured stack of eight rather
+   than one that happens to be cut off, and the bar is square like everything
+   else rather than the pill the global rule gives it. */
+.mos-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #B4A68D #EFEAE0;
+  /* Reserve the gutter. Without it the browser is free to float an overlay bar
+     that appears only while she is already scrolling — which is no use to
+     someone deciding whether there is more below. */
+  scrollbar-gutter: stable;
+}
+.mos-scroll::-webkit-scrollbar {
+  width: 9px;
+}
+.mos-scroll::-webkit-scrollbar-track {
+  background: #EFEAE0;
+}
+.mos-scroll::-webkit-scrollbar-thumb {
+  background-color: #B4A68D;
+  border-radius: 0;
+}
+
 /* Horizontal nav strips scroll without a visible scrollbar */
 .no-scrollbar {
   scrollbar-width: none;
