@@ -49,7 +49,7 @@ const elapsed = (a, b) => {
 }
 
 // Downscale twice: once for the board, once small enough to send for reading.
-function processImage(file, maxPx, cb) {
+export function processImage(file, maxPx, cb) {
   const img = new Image()
   img.onload = () => {
     const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
@@ -75,7 +75,7 @@ function processImage(file, maxPx, cb) {
   img.src = URL.createObjectURL(file)
 }
 
-const normVision = (it) => ({
+export const normVision = (it) => ({
   id: it.id || uid(),
   path: it.path || '',
   dataUrl: it.dataUrl || '',

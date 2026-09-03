@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Target, Sparkles, Calendar, ListChecks, FolderKanban, Image as ImageIcon } from 'lucide-react'
-import { AddIcon, CloseIcon, LoggedIcon, NextIcon } from './shared/marks'
+import { AddIcon, CloseIcon, LoggedIcon, NextIcon, ColumnsIcon, WallIcon, ListIcon, TimelineIcon, FilterIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
 import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW_LONG } from '../lib/date'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
-import { routeStepToSection } from '../lib/goalRoutes'
-import DreamBoard from './DreamBoard'
+import DreamBoard, { processImage, normVision } from './DreamBoard'
 import { phaseForConfig } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
 import { isoWeek } from '../lib/week'
@@ -45,10 +44,18 @@ const PILLAR_IDS = Object.keys(PILLARS)
 // about when; six to twelve months does, and it is the thing she is actually
 // deciding when she drags a goal across.
 const PHASES = [
-  { id: 'now', label: 'Now', note: 'Next 6 months' },
-  { id: 'next', label: 'Next', note: '6–12 months' },
-  { id: 'later', label: 'Later', note: 'Beyond a year' },
+  { id: 'now', label: 'Now', note: 'Next 6 months', months: 6 },
+  { id: 'next', label: 'Next', note: '6–12 months', months: 12 },
+  { id: 'later', label: 'Later', note: 'Beyond a year', months: 18 },
 ]
+const phaseMeta = (id) => PHASES.find((p) => p.id === id) || PHASES[0]
+
+// The day she enters a goal the clock starts: its horizon sets a due date from
+// that day, and moving it to another horizon restarts the clock from today. She
+// can then set the date to anything — the horizon is the default, not the rule.
+const addMonths = (key, n) => { const d = parseKey(key); const out = new Date(d.getFullYear(), d.getMonth() + n, d.getDate()); return dateKey(out) }
+const dueFromHorizon = (phase, from) => addMonths(from || dateKey(new Date()), phaseMeta(phase).months)
+const daysBetween = (a, b) => (a && b ? Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / 86400000) : null)
 const HEALTH = { on: { c: '#7C8B6B', label: 'On track' }, risk: { c: '#B0873F', label: 'At risk' }, stall: { c: '#A0654C', label: 'Stalled' } }
 
 // ── The readings.
@@ -57,10 +64,9 @@ const HEALTH = { on: { c: '#7C8B6B', label: 'On track' }, risk: { c: '#B0873F', 
 // changes with what she is doing. Columns to decide what belongs where; the
 // wall to remember why; the list to scan; the timeline to see what is coming.
 const VIEWS = [
-  { id: 'columns', label: 'Columns', note: 'The three horizons, side by side' },
-  { id: 'wall', label: 'Wall', note: 'Every goal as its picture' },
-  { id: 'list', label: 'List', note: 'All of them, close together' },
-  { id: 'timeline', label: 'Timeline', note: 'Everything with a date on it' },
+  { id: 'wall', label: 'Wall', note: 'Every goal as its picture', icon: WallIcon },
+  { id: 'list', label: 'List', note: 'All of them, close together', icon: ListIcon },
+  { id: 'timeline', label: 'Timeline', note: 'Everything with a date on it', icon: TimelineIcon },
 ]
 
 // A horizon says roughly when. A date says exactly when. This filter is for the
@@ -78,6 +84,14 @@ const todayKey = () => dateKey(new Date())
 const daysAgoKey = (n) => dateKey(addDays(new Date(), -n))
 const daysUntil = (key) => (key ? Math.round((parseKey(key).getTime() - parseKey(todayKey()).getTime()) / 86400000) : null)
 const fmtShort = (key) => { if (!key) return ''; const d = parseKey(key); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}` }
+const fmtLong = (key) => { if (!key) return ''; const d = parseKey(key); return d ? `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}` : '' }
+// A note's moment, as a stamp: the day, then the time.
+const fmtStamp = (iso) => {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0')
+  return `${MONTHS_SHORT[d.getMonth()].toUpperCase()} ${d.getDate()}, ${d.getFullYear()} · ${((h + 11) % 12) + 1}:${m} ${h < 12 ? 'AM' : 'PM'}`
+}
 
 // Overdue counts as near, not as gone: something a month late is the most
 // "next thirty days" thing she owns.
@@ -92,7 +106,17 @@ const inPeriod = (g, id) => {
   return true
 }
 
-const normMilestone = (m) => ({ id: (m && m.id) || uid(), title: (m && m.title) || '', done: !!(m && m.done), target: (m && m.target) || '' })
+const normMilestone = (m) => ({
+  id: (m && m.id) || uid(),
+  title: (m && m.title) || '',
+  done: !!(m && m.done),
+  target: (m && m.target) || '',
+  description: (m && m.description) || '',
+  doneOn: (m && m.doneOn) || '',
+})
+const normNote = (n) => (n && typeof n === 'object'
+  ? { id: n.id || uid(), text: n.text || '', at: n.at || (n.date ? `${n.date}T12:00:00` : new Date().toISOString()), editedAt: n.editedAt || '' }
+  : null)
 
 // Every goal that has ever been written is read through here, and it must be
 // impossible for one of them to take the page down. A goal was once a bare
@@ -111,9 +135,10 @@ const normGoal = (raw) => {
     status: g.status || (g.done ? 'achieved' : 'active'),
     milestones: Array.isArray(g.milestones) ? g.milestones.map(normMilestone) : [],
     tags: Array.isArray(g.tags) ? g.tags : [],
-    notes: Array.isArray(g.notes) ? g.notes : [], // { id, text, date } — the comment log
+    notes: Array.isArray(g.notes) ? g.notes.map(normNote).filter(Boolean) : [], // to herself, timestamped
     links: Array.isArray(g.links) ? g.links : [], // { id, label, url } — attachments-lite
     achievedOn: g.achievedOn || '',
+    createdOn: g.createdOn || '', // backfilled once on load for goals that predate it
     stages: Array.isArray(g.stages) ? g.stages : [], // empty = every stage
   }
 }
@@ -133,17 +158,6 @@ function healthOf(g, steps) {
   return 'on'
 }
 
-// Build a real planner activity for a goal step, routed to its pillar + section.
-function stepActivity(goalId, milestoneId, s) {
-  const P = pillarMeta(s.pillar)
-  const details = { goalId, milestoneId, section: s.section || '', pillarId: s.pillar }
-  if (['appointment', 'lab', 'treatment'].includes(s.kind)) {
-    return blankActivity('event', { title: s.title, category: P.cat, frequency: 'once', seriesStart: todayKey(), details: { ...details, partOfDay: 'morning', description: '', attendees: '', durationMinutes: '' } })
-  }
-  const frequency = s.cadence === 'weekly' ? 'weekly' : s.cadence === 'daily' ? 'daily' : 'asneeded'
-  return blankActivity('protocol', { title: s.title, category: P.cat, frequency, timeOfDay: ['morning'], details: { ...details, block: 'morning', categoryFields: {} } })
-}
-
 export default function DreamDashboard({ cycleConfig = {} }) {
   const [rawGoals, setRawGoals] = useLocalStorage('mos:dream:goals', [])
   const goals = (Array.isArray(rawGoals) ? rawGoals : []).map(normGoal)
@@ -156,6 +170,8 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const [tab, setTab] = useState('week')
   const [goalView, setGoalView] = useState('columns') // see VIEWS
   const [period, setPeriod] = useState('any')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [dropAt, setDropAt] = useState(null) // { phase, index } while a card is over a column
   const [boardFilter, setBoardFilter] = useState(null) // a pillar id, from tapping a metrics bar
   const [editItem, setEditItem] = useState(null) // a week item opened from This Week
 
@@ -164,24 +180,58 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     return typeof updater === 'function' ? updater(cur) : updater
   })
   const updateGoal = (id, patch) => setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)))
+  // Changing the horizon restarts the clock from today. Changing the date does
+  // not change the horizon — the horizon is how she filed it, the date is when.
+  const moveGoal = (id, phase) => updateGoal(id, { phase, target: dueFromHorizon(phase) })
+  // Drop a goal at a position in a column. Order is the order of the array, so
+  // the goal is lifted out and set down before whichever card is at the slot.
+  const placeGoal = (id, phase, index) => setGoals((prev) => {
+    const g = prev.find((x) => x.id === id)
+    if (!g) return prev
+    const rest = prev.filter((x) => x.id !== id)
+    const moved = g.phase === phase ? g : { ...g, phase, target: dueFromHorizon(phase) }
+    const column = rest.filter((x) => x.phase === phase && x.status !== 'achieved')
+    const anchor = column[index]
+    if (!anchor) return [...rest, moved]
+    const at = rest.indexOf(anchor)
+    return [...rest.slice(0, at), moved, ...rest.slice(at)]
+  })
+  const fresh = (phase, title = '') => {
+    const today = todayKey()
+    return { id: uid(), title, vision: '', pillar: 'mindset', phase, status: 'active', milestones: [], notes: [], createdOn: today, target: dueFromHorizon(phase, today) }
+  }
   const addGoalIn = (phase, title) => {
     const t = (title || '').trim()
     if (!t) return
-    setGoals((p) => [...p, { id: uid(), title: t, vision: '', pillar: 'mindset', phase, target: '', status: 'active', milestones: [] }])
+    setGoals((p) => [...p, fresh(phase, t)])
   }
-  const addGoal = () => { const g = { id: uid(), title: '', vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [] }; setGoals((p) => [...p, g]); openGoal(g.id) }
+  const addGoal = () => { const g = fresh('now'); setGoals((p) => [...p, g]); openGoal(g.id) }
+
+  // Goals written before the clock existed get one, once. Their start is the
+  // day this ran, which is the honest answer to "when did the count begin".
+  useEffect(() => {
+    if (!Array.isArray(rawGoals) || !rawGoals.length) return
+    const needs = goals.some((g) => !g.createdOn || !g.target)
+    if (!needs) return
+    const today = todayKey()
+    setGoals((prev) => prev.map((g) => ({
+      ...g,
+      createdOn: g.createdOn || today,
+      target: g.target || dueFromHorizon(g.phase, g.createdOn || today),
+    })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goals.length])
   const removeGoal = (id) => { setGoals((p) => p.filter((g) => g.id !== id)); activities.filter((a) => a.details && a.details.goalId === id).forEach((a) => remove(a.id)); setOpenId(null) }
 
   const stepsOf = (goalId) => activities.filter((a) => a.details && a.details.goalId === goalId && a.status !== 'archived')
-  // A routed step lives twice on purpose: as a planner activity (checkable, on
-  // Today/Schedule) AND as a record in its pillar section's own page.
-  const addStep = (goalId, milestoneId, s) => {
-    add(stepActivity(goalId, milestoneId, s))
-    routeStepToSection({ pillar: s.pillar, kind: s.kind, title: s.title, goalId })
-  }
+  // A proposed plan becomes steps on the path. What each step involves goes in
+  // its description, where she can read it and change it.
   const acceptPlan = (g, plan) => {
-    const newMs = []
-    plan.forEach((m) => { const mid = uid(); newMs.push({ id: mid, title: m.title, done: false }); m.steps.forEach((s) => addStep(g.id, mid, s)) })
+    const newMs = plan.map((m) => normMilestone({
+      id: uid(),
+      title: m.title,
+      description: Array.isArray(m.steps) ? m.steps.map((x) => (x && x.title) || '').filter(Boolean).join('\n') : '',
+    }))
     updateGoal(g.id, { milestones: [...g.milestones, ...newMs] })
     setAi(null)
   }
@@ -217,14 +267,15 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
   const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
   const [boardRaw, setBoardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
-  const boardItems = (boardRaw && Array.isArray(boardRaw.items) ? boardRaw.items : []).filter((it) => it.goalId)
+  const boardAll = (boardRaw && Array.isArray(boardRaw.items) ? boardRaw.items : []).filter((it) => it && it.id)
+  const boardItems = boardAll.filter((it) => it.goalId)
 
   // The board's pictures live in private storage, so a goal card showing what
   // she pinned needs them signed first.
   const [boardUrls, setBoardUrls] = useState({})
   useEffect(() => {
     let alive = true
-    const missing = boardItems.filter((it) => it.path && !boardUrls[it.path]).map((it) => it.path)
+    const missing = boardAll.filter((it) => it.path && !boardUrls[it.path]).map((it) => it.path)
     if (!missing.length) return undefined
     ;(async () => {
       const pairs = await Promise.all([...new Set(missing)].map(async (pth) => [pth, await store.signedPhotoUrl(pth)]))
@@ -232,8 +283,10 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardItems.map((it) => it.path).join(',')])
+  }, [boardAll.map((it) => it.path).join(',')])
 
+  const pictureOf = (it) => ({ id: it.id, url: it.dataUrl || it.remote || boardUrls[it.path] || '', title: it.caption || it.title || '', goalId: it.goalId || '' })
+  const boardPictures = boardAll.map(pictureOf).filter((x) => x.url)
   const imagesForGoal = (gid) => boardItems
     .filter((it) => it.goalId === gid)
     .map((it) => ({ id: it.id, url: it.dataUrl || it.remote || boardUrls[it.path] || '', title: it.caption || it.title || '' }))
@@ -242,11 +295,33 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   // Unpairing is the picture's business, so it writes the board, not the goal.
   // The photograph itself is never touched — it stays on the board, it simply
   // stops standing for this.
-  const unpairImage = (imageId) => setBoardRaw((prev) => {
+  const setPictureGoal = (imageId, goalId) => setBoardRaw((prev) => {
     const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
-    const items = (Array.isArray(cur.items) ? cur.items : []).map((it) => (it && it.id === imageId ? { ...it, goalId: '' } : it))
+    const items = (Array.isArray(cur.items) ? cur.items : []).map((it) => (it && it.id === imageId ? { ...it, goalId } : it))
     return { ...cur, items }
   })
+  const unpairImage = (imageId) => setPictureGoal(imageId, '')
+  const pairImage = (imageId, goalId) => setPictureGoal(imageId, goalId)
+
+  // A photo uploaded from the goal goes to the board like any other — same
+  // pipeline, same bucket, same reading — and lands already paired.
+  const uploadForGoal = (file, goalId) => {
+    if (!file || !String(file.type || '').startsWith('image/')) return
+    processImage(file, 1400, async (out) => {
+      if (!out) return
+      let path = ''
+      if (out.blob) path = (await store.uploadPhoto(out.blob)) || ''
+      setBoardRaw((prev) => {
+        const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
+        const items = (Array.isArray(cur.items) ? cur.items : []).map(normVision)
+        return { ...cur, items: [...items, normVision({
+          id: uid(), path, dataUrl: path ? '' : (out.dataUrl || ''), w: out.w, h: out.h, hash: out.hash, goalId,
+          x: 6 + (items.length % 3) * 30, y: 24 + Math.floor(items.length / 3) * 250, rot: 0,
+        })] }
+      })
+      store.flush('mos:dream:board')
+    })
+  }
 
 
   // One working set, so every reading is looking at the same goals.
@@ -315,7 +390,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           goals={active}
           activities={activities}
           onCreateGoal={(title) => {
-            const g = { id: uid(), title, vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [] }
+            const g = fresh('now', title)
             setGoals((p) => [...p, g])
             return g
           }}
@@ -324,28 +399,53 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {tab === 'collections' && <DreamCollections goals={active} projects={Array.isArray(projectsRaw) ? projectsRaw : []} />}
       {tab === 'goals' && (
         <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            {/* The same goals, four readings. */}
-            <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
-              {VIEWS.map((v) => (
-                <button key={v.id} onClick={() => setGoalView(v.id)} title={v.note}
-                  className={`rounded-full px-4 py-1.5 text-xs transition-colors ${goalView === v.id ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>{v.label}</button>
-              ))}
+          <div className="relative mb-7 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {/* The columns are where she lands. The other readings are on
+                  the nav; pressing the one she is in returns her to the
+                  columns, so there is no fourth button for the ground. */}
+              <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
+                {VIEWS.map((v) => {
+                  const on = goalView === v.id
+                  const Icon = v.icon
+                  return (
+                    <button key={v.id} onClick={() => setGoalView(on ? 'columns' : v.id)} title={v.note} aria-pressed={on}
+                      className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
+                      <Icon size={16} />{v.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* One button. Open it and every choice says how many it holds. */}
+              <div className="relative">
+                <button onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen}
+                  className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs transition-colors ${period !== 'any' || filterOpen ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-900 hover:border-stone-900'}`}>
+                  <FilterIcon size={16} />{period === 'any' ? 'Filter' : PERIODS.find((x) => x.id === period).label}
+                  {period !== 'any' && <span className="tabular-nums opacity-70">· {inView.length}</span>}
+                </button>
+                {filterOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setFilterOpen(false)} />
+                    <div className="absolute left-0 top-full z-30 mt-2 w-56 border border-stone-200 bg-cream p-1.5">
+                      <p className="px-2.5 pb-1.5 pt-1 text-[10px] tracking-[0.16em] text-stone-500">BY WHEN</p>
+                      {PERIODS.map((pd) => {
+                        const n = active.filter((g) => (!boardFilter || g.pillar === boardFilter) && inPeriod(g, pd.id)).length
+                        const on = period === pd.id
+                        return (
+                          <button key={pd.id} onClick={() => { setPeriod(pd.id); setFilterOpen(false) }}
+                            className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left text-[12px] transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
+                            <span>{pd.label}</span>
+                            <span className={`tabular-nums ${on ? 'text-cream/80' : 'text-stone-500'}`}>{n}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
-          </div>
-
-          {/* By when. Cuts across whichever reading she is in, and says what it
-              is holding back rather than quietly shortening the board. */}
-          <div className="mb-7 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <span className="mr-1 text-[10px] tracking-[0.16em] text-stone-500">BY WHEN</span>
-            {PERIODS.map((pd) => (
-              <button key={pd.id} onClick={() => setPeriod(pd.id)}
-                className={`rounded-full px-3 py-1 text-[11px] transition-colors ${period === pd.id ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>{pd.label}</button>
-            ))}
-            {period !== 'any' && (
-              <span className="ml-1 text-[11px] tabular-nums text-stone-500">{inView.length} of {active.length}</span>
-            )}
           </div>
 
           {goalView === 'timeline' && <GoalTimeline goals={inView} onOpen={openGoal} />}
@@ -380,8 +480,24 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           <div className="grid gap-6 md:grid-cols-3">
             {PHASES.map((ph) => {
               const inp = inView.filter((g) => g.phase === ph.id)
+              const here = dropAt && dropAt.phase === ph.id ? dropAt.index : null
+              const Line = () => <div aria-hidden className="h-0.5 bg-stone-900" />
               return (
-                <div key={ph.id} onDragOver={(e) => { e.preventDefault() }} onDrop={() => { if (dragId) { updateGoal(dragId, { phase: ph.id }); setDragId(null) } }}>
+                <div
+                  key={ph.id}
+                  onDragOver={(e) => {
+                    if (!dragId) return
+                    e.preventDefault()
+                    // Where it will land: before the first card whose middle is
+                    // below the pointer, else at the end of the column.
+                    const cards = [...e.currentTarget.querySelectorAll('[data-goal]')].filter((c) => c.dataset.goal !== dragId)
+                    let index = cards.findIndex((c) => { const r = c.getBoundingClientRect(); return e.clientY < r.top + r.height / 2 })
+                    if (index === -1) index = cards.length
+                    if (!dropAt || dropAt.phase !== ph.id || dropAt.index !== index) setDropAt({ phase: ph.id, index })
+                  }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDropAt(null) }}
+                  onDrop={(e) => { e.preventDefault(); if (dragId && dropAt && dropAt.phase === ph.id) placeGoal(dragId, ph.id, dropAt.index); setDragId(null); setDropAt(null) }}
+                >
                   {/* The horizon names the column from the right; the way in is
                       the rule under it. One line does the work of three. */}
                   <div className="mb-3">
@@ -395,7 +511,19 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                     <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
                   </div>
                   <div className="min-h-[60px] space-y-3">
-                    {inp.map((g) => cardFor(g, { dragging: true }))}
+                    {(() => {
+                      // The dragged card stays where it was, dimmed; the line
+                      // is placed among the others.
+                      const others = inp.filter((x) => x.id !== dragId)
+                      return inp.map((g) => (
+                        <React.Fragment key={g.id}>
+                          {g.id !== dragId && here === others.indexOf(g) && <Line />}
+                          <div className={`transition-opacity duration-150 ${dragId === g.id ? 'opacity-30' : ''}`}>
+                            {cardFor(g, { dragging: true })}
+                          </div>
+                        </React.Fragment>
+                      )).concat(here != null && here >= others.length ? [<Line key="end" />] : [])
+                    })()}
                   </div>
                 </div>
               )
@@ -411,7 +539,10 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                       <LoggedIcon size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
                       <span className="min-w-0">
                         <span className="block truncate font-serif text-base text-stone-700">{g.title || 'Untitled'}</span>
-                        <span className="block text-[11px] tabular-nums text-stone-400">{g.achievedOn ? fmtShort(g.achievedOn) : ''}</span>
+                        <span className="block text-[11px] tabular-nums text-stone-500">
+                          {g.achievedOn ? fmtShort(g.achievedOn) : ''}
+                          {(() => { const t = daysBetween(g.createdOn, g.achievedOn); return t != null ? ` · took ${t} day${t === 1 ? '' : 's'}` : '' })()}
+                        </span>
                       </span>
                     </button>
                 ))}
@@ -424,30 +555,20 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {openGoalObj && (
         <GoalPanel
           goal={openGoalObj}
-          steps={stepsOf(openGoalObj.id)}
           openMs={openMs}
           onToggleMsOpen={toggleMsOpen}
           onUpdate={(patch) => updateGoal(openGoalObj.id, patch)}
           onClose={() => setOpenId(null)}
           onRemove={() => removeGoal(openGoalObj.id)}
-          onToggleStep={(id) => toggleComplete(id, todayKey())}
-          onRemoveStep={(id) => remove(id)}
-          onAddStep={(mid, title) => addStep(openGoalObj.id, mid, { title, pillar: openGoalObj.pillar, section: 'Today', kind: 'action', cadence: 'once' })}
           ai={ai && ai.goalId === openGoalObj.id ? ai : null}
           onRunAI={() => runAI(openGoalObj)}
           onAcceptAI={(plan) => acceptPlan(openGoalObj, plan)}
           onDismissAI={() => setAi(null)}
           images={imagesForGoal(openGoalObj.id)}
+          boardPictures={boardPictures}
           onUnpair={unpairImage}
-          stage={stage}
-          onRecruit={(rows) => rows.forEach((r) => add(blankActivity('protocol', {
-            title: r.title,
-            category: pillarMeta(openGoalObj.pillar).cat,
-            frequency: r.cadence === 'once' ? 'once' : r.cadence,
-            seriesStart: todayKey(),
-            timeOfDay: ['morning'],
-            details: { goalId: openGoalObj.id, section: '', pillarId: openGoalObj.pillar, block: 'morning', categoryFields: {} },
-          })))}
+          onPair={(imageId) => pairImage(imageId, openGoalObj.id)}
+          onUpload={(file) => uploadForGoal(file, openGoalObj.id)}
         />
       )}
 
@@ -520,7 +641,8 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
   const hold = {
     role: 'button',
     tabIndex: 0,
-    draggable: true,
+    'data-goal': goal.id,
+    draggable: !!onDragStart,
     onClick: onOpen,
     onKeyDown: (e) => e.key === 'Enter' && onOpen(),
     onDragStart,
@@ -597,17 +719,29 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
   )
 }
 
-function GoalPanel({ goal, steps, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI, images = [], onUnpair }) {
+function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, ai, onRunAI, onAcceptAI, onDismissAI, images = [], boardPictures = [], onUnpair, onPair, onUpload }) {
   const [mounted, setMounted] = useState(false)
+  const [picking, setPicking] = useState(false)
+  const fileRef = useRef(null)
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
   useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])
 
-  const done = goal.milestones.filter(msDone).length
-  const stepsByMs = (mid) => steps.filter((a) => a.details && a.details.milestoneId === mid)
+  const achieved = goal.status === 'achieved'
+  const left = daysUntil(goal.target)
+  const took = achieved ? daysBetween(goal.createdOn, goal.achievedOn) : null
+  const paired = new Set(images.map((im) => im.id))
+  const unpaired = boardPictures.filter((pc) => !paired.has(pc.id))
 
-  const setMilestone = (id, patch) => onUpdate({ milestones: goal.milestones.map((m) => (m.id === id ? { ...m, ...patch } : m)) })
-  const addMilestone = (title) => onUpdate({ milestones: [...goal.milestones, { id: uid(), title, done: false }] })
-  const removeMilestone = (id) => { stepsByMs(id).forEach((a) => onRemoveStep(a.id)); onUpdate({ milestones: goal.milestones.filter((m) => m.id !== id) }) }
+  const setStep = (id, patch) => onUpdate({ milestones: goal.milestones.map((m) => (m.id === id ? { ...m, ...patch } : m)) })
+  const addStep = (title, target) => onUpdate({ milestones: [...goal.milestones, normMilestone({ id: uid(), title, target })] })
+  const removeStep = (id) => onUpdate({ milestones: goal.milestones.filter((m) => m.id !== id) })
+  const tickStep = (m) => setStep(m.id, { done: !m.done, doneOn: m.done ? '' : todayKey() })
+
+  const addNote = (text) => onUpdate({ notes: [{ id: uid(), text, at: new Date().toISOString(), editedAt: '' }, ...goal.notes] })
+  const editNote = (id, text) => onUpdate({ notes: goal.notes.map((n) => (n.id === id ? { ...n, text, editedAt: new Date().toISOString() } : n)) })
+  const removeNote = (id) => onUpdate({ notes: goal.notes.filter((n) => n.id !== id) })
+
+  const Label = ({ children }) => <span className="w-[4.6rem] shrink-0 text-[10px] tracking-[0.16em] text-stone-500">{children}</span>
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true">
@@ -619,100 +753,171 @@ function GoalPanel({ goal, steps, openMs, onToggleMsOpen, onUpdate, onClose, onR
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {/* The goal, and the ladder to it. Nothing between the two — the
-              classification, the tags, the scores and the log were the planner
-              asking her to file the thing rather than do it.
+          {/* ── When. The clock started the day she wrote it; the horizon set
+              the date, and either can be moved. The count and the date are one
+              fact read two ways, so editing one rewrites the other. */}
+          <div className="space-y-2.5">
+            {achieved ? (
+              <div className="flex items-baseline gap-3">
+                <Label>ACHIEVED</Label>
+                <span className="text-[13px] text-stone-900">{fmtLong(goal.achievedOn)}</span>
+                {took != null && <span className="text-[13px] tabular-nums text-stone-500">· took {took} day{took === 1 ? '' : 's'}</span>}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
+                <Label>DUE</Label>
+                <input type="date" value={goal.target || ''} onChange={(e) => onUpdate({ target: e.target.value })}
+                  aria-label="Due date" className="cursor-pointer bg-transparent text-[13px] text-stone-900 outline-none" />
+                <span className="text-stone-300">·</span>
+                <span className="inline-flex items-baseline gap-1 text-[13px] tabular-nums text-stone-900">
+                  <input
+                    type="number"
+                    value={left == null ? '' : left}
+                    onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) onUpdate({ target: dateKey(addDays(new Date(), n)) }) }}
+                    aria-label="Days until due"
+                    className="w-14 bg-transparent text-right outline-none"
+                  />
+                  <span className="text-stone-500">{left != null && left < 0 ? 'days over' : left === 0 ? 'days — today' : 'days left'}</span>
+                </span>
+              </div>
+            )}
+            <div className="flex items-baseline gap-3">
+              <Label>HORIZON</Label>
+              <div className="inline-flex flex-wrap gap-1">
+                {PHASES.map((ph) => (
+                  <button key={ph.id} onClick={() => onUpdate({ phase: ph.id, target: dueFromHorizon(ph.id) })}
+                    title={`Sets the due date ${ph.months} months from today`}
+                    className={`rounded-full px-3 py-1 text-[11px] transition-colors ${goal.phase === ph.id ? 'bg-stone-900 text-cream' : 'border border-stone-300 text-stone-900 hover:border-stone-900'}`}>
+                    {ph.note}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-baseline gap-3">
+              <Label>ENTERED</Label>
+              <span className="text-[13px] text-stone-500">{goal.createdOn ? fmtLong(goal.createdOn) : '—'}</span>
+            </div>
+          </div>
 
-              The exception is what it looks like. A picture she pinned to this
-              on the board belongs at the top of it, because that is the thing
-              she is actually working towards. */}
-          {images.length > 0 && (
-            <div className="mb-6 flex flex-wrap gap-2">
+          {/* ── What it looks like. */}
+          <div className="mt-6">
+            <div className="mb-2 flex items-center gap-2.5">
+              <span className="kicker text-stone-400">The picture</span>
+              <span className="h-px flex-1 bg-stone-200" />
+            </div>
+            <div className="flex flex-wrap gap-2">
               {images.map((im) => (
                 <span key={im.id} className="group relative block h-20 w-20 overflow-hidden bg-stone-100">
                   <img src={im.url} alt={im.title} title={im.title || undefined} className="h-full w-full object-cover" />
-                  {onUnpair && (
-                    <button
-                      onClick={() => onUnpair(im.id)}
-                      aria-label="Unpair this picture"
-                      title="Unpair — the picture stays on the board"
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center bg-stone-900/70 text-cream opacity-0 transition-opacity hover:bg-stone-900 group-hover:opacity-100"
-                    ><CloseIcon size={11} /></button>
-                  )}
+                  <button onClick={() => onUnpair(im.id)} aria-label="Unpair this picture" title="Unpair — the picture stays on the board"
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center bg-stone-900/70 text-cream opacity-0 transition-opacity hover:bg-stone-900 group-hover:opacity-100"><CloseIcon size={11} /></button>
                 </span>
               ))}
+              <button onClick={() => setPicking((v) => !v)} aria-expanded={picking}
+                className={`flex h-20 w-20 flex-col items-center justify-center gap-1 border text-[10px] tracking-[0.12em] transition-colors ${picking ? 'border-stone-900 text-stone-900' : 'border-dashed border-stone-300 text-stone-500 hover:border-stone-900 hover:text-stone-900'}`}>
+                <AddIcon size={16} />ADD
+              </button>
             </div>
-          )}
-
-          {/* path */}
-          <div className="mb-1 flex items-center gap-2.5">
-            <span className="kicker text-stone-400">The path · {done}/{goal.milestones.length || 0} milestones</span>
-            <span className="h-px flex-1 bg-stone-200" />
-          </div>
-
-          {goal.milestones.length === 0 && (
-            <p className="mt-2 text-sm italic text-stone-300">No plan yet — build the ladder below.</p>
-          )}
-          <div>
-            {goal.milestones.map((m, mi) => {
-              const mSteps = stepsByMs(m.id)
-              const open = openMs.has(mi)
-              const sdone = mSteps.filter((a) => isDoneOn(a, todayKey()) || everDone(a)).length
-              return (
-                <div key={m.id} className="border-b border-stone-100 last:border-b-0">
-                  <div className="flex items-center gap-3 py-3">
-                    <button onClick={() => setMilestone(m.id, { done: !m.done })} aria-label="Mark milestone reached"
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums transition-all"
-                      style={m.done ? { background: '#1C1C1A', borderColor: '#1C1C1A', color: '#FAF8F3' } : { borderColor: '#D8D2C6', color: '#9A9488' }}>
-                      {m.done ? <LoggedIcon size={13} strokeWidth={2.5} /> : mi + 1}
-                    </button>
-                    <button onClick={() => onToggleMsOpen(mi)} className="flex flex-1 items-center gap-2 text-left">
-                      <span className={`flex-1 font-serif text-lg ${m.done ? 'text-stone-400' : 'text-stone-800'}`}>{m.title || 'Milestone'}</span>
-                      <span className="text-[11px] tabular-nums text-stone-400">{mSteps.length ? `${sdone}/${mSteps.length}` : ''}</span>
-                      <NextIcon size={15} className={`text-stone-300 transition-transform ${open ? 'rotate-90' : ''}`} />
-                    </button>
-                  </div>
-                  {open && (
-                    <div className="mb-2 ml-3 border-l border-stone-200 pl-5">
-                      <div className="flex items-center gap-2 pb-1.5 text-[11px] text-stone-400">
-                        <Calendar size={11} className="opacity-70" />
-                        <input type="date" value={m.target || ''} onChange={(e) => setMilestone(m.id, { target: e.target.value })} className="bg-transparent text-[11px] text-stone-500 outline-none" aria-label="Milestone target date" />
-                        <button onClick={() => removeMilestone(m.id)} className="ml-auto text-stone-300 hover:text-stone-600">remove</button>
-                      </div>
-                      {mSteps.map((a) => {
-                        const P = pillarMeta(a.details?.pillarId)
-                        return (
-                          <div key={a.id} className="group flex items-center gap-3 py-1.5">
-                            <Checkbox checked={isDoneOn(a, todayKey())} onClick={() => onToggleStep(a.id)} />
-                            <span className={`flex-1 text-sm ${isDoneOn(a, todayKey()) ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{a.title}</span>
-                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-stone-400" title={`${P.label} · ${a.details?.section || ''}`}><span className="h-2 w-2 rounded-full" style={{ background: P.tint }} />{a.details?.section || P.label}</span>
-                            <button onClick={() => onRemoveStep(a.id)} aria-label="Remove step" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={13} /></button>
-                          </div>
-                        )
-                      })}
-                      <StepAdd onAdd={(t) => onAddStep(m.id, t)} />
+            {picking && (
+              <div className="mt-3 border border-stone-200 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[10px] tracking-[0.16em] text-stone-500">FROM THE MOOD BOARD</span>
+                  <button onClick={() => fileRef.current && fileRef.current.click()} className="text-[11px] text-stone-900 underline underline-offset-4 hover:text-stone-600">Upload a photo</button>
+                  <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
+                    onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ''; files.forEach((f) => onUpload(f)); setPicking(false) }} />
+                </div>
+                {unpaired.length === 0
+                  ? <p className="py-3 text-center text-[12px] italic text-stone-500">Nothing on the board yet — upload one.</p>
+                  : (
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {unpaired.map((pc) => (
+                        <button key={pc.id} onClick={() => { onPair(pc.id); setPicking(false) }} title={pc.title || undefined}
+                          className="aspect-square overflow-hidden bg-stone-100 transition-opacity hover:opacity-80">
+                          {pc.url && <img src={pc.url} alt="" className="h-full w-full object-cover" />}
+                        </button>
+                      ))}
                     </div>
                   )}
-                </div>
-              )
-            })}
+              </div>
+            )}
           </div>
-          <MilestoneAdd onAdd={addMilestone} />
 
-          {/* AI */}
-          {ai ? (
-            <AIPlan ai={ai} onAccept={onAcceptAI} onDismiss={onDismissAI} onRetry={onRunAI} />
-          ) : (
-            <button onClick={onRunAI} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-white/40 px-4 py-3.5 text-sm font-medium text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
-              <Sparkles size={16} /> {goal.milestones.length ? 'Extend the plan with AI' : 'Build the plan with AI'}
-            </button>
-          )}
+          {/* ── The path. Steps with a date, each a tick, each opening to say
+              more. No count of milestones, no scolding about a missing plan. */}
+          <div className="mt-7">
+            <div className="mb-1 flex items-center gap-2.5">
+              <span className="kicker text-stone-400">The path</span>
+              <span className="h-px flex-1 bg-stone-200" />
+            </div>
+            <StepAdd onAdd={addStep} />
+            <div>
+              {goal.milestones.map((m, mi) => {
+                const open = openMs.has(mi)
+                const md = daysUntil(m.target)
+                return (
+                  <div key={m.id} className="border-b border-stone-100 last:border-b-0">
+                    <div className="flex items-center gap-3 py-2.5">
+                      <Checkbox checked={m.done} onClick={() => tickStep(m)} />
+                      <button onClick={() => onToggleMsOpen(mi)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                        <span className={`min-w-0 flex-1 truncate text-[15px] ${m.done ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{m.title || 'Step'}</span>
+                        {m.target && (
+                          <span className={`shrink-0 text-[11px] tabular-nums ${!m.done && md != null && md < 0 ? 'text-oxblood' : 'text-stone-500'}`}>
+                            {fmtShort(m.target)}{!m.done && md != null && md < 0 ? ` · ${Math.abs(md)}d over` : ''}
+                          </span>
+                        )}
+                        <NextIcon size={14} className={`shrink-0 text-stone-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+                      </button>
+                    </div>
+                    {open && (
+                      <div className="mb-3 ml-8 border-l border-stone-200 pl-4">
+                        <textarea
+                          value={m.description}
+                          onChange={(e) => setStep(m.id, { description: e.target.value })}
+                          placeholder="What this step involves"
+                          rows={3}
+                          className="w-full resize-y bg-transparent text-[13px] leading-relaxed text-stone-800 outline-none placeholder:italic placeholder:text-stone-400"
+                        />
+                        <div className="mt-1 flex items-center gap-3 text-[11px] text-stone-500">
+                          <span className="tracking-[0.14em]">DUE</span>
+                          <input type="date" value={m.target || ''} onChange={(e) => setStep(m.id, { target: e.target.value })} aria-label="Step due date" className="bg-transparent text-[11px] text-stone-900 outline-none" />
+                          {m.done && m.doneOn && <span>· done {fmtShort(m.doneOn)}</span>}
+                          <button onClick={() => removeStep(m.id)} className="ml-auto text-stone-500 hover:text-oxblood">Remove</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {ai ? (
+              <AIPlan ai={ai} onAccept={onAcceptAI} onDismiss={onDismissAI} onRetry={onRunAI} />
+            ) : (
+              <button onClick={onRunAI} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-white/40 px-4 py-3 text-sm text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
+                <Sparkles size={15} /> {goal.milestones.length ? 'Extend the plan with AI' : 'Build the plan with AI'}
+              </button>
+            )}
+          </div>
+
+          {/* ── Notes to herself. Timestamped, and hers to change or take back. */}
+          <div className="mt-7">
+            <div className="mb-2 flex items-center gap-2.5">
+              <span className="kicker text-stone-400">Notes</span>
+              <span className="h-px flex-1 bg-stone-200" />
+            </div>
+            <NoteAdd onAdd={addNote} />
+            {goal.notes.length > 0 && (
+              <div className="mt-2 divide-y divide-stone-100">
+                {goal.notes.map((n) => <Note key={n.id} note={n} onEdit={(t) => editNote(n.id, t)} onRemove={() => removeNote(n.id)} />)}
+              </div>
+            )}
+          </div>
 
           <div className="mt-7 flex items-center justify-between border-t border-stone-200 pt-4">
-            <button onClick={onRemove} className="text-xs text-stone-400 hover:text-phase-menstrual">Delete goal</button>
-            <button onClick={() => onUpdate(goal.status === 'achieved' ? { status: 'active', achievedOn: '' } : { status: 'achieved', achievedOn: todayKey() })}
-              className={`rounded-full px-5 py-2 text-sm transition-colors ${goal.status === 'achieved' ? 'border border-stone-300 text-stone-600 hover:border-stone-500' : 'bg-stone-900 text-cream hover:bg-stone-700'}`}>
-              {goal.status === 'achieved' ? 'Reopen' : 'Mark achieved'}
+            <button onClick={onRemove} className="text-xs text-stone-500 hover:text-oxblood">Delete goal</button>
+            <button onClick={() => onUpdate(achieved ? { status: 'active', achievedOn: '' } : { status: 'achieved', achievedOn: todayKey() })}
+              className={`rounded-full px-5 py-2 text-sm transition-colors ${achieved ? 'border border-stone-300 text-stone-600 hover:border-stone-500' : 'bg-stone-900 text-cream hover:bg-stone-700'}`}>
+              {achieved ? 'Reopen' : 'Mark achieved'}
             </button>
           </div>
         </div>
@@ -721,20 +926,66 @@ function GoalPanel({ goal, steps, openMs, onToggleMsOpen, onUpdate, onClose, onR
   )
 }
 
+// A step is a line and a date. Enter commits both.
 function StepAdd({ onAdd }) {
   const [v, setV] = useState('')
-  const commit = () => { const t = v.trim(); if (t) { onAdd(t); setV('') } }
+  const [d, setD] = useState('')
+  const commit = () => { const t = v.trim(); if (t) { onAdd(t, d); setV(''); setD('') } }
   return (
-    <input value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && commit()} onBlur={commit}
-      placeholder="+ add a step" className="mt-1 w-full bg-transparent py-1 text-sm italic text-stone-400 placeholder-stone-400 outline-none" />
+    <div className="flex items-center gap-3 border-b border-stone-200 py-2 transition-colors focus-within:border-stone-900">
+      <AddIcon size={14} className="shrink-0 text-stone-400" />
+      <input value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && commit()}
+        placeholder="Add a step" className="min-w-0 flex-1 bg-transparent py-0.5 text-[15px] text-stone-900 outline-none placeholder:text-stone-400" />
+      <input type="date" value={d} onChange={(e) => setD(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && commit()}
+        aria-label="Step due date" title="Due" className="shrink-0 bg-transparent text-[11px] text-stone-500 outline-none" />
+    </div>
   )
 }
-function MilestoneAdd({ onAdd }) {
+
+function NoteAdd({ onAdd }) {
   const [v, setV] = useState('')
   const commit = () => { const t = v.trim(); if (t) { onAdd(t); setV('') } }
   return (
-    <input value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && commit()} onBlur={commit}
-      placeholder="+ add a milestone" className="mt-2 w-full border-t border-dashed border-stone-200 bg-transparent pt-3 text-sm italic text-stone-400 placeholder-stone-400 outline-none" />
+    <div className="border border-stone-200 transition-colors focus-within:border-stone-900">
+      <textarea value={v} onChange={(e) => setV(e.target.value)} rows={2}
+        onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit() }}
+        placeholder="A note to yourself" className="block w-full resize-y bg-transparent px-3 py-2 text-[13px] leading-relaxed text-stone-900 outline-none placeholder:italic placeholder:text-stone-400" />
+      <div className="flex items-center justify-between border-t border-stone-100 px-3 py-1.5">
+        <span className="text-[10px] tracking-[0.12em] text-stone-500">⌘↵ TO SAVE</span>
+        <button onClick={commit} disabled={!v.trim()} className="text-[11px] text-stone-900 underline underline-offset-4 hover:text-stone-600 disabled:text-stone-400 disabled:no-underline">Save</button>
+      </div>
+    </div>
+  )
+}
+
+function Note({ note, onEdit, onRemove }) {
+  const [editing, setEditing] = useState(false)
+  const [v, setV] = useState(note.text)
+  const commit = () => { const t = v.trim(); if (t && t !== note.text) onEdit(t); setEditing(false) }
+  return (
+    <div className="group py-3">
+      {editing ? (
+        <textarea value={v} onChange={(e) => setV(e.target.value)} rows={3} autoFocus
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit(); if (e.key === 'Escape') { setV(note.text); setEditing(false) } }}
+          className="block w-full resize-y border border-stone-900 bg-transparent px-3 py-2 text-[13px] leading-relaxed text-stone-900 outline-none" />
+      ) : (
+        <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-stone-900">{note.text}</p>
+      )}
+      <div className="mt-1 flex items-center gap-3 text-[10px] tracking-[0.12em] text-stone-500">
+        <span className="tabular-nums">{fmtStamp(note.at)}{note.editedAt ? ' · EDITED' : ''}</span>
+        {editing ? (
+          <>
+            <button onClick={commit} className="ml-auto text-stone-900 hover:text-stone-600">SAVE</button>
+            <button onClick={() => { setV(note.text); setEditing(false) }} className="hover:text-stone-900">CANCEL</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => { setV(note.text); setEditing(true) }} className="ml-auto opacity-0 transition-opacity hover:text-stone-900 group-hover:opacity-100">EDIT</button>
+            <button onClick={onRemove} className="opacity-0 transition-opacity hover:text-oxblood group-hover:opacity-100">DELETE</button>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -844,7 +1095,7 @@ function GoalList({ goals, imagesOf, stepsOf, onOpen }) {
               {im && <img src={im.url} alt="" className="h-full w-full object-cover" />}
             </span>
             <span className="min-w-0 flex-1 truncate font-serif text-[17px] text-stone-900">{g.title || 'Untitled goal'}</span>
-            <span className="hidden w-20 shrink-0 text-[10px] tracking-[0.16em] text-stone-500 sm:block">{ph.label.toUpperCase()}</span>
+            <span className="hidden w-28 shrink-0 text-[11px] text-stone-500 sm:block">{ph.note}</span>
             <span className="w-32 shrink-0 whitespace-nowrap text-right text-[11px] tabular-nums text-stone-500">
               {g.target ? `${fmtShort(g.target)}${d != null && d < 0 ? ` · ${Math.abs(d)}d over` : ''}` : '—'}
             </span>
