@@ -18,7 +18,7 @@ const SECTIONS = [
   { id: 'bodycare', label: 'Bodycare' },
   { id: 'fitness', label: 'Fitness' },
   { id: 'menu', label: 'Nutrition' },
-  { id: 'workout', label: 'Cycle' },
+  { id: 'workout', label: 'Hormones' },
   { id: 'diagnostics', label: 'Testing' },
   { id: 'relationship', label: 'Relationships' },
   { id: 'spirituality', label: 'Spirituality' },

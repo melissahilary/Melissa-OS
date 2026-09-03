@@ -1,8 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { ImagePlus } from 'lucide-react'
 import { AddIcon, CloseIcon, LoggedIcon, NextIcon, FitnessMark } from './shared/marks'
+import { Sparkles } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { dateKey, parseKey, MONTHS_SHORT } from '../lib/date'
+import { dateKey, parseKey, MONTHS, MONTHS_SHORT } from '../lib/date'
 import Checkbox from './shared/Checkbox'
 import EmptyState from './shared/EmptyState'
 
@@ -19,7 +20,7 @@ export const PILLAR_TAGS = [
   { id: 'skincare', label: 'Skincare', tint: '#889072' },
   { id: 'aesthetics', label: 'Aesthetics', tint: '#A0654C' },
   { id: 'fitness', label: 'Fitness', tint: '#5A6B7B' },
-  { id: 'hormones', label: 'Cycle', tint: '#B08D45' },
+  { id: 'hormones', label: 'Hormones', tint: '#B08D45' },
   { id: 'nutrition', label: 'Nutrition', tint: '#8C7A5F' },
   { id: 'mindset', label: 'Mindset', tint: '#8E7BA0' },
   { id: 'haircare', label: 'Haircare', tint: '#9E7B5A' },
@@ -42,13 +43,47 @@ const TEMPLATES = [
   { id: 'treatment', label: 'Treatment course', pillars: ['aesthetics', 'diagnostics'], tasks: ['Consultation', 'Baseline photographs', 'Session one', 'Session two', 'Review'] },
 ]
 
+// The same three horizons as goals. Choosing one sets the date from today;
+// she can then move the date without moving the horizon.
+const HORIZONS = [
+  { id: 'now', note: 'Next 6 months', months: 6 },
+  { id: 'next', note: '6–12 months', months: 12 },
+  { id: 'later', note: 'Beyond a year', months: 18 },
+]
+const addMonths = (key, n) => { const d = parseKey(key) || new Date(); return dateKey(new Date(d.getFullYear(), d.getMonth() + n, d.getDate())) }
+const dueFor = (id) => { const h = HORIZONS.find((x) => x.id === id); return h ? addMonths(dateKey(new Date()), h.months) : '' }
+const fmtLong = (key) => { const d = parseKey(key); return d ? `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}` : '' }
+
+// One control, used on the create sheet and the project itself.
+function HorizonPick({ value, due, onPick, onDate }) {
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5">
+        {HORIZONS.map((h) => (
+          <button key={h.id} type="button" onClick={() => onPick(h.id)} title={`Sets the date ${h.months} months from today`}
+            className={`rounded-full px-3 py-1 text-xs transition-colors ${value === h.id ? 'bg-stone-900 text-cream' : 'border border-stone-300 text-stone-900 hover:border-stone-900'}`}>
+            {h.note}
+          </button>
+        ))}
+      </div>
+      {due && (
+        <label className="mt-2 flex items-baseline gap-2 text-[12px] text-stone-500">
+          <span className="tracking-[0.14em]">BY</span>
+          <input type="date" value={due} onChange={(e) => onDate(e.target.value)} aria-label="Due date" className="bg-transparent text-[12px] text-stone-900 outline-none" />
+        </label>
+      )}
+    </div>
+  )
+}
+
 const normProject = (p) => ({
   id: p.id || uid(),
   name: p.name != null ? p.name : (p.title || ''),
   cover: p.cover || '',
   goalId: p.goalId || '',
-  pillars: Array.isArray(p.pillars) ? p.pillars : [],
+  pillars: Array.isArray(p.pillars) ? p.pillars : [], // kept on the row; no longer asked for
   status: p.status === 'done' ? 'done' : p.status === 'dormant' ? 'dormant' : 'active',
+  horizon: HORIZONS.some((h) => h.id === p.horizon) ? p.horizon : '',
   due: p.due || '',
   nextAction: p.nextAction || '',
   budget: p.budget && typeof p.budget === 'object' ? p.budget : { planned: '', spent: '' },
@@ -195,14 +230,8 @@ function Card({ project: p, goals, onOpen }) {
         )}
 
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          {p.pillars.map((id) => {
-            const t = tagMeta(id)
-            return (
-              <span key={id} className="inline-flex items-center gap-1 rounded-full bg-stone-500/5 px-2 py-0.5 text-[10px] text-stone-500">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.tint }} />{t.label}
-              </span>
-            )
-          })}
+          {p.horizon && <span className="text-[10px] text-stone-500">{(HORIZONS.find((h) => h.id === p.horizon) || {}).note}</span>}
+          {p.due && <span className="text-[10px] tabular-nums text-stone-500">· {MONTHS_SHORT[parseKey(p.due).getMonth()]} {parseKey(p.due).getDate()}</span>}
           {money(p.budget.planned) != null && (
             <span className="ml-auto text-[10px] tabular-nums text-stone-400">
               {fmtMoney(p.budget.spent || 0)} / {fmtMoney(p.budget.planned)}
@@ -218,21 +247,17 @@ function Card({ project: p, goals, onOpen }) {
 function CreateSheet({ goals, onCreate, onClose }) {
   const [name, setName] = useState('')
   const [goalId, setGoalId] = useState('')
-  const [pillars, setPillars] = useState([])
+  const [horizon, setHorizon] = useState('')
   const [due, setDue] = useState('')
   const [cover, setCover] = useState('')
   const fileRef = useRef(null)
 
-  const toggle = (id) => setPillars((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
-  const useTemplate = (t) => {
-    setName((n) => n || t.label)
-    setPillars(t.pillars)
-  }
+  const useTemplate = (t) => setName((n) => n || t.label)
   const submit = () => {
     if (!name.trim()) return
     const t = TEMPLATES.find((x) => x.label === name.trim())
     onCreate({
-      name: name.trim(), goalId, pillars, due, cover,
+      name: name.trim(), goalId, pillars: t ? t.pillars : [], horizon, due, cover,
       tasks: t ? t.tasks.map((x) => ({ id: uid(), title: x, done: false })) : [],
       nextAction: t ? t.tasks[0] : '',
     })
@@ -249,18 +274,6 @@ function CreateSheet({ goals, onCreate, onClose }) {
         ))}
       </div>
 
-      <p className="kicker mb-2 mt-5 text-stone-400">Pillars it touches</p>
-      <div className="flex flex-wrap gap-1.5">
-        {PILLAR_TAGS.map((t) => {
-          const on = pillars.includes(t.id)
-          return (
-            <button key={t.id} onClick={() => toggle(t.id)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-600'}`}>
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.tint }} />{t.label}
-            </button>
-          )
-        })}
-      </div>
-
       <div className="mt-5 flex flex-wrap items-end gap-5">
         <label>
           <span className="kicker mb-1 block text-stone-400">Toward</span>
@@ -269,10 +282,10 @@ function CreateSheet({ goals, onCreate, onClose }) {
             {goals.map((g) => <option key={g.id} value={g.id}>{g.title || 'Untitled goal'}</option>)}
           </select>
         </label>
-        <label>
+        <div>
           <span className="kicker mb-1 block text-stone-400">By</span>
-          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900" />
-        </label>
+          <HorizonPick value={horizon} due={due} onPick={(h) => { setHorizon(h); setDue(dueFor(h)) }} onDate={setDue} />
+        </div>
         <button onClick={() => fileRef.current && fileRef.current.click()} className="flex items-center gap-1.5 border-b border-stone-300 pb-1 text-sm text-stone-500 hover:border-stone-900 hover:text-stone-900">
           <ImagePlus size={14} strokeWidth={1.6} />{cover ? 'Cover chosen' : 'Cover'}
         </button>
@@ -299,7 +312,30 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
   const setTask = (id, patch) => onUpdate({ tasks: tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) })
   const addTask = () => { const t = taskDraft.trim(); if (!t) return; onUpdate({ tasks: [...tasks, { id: uid(), title: t, done: false }] }); setTaskDraft('') }
   const rmTask = (id) => onUpdate({ tasks: tasks.filter((t) => t.id !== id) })
-  const toggleTag = (id) => onUpdate({ pillars: p.pillars.includes(id) ? p.pillars.filter((x) => x !== id) : [...p.pillars, id] })
+  const goal = goals.find((g) => g.id === p.goalId)
+
+  // The plan. Claude reads the project and the goal it serves and writes the
+  // steps from start to finish. They arrive as text she can change, cut or add
+  // to, and nothing touches the project until she imports them.
+  const [plan, setPlan] = useState(null) // { status: 'loading'|'ready'|'error', steps: [{ id, title, detail }] }
+  const buildPlan = async () => {
+    setPlan({ status: 'loading', steps: [] })
+    try {
+      const r = await fetch('/api/project-plan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: p.name, goal: goal ? goal.title : '', due: p.due, existing: tasks.map((t) => t.title) }),
+      })
+      const d = await r.json()
+      if (d && Array.isArray(d.steps) && d.steps.length) setPlan({ status: 'ready', steps: d.steps.map((x) => ({ id: uid(), title: x.title || '', detail: x.detail || '' })) })
+      else setPlan({ status: 'error', steps: [] })
+    } catch { setPlan({ status: 'error', steps: [] }) }
+  }
+  const setPlanStep = (id, patch) => setPlan((pl) => ({ ...pl, steps: pl.steps.map((x) => (x.id === id ? { ...x, ...patch } : x)) }))
+  const importPlan = () => {
+    const keep = plan.steps.filter((x) => x.title.trim())
+    onUpdate({ tasks: [...tasks, ...keep.map((x) => ({ id: uid(), title: x.title.trim(), done: false, detail: x.detail }))], nextAction: p.nextAction || (keep[0] ? keep[0].title.trim() : '') })
+    setPlan(null)
+  }
 
   const addPerson = () => { const t = personDraft.trim(); if (!t) return; onUpdate({ people: [...p.people, { id: uid(), name: t, role: '' }] }); setPersonDraft('') }
   const addLink = () => {
@@ -349,10 +385,10 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
                 {goals.map((g) => <option key={g.id} value={g.id}>{g.title || 'Untitled goal'}</option>)}
               </select>
             </label>
-            <label>
+            <div>
               <span className="kicker mb-1 block text-stone-400">By</span>
-              <input type="date" value={p.due} onChange={(e) => onUpdate({ due: e.target.value })} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900" />
-            </label>
+              <HorizonPick value={p.horizon} due={p.due} onPick={(h) => onUpdate({ horizon: h, due: dueFor(h) })} onDate={(d) => onUpdate({ due: d })} />
+            </div>
             <label>
               <span className="kicker mb-1 block text-stone-400">Planned</span>
               <input value={p.budget.planned} onChange={(e) => onUpdate({ budget: { ...p.budget, planned: e.target.value } })} placeholder="0" className="w-24 border-b border-stone-300 bg-transparent pb-1 text-sm tabular-nums outline-none placeholder:text-stone-300 focus:border-stone-900" />
@@ -361,20 +397,6 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
               <span className="kicker mb-1 block text-stone-400">Spent</span>
               <input value={p.budget.spent} onChange={(e) => onUpdate({ budget: { ...p.budget, spent: e.target.value } })} placeholder="0" className="w-24 border-b border-stone-300 bg-transparent pb-1 text-sm tabular-nums outline-none placeholder:text-stone-300 focus:border-stone-900" />
             </label>
-          </div>
-
-          <div className="mt-6">
-            <p className="kicker mb-2 text-stone-400">Pillars</p>
-            <div className="flex flex-wrap gap-1.5">
-              {PILLAR_TAGS.map((t) => {
-                const on = p.pillars.includes(t.id)
-                return (
-                  <button key={t.id} onClick={() => toggleTag(t.id)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-600'}`}>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.tint }} />{t.label}
-                  </button>
-                )
-              })}
-            </div>
           </div>
 
           <div className="mt-6">
@@ -390,8 +412,53 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
             </div>
             <div className="mt-1 flex items-center gap-2.5 border-b border-stone-200 pb-1.5 focus-within:border-stone-900">
               <AddIcon size={13} className="shrink-0 text-stone-300" />
-              <input value={taskDraft} onChange={(e) => setTaskDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask()} className="flex-1 bg-transparent py-1 text-sm outline-none" />
+              <input value={taskDraft} onChange={(e) => setTaskDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask()} placeholder="Add a task" className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-400" />
             </div>
+
+            {!plan && (
+              <button onClick={buildPlan} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-white/40 px-4 py-3 text-sm text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
+                <Sparkles size={15} /> {tasks.length ? 'Extend the steps with AI' : 'Build the steps with AI'}
+              </button>
+            )}
+            {plan && plan.status === 'loading' && (
+              <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white/50 px-4 py-4 text-sm text-stone-500"><Sparkles size={15} className="animate-pulse" /> Reading the goal and writing the steps…</div>
+            )}
+            {plan && plan.status === 'error' && (
+              <div className="mt-3 rounded-xl border border-stone-200 bg-white/50 px-4 py-4 text-sm text-stone-500">
+                <p>Couldn't reach the planner right now.</p>
+                <button onClick={buildPlan} className="mt-1 text-stone-900 underline underline-offset-4">Try again</button>
+                <button onClick={() => setPlan(null)} className="ml-3 text-stone-500 hover:text-stone-900">Dismiss</button>
+              </div>
+            )}
+            {plan && plan.status === 'ready' && (
+              <div className="mt-3 border border-stone-900 bg-white/60">
+                <div className="flex items-center gap-2 border-b border-stone-200 px-4 py-2.5">
+                  <Sparkles size={14} className="text-stone-600" />
+                  <span className="kicker text-stone-600">Proposed steps</span>
+                  <span className="ml-auto text-[11px] text-stone-500">Change anything before you import it.</span>
+                </div>
+                <div className="px-4 py-2">
+                  {plan.steps.map((x, i) => (
+                    <div key={x.id} className="group border-b border-stone-100 py-2 last:border-b-0">
+                      <div className="flex items-center gap-3">
+                        <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-stone-500">{i + 1}</span>
+                        <input value={x.title} onChange={(e) => setPlanStep(x.id, { title: e.target.value })} className="min-w-0 flex-1 bg-transparent text-sm text-stone-900 outline-none" />
+                        <button onClick={() => setPlan((pl) => ({ ...pl, steps: pl.steps.filter((y) => y.id !== x.id) }))} aria-label="Drop this step" className="text-stone-400 opacity-0 transition-opacity hover:text-stone-900 group-hover:opacity-100"><CloseIcon size={13} /></button>
+                      </div>
+                      <input value={x.detail} onChange={(e) => setPlanStep(x.id, { detail: e.target.value })} placeholder="What it involves"
+                        className="ml-8 mt-0.5 block w-[calc(100%-2rem)] bg-transparent text-[12px] text-stone-600 outline-none placeholder:italic placeholder:text-stone-400" />
+                    </div>
+                  ))}
+                  <button onClick={() => setPlan((pl) => ({ ...pl, steps: [...pl.steps, { id: uid(), title: '', detail: '' }] }))} className="mt-1 flex items-center gap-1.5 py-1.5 text-[12px] text-stone-500 hover:text-stone-900"><AddIcon size={12} /> Add a step</button>
+                </div>
+                <div className="flex items-center justify-between border-t border-stone-200 px-4 py-3">
+                  <button onClick={() => setPlan(null)} className="text-xs text-stone-500 hover:text-stone-900">Dismiss</button>
+                  <button onClick={importPlan} disabled={!plan.steps.some((x) => x.title.trim())} className="rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-opacity hover:opacity-90 disabled:opacity-30">
+                    Import {plan.steps.filter((x) => x.title.trim()).length} step{plan.steps.filter((x) => x.title.trim()).length === 1 ? '' : 's'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 grid gap-6 sm:grid-cols-2">

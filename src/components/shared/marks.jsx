@@ -44,7 +44,7 @@ function Mark({ size = 24, title, children, className = '', ...rest }) {
 // ── The twelve ──────────────────────────────────────────────────────
 // Each is a circle, a line, a diagonal, or a disciplined combination.
 
-export const MindsetMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M4.5 12h15" /></Mark>
+export const MindsetMark = (p) => <Mark {...p}><path d="M12 4.5a7.5 7.5 0 1 0 7.5 7.5" /><path d="M12 9.5v5M9.5 12h5" /></Mark>
 export const BrainHealthMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="3" /></Mark>
 export const SkincareMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M6.5 17.5 17.5 6.5" /></Mark>
 export const HaircareMark = (p) => <Mark {...p}><path d="M5 19 12 5M10 19 17 5M15 19 19 11" /></Mark>

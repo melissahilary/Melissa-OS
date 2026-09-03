@@ -52,7 +52,7 @@ const PILLARS = [
   { id: 'bodycare', label: 'Bodycare', icon: markFor('bodycare') },
   { id: 'fitness', label: 'Fitness', icon: markFor('fitness') },
   { id: 'menu', label: 'Nutrition', icon: markFor('menu') },
-  { id: 'workout', label: 'Cycle', icon: markFor('workout') },
+  { id: 'workout', label: 'Hormones', icon: markFor('workout') },
   { id: 'diagnostics', label: 'Testing', icon: markFor('diagnostics') },
   { id: 'relationship', label: 'Relationships', icon: markFor('relationship') },
   { id: 'spirituality', label: 'Spirituality', icon: markFor('spirituality') },

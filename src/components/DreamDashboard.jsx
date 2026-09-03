@@ -301,7 +301,18 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     return { ...cur, items }
   })
   const unpairImage = (imageId) => setPictureGoal(imageId, '')
-  const pairImage = (imageId, goalId) => setPictureGoal(imageId, goalId)
+  // A goal has one picture. Giving it another lets the old one go — it stays on
+  // the board, it just stops standing for this goal.
+  const pairImage = (imageId, goalId) => setBoardRaw((prev) => {
+    const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
+    const items = (Array.isArray(cur.items) ? cur.items : []).map((it) => {
+      if (!it) return it
+      if (it.id === imageId) return { ...it, goalId }
+      if (it.goalId === goalId) return { ...it, goalId: '' }
+      return it
+    })
+    return { ...cur, items }
+  })
 
   // A photo uploaded from the goal goes to the board like any other — same
   // pipeline, same bucket, same reading — and lands already paired.
@@ -313,7 +324,9 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       if (out.blob) path = (await store.uploadPhoto(out.blob)) || ''
       setBoardRaw((prev) => {
         const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
-        const items = (Array.isArray(cur.items) ? cur.items : []).map(normVision)
+        // The upload becomes the goal's one picture; whatever held that place
+        // returns to the board unpaired.
+        const items = (Array.isArray(cur.items) ? cur.items : []).map(normVision).map((it) => (it.goalId === goalId ? { ...it, goalId: '' } : it))
         return { ...cur, items: [...items, normVision({
           id: uid(), path, dataUrl: path ? '' : (out.dataUrl || ''), w: out.w, h: out.h, hash: out.hash, goalId,
           x: 6 + (items.length % 3) * 30, y: 24 + Math.floor(items.length / 3) * 250, rot: 0,
@@ -667,13 +680,7 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
               <p className="mt-1.5 text-[11px] tabular-nums" style={{ color: ON_VEIL_QUIET }}>{meta.join(' · ')}</p>
             )}
           </div>
-          {images.length > 1 && (
-            <span
-              aria-label={`${images.length} pictures`}
-              className="absolute right-2.5 top-2.5 px-1.5 py-0.5 text-[10px] tabular-nums"
-              style={{ color: ON_VEIL, backgroundColor: 'rgba(22,19,15,0.55)' }}
-            >{images.length}</span>
-          )}
+
         </div>
       </div>
     )
@@ -806,7 +813,7 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
               <span className="h-px flex-1 bg-stone-200" />
             </div>
             <div className="flex flex-wrap gap-2">
-              {images.map((im) => (
+              {images.slice(0, 1).map((im) => (
                 <span key={im.id} className="group relative block h-20 w-20 overflow-hidden bg-stone-100">
                   <img src={im.url} alt={im.title} title={im.title || undefined} className="h-full w-full object-cover" />
                   <button onClick={() => onUnpair(im.id)} aria-label="Unpair this picture" title="Unpair — the picture stays on the board"
@@ -815,13 +822,13 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
               ))}
               <button onClick={() => setPicking((v) => !v)} aria-expanded={picking}
                 className={`flex h-20 w-20 flex-col items-center justify-center gap-1 border text-[10px] tracking-[0.12em] transition-colors ${picking ? 'border-stone-900 text-stone-900' : 'border-dashed border-stone-300 text-stone-500 hover:border-stone-900 hover:text-stone-900'}`}>
-                <AddIcon size={16} />ADD
+                <AddIcon size={16} />{images.length ? 'REPLACE' : 'ADD'}
               </button>
             </div>
             {picking && (
               <div className="mt-3 border border-stone-200 p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10px] tracking-[0.16em] text-stone-500">FROM THE MOOD BOARD</span>
+                  <span className="text-[10px] tracking-[0.16em] text-stone-500">FROM THE MOOD BOARD{images.length ? ' · REPLACES THE CURRENT ONE' : ''}</span>
                   <button onClick={() => fileRef.current && fileRef.current.click()} className="text-[11px] text-stone-900 underline underline-offset-4 hover:text-stone-600">Upload a photo</button>
                   <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
                     onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ''; files.forEach((f) => onUpload(f)); setPicking(false) }} />
