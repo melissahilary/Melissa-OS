@@ -8,6 +8,7 @@ import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW_LONG } from '../l
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import DreamBoard, { processImage, normVision } from './DreamBoard'
+import { routeStepToSection } from '../lib/goalRoutes'
 import { phaseForConfig } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
 import { isoWeek } from '../lib/week'
@@ -158,6 +159,19 @@ function healthOf(g, steps) {
   return 'on'
 }
 
+// Build a real planner activity for a goal step, routed to its pillar + section.
+function stepActivity(goalId, milestoneId, s) {
+  const P = pillarMeta(s.pillar)
+  const details = { goalId, milestoneId, section: s.section || '', pillarId: s.pillar }
+  if (['appointment', 'lab', 'treatment'].includes(s.kind)) {
+    return blankActivity('event', { title: s.title, category: P.cat, frequency: 'once', seriesStart: todayKey(), details: { ...details, partOfDay: 'morning', description: '', attendees: '', durationMinutes: '' } })
+  }
+  const frequency = s.cadence === 'weekly' ? 'weekly' : s.cadence === 'daily' ? 'daily' : 'asneeded'
+  // A one-off step occurs on its start day and nowhere else, so it needs one —
+  // without it the step existed and never appeared on any date.
+  return blankActivity('protocol', { title: s.title, category: P.cat, frequency, seriesStart: todayKey(), timeOfDay: ['morning'], details: { ...details, block: 'morning', categoryFields: {} } })
+}
+
 export default function DreamDashboard({ cycleConfig = {} }) {
   const [rawGoals, setRawGoals] = useLocalStorage('mos:dream:goals', [])
   const goals = (Array.isArray(rawGoals) ? rawGoals : []).map(normGoal)
@@ -224,14 +238,26 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const removeGoal = (id) => { setGoals((p) => p.filter((g) => g.id !== id)); activities.filter((a) => a.details && a.details.goalId === id).forEach((a) => remove(a.id)); setOpenId(null) }
 
   const stepsOf = (goalId) => activities.filter((a) => a.details && a.details.goalId === goalId && a.status !== 'archived')
-  // A proposed plan becomes steps on the path. What each step involves goes in
-  // its description, where she can read it and change it.
+  // A proposed plan becomes steps on the path, and each of its actions is
+  // filed where its tag says: "Bodycare · Today" means the action is written
+  // into Bodycare's Today, as a real activity she can tick off, and it appears
+  // on her day like anything else. The tag is the address, not a decoration.
   const acceptPlan = (g, plan) => {
-    const newMs = plan.map((m) => normMilestone({
-      id: uid(),
-      title: m.title,
-      description: Array.isArray(m.steps) ? m.steps.map((x) => (x && x.title) || '').filter(Boolean).join('\n') : '',
-    }))
+    const newMs = []
+    plan.forEach((m) => {
+      const mid = uid()
+      const steps = Array.isArray(m.steps) ? m.steps : []
+      newMs.push(normMilestone({
+        id: mid,
+        title: m.title,
+        description: steps.map((x) => (x && x.title) || '').filter(Boolean).join('\n'),
+      }))
+      steps.forEach((st) => {
+        if (!st || !st.title) return
+        add(stepActivity(g.id, mid, st))
+        routeStepToSection({ pillar: st.pillar, kind: st.kind, title: st.title, goalId: g.id })
+      })
+    })
     updateGoal(g.id, { milestones: [...g.milestones, ...newMs] })
     setAi(null)
   }
@@ -242,8 +268,8 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       const r = await fetch('/api/goal-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: g.title, why: g.vision, pillar: g.pillar }) })
       const data = await r.json()
       if (data && Array.isArray(data.milestones) && data.milestones.length) setAi({ goalId: g.id, status: 'ready', plan: data.milestones })
-      else setAi({ goalId: g.id, status: 'error' })
-    } catch (e) { setAi({ goalId: g.id, status: 'error' }) }
+      else setAi({ goalId: g.id, status: 'error', detail: (data && data.detail) || '' })
+    } catch (e) { setAi({ goalId: g.id, status: 'error', detail: e && e.message ? e.message : '' }) }
   }
 
   const openGoal = (id) => {
@@ -729,6 +755,7 @@ function GoalCard({ goal, steps, projects = [], images = [], onOpen, onDragStart
 function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, ai, onRunAI, onAcceptAI, onDismissAI, images = [], boardPictures = [], onUnpair, onPair, onUpload }) {
   const [mounted, setMounted] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [menu, setMenu] = useState(false)
   const fileRef = useRef(null)
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
   useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])
@@ -764,6 +791,11 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
               the date, and either can be moved. The count and the date are one
               fact read two ways, so editing one rewrites the other. */}
           <div className="space-y-2.5">
+            <div className="flex items-baseline gap-3">
+              <Label>START DATE</Label>
+              <input type="date" value={goal.createdOn || ''} onChange={(e) => onUpdate({ createdOn: e.target.value })}
+                aria-label="Start date" className="cursor-pointer bg-transparent text-[13px] text-stone-900 outline-none" />
+            </div>
             {achieved ? (
               <div className="flex items-baseline gap-3">
                 <Label>ACHIEVED</Label>
@@ -800,10 +832,6 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
                 ))}
               </div>
             </div>
-            <div className="flex items-baseline gap-3">
-              <Label>ENTERED</Label>
-              <span className="text-[13px] text-stone-500">{goal.createdOn ? fmtLong(goal.createdOn) : '—'}</span>
-            </div>
           </div>
 
           {/* ── What it looks like. */}
@@ -814,22 +842,34 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
             </div>
             <div className="flex flex-wrap gap-2">
               {images.slice(0, 1).map((im) => (
-                <span key={im.id} className="group relative block h-20 w-20 overflow-hidden bg-stone-100">
+                <button key={im.id} type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="Edit this picture"
+                  className="group relative block h-20 w-20 overflow-hidden bg-stone-100 outline-none ring-stone-900 focus-visible:ring-1">
                   <img src={im.url} alt={im.title} title={im.title || undefined} className="h-full w-full object-cover" />
-                  <button onClick={() => onUnpair(im.id)} aria-label="Unpair this picture" title="Unpair — the picture stays on the board"
-                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center bg-stone-900/70 text-cream opacity-0 transition-opacity hover:bg-stone-900 group-hover:opacity-100"><CloseIcon size={11} /></button>
-                </span>
+                  <span className="absolute inset-x-0 bottom-0 bg-stone-900/70 py-0.5 text-center text-[9px] tracking-[0.14em] text-cream opacity-0 transition-opacity group-hover:opacity-100">EDIT</span>
+                </button>
               ))}
-              <button onClick={() => setPicking((v) => !v)} aria-expanded={picking}
-                className={`flex h-20 w-20 flex-col items-center justify-center gap-1 border text-[10px] tracking-[0.12em] transition-colors ${picking ? 'border-stone-900 text-stone-900' : 'border-dashed border-stone-300 text-stone-500 hover:border-stone-900 hover:text-stone-900'}`}>
-                <AddIcon size={16} />{images.length ? 'REPLACE' : 'ADD'}
-              </button>
+              {images.length === 0 && (
+                <button onClick={() => setPicking((v) => !v)} aria-expanded={picking}
+                  className={`flex h-20 w-20 flex-col items-center justify-center gap-1 border text-[10px] tracking-[0.12em] transition-colors ${picking ? 'border-stone-900 text-stone-900' : 'border-dashed border-stone-300 text-stone-500 hover:border-stone-900 hover:text-stone-900'}`}>
+                  <AddIcon size={16} />ADD
+                </button>
+              )}
+              {menu && images.length > 0 && (
+                <div className="flex flex-col justify-center gap-1">
+                  <button onClick={() => { setMenu(false); setPicking(true) }} className="px-3 py-1 text-left text-[11px] tracking-[0.12em] text-stone-900 hover:bg-stone-500/5">REPLACE</button>
+                  <button onClick={() => { setMenu(false); onUnpair(images[0].id) }} className="px-3 py-1 text-left text-[11px] tracking-[0.12em] text-stone-900 hover:bg-stone-500/5">REMOVE</button>
+                  <button onClick={() => setMenu(false)} className="px-3 py-1 text-left text-[11px] tracking-[0.12em] text-stone-500 hover:text-stone-900">CANCEL</button>
+                </div>
+              )}
             </div>
             {picking && (
               <div className="mt-3 border border-stone-200 p-3">
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between gap-3">
                   <span className="text-[10px] tracking-[0.16em] text-stone-500">FROM THE MOOD BOARD{images.length ? ' · REPLACES THE CURRENT ONE' : ''}</span>
-                  <button onClick={() => fileRef.current && fileRef.current.click()} className="text-[11px] text-stone-900 underline underline-offset-4 hover:text-stone-600">Upload a photo</button>
+                  <span className="flex items-center gap-3">
+                    <button onClick={() => fileRef.current && fileRef.current.click()} className="text-[11px] text-stone-900 underline underline-offset-4 hover:text-stone-600">Upload a photo</button>
+                    <button onClick={() => setPicking(false)} aria-label="Close the picker" className="text-stone-500 hover:text-stone-900"><CloseIcon size={14} /></button>
+                  </span>
                   <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
                     onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ''; files.forEach((f) => onUpload(f)); setPicking(false) }} />
                 </div>
@@ -853,8 +893,11 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
               more. No count of milestones, no scolding about a missing plan. */}
           <div className="mt-7">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="kicker text-stone-400">The path</span>
+              <span className="kicker text-stone-400">Steps</span>
               <span className="h-px flex-1 bg-stone-200" />
+              {goal.milestones.length > 0 && (
+                <span className="kicker tabular-nums text-stone-500">{goal.milestones.filter(msDone).length} of {goal.milestones.length}</span>
+              )}
             </div>
             <StepAdd onAdd={addStep} />
             <div>
@@ -909,7 +952,7 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
           {/* ── Notes to herself. Timestamped, and hers to change or take back. */}
           <div className="mt-7">
             <div className="mb-2 flex items-center gap-2.5">
-              <span className="kicker text-stone-400">Notes</span>
+              <span className="kicker text-stone-400">Comments</span>
               <span className="h-px flex-1 bg-stone-200" />
             </div>
             <NoteAdd onAdd={addNote} />
@@ -956,9 +999,8 @@ function NoteAdd({ onAdd }) {
     <div className="border border-stone-200 transition-colors focus-within:border-stone-900">
       <textarea value={v} onChange={(e) => setV(e.target.value)} rows={2}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit() }}
-        placeholder="A note to yourself" className="block w-full resize-y bg-transparent px-3 py-2 text-[13px] leading-relaxed text-stone-900 outline-none placeholder:italic placeholder:text-stone-400" />
-      <div className="flex items-center justify-between border-t border-stone-100 px-3 py-1.5">
-        <span className="text-[10px] tracking-[0.12em] text-stone-500">⌘↵ TO SAVE</span>
+        placeholder="A comment to yourself" className="block w-full resize-y bg-transparent px-3 py-2 text-[13px] leading-relaxed text-stone-900 outline-none placeholder:italic placeholder:text-stone-400" />
+      <div className="flex items-center justify-end border-t border-stone-100 px-3 py-1.5">
         <button onClick={commit} disabled={!v.trim()} className="text-[11px] text-stone-900 underline underline-offset-4 hover:text-stone-600 disabled:text-stone-400 disabled:no-underline">Save</button>
       </div>
     </div>
@@ -1003,7 +1045,7 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
   if (ai.status === 'error') {
     return (
       <div className="mt-3 rounded-xl border border-stone-200 bg-white/50 px-4 py-4 text-sm text-stone-500">
-        <p>Couldn't reach the planner right now. Add milestones and steps by hand, or</p>
+        <p>Couldn't reach the planner right now.{ai.detail ? ` (${ai.detail})` : ''} Add steps by hand, or</p>
         <button onClick={onRetry} className="mt-1 text-stone-800 underline underline-offset-2 hover:text-stone-900">try again</button>.
       </div>
     )

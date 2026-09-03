@@ -327,8 +327,8 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
       })
       const d = await r.json()
       if (d && Array.isArray(d.steps) && d.steps.length) setPlan({ status: 'ready', steps: d.steps.map((x) => ({ id: uid(), title: x.title || '', detail: x.detail || '' })) })
-      else setPlan({ status: 'error', steps: [] })
-    } catch { setPlan({ status: 'error', steps: [] }) }
+      else setPlan({ status: 'error', steps: [], detail: (d && d.detail) || '' })
+    } catch (e) { setPlan({ status: 'error', steps: [], detail: e && e.message ? e.message : '' }) }
   }
   const setPlanStep = (id, patch) => setPlan((pl) => ({ ...pl, steps: pl.steps.map((x) => (x.id === id ? { ...x, ...patch } : x)) }))
   const importPlan = () => {
@@ -425,7 +425,7 @@ function Sheet({ project: p, goals, onUpdate, onRemove, onClose }) {
             )}
             {plan && plan.status === 'error' && (
               <div className="mt-3 rounded-xl border border-stone-200 bg-white/50 px-4 py-4 text-sm text-stone-500">
-                <p>Couldn't reach the planner right now.</p>
+                <p>Couldn't reach the planner right now.{plan.detail ? ` (${plan.detail})` : ''}</p>
                 <button onClick={buildPlan} className="mt-1 text-stone-900 underline underline-offset-4">Try again</button>
                 <button onClick={() => setPlan(null)} className="ml-3 text-stone-500 hover:text-stone-900">Dismiss</button>
               </div>
