@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Target, Sparkles, Calendar, ListChecks, FolderKanban, Image as ImageIcon } from 'lucide-react'
+import { Target, Sparkles, Image as ImageIcon } from 'lucide-react'
 import { AddIcon, CloseIcon, LoggedIcon, NextIcon, ColumnsIcon, WallIcon, ListIcon, TimelineIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
 import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW_LONG } from '../lib/date'
 import Checkbox from './shared/Checkbox'
-import ActivityForm from './shared/ActivityForm'
 import DreamBoard, { processImage, normVision } from './DreamBoard'
 import { routeStepToSection } from '../lib/goalRoutes'
 import { phaseForConfig } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
 import { isoWeek } from '../lib/week'
-import DreamWeek from './DreamWeek'
-import DreamProjects from './DreamProjects'
 import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
 import EmptyState from './shared/EmptyState'
@@ -158,17 +155,16 @@ function stepActivity(goalId, milestoneId, s) {
 export default function DreamDashboard({ cycleConfig = {} }) {
   const [rawGoals, setRawGoals] = useLocalStorage('mos:dream:goals', [])
   const goals = (Array.isArray(rawGoals) ? rawGoals : []).map(normGoal)
-  const { activities, add, update, remove, toggleComplete } = useActivities()
+  const { activities, add, remove } = useActivities()
   const { flags: lifeFlags, stage } = useLifeStage()
   const [openId, setOpenId] = useState(null)
   const [openMs, setOpenMs] = useState(() => new Set())
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
-  const [tab, setTab] = useState('week')
+  const [tab, setTab] = useState('goals')
   const [goalView, setGoalView] = useState('wall') // see VIEWS
   const [dropAt, setDropAt] = useState(null) // { phase, index } while a card is over a column
   const [boardFilter, setBoardFilter] = useState(null) // a pillar id, from tapping a metrics bar
-  const [editItem, setEditItem] = useState(null) // a week item opened from This Week
 
   const setGoals = (updater) => setRawGoals((prev) => {
     const cur = (Array.isArray(prev) ? prev : []).map(normGoal)
@@ -364,8 +360,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   )
 
   const TABS = [
-    { id: 'week', label: 'This Week', icon: ListChecks },
-    { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'goals', label: 'Goals', icon: Target },
     { id: 'board', label: 'Mood Board', icon: ImageIcon },
     { id: 'collections', label: 'Wishlist', icon: Sparkles },
@@ -385,27 +379,13 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           const active2 = tab === t.id
           const Icon = t.icon
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-colors ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
               <Icon size={14} strokeWidth={1.75} />{t.label}
             </button>
           )
         })}
       </div>
 
-      {tab === 'week' && (
-        <DreamWeek
-          activities={activities}
-          add={add}
-          update={update}
-          toggleComplete={toggleComplete}
-          onOpenItem={setEditItem}
-          cycleConfig={cycleConfig}
-          goals={active}
-          projects={Array.isArray(projectsRaw) ? projectsRaw : []}
-          phases={lifeFlags.phases}
-        />
-      )}
-      {tab === 'projects' && <DreamProjects goals={active} />}
       {tab === 'board' && (
         <DreamBoard
           goals={active}
@@ -420,16 +400,20 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {tab === 'collections' && <DreamCollections goals={active} projects={Array.isArray(projectsRaw) ? projectsRaw : []} />}
       {tab === 'goals' && (
         <>
-          <div className="relative mb-7 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative mb-7 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
                 {VIEWS.map((v) => {
                   const on = goalView === v.id
                   const Icon = v.icon
                   return (
-                    <button key={v.id} onClick={() => setGoalView(v.id)} title={v.note} aria-pressed={on}
-                      className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
-                      <Icon size={16} />{v.label}
+                    // The mark alone. Four words across the top of a phone
+                    // wrapped the row and pushed New goal onto a line of its
+                    // own; the board's three readings have never needed
+                    // labels, and neither do these.
+                    <button key={v.id} onClick={() => setGoalView(v.id)} title={`${v.label} — ${v.note}`} aria-label={v.label} aria-pressed={on}
+                      className={`flex h-9 w-11 items-center justify-center rounded-full transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
+                      <Icon size={17} />
                     </button>
                   )
                 })}
@@ -570,15 +554,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       )}
 
       {/* Tap a This Week item → its full editor, right here. */}
-      {editItem && (
-        <ActivityForm
-          activity={editItem}
-          isNew={false}
-          onSave={(a) => { update(a.id, a); setEditItem(null) }}
-          onDelete={() => { remove(editItem.id); setEditItem(null) }}
-          onClose={() => setEditItem(null)}
-        />
-      )}
     </section>
   )
 }
