@@ -374,12 +374,15 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       />
 
       {/* section tabs */}
-      <div className="no-scrollbar mb-8 flex items-center justify-center gap-1.5 overflow-x-auto">
+      {/* Three names, and on the narrowest phone they only just fit. Centred
+          where there is room; from the left where there is not, so a name is
+          never clipped against an edge she cannot scroll back to. */}
+      <div className="no-scrollbar -mx-6 mb-8 flex items-center justify-start gap-1 overflow-x-auto px-6 sm:mx-0 sm:justify-center sm:gap-1.5 sm:px-0">
         {TABS.map((t) => {
           const active2 = tab === t.id
           const Icon = t.icon
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[13px] transition-colors sm:px-4 sm:text-sm ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
               <Icon size={14} strokeWidth={1.75} />{t.label}
             </button>
           )
@@ -1119,7 +1122,28 @@ function GoalList({ goals, imagesOf, stepsOf, onOpen }) {
 // hairline grid, mono for every number.
 const AXIS = { line: '#E2DACB', track: '#EFEAE0', bar: '#16130F', over: '#6E4526', today: '#1D2FC4' }
 
+// A label needs room, and how much room there is depends on the phone, not on
+// how many months the goals happen to span. Counting months alone printed
+// JAN 27 straight over MAR on a narrow screen. So the axis is packed rather
+// than divided: walk the months in order and keep the ones that still fit.
+// Mono at 10px with the tracked-caps setting runs about 7px a character.
+const labelFor = (m) => `${MONTHS_SHORT[m.getMonth()].toUpperCase()}${m.getMonth() === 0 ? ` ${String(m.getFullYear()).slice(2)}` : ''}`
+const labelW = (t) => t.length * 7 + 8
+
 function GoalTimeline({ goals, onOpen }) {
+  const axisRef = useRef(null)
+  const [axisW, setAxisW] = useState(0)
+  useEffect(() => {
+    const el = axisRef.current
+    if (!el) return undefined
+    const measure = () => setAxisW(el.clientWidth)
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ro) ro.observe(el)
+    window.addEventListener('resize', measure)
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [])
+
   const rows = goals
     .map((g) => {
       const marks = g.milestones.filter((m) => m.target)
@@ -1150,31 +1174,42 @@ function GoalTimeline({ goals, onOpen }) {
 
   const months = []
   for (let d = new Date(t0); d.getTime() < t1; d.setMonth(d.getMonth() + 1)) months.push(new Date(d))
-  // A narrow month has no room for its name; every second one is labelled when
-  // the axis is long, and a January always says which year it opened.
-  const step = months.length > 14 ? 3 : months.length > 7 ? 2 : 1
+
+  const todayX = pct(today)
+
+  // Every month that still has room, in order: not off the right edge, and not
+  // on top of the label before it.
+  const w = axisW || 320
+  const ticks = []
+  let lastRight = -Infinity
+  months.forEach((m) => {
+    const t = labelFor(m)
+    const lw = labelW(t)
+    const px = (pct(m.getTime()) / 100) * w
+    if (px + lw > w) return
+    if (px < lastRight + 8) return
+    lastRight = px + lw
+    ticks.push({ m, t, x: pct(m.getTime()) })
+  })
 
   const ROW = 34
 
   return (
     <div className="border border-stone-200 bg-white/40 p-5">
       <div className="flex">
-        <div className="w-36 shrink-0 sm:w-44" />
-        <div className="relative flex-1">
-          {/* the axis */}
-          <div className="relative h-5">
-            {months.map((m, i) => (
-              i % step === 0 && (
-                <span key={i} className="absolute top-0 whitespace-nowrap text-[10px] tracking-[0.14em] text-stone-500"
-                  style={{ left: `${pct(m.getTime())}%` }}>
-                  {MONTHS_SHORT[m.getMonth()].toUpperCase()}{m.getMonth() === 0 ? ` ${String(m.getFullYear()).slice(2)}` : ''}
-                </span>
-              )
+        <div className="w-28 shrink-0 sm:w-44" />
+        <div ref={axisRef} className="relative flex-1">
+          {/* The axis reads on two lines: the months, and beneath them today
+              naming itself beside its own rule. On one line the two collided
+              on a narrow screen no matter how the months were thinned. */}
+          <div className="relative h-9">
+            {ticks.map(({ t, x }) => (
+              <span key={t + x} className="absolute top-0 whitespace-nowrap text-[10px] tracking-[0.14em] text-stone-500" style={{ left: `${x}%` }}>{t}</span>
             ))}
             {/* Today names itself on the axis. A line she has to look up in a
                 key is a line she reads past. */}
             <span className="absolute bottom-0 whitespace-nowrap px-1 text-[10px] tracking-[0.14em]"
-              style={{ left: `${pct(today)}%`, transform: 'translateX(-50%)', color: AXIS.today, backgroundColor: '#FAF6ED' }}>
+              style={{ left: `${todayX}%`, transform: `translateX(${todayX > 88 ? '-100%' : todayX < 6 ? '0' : '-50%'})`, color: AXIS.today, backgroundColor: '#FAF6ED' }}>
               TODAY
             </span>
           </div>
@@ -1182,7 +1217,7 @@ function GoalTimeline({ goals, onOpen }) {
       </div>
 
       <div className="flex">
-        <div className="w-36 shrink-0 sm:w-44">
+        <div className="w-28 shrink-0 sm:w-44">
           {rows.map(({ g, marks }) => (
             <button key={g.id} onClick={() => onOpen(g.id)}
               className="flex w-full items-center pr-3 text-left transition-colors hover:text-stone-500" style={{ height: ROW }}>
@@ -1200,7 +1235,7 @@ function GoalTimeline({ goals, onOpen }) {
             <span key={i} aria-hidden className="absolute inset-y-0 w-px" style={{ left: `${pct(m.getTime())}%`, backgroundColor: AXIS.line }} />
           ))}
           {/* today */}
-          <span aria-hidden className="absolute inset-y-0 w-px" style={{ left: `${pct(today)}%`, backgroundColor: AXIS.today }} />
+          <span aria-hidden className="absolute inset-y-0 w-px" style={{ left: `${todayX}%`, backgroundColor: AXIS.today }} />
 
           {rows.map(({ g, marks }, ri) => {
             const from = g.createdOn || g.target

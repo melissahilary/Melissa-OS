@@ -310,7 +310,7 @@ export default function App() {
       )}
 
       {/* ── Main content ────────────────────────────────────── */}
-      <main className="overflow-x-hidden px-6 py-10 md:px-10 lg:px-12">
+      <main className="overflow-x-hidden px-6 pt-10 pb-28 md:px-10 lg:px-12">
         <div className="mx-auto max-w-5xl">
           {pageTitle && <h1 className="mb-9 text-center font-serif text-4xl text-stone-900 md:text-5xl">{pageTitle}</h1>}
           {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
