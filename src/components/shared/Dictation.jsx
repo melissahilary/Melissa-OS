@@ -7,12 +7,16 @@ import { useLocalStorage } from '../../hooks/useLocalStorage'
 // ── Dictation, everywhere.
 //
 // Mounted once. Rather than threading a microphone through two hundred inputs —
-// and every input written after today — this watches the page for text fields
-// and stands a mic beside each one. One implementation, the whole house,
-// including pages that don't exist yet.
+// and every input written after today — this watches which field she is in and
+// offers the mic there. One implementation, the whole house, including pages
+// that don't exist yet.
 //
-// The mic used to appear only once a field had focus, which meant nobody knew
-// it was there. It is beside every field now, all the time.
+// It briefly stood a mic beside every field on the page at once. That was
+// wrong in three ways at the same time: the mood board's cards each carry a
+// caption field on their hidden back, so a mic appeared over every photograph;
+// a page of fields became a scattering of little icons on top of other icons;
+// and re-measuring them all on every mutation made them twitch. One mic, on the
+// field she is actually in, is the whole of what dictation needs.
 
 const TEXTY = new Set(['text', 'search', 'url', 'tel', 'email', ''])
 
@@ -25,7 +29,8 @@ function dictatable(el) {
 }
 
 // What the field is sitting on. The Brain Dump writes into a near-black panel
-// and most other fields are on cream, so the mic has to read on both.
+// and most other fields are on cream, so the mic has to read on both — a fixed
+// grey disappears against one or the other.
 function onDarkGround(el) {
   let node = el
   for (let i = 0; node && i < 8; i += 1) {
@@ -52,54 +57,13 @@ function writeValue(el, value) {
   el.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
-// Every text field on the page that is actually visible.
-function visibleFields() {
-  const out = []
-  document.querySelectorAll('input, textarea').forEach((el) => {
-    if (!dictatable(el)) return
-    const cs = getComputedStyle(el)
-    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return
-    const r = el.getBoundingClientRect()
-    if (!r.width || !r.height) return
-    if (r.bottom < -40 || r.top > window.innerHeight + 40) return
-    out.push(el)
-  })
-  return out
-}
-
-// Where a mic stands for a given field. A one-line field takes it at its right
-// edge, outside the text if there is room. A tall box takes it in the bottom
-// corner, clear of the resize grip.
-function placeFor(el) {
-  const r = el.getBoundingClientRect()
-  const tall = r.height > 64
-  // Outside the field if there is room — and the room is actually empty. In a
-  // row of short fields the space to the right is the next field, and a mic
-  // standing on a neighbour's first letter is worse than one tucked inside.
-  let outside = !tall && r.right + 30 < window.innerWidth
-  if (outside) {
-    const hit = document.elementFromPoint(r.right + 19, r.top + r.height / 2)
-    if (hit && hit !== el && hit.closest('input, textarea, button, select, a, label, [data-mic-button]')) outside = false
-  }
-  const x = outside ? r.right + 8 : r.right - 30
-  const y = tall ? Math.min(r.bottom - 24, window.innerHeight - 24) : r.top + r.height / 2
-  return {
-    x,
-    y,
-    pillY: tall ? y - 30 : Math.min(r.bottom + 18, window.innerHeight - 22),
-    pillRight: window.innerWidth - (x + 12),
-    dark: onDarkGround(el),
-  }
-}
-
 export default function Dictation() {
   const [enabledRaw] = useLocalStorage('mos:settings:dictation', true)
   const enabled = enabledRaw !== false
   const supported = useMemo(() => speechSupported(), [])
 
-  // Every field with a mic, and where each mic stands.
-  const [spots, setSpots] = useState([]) // [{ el, box }]
-  const [active, setActive] = useState(null) // the field being dictated into
+  const [field, setField] = useState(null)
+  const [box, setBox] = useState(null)
   const [listening, setListening] = useState(false)
   const [error, setError] = useState('')
 
@@ -134,60 +98,87 @@ export default function Dictation() {
 
   const start = useCallback((el) => {
     if (!el || !listenerRef.current) return
-    if (document.activeElement !== el) { try { el.focus({ preventScroll: true }) } catch { /* fine */ } }
     const s = typeof el.selectionStart === 'number' ? el.selectionStart : el.value.length
     const e = typeof el.selectionEnd === 'number' ? el.selectionEnd : el.value.length
     anchor.current = { el, before: el.value.slice(0, s), after: el.value.slice(e) }
-    setActive(el)
-    setError('')
     listenerRef.current.start()
   }, [])
 
-  // ── Keeping a mic beside every field as the page changes ─────────
+  // ── Which field is she standing in ────────────────────────────────
   useEffect(() => {
     if (!supported || !enabled) return undefined
+    const onIn = (e) => setField(dictatable(e.target) ? e.target : null)
+    const onOut = (e) => {
+      // Focus moving to the mic itself is prevented at mousedown, so a real
+      // focusout means she has left the field.
+      if (e.relatedTarget && e.relatedTarget.dataset && e.relatedTarget.dataset.micButton !== undefined) return
+      setField(null)
+    }
+    document.addEventListener('focusin', onIn)
+    document.addEventListener('focusout', onOut)
+    return () => {
+      document.removeEventListener('focusin', onIn)
+      document.removeEventListener('focusout', onOut)
+    }
+  }, [supported, enabled])
+
+  // Leaving the field ends the session — dictation should never outlive the
+  // place it was speaking into.
+  useEffect(() => { stop(); setError('') }, [field, stop])
+
+  // ── Keeping the mic on the field as the page moves ────────────────
+  useEffect(() => {
+    if (!field) { setBox(null); return undefined }
     let raf = 0
     const place = () => {
       raf = 0
-      const els = visibleFields()
-      setSpots(els.map((el) => ({ el, box: placeFor(el) })))
+      const r = field.getBoundingClientRect()
+      if (!r.width || r.bottom < 0 || r.top > window.innerHeight) { setBox(null); return }
+      // A one-line field takes the mic at its right edge, outside the text if
+      // there is room and nothing else is standing there. A tall box takes it
+      // in the bottom corner, clear of the resize grip, with the listening note
+      // stacked above rather than running into it.
+      const tall = r.height > 64
+      let outside = !tall && r.right + 30 < window.innerWidth
+      if (outside) {
+        const hit = document.elementFromPoint(r.right + 19, r.top + r.height / 2)
+        if (hit && hit !== field && hit.closest('input, textarea, button, select, a, label')) outside = false
+      }
+      const x = outside ? r.right + 8 : r.right - 30
+      const y = tall ? Math.min(r.bottom - 24, window.innerHeight - 24) : r.top + r.height / 2
+      setBox({
+        x,
+        y,
+        pillY: tall ? y - 30 : Math.min(r.bottom + 18, window.innerHeight - 22),
+        pillRight: window.innerWidth - (x + 12),
+        dark: onDarkGround(field),
+      })
     }
+    // Coalesced into a frame: a field inside a panel that is still sliding in
+    // would otherwise be measured a dozen times on the way.
     const schedule = () => { if (!raf) raf = requestAnimationFrame(place) }
     place()
     window.addEventListener('scroll', schedule, true)
     window.addEventListener('resize', schedule)
-    const mo = new MutationObserver(schedule)
-    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'disabled', 'readonly'] })
-    // Fields that grow as she types (a textarea being resized) move their mic.
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
-    if (ro) ro.observe(document.body)
+    if (ro) ro.observe(field)
     return () => {
       if (raf) cancelAnimationFrame(raf)
       window.removeEventListener('scroll', schedule, true)
       window.removeEventListener('resize', schedule)
-      mo.disconnect()
       if (ro) ro.disconnect()
     }
-  }, [supported, enabled])
-
-  // A field that leaves the page ends its dictation — the words should never
-  // outlive the place they were going.
-  useEffect(() => {
-    if (!active) return
-    if (!spots.some((s) => s.el === active)) { stop(); setActive(null) }
-  }, [spots, active, stop])
-  useEffect(() => { if (!listening) setActive(null) }, [listening])
+  }, [field])
 
   // ── Keys: hold nothing, remember one ──────────────────────────────
   useEffect(() => {
     if (!supported || !enabled) return undefined
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'd' || e.key === 'D')) {
-        const el = document.activeElement
-        if (!dictatable(el)) return
+        if (!field) return
         e.preventDefault()
-        if (listening && active === el) stop()
-        else start(el)
+        if (listening) stop()
+        else start(field)
         return
       }
       if (!listening) return
@@ -197,55 +188,45 @@ export default function Dictation() {
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [supported, enabled, active, listening, start, stop])
+  }, [supported, enabled, field, listening, start, stop])
 
-  if (!supported || !enabled || !spots.length) return null
-
-  const activeSpot = active ? spots.find((s) => s.el === active) : null
+  if (!supported || !enabled || !box) return null
 
   return createPortal(
     <>
-      {spots.map(({ el, box }, i) => {
-        const live = listening && el === active
-        return (
-          <button
-            key={i}
-            data-mic-button=""
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => (live ? stop() : start(el))}
-            aria-label={live ? 'Stop dictating' : 'Dictate into this field'}
-            aria-pressed={live}
-            title={live ? 'Listening — click to stop' : 'Dictate (⌘⇧D)'}
-            className="fixed z-[60] flex h-[22px] w-[22px] -translate-y-1/2 items-center justify-center rounded-full transition-colors"
-            style={{
-              top: box.y,
-              left: box.x,
-              backgroundColor: live ? (box.dark ? '#FAF6ED' : '#16130F') : 'transparent',
-              // Readable at rest, on either ground — a mic she cannot see is
-              // a mic she does not have.
-              color: live ? (box.dark ? '#16130F' : '#FAF6ED') : (box.dark ? '#CEC3AF' : '#75684F'),
-            }}
-          >
-            {live && (
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-full"
-                style={{ border: `1px solid ${box.dark ? '#FAF6ED' : '#16130F'}`, animation: 'mos-listen 1.6s ease-out infinite' }}
-              />
-            )}
-            <MicIcon size={16} live={live} />
-          </button>
-        )
-      })}
+      <button
+        data-mic-button=""
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => (listening ? stop() : start(field))}
+        aria-label={listening ? 'Stop dictating' : 'Dictate'}
+        aria-pressed={listening}
+        title={listening ? 'Listening — click to stop' : 'Dictate (⌘⇧D)'}
+        className="fixed z-[70] flex h-[22px] w-[22px] -translate-y-1/2 items-center justify-center rounded-full transition-colors"
+        style={{
+          top: box.y,
+          left: box.x,
+          backgroundColor: listening ? (box.dark ? '#FAF6ED' : '#16130F') : 'transparent',
+          color: listening ? (box.dark ? '#16130F' : '#FAF6ED') : (box.dark ? '#CEC3AF' : '#75684F'),
+        }}
+      >
+        {listening && (
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full"
+            style={{ border: `1px solid ${box.dark ? '#FAF6ED' : '#16130F'}`, animation: 'mos-listen 1.6s ease-out infinite' }}
+          />
+        )}
+        <MicIcon size={16} live={listening} />
+      </button>
 
-      {activeSpot && (listening || error) && (
+      {(listening || error) && (
         <div
-          className="fixed z-[60] flex -translate-y-1/2 items-center gap-2 rounded-full px-3 py-1.5"
+          className="fixed z-[70] flex -translate-y-1/2 items-center gap-2 rounded-full px-3 py-1.5"
           style={{
-            top: activeSpot.box.pillY,
-            right: Math.max(12, activeSpot.box.pillRight),
-            backgroundColor: activeSpot.box.dark ? '#FAF6ED' : '#16130F',
-            color: activeSpot.box.dark ? '#16130F' : '#FAF6ED',
+            top: box.pillY,
+            right: Math.max(12, box.pillRight),
+            backgroundColor: box.dark ? '#FAF6ED' : '#16130F',
+            color: box.dark ? '#16130F' : '#FAF6ED',
           }}
         >
           {!error && (

@@ -5,6 +5,7 @@ import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity } from '../../lib/activities'
 import { dateKey } from '../../lib/date'
+import { newGoal } from '../../lib/goals'
 
 // ── The universal Add. One + button, always present; one sheet, always the same.
 // You say what you're adding, it shows only the fields that matter, and a toast
@@ -176,7 +177,7 @@ function QuickAdd({ onClose, onDone, fullEditor }) {
       add(blankActivity('supplement', { title: t, category: 'supplements', frequency: 'daily', details: { slot: mt.supp, dose: '', unit: 'mg' } }))
       onDone(`Supplement added · ${mt.label}`, { page: 'menu', sub: 'supplements' })
     } else if (type === 'goal') {
-      setGoals((prev) => [...(Array.isArray(prev) ? prev : []), { id: uid(), title: t, vision: '', pillar: 'mindset', phase: 'now', target: '', status: 'active', milestones: [] }])
+      setGoals((prev) => [...(Array.isArray(prev) ? prev : []), newGoal('now', t)])
       onDone('Goal added · Dream Planning', { page: 'dream' })
     } else if (type === 'shop') {
       setShop((prev) => [{ id: uid(), text: t, bought: false, addedDate: dateKey(new Date()), boughtDate: '' }, ...(Array.isArray(prev) ? prev : [])])

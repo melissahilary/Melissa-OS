@@ -366,13 +366,16 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
           </button>
         )}
         {/* On the home (Today) page the big cursive masthead already carries the
-            name, so the bar wordmark is hidden there to avoid showing it twice. */}
+            name, so the bar wordmark is hidden there to avoid showing it twice.
+            On a phone it is hidden everywhere: centred in a bar with a button at
+            each end, it had nowhere to go but underneath Esmé, and the page's own
+            title sits an inch below it anyway. */}
         {showWordmark && (
           <button
             onClick={onGoHome}
             title="Home — Today"
             style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}
-            className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-2xl"
+            className="absolute left-1/2 hidden -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 sm:block md:text-2xl"
           >
             Melissa's Digital Planner
           </button>

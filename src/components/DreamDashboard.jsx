@@ -16,6 +16,7 @@ import AddInline from './shared/AddInline'
 import EmptyState from './shared/EmptyState'
 import * as store from '../lib/dataStore'
 import { adherenceOf, trajectoryOf } from '../lib/goalSignals'
+import { PHASES, phaseMeta, dueFromHorizon, newGoal } from '../lib/goals'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -38,21 +39,6 @@ const PILLARS = {
 const pillarMeta = (id) => PILLARS[id] || PILLARS.mindset
 const PILLAR_IDS = Object.keys(PILLARS)
 
-// The columns name a horizon rather than an attitude. "On deck" says nothing
-// about when; six to twelve months does, and it is the thing she is actually
-// deciding when she drags a goal across.
-const PHASES = [
-  { id: 'now', label: 'Now', note: 'Next 6 months', months: 6 },
-  { id: 'next', label: 'Next', note: '6–12 months', months: 12 },
-  { id: 'later', label: 'Later', note: 'Beyond a year', months: 18 },
-]
-const phaseMeta = (id) => PHASES.find((p) => p.id === id) || PHASES[0]
-
-// The day she enters a goal the clock starts: its horizon sets a due date from
-// that day, and moving it to another horizon restarts the clock from today. She
-// can then set the date to anything — the horizon is the default, not the rule.
-const addMonths = (key, n) => { const d = parseKey(key); const out = new Date(d.getFullYear(), d.getMonth() + n, d.getDate()); return dateKey(out) }
-const dueFromHorizon = (phase, from) => addMonths(from || dateKey(new Date()), phaseMeta(phase).months)
 const daysBetween = (a, b) => (a && b ? Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / 86400000) : null)
 const HEALTH = { on: { c: '#7C8B6B', label: 'On track' }, risk: { c: '#B0873F', label: 'At risk' }, stall: { c: '#A0654C', label: 'Stalled' } }
 
@@ -187,10 +173,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     const at = rest.indexOf(anchor)
     return [...rest.slice(0, at), moved, ...rest.slice(at)]
   })
-  const fresh = (phase, title = '') => {
-    const today = todayKey()
-    return { id: uid(), title, vision: '', pillar: 'mindset', phase, status: 'active', milestones: [], notes: [], createdOn: today, target: dueFromHorizon(phase, today) }
-  }
+  const fresh = (phase, title = '') => newGoal(phase, title)
   const addGoalIn = (phase, title) => {
     const t = (title || '').trim()
     if (!t) return
@@ -377,16 +360,19 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {/* Three names, and on the narrowest phone they only just fit. Centred
           where there is room; from the left where there is not, so a name is
           never clipped against an edge she cannot scroll back to. */}
-      <div className="no-scrollbar -mx-6 mb-8 flex items-center justify-start gap-1 overflow-x-auto px-6 sm:mx-0 sm:justify-center sm:gap-1.5 sm:px-0">
+      <div className="no-scrollbar -mx-6 mb-8 flex items-center justify-start gap-0.5 overflow-x-auto px-6 sm:mx-0 sm:justify-center sm:gap-1.5 sm:px-0">
         {TABS.map((t) => {
           const active2 = tab === t.id
           const Icon = t.icon
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[13px] transition-colors sm:px-4 sm:text-sm ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-2 text-[12px] transition-colors sm:px-4 sm:text-sm ${active2 ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
               <Icon size={14} strokeWidth={1.75} />{t.label}
             </button>
           )
         })}
+        {/* A scroller's trailing padding collapses, so the last name sat hard
+            against the edge of the phone. A spacer is the padding that stays. */}
+        <span aria-hidden className="w-6 shrink-0 sm:hidden" />
       </div>
 
       {tab === 'board' && (
@@ -435,7 +421,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
             inView.length === 0
               ? <EmptyState mark={Target} line="Nothing here yet." />
               : (
-                <div className="mos-scroll overflow-y-auto pr-2" style={{ maxHeight: VIEW_H }}>
+                <div className="mos-scroll overflow-y-auto pr-5" style={{ maxHeight: VIEW_H }}>
                   <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-3 xl:grid-cols-4">
                     {[...inView].sort(byHorizon).map((g) => cardFor(g, { plate: true }))}
                   </div>
@@ -447,7 +433,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
             inView.length === 0
               ? <EmptyState mark={Target} line="Nothing here yet." />
               : (
-                <div className="mos-scroll overflow-y-auto pr-2" style={{ maxHeight: VIEW_H }}>
+                <div className="mos-scroll overflow-y-auto pr-5" style={{ maxHeight: VIEW_H }}>
                   <GoalList goals={[...inView].sort(byHorizon)} imagesOf={imagesForGoal} stepsOf={stepsOf} onOpen={openGoal} />
                 </div>
               )
@@ -494,7 +480,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                         whenever she wants them, rather than a form in the way. */}
                     <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
                   </div>
-                  <div className="mos-scroll min-h-[60px] space-y-3 overflow-y-auto pr-2" style={{ maxHeight: VIEW_H }}>
+                  <div className="mos-scroll min-h-[60px] space-y-3 overflow-y-auto pr-5" style={{ maxHeight: VIEW_H }}>
                     {(() => {
                       // The dragged card stays where it was, dimmed; the line
                       // is placed among the others.
@@ -708,9 +694,17 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
   const [mounted, setMounted] = useState(false)
   const [picking, setPicking] = useState(false)
   const [menu, setMenu] = useState(false)
+  const [confirm, setConfirm] = useState('') // '' | 'status' | 'delete'
   const fileRef = useRef(null)
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
-  useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])
+  // A half-asked question doesn't follow her to the next goal, and Escape backs
+  // out of it before it closes the panel.
+  useEffect(() => { setConfirm('') }, [goal.id])
+  useEffect(() => {
+    const onEsc = (e) => { if (e.key !== 'Escape') return; if (confirm) setConfirm(''); else onClose() }
+    document.addEventListener('keydown', onEsc)
+    return () => document.removeEventListener('keydown', onEsc)
+  }, [onClose, confirm])
 
   const achieved = goal.status === 'achieved'
   const left = daysUntil(goal.target)
@@ -915,12 +909,43 @@ function GoalPanel({ goal, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, 
             )}
           </div>
 
-          <div className="mt-7 flex items-center justify-between border-t border-stone-200 pt-4">
-            <button onClick={onRemove} className="text-xs text-stone-500 hover:text-oxblood">Delete goal</button>
-            <button onClick={() => onUpdate(achieved ? { status: 'active', achievedOn: '' } : { status: 'achieved', achievedOn: todayKey() })}
-              className={`rounded-full px-5 py-2 text-sm transition-colors ${achieved ? 'border border-stone-300 text-stone-600 hover:border-stone-500' : 'bg-stone-900 text-cream hover:bg-stone-700'}`}>
-              {achieved ? 'Reopen' : 'Mark achieved'}
-            </button>
+          {/* ── The two irreversible things, both behind a second press.
+              Marking a goal achieved was one unguarded click at the bottom of a
+              panel whose height moves under the cursor — the plan box opens, a
+              comment is added — so a click meant for something else could land
+              on it and retire a goal she had just written. Asking twice costs
+              her nothing and means the word is always something she chose. */}
+          <div className="mt-7 flex items-center justify-between gap-3 border-t border-stone-200 pt-4">
+            {confirm === 'delete' ? (
+              <span className="flex items-center gap-3 text-xs">
+                <span className="text-stone-600">Delete for good?</span>
+                <button type="button" onClick={onRemove} className="text-oxblood underline underline-offset-2">Delete</button>
+                <button type="button" onClick={() => setConfirm('')} className="text-stone-500 hover:text-stone-900">Keep</button>
+              </span>
+            ) : (
+              <button type="button" onClick={() => setConfirm('delete')} className="text-xs text-stone-500 hover:text-oxblood">Delete goal</button>
+            )}
+
+            {confirm === 'status' ? (
+              <span className="flex items-center gap-3">
+                <button type="button" onClick={() => setConfirm('')} className="text-xs text-stone-500 hover:text-stone-900">Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => { setConfirm(''); onUpdate(achieved ? { status: 'active', achievedOn: '' } : { status: 'achieved', achievedOn: todayKey() }) }}
+                  className="rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-colors hover:bg-stone-700"
+                >
+                  {achieved ? 'Yes, reopen it' : 'Yes, it’s done'}
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirm('status')}
+                className={`rounded-full px-5 py-2 text-sm transition-colors ${achieved ? 'border border-stone-300 text-stone-600 hover:border-stone-500' : 'bg-stone-900 text-cream hover:bg-stone-700'}`}
+              >
+                {achieved ? 'Reopen' : 'Mark achieved'}
+              </button>
+            )}
           </div>
         </div>
       </aside>
