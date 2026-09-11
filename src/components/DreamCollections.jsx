@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react'
-import { ExternalLink, Share2, GripVertical } from 'lucide-react'
-import { AddIcon, CloseIcon, LoggedIcon, AestheticsMark } from './shared/marks'
+import React, { useEffect, useMemo, useState } from 'react'
+import { ExternalLink, Share2, GripVertical, ImagePlus } from 'lucide-react'
+import { AddIcon, CloseIcon, LoggedIcon } from './shared/marks'
+import { processImage } from './DreamBoard'
+import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PILLAR_TAGS } from './DreamProjects'
 import EmptyState from './shared/EmptyState'
@@ -61,21 +63,79 @@ const normList = (c) => ({
   items: (Array.isArray(c.items) ? c.items : []).map(normItem).sort((a, b) => a.rank - b.rank),
 })
 
+const COVERS_KEY = 'mos:dream:covers'
+
 export default function DreamCollections({ goals = [], projects = [] }) {
   const [stored, setStore] = useLocalStorage('mos:dream:collections', [])
   const lists = useMemo(() => (Array.isArray(stored) ? stored : []).map(normList), [stored])
+  const [coversRaw, setCovers] = useLocalStorage(COVERS_KEY, {})
+  const covers = coversRaw && typeof coversRaw === 'object' ? coversRaw : {}
   const [openId, setOpenId] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [choosing, setChoosing] = useState(null) // a topic she has more than one list in
+
+  // Covers are real files in the private bucket like every other photograph
+  // here, so the board holds as many as she likes without bloating the row that
+  // loads at sign-in. Viewing one needs a signed link.
+  const [urls, setUrls] = useState({})
+  const paths = Object.values(covers).map((c) => (c && c.path) || '').filter(Boolean).join(',')
+  useEffect(() => {
+    let alive = true
+    const missing = [...new Set(paths.split(',').filter((p) => p && !urls[p]))]
+    if (!missing.length) return undefined
+    ;(async () => {
+      const pairs = await Promise.all(missing.map(async (p) => [p, await store.signedPhotoUrl(p)]))
+      if (!alive) return
+      setUrls((u) => { const next = { ...u }; pairs.forEach(([p, url]) => { if (url) next[p] = url }); return next })
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paths])
+
+  const coverSrc = (clsId) => {
+    const c = covers[clsId]
+    if (!c) return ''
+    return c.dataUrl || urls[c.path] || ''
+  }
+
+  const setCover = (clsId, file) => {
+    if (!file) return
+    processImage(file, 900, async (out) => {
+      if (!out) return
+      let path = ''
+      if (out.blob) path = (await store.uploadPhoto(out.blob)) || ''
+      // If the upload could not land — offline, or signed out — keep the small
+      // copy so the cover is at least there now rather than silently nothing.
+      setCovers((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [clsId]: { path, dataUrl: path ? '' : (out.dataUrl || out.thumb || '') } }))
+      // The file is already in the bucket; anything that ends the page inside
+      // the debounce would leave an uploaded cover with nothing pointing at it.
+      store.flush(COVERS_KEY)
+    })
+  }
+  const clearCover = (clsId) => {
+    setCovers((prev) => { const next = { ...(prev && typeof prev === 'object' ? prev : {}) }; delete next[clsId]; return next })
+    store.flush(COVERS_KEY)
+  }
 
   const commit = (fn) => setStore((prev) => fn((Array.isArray(prev) ? prev : []).map(normList)))
   const create = (label, cls, currency) => {
     const c = normList({ label, cls, currency })
     commit((arr) => [...arr, c])
     setCreating(false)
+    setChoosing(null)
     setOpenId(c.id)
   }
   const update = (id, patch) => commit((arr) => arr.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   const remove = (id) => { commit((arr) => arr.filter((c) => c.id !== id)); setOpenId(null) }
+
+  // A topic card is a door, not a form. One list of that kind and it opens; none
+  // and it makes the obvious one and opens that; several and it asks which.
+  const openTopic = (clsId) => {
+    const mine = lists.filter((l) => l.cls === clsId)
+    if (mine.length === 1) { setOpenId(mine[0].id); return }
+    if (!mine.length) { create(classMeta(clsId).label, clsId, 'USD'); return }
+    setChoosing(clsId)
+  }
 
   const open = lists.find((c) => c.id === openId) || null
   if (open) {
@@ -84,6 +144,9 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         list={open}
         goals={goals}
         projects={projects}
+        cover={coverSrc(open.cls)}
+        onCover={(file) => setCover(open.cls, file)}
+        onClearCover={() => clearCover(open.cls)}
         onUpdate={(patch) => update(open.id, patch)}
         onRemove={() => remove(open.id)}
         onBack={() => setOpenId(null)}
@@ -91,36 +154,86 @@ export default function DreamCollections({ goals = [], projects = [] }) {
     )
   }
 
-  if (creating) return <ChooseClass onCreate={create} onCancel={() => setCreating(false)} />
+  if (creating) return <NewWishlist onCreate={create} onCancel={() => setCreating(false)} />
 
-  if (!lists.length) {
-    return <EmptyState mark={AestheticsMark} line="Nothing here yet." action="Add a list" onAction={() => setCreating(true)} />
+  if (choosing) {
+    const mine = lists.filter((l) => l.cls === choosing)
+    return (
+      <div className="border border-stone-900 bg-white/60 p-5">
+        <p className="kicker">{classMeta(choosing).label.toUpperCase()}</p>
+        <p className="mt-1 font-serif text-2xl text-stone-900">Which one?</p>
+        <div className="mt-4 divide-y divide-stone-100 border-y border-stone-200">
+          {mine.map((l) => {
+            const t = tally(l)
+            return (
+              <button key={l.id} onClick={() => { setChoosing(null); setOpenId(l.id) }} className="flex w-full items-baseline gap-3 py-3 text-left">
+                <span className="font-serif text-lg text-stone-900">{l.label}</span>
+                <span className="ml-auto text-[11px] tabular-nums text-stone-500">{t.owned} of {t.total} owned</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={() => create(classMeta(choosing).label, choosing, 'USD')} className="rounded-full bg-stone-900 px-5 py-2 text-sm text-cream">Another one</button>
+          <button onClick={() => setChoosing(null)} className="text-xs text-stone-500 hover:text-stone-900">Back</button>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div>
-      <button onClick={() => setCreating(true)} className="mb-5 flex items-center gap-2 text-sm text-stone-500 transition-colors hover:text-stone-900">
-        <AddIcon size={14} strokeWidth={1.8} /> New list
-      </button>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {lists.map((c) => {
-          const t = tally(c)
-          const covers = c.items.filter((i) => i.image).slice(0, 3)
-          return (
-            <button key={c.id} onClick={() => setOpenId(c.id)} className="overflow-hidden rounded-2xl border border-stone-200 bg-white/50 text-left shadow-sm transition-shadow hover:shadow-md">
-              <div className="flex h-24 gap-px bg-stone-100">
-                {covers.length
-                  ? covers.map((i) => <img key={i.id} src={i.image} alt="" className="h-full flex-1 object-cover" />)
-                  : <span className="flex h-full w-full items-center justify-center text-[10px] tracking-[0.2em] text-stone-400">{classMeta(c.cls).label.toUpperCase()}</span>}
-              </div>
-              <div className="p-4">
-                <p className="font-serif text-lg text-stone-900">{c.label}</p>
-                <p className="mt-0.5 text-[10px] tracking-[0.16em] text-stone-400">{classMeta(c.cls).label.toUpperCase()}</p>
-                <p className="mt-2 text-[11px] tabular-nums text-stone-500">{t.owned} of {t.total} owned</p>
-              </div>
-            </button>
-          )
-        })}
+      {/* One way in, and it is the same shape as Add photos on the board. */}
+      <div className="mb-7 flex items-center justify-center">
+        <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-full bg-stone-900 px-6 py-3 text-sm text-cream transition-opacity hover:opacity-90">
+          <ImagePlus size={15} strokeWidth={1.75} /> Add wishlist
+        </button>
+      </div>
+
+      {lists.length > 0 && (
+        <div className="mb-9">
+          <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">YOURS</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {lists.map((c) => {
+              const t = tally(c)
+              const shots = c.items.filter((i) => i.image).slice(0, 3)
+              const own = coverSrc(c.cls)
+              return (
+                <button key={c.id} onClick={() => setOpenId(c.id)} className="overflow-hidden border border-stone-200 bg-white/50 text-left transition-colors hover:border-stone-900">
+                  <span className="flex h-24 gap-px bg-stone-100">
+                    {shots.length
+                      ? shots.map((i) => <img key={i.id} src={i.image} alt="" className="h-full flex-1 object-cover" />)
+                      : own
+                        ? <img src={own} alt="" className="h-full w-full object-cover" />
+                        : <span className="flex h-full w-full items-center justify-center text-stone-400">{React.createElement(assetMarkFor(classMeta(c.cls)), { size: 24 })}</span>}
+                  </span>
+                  <span className="block p-4">
+                    <span className="block font-serif text-lg text-stone-900">{c.label}</span>
+                    {c.label.toLowerCase() !== classMeta(c.cls).label.toLowerCase() && (
+                      <span className="mt-0.5 block text-[10px] tracking-[0.16em] text-stone-400">{classMeta(c.cls).label.toUpperCase()}</span>
+                    )}
+                    <span className="mt-2 block text-[11px] tabular-nums text-stone-500">{t.owned} of {t.total} owned</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* The topics themselves: one row per group, each a pinboard of polaroids
+          that drifts until she takes an arrow, and then is hers to step through. */}
+      <div className="space-y-7">
+        {ASSET_GROUPS.map((g, gi) => (
+          <div key={g.id}>
+            <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
+            <PolaroidRail
+              items={g.classes.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id) }))}
+              reverse={gi % 2 === 1}
+              onPick={openTopic}
+            />
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -135,63 +248,52 @@ function tally(list) {
   return { total: live.length, owned: owned.length, spent, remaining }
 }
 
-// ── 1 — Choose a class ──────────────────────────────────────────────
-function ChooseClass({ onCreate, onCancel }) {
-  const [cls, setCls] = useState(null)
+// ── Add a wishlist ──────────────────────────────────────────────────
+// The topics on the landing page are the fast way in — one tap and you are in
+// the Bags wishlist. This is the deliberate way: name it whatever you like, say
+// what kind of thing it holds, and it exists.
+function NewWishlist({ onCreate, onCancel }) {
   const [label, setLabel] = useState('')
+  const [cls, setCls] = useState('wardrobe')
   const [currency, setCurrency] = useState('USD')
-
-  // 2 — Name it. The class is fixed; the name is hers.
-  if (cls) {
-    return (
-      <div className="rounded-2xl border border-stone-900 bg-white/60 p-5">
-        <p className="text-[10px] tracking-[0.16em] text-stone-400">{classMeta(cls).label.toUpperCase()}</p>
-        <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          autoFocus
-          onKeyDown={(e) => e.key === 'Enter' && label.trim() && onCreate(label.trim(), cls, currency)}
-          placeholder="Winter · The house · Skin"
-          className="mt-1 w-full border-b border-stone-300 bg-transparent pb-1.5 font-serif text-2xl outline-none placeholder:text-stone-300 focus:border-stone-900"
-        />
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900">
-            {CURRENCIES.map((c) => <option key={c.id} value={c.id}>{c.sym} {c.id}</option>)}
-          </select>
-          <button onClick={() => label.trim() && onCreate(label.trim(), cls, currency)} disabled={!label.trim()} className="rounded-full bg-stone-900 px-5 py-2 text-sm text-cream disabled:opacity-30">Create the list</button>
-          <button onClick={() => setCls(null)} className="text-xs text-stone-400 hover:text-stone-700">Back</button>
-        </div>
-      </div>
-    )
-  }
+  const go = () => label.trim() && onCreate(label.trim(), cls, currency)
 
   return (
-    <div>
-      <div className="mb-5 flex items-baseline gap-3">
-        <p className="font-serif text-xl text-stone-900">What kind of thing?</p>
-        <button onClick={onCancel} className="ml-auto text-xs text-stone-400 hover:text-stone-900">Cancel</button>
+    <div className="mx-auto max-w-xl border border-stone-900 bg-white/60 p-5">
+      <p className="kicker">NEW WISHLIST</p>
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        autoFocus
+        onKeyDown={(e) => e.key === 'Enter' && go()}
+        placeholder="Winter · The house · Skin"
+        className="mt-1 w-full border-b border-stone-300 bg-transparent pb-1.5 font-serif text-2xl outline-none placeholder:text-stone-300 focus:border-stone-900"
+      />
+      <div className="mt-5 flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm text-stone-500">
+          Holds
+          <select value={cls} onChange={(e) => setCls(e.target.value)} className="border-b border-stone-300 bg-transparent pb-1 text-sm text-stone-900 outline-none focus:border-stone-900">
+            {ASSET_GROUPS.map((g) => (
+              <optgroup key={g.id} label={g.label}>
+                {g.classes.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900">
+          {CURRENCIES.map((c) => <option key={c.id} value={c.id}>{c.sym} {c.id}</option>)}
+        </select>
       </div>
-      {/* One row per group, each a pinboard of polaroids that drifts sideways.
-          Rows alternate direction so the wall moves against itself rather than
-          marching. Hovering a row stops it; a card is then just a button. */}
-      <div className="space-y-7">
-        {ASSET_GROUPS.map((g, gi) => (
-          <div key={g.id}>
-            <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
-            <PolaroidRail
-              items={g.classes.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c) }))}
-              reverse={gi % 2 === 1}
-              onPick={setCls}
-            />
-          </div>
-        ))}
+      <div className="mt-5 flex items-center gap-3">
+        <button onClick={go} disabled={!label.trim()} className="rounded-full bg-stone-900 px-5 py-2 text-sm text-cream disabled:opacity-30">Create it</button>
+        <button onClick={onCancel} className="text-xs text-stone-500 hover:text-stone-900">Cancel</button>
       </div>
     </div>
   )
 }
 
 // ── The list ────────────────────────────────────────────────────────
-function ListView({ list, goals, projects, onUpdate, onRemove, onBack }) {
+function ListView({ list, goals, projects, cover, onCover, onClearCover, onUpdate, onRemove, onBack }) {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('all')
@@ -255,10 +357,30 @@ function ListView({ list, goals, projects, onUpdate, onRemove, onBack }) {
       <div className="mb-4 flex flex-wrap items-baseline gap-3">
         <button onClick={onBack} className="text-xs tracking-[0.14em] text-stone-400 hover:text-stone-900">← ALL LISTS</button>
         <h2 className="font-serif text-2xl text-stone-900">{list.label}</h2>
-        <span className="text-[10px] tracking-[0.16em] text-stone-400">{cls.label.toUpperCase()}</span>
+        {/* A list opened from a topic card is named after the topic, so saying
+            it twice on one line is just noise. */}
+        {list.label.toLowerCase() !== cls.label.toLowerCase() && (
+          <span className="text-[10px] tracking-[0.16em] text-stone-400">{cls.label.toUpperCase()}</span>
+        )}
         <button onClick={() => setSharing(true)} className="ml-auto flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
           <Share2 size={12} strokeWidth={1.7} /> Share
         </button>
+      </div>
+
+      {/* The topic's face on the board. The mark is what it wears until she puts
+          a photograph there, and the cover belongs to the topic rather than to
+          this list — every Bags list shows the same one. */}
+      <div className="mb-6 flex items-center gap-4">
+        <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border border-stone-200 bg-[#EFEAE0] text-stone-900">
+          {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : React.createElement(assetMarkFor(cls), { size: 32 })}
+        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
+            <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onCover(f) }} />
+            <ImagePlus size={12} strokeWidth={1.7} /> {cover ? 'Change cover' : 'Add a cover'}
+          </label>
+          {cover && <button onClick={onClearCover} className="text-xs text-stone-500 hover:text-stone-900">Remove</button>}
+        </div>
       </div>
 
       {/* The three numbers. Owned up, spent up, remaining down — on one tap. */}

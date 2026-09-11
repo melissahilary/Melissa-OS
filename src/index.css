@@ -205,6 +205,11 @@ input[type='number'] {
 }
 .mos-rail:hover .mos-rail-track,
 .mos-rail:focus-within .mos-rail-track { animation-play-state: paused; }
+
+/* Once she has taken an arrow the row is hers: it scrolls, it never drifts
+   again, and the arrows are the only control it needs — so the bar is hidden. */
+.mos-rail-manual { overflow-x: auto; scrollbar-width: none; }
+.mos-rail-manual::-webkit-scrollbar { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .mos-rail { overflow-x: auto; }
   .mos-rail-track { animation: none; }
