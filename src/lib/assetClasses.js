@@ -8,9 +8,13 @@
 //
 // Field types: text · num · money · date · bool · count
 //
-// No glyphs. Asset classes are set in letterspaced mono rather than drawn —
-// forty-eight marks would be forty-eight chances to look like a bank, and type
-// translates and rescales where a drawing has to be redone.
+// These were set in letterspaced mono for a long time, on the argument that
+// forty-eight marks would be forty-eight chances to look like a bank. Drawn to
+// the pillar marks' rules — 24-unit square, outline, circles, lines and
+// diagonals only — they are not, and a wall of them is how you choose. The
+// drawings live in components/shared/assetMarks.jsx, keyed on the ids below; a
+// class that belongs to a pillar wears that pillar's mark instead of a second
+// drawing of the same idea.
 
 const f = (k, l, t = 'text') => ({ k, l, t })
 

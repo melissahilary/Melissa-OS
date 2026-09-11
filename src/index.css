@@ -177,6 +177,39 @@ input[type='number'] {
   .mos-settle { animation: none; }
 }
 
+/* ── The wishlist rails. Each group of classes drifts sideways for ever, which
+   only works if the loop is invisible: the track holds the same set twice and
+   travels exactly half its width, so the moment it snaps back is the moment the
+   second copy is where the first one was. Hover or focus stops the row so a card
+   can be aimed at, and the edges fade rather than being cut off by a border. */
+@keyframes mos-rail {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+.mos-rail {
+  overflow: hidden;
+  /* The fade is a fraction of the row, not a fixed slab: 56px off a desk is a
+     margin, 56px off a phone is a whole polaroid. */
+  --mos-fade: 26px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--mos-fade), #000 calc(100% - var(--mos-fade)), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--mos-fade), #000 calc(100% - var(--mos-fade)), transparent 100%);
+}
+@media (min-width: 640px) {
+  .mos-rail { --mos-fade: 56px; }
+}
+.mos-rail-track {
+  animation-name: mos-rail;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.mos-rail:hover .mos-rail-track,
+.mos-rail:focus-within .mos-rail-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .mos-rail { overflow-x: auto; }
+  .mos-rail-track { animation: none; }
+}
+
 /* The mic, while it is listening. A live microphone has to be unmistakable —
    this is the one place a pulse is information rather than decoration. */
 @keyframes mos-listen {

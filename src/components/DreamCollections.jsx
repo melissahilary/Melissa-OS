@@ -4,6 +4,8 @@ import { AddIcon, CloseIcon, LoggedIcon, AestheticsMark } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PILLAR_TAGS } from './DreamProjects'
 import EmptyState from './shared/EmptyState'
+import PolaroidRail from './shared/PolaroidRail'
+import { assetMarkFor } from './shared/assetMarks'
 import {
   ASSET_GROUPS, ASSET_CLASSES, classMeta, hasSizes, CURRENCIES,
   parseMoney, fmtMoney, parseTyped,
@@ -169,17 +171,18 @@ function ChooseClass({ onCreate, onCancel }) {
         <p className="font-serif text-xl text-stone-900">What kind of thing?</p>
         <button onClick={onCancel} className="ml-auto text-xs text-stone-400 hover:text-stone-900">Cancel</button>
       </div>
-      <div className="space-y-6">
-        {ASSET_GROUPS.map((g) => (
+      {/* One row per group, each a pinboard of polaroids that drifts sideways.
+          Rows alternate direction so the wall moves against itself rather than
+          marching. Hovering a row stops it; a card is then just a button. */}
+      <div className="space-y-7">
+        {ASSET_GROUPS.map((g, gi) => (
           <div key={g.id}>
-            <p className="mb-2 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {g.classes.map((c) => (
-                <button key={c.id} onClick={() => setCls(c.id)} className="rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
-                  {c.label}
-                </button>
-              ))}
-            </div>
+            <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
+            <PolaroidRail
+              items={g.classes.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c) }))}
+              reverse={gi % 2 === 1}
+              onPick={setCls}
+            />
           </div>
         ))}
       </div>
