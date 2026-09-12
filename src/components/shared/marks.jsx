@@ -94,13 +94,12 @@ export const EditIcon = (p) => <Mark {...p}><path d="M4.5 19.5l1-4 9.5-9.5 3 3-9
 export const LockedIcon = (p) => <Mark {...p}><path d="M6.5 11v-2.5a5.5 5.5 0 0 1 11 0V11" /><path d="M4.5 11h15v8.5h-15Z" /></Mark>
 
 // The readings of a set of goals. Each is a picture of the layout it opens —
-// three uprights, a grid, three rules, a line with a mark on it — so the row
-// reads at a glance the way a clutch of icons on a toolbar should. The filter
-// is the funnel every reader already knows, drawn on the half-unit grid.
+// three uprights, a grid, three rules — so the row reads at a glance the way a
+// clutch of icons on a toolbar should. The filter is the funnel every reader
+// already knows, drawn on the half-unit grid.
 export const ColumnsIcon = (p) => <Mark {...p}><path d="M4.5 5v14M12 5v14M19.5 5v14" /></Mark>
 export const WallIcon = (p) => <Mark {...p}><path d="M4.5 4.5h6.5v6.5H4.5ZM13 4.5h6.5v6.5H13ZM4.5 13h6.5v6.5H4.5ZM13 13h6.5v6.5H13Z" /></Mark>
 export const ListIcon = (p) => <Mark {...p}><path d="M4.5 7h15M4.5 12h15M4.5 17h15" /></Mark>
-export const TimelineIcon = (p) => <Mark {...p}><path d="M4.5 12h15" /><circle cx="9" cy="12" r="2.5" /><circle cx="16" cy="12" r="2.5" /></Mark>
 export const FilterIcon = (p) => <Mark {...p}><path d="M4.5 5.5h15L14 12.5v6l-4-2v-4Z" /></Mark>
 
 // The live microphone is perceivable without colour: the mark fills, a hairline

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Target, Sparkles, Image as ImageIcon } from 'lucide-react'
-import { AddIcon, CloseIcon, LoggedIcon, NextIcon, ColumnsIcon, WallIcon, ListIcon, TimelineIcon } from './shared/marks'
+import { AddIcon, CloseIcon, LoggedIcon, NextIcon, ColumnsIcon, WallIcon, ListIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity, isDoneOn, activityOccursOn } from '../lib/activities'
@@ -45,20 +45,19 @@ const HEALTH = { on: { c: '#7C8B6B', label: 'On track' }, risk: { c: '#B0873F', 
 
 // ── The readings.
 //
-// The same goals, looked at four ways, because how she needs to see them
+// The same goals, looked at three ways, because how she needs to see them
 // changes with what she is doing. The wall is where she lands — the life she
 // is building, as pictures. Columns to decide what belongs where; the list to
-// scan; the timeline to see what is coming.
+// scan.
 const VIEWS = [
   { id: 'wall', label: 'Wall', note: 'Every goal as its picture', icon: WallIcon },
   { id: 'columns', label: 'Columns', note: 'The three horizons, side by side', icon: ColumnsIcon },
   { id: 'list', label: 'List', note: 'All of them, close together', icon: ListIcon },
-  { id: 'timeline', label: 'Timeline', note: 'Everything with a date on it', icon: TimelineIcon },
 ]
 
 // A column is a countable stack: so many cards of one height, then it scrolls.
 // The wall and the list take the same height so the readings are one instrument
-// rather than four pages of different lengths.
+// rather than three pages of different lengths.
 //
 // The columns themselves are the exception, and it is a real one. Side by side
 // they hold eight. Stacked on a phone they hold three, because 868 of pane on an
@@ -421,8 +420,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
               typing a word of it. */}
           <SearchBar value={goalQuery} onChange={setGoalQuery} label="Search your goals" className="mb-4" />
 
-          {goalView === 'timeline' && <GoalTimeline goals={inView} onOpen={openGoal} />}
-
           {/* The wall. Horizon order, no headings — one continuous run of the
               life she is building, which is the whole reason the pictures are
               on the goals in the first place. */}
@@ -448,7 +445,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
               )
           )}
 
-          {goalView !== 'timeline' && boardFilter && (
+          {boardFilter && (
             <div className="mb-4 flex justify-center">
               <button onClick={() => setBoardFilter(null)} className="flex items-center gap-2 rounded-full border border-stone-900 bg-stone-900 px-4 py-1.5 text-xs text-cream transition-colors hover:bg-stone-700">
                 {pillarMeta(boardFilter).label} only <CloseIcon size={12} />
@@ -509,7 +506,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
             })}
           </div>
           )}
-          {goalView !== 'timeline' && achieved.length > 0 && (
+          {achieved.length > 0 && (
             <div className="mt-10 border-t border-stone-200 pt-6">
               <p className="kicker mb-3 text-stone-400">Achieved · {achieved.length}</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -1130,170 +1127,3 @@ function GoalList({ goals, imagesOf, stepsOf, onOpen }) {
     </div>
   )
 }
-
-// ── Timeline — the horizon, as a graph.
-//
-// A row per goal, drawn from the day she entered it to the day it is due, with
-// its steps marked along the way. The point of a chart is comparison — which
-// goals overlap, which are crowded into one month, what lands after the thing
-// it depends on — and dots floating on separate lines could answer none of
-// them, because there was nothing to read them against. So: one shared axis,
-// a month grid, and a bar with real length.
-//
-// Ivory and ink, and cobalt for today — marking what is due is the accent's
-// stated job. Walnut only for a bar that has run past its date. Square marks,
-// hairline grid, mono for every number.
-const AXIS = { line: '#E2DACB', track: '#EFEAE0', bar: '#16130F', over: '#6E4526', today: '#1D2FC4' }
-
-// A label needs room, and how much room there is depends on the phone, not on
-// how many months the goals happen to span. Counting months alone printed
-// JAN 27 straight over MAR on a narrow screen. So the axis is packed rather
-// than divided: walk the months in order and keep the ones that still fit.
-// Mono at 10px with the tracked-caps setting runs about 7px a character.
-const labelFor = (m) => `${MONTHS_SHORT[m.getMonth()].toUpperCase()}${m.getMonth() === 0 ? ` ${String(m.getFullYear()).slice(2)}` : ''}`
-const labelW = (t) => t.length * 7 + 8
-
-function GoalTimeline({ goals, onOpen }) {
-  const axisRef = useRef(null)
-  const [axisW, setAxisW] = useState(0)
-  useEffect(() => {
-    const el = axisRef.current
-    if (!el) return undefined
-    const measure = () => setAxisW(el.clientWidth)
-    measure()
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
-    if (ro) ro.observe(el)
-    window.addEventListener('resize', measure)
-    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure) }
-  }, [])
-
-  const rows = goals
-    .map((g) => {
-      const marks = g.milestones.filter((m) => m.target)
-      return { g, marks, dates: [g.createdOn, g.target, ...marks.map((m) => m.target)].filter(Boolean) }
-    })
-    .filter((x) => x.dates.length)
-    .sort((a, b) => (a.g.target || '9999-99-99').localeCompare(b.g.target || '9999-99-99'))
-
-  if (!rows.length) {
-    return (
-      <p className="border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-500">
-        No dates yet.<br /><span className="text-sm not-italic">Give a goal or a step a date and it appears on the horizon.</span>
-      </p>
-    )
-  }
-
-  const today = parseKey(todayKey()).getTime()
-  const times = rows.flatMap((r) => r.dates.map((d) => parseKey(d).getTime()))
-  // The axis always contains today, and always opens on the first of a month
-  // and closes at the end of one, so every gridline is a real boundary.
-  const lo = new Date(Math.min(today, ...times))
-  const hi = new Date(Math.max(today, ...times))
-  const t0 = new Date(lo.getFullYear(), lo.getMonth(), 1).getTime()
-  const t1 = new Date(hi.getFullYear(), hi.getMonth() + 1, 1).getTime()
-  const span = Math.max(1, t1 - t0)
-  const pct = (t) => ((t - t0) / span) * 100
-  const at = (key) => pct(parseKey(key).getTime())
-
-  const months = []
-  for (let d = new Date(t0); d.getTime() < t1; d.setMonth(d.getMonth() + 1)) months.push(new Date(d))
-
-  const todayX = pct(today)
-
-  // Every month that still has room, in order: not off the right edge, and not
-  // on top of the label before it.
-  const w = axisW || 320
-  const ticks = []
-  let lastRight = -Infinity
-  months.forEach((m) => {
-    const t = labelFor(m)
-    const lw = labelW(t)
-    const px = (pct(m.getTime()) / 100) * w
-    if (px + lw > w) return
-    if (px < lastRight + 8) return
-    lastRight = px + lw
-    ticks.push({ m, t, x: pct(m.getTime()) })
-  })
-
-  const ROW = 34
-
-  return (
-    <div className="border border-stone-200 bg-white/40 p-5">
-      <div className="flex">
-        <div className="w-28 shrink-0 sm:w-44" />
-        <div ref={axisRef} className="relative flex-1">
-          {/* The axis reads on two lines: the months, and beneath them today
-              naming itself beside its own rule. On one line the two collided
-              on a narrow screen no matter how the months were thinned. */}
-          <div className="relative h-9">
-            {ticks.map(({ t, x }) => (
-              <span key={t + x} className="absolute top-0 whitespace-nowrap text-[10px] tracking-[0.14em] text-stone-500" style={{ left: `${x}%` }}>{t}</span>
-            ))}
-            {/* Today names itself on the axis. A line she has to look up in a
-                key is a line she reads past. */}
-            <span className="absolute bottom-0 whitespace-nowrap px-1 text-[10px] tracking-[0.14em]"
-              style={{ left: `${todayX}%`, transform: `translateX(${todayX > 88 ? '-100%' : todayX < 6 ? '0' : '-50%'})`, color: AXIS.today, backgroundColor: '#FAF6ED' }}>
-              TODAY
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex">
-        <div className="w-28 shrink-0 sm:w-44">
-          {rows.map(({ g, marks }) => (
-            <button key={g.id} onClick={() => onOpen(g.id)}
-              className="flex w-full items-center pr-3 text-left transition-colors hover:text-stone-500" style={{ height: ROW }}>
-              <span className="min-w-0 flex-1 truncate font-serif text-[15px] text-stone-900">{g.title || 'Untitled'}</span>
-              {marks.length > 0 && (
-                <span className="ml-2 shrink-0 text-[10px] tabular-nums text-stone-500">{marks.filter(msDone).length}/{marks.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative flex-1 overflow-hidden" style={{ height: rows.length * ROW }}>
-          {/* the month grid, behind everything */}
-          {months.map((m, i) => (
-            <span key={i} aria-hidden className="absolute inset-y-0 w-px" style={{ left: `${pct(m.getTime())}%`, backgroundColor: AXIS.line }} />
-          ))}
-          {/* today */}
-          <span aria-hidden className="absolute inset-y-0 w-px" style={{ left: `${todayX}%`, backgroundColor: AXIS.today }} />
-
-          {rows.map(({ g, marks }, ri) => {
-            const from = g.createdOn || g.target
-            const to = g.target || g.createdOn
-            const x0 = Math.min(at(from), at(to))
-            const x1 = Math.max(at(from), at(to))
-            const overdue = g.target && parseKey(g.target).getTime() < today
-            return (
-              <button key={g.id} onClick={() => onOpen(g.id)} title={`${g.title || 'Untitled'} · ${fmtShort(from)} → ${fmtShort(to)}`}
-                className="absolute inset-x-0 block cursor-pointer" style={{ top: ri * ROW, height: ROW }}>
-                {/* the span, and its length is the point */}
-                <span aria-hidden className="absolute top-1/2 h-2 -translate-y-1/2"
-                  style={{ left: `${x0}%`, width: `${Math.max(0.4, x1 - x0)}%`, backgroundColor: overdue ? AXIS.over : AXIS.track, outline: `1px solid ${AXIS.line}`, outlineOffset: -1 }} />
-                {/* where it ends */}
-                <span aria-hidden className="absolute top-1/2 h-3 w-[3px] -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: `${at(to)}%`, backgroundColor: overdue ? AXIS.over : AXIS.bar }} />
-                {/* each step: filled once it is done */}
-                {marks.map((m) => (
-                  <span key={m.id} aria-hidden className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2"
-                    style={{ left: `${at(m.target)}%`, backgroundColor: m.done ? AXIS.bar : '#FAF6ED', outline: `1px solid ${AXIS.bar}`, outlineOffset: -1 }} />
-                ))}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-stone-200 pt-3 text-[10px] tracking-[0.14em] text-stone-500">
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2" style={{ backgroundColor: '#FAF6ED', outline: `1px solid ${AXIS.bar}`, outlineOffset: -1 }} />STEP</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2" style={{ backgroundColor: AXIS.bar }} />DONE</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[3px]" style={{ backgroundColor: AXIS.bar }} />DUE</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-px" style={{ backgroundColor: AXIS.today }} />TODAY</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4" style={{ backgroundColor: AXIS.over }} />PAST ITS DATE</span>
-      </div>
-    </div>
-  )
-}
-
