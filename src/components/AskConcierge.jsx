@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { CloseIcon } from './shared/marks'
+import ConciergeMark from './shared/ConciergeMark'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useLifeStage } from '../lib/lifeStage'
@@ -49,13 +50,14 @@ const doorsFor = (row) => {
   return out.slice(0, 3)
 }
 // Elegant monogram seal — a serif E inside a fine double ring.
-function Seal({ size = 44 }) {
+// The assistant has one drawn symbol and it is the mezzanine mark. A ringed
+// initial in a medallion was a second logo for the same thing, and the two of
+// them side by side — one in the bar, one at the head of the salon — could only
+// read as two assistants.
+function Seal({ size = 40 }) {
   return (
-    <span
-      className="relative inline-flex shrink-0 items-center justify-center rounded-full"
-      style={{ width: size, height: size, border: '1px solid #C9C2B2', boxShadow: 'inset 0 0 0 3px #FAF8F3, inset 0 0 0 4px #DDD7C8' }}
-    >
-      <span className="font-serif italic" style={{ fontSize: size * 0.5, lineHeight: 1, color: '#57524A' }}>E</span>
+    <span className="inline-flex shrink-0 items-center justify-center text-stone-800" style={{ width: size, height: size }}>
+      <ConciergeMark size={size} />
     </span>
   )
 }

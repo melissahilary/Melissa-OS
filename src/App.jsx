@@ -42,6 +42,7 @@ import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './component
 import AskConcierge from './components/AskConcierge'
 import Dictation from './components/shared/Dictation'
 import { markFor, AddIcon, CloseIcon, NextIcon, PrevIcon } from './components/shared/marks'
+import ConciergeMark from './components/shared/ConciergeMark'
 
 const PILLARS = [
   { id: 'mindset', label: 'Mindset', icon: markFor('mindset') },
@@ -359,10 +360,13 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
             <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-7" />
           </span>
         </button>
+        {/* The mark alone. A boxed initial beside a word was a small logo in the
+            corner of a bar that already carries one; the drawing says the same
+            thing without spelling it, and sits opposite the index as its peer
+            rather than as a badge. */}
         {onAsk && (
-          <button onClick={onAsk} aria-label="Esmé, your concierge" title="Esmé, your concierge" className="relative z-10 ml-auto flex items-center gap-2 rounded-full border border-stone-300 py-1.5 pl-2 pr-3.5 text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-stone-300 font-serif italic text-[11px] leading-none">E</span>
-            <span className="text-xs tracking-wide" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '14px' }}>Esmé</span>
+          <button onClick={onAsk} aria-label="Esmé, your concierge" title="Esmé, your concierge" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
+            <ConciergeMark size={26} />
           </button>
         )}
         {/* On the home (Today) page the big cursive masthead already carries the
