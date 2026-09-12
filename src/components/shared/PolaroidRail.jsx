@@ -37,7 +37,7 @@ function Clip() {
   )
 }
 
-function Polaroid({ label, Icon, cover, tilt, onPick, ghost }) {
+function Polaroid({ label, Icon, cover, note, tilt, onPick, ghost }) {
   return (
     <button
       type="button"
@@ -58,6 +58,9 @@ function Polaroid({ label, Icon, cover, tilt, onPick, ghost }) {
         <span className="mt-2.5 flex h-10 items-center justify-center px-0.5 text-center font-serif text-[14px] italic leading-tight text-stone-900 sm:text-[15px]">
           {label}
         </span>
+        {/* The line is reserved whether or not there is anything to say, so a
+            row of polaroids stays a row and not a ragged edge. */}
+        <span className="block h-3.5 text-center text-[9px] tracking-[0.14em] text-stone-500 tabular-nums">{note || ''}</span>
       </span>
     </button>
   )
@@ -136,6 +139,7 @@ export default function PolaroidRail({ items, reverse = false, onPick }) {
                 label={c.label}
                 Icon={c.Icon}
                 cover={c.cover}
+                note={c.note}
                 tilt={i % 3 === 0 ? -1.6 : i % 3 === 1 ? 1.2 : -0.5}
                 ghost={copy === 1}
                 onPick={() => onPick(c.id)}

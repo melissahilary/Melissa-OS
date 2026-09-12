@@ -128,6 +128,16 @@ export default function DreamCollections({ goals = [], projects = [] }) {
   const update = (id, patch) => commit((arr) => arr.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   const remove = (id) => { commit((arr) => arr.filter((c) => c.id !== id)); setOpenId(null) }
 
+  // What a topic card says under its name. Nothing at all where there is
+  // nothing, so the wall stays a wall and the ones she has stand out.
+  const noteFor = (clsId) => {
+    const mine = lists.filter((l) => l.cls === clsId)
+    if (!mine.length) return ''
+    const t = mine.reduce((a, l) => { const x = tally(l); return { owned: a.owned + x.owned, total: a.total + x.total } }, { owned: 0, total: 0 })
+    if (!t.total) return mine.length > 1 ? `${mine.length} LISTS` : 'EMPTY'
+    return `${t.owned} OF ${t.total} OWNED`
+  }
+
   // A topic card is a door, not a form. One list of that kind and it opens; none
   // and it makes the obvious one and opens that; several and it asks which.
   const openTopic = (clsId) => {
@@ -183,52 +193,23 @@ export default function DreamCollections({ goals = [], projects = [] }) {
 
   return (
     <div>
-      {/* One way in, and it is the same shape as Add photos on the board. */}
-      <div className="mb-7 flex items-center justify-center">
-        <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-full bg-stone-900 px-6 py-3 text-sm text-cream transition-opacity hover:opacity-90">
+      {/* The same toolbar the board has: whatever lives on the left, and the one
+          cobalt action on the right, at the size Add photos is. */}
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
+        <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
           <ImagePlus size={15} strokeWidth={1.75} /> Add wishlist
         </button>
       </div>
 
-      {lists.length > 0 && (
-        <div className="mb-9">
-          <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">YOURS</p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {lists.map((c) => {
-              const t = tally(c)
-              const shots = c.items.filter((i) => i.image).slice(0, 3)
-              const own = coverSrc(c.cls)
-              return (
-                <button key={c.id} onClick={() => setOpenId(c.id)} className="overflow-hidden border border-stone-200 bg-white/50 text-left transition-colors hover:border-stone-900">
-                  <span className="flex h-24 gap-px bg-stone-100">
-                    {shots.length
-                      ? shots.map((i) => <img key={i.id} src={i.image} alt="" className="h-full flex-1 object-cover" />)
-                      : own
-                        ? <img src={own} alt="" className="h-full w-full object-cover" />
-                        : <span className="flex h-full w-full items-center justify-center text-stone-400">{React.createElement(assetMarkFor(classMeta(c.cls)), { size: 24 })}</span>}
-                  </span>
-                  <span className="block p-4">
-                    <span className="block font-serif text-lg text-stone-900">{c.label}</span>
-                    {c.label.toLowerCase() !== classMeta(c.cls).label.toLowerCase() && (
-                      <span className="mt-0.5 block text-[10px] tracking-[0.16em] text-stone-400">{classMeta(c.cls).label.toUpperCase()}</span>
-                    )}
-                    <span className="mt-2 block text-[11px] tabular-nums text-stone-500">{t.owned} of {t.total} owned</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* The topics themselves: one row per group, each a pinboard of polaroids
-          that drifts until she takes an arrow, and then is hers to step through. */}
+      {/* The topics are the wishlists. There is no separate shelf of boxes above
+          them — a topic she has something in says so under its name, and opening
+          it is the same tap as opening an empty one. */}
       <div className="space-y-7">
         {ASSET_GROUPS.map((g, gi) => (
           <div key={g.id}>
             <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
             <PolaroidRail
-              items={g.classes.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id) }))}
+              items={g.classes.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id), note: noteFor(c.id) }))}
               reverse={gi % 2 === 1}
               onPick={openTopic}
             />
