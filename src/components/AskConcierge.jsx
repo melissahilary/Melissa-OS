@@ -3,6 +3,7 @@ import { ArrowUp } from 'lucide-react'
 import { CloseIcon } from './shared/marks'
 import ConciergeMark from './shared/ConciergeMark'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 // ── Ask your planner.
 //
@@ -35,6 +36,10 @@ export default function AskConcierge({ open, onClose }) {
   const [mounted, setMounted] = useState(false)
   const scrollRef = useRef(null)
   const inputRef = useRef(null)
+  const [profileRaw] = useLocalStorage('mos:profile', {})
+  const first = (((profileRaw && profileRaw.name) || '').trim().split(/\s+/)[0] || '')
+  const hour = new Date().getHours()
+  const partOfDay = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   useEffect(() => {
     if (!open) { setMounted(false); return }
@@ -85,9 +90,19 @@ export default function AskConcierge({ open, onClose }) {
         {/* The transcript. It fills from the top like a document, rather than
             floating in the middle of the panel with two hundred pixels of
             nothing above it and three hundred below. */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+        <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-6 py-6 sm:px-8">
           {thread.length === 0 ? (
-            <p className="text-sm text-stone-500">Answers come only from what you have written down.</p>
+            /* The starting view. The mark stands behind it at the weight the
+               book gives every other size — a hairline — so it reads as a
+               watermark pressed into the paper rather than a picture hung on
+               it. Both it and the greeting go the moment she asks anything;
+               a transcript is not a place for a name. */
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <ConciergeMark size={340} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-stone-900 opacity-[0.14] sm:hidden" />
+              <ConciergeMark size={460} className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-stone-900 opacity-[0.14] sm:block" />
+              <p className="relative font-serif text-[26px] leading-tight text-stone-900">{partOfDay}{first ? `, ${first}` : ''}.</p>
+              <p className="relative mt-2 max-w-[26em] text-sm text-stone-500">Answers come only from what you have written down.</p>
+            </div>
           ) : (
             <div>
               {thread.map((row, i) => (
@@ -122,18 +137,38 @@ export default function AskConcierge({ open, onClose }) {
           )}
         </div>
 
+        {/* One enclosed field with the action riding inside it, rather than a
+            ruled line with a button standing outside the end of it. The
+            dictation mic places itself at the field's right edge, so it lands
+            between the words and the send, which is where a hand expects it.
+
+            The corners are square, and that is not an oversight. The house rule
+            is that radius belongs to objects in a photograph and never to
+            layout — a pill is the most generic thing an interface can wear —
+            and the stylesheet squares every rounded-full it finds on a button
+            or a bordered box. The arrangement is what was worth borrowing.
+
+            The send keeps rounded-full because that is the house's mark for a
+            primary action: squared by the rule above, set in mono, and filled
+            with the one cobalt. It pales to ivory by itself when there is
+            nothing to send. */}
         <div className="border-t border-stone-200 bg-cream px-6 pb-6 pt-4 sm:px-8">
-          <div className="flex items-end gap-3 border-b border-stone-300 pb-2 transition-colors focus-within:border-stone-900">
+          <div className="flex items-center gap-2 border border-stone-300 bg-white py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-900">
             <input
               ref={inputRef}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') ask(q) }}
-              placeholder="Ask"
-              className="flex-1 bg-transparent text-[15px] text-stone-900 outline-none placeholder:text-stone-400"
+              placeholder="Ask your planner"
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-stone-900 outline-none placeholder:text-stone-400"
             />
-            <button onClick={() => ask(q)} disabled={busy || !q.trim()} aria-label="Ask" className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${busy || !q.trim() ? 'text-stone-300' : 'bg-stone-900 text-cream hover:bg-stone-700'}`}>
-              <ArrowUp size={15} />
+            <button
+              onClick={() => ask(q)}
+              disabled={busy || !q.trim()}
+              aria-label="Ask"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-900 text-cream transition-opacity hover:opacity-90 disabled:cursor-default disabled:hover:opacity-100"
+            >
+              <ArrowUp size={16} />
             </button>
           </div>
         </div>
