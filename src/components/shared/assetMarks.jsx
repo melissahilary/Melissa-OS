@@ -13,7 +13,7 @@ import Mark, { markFor } from './marks'
 // than a second drawing of the same idea, so the skincare row on the wishlist
 // and the Skincare pillar are recognisably the same thing.
 
-// ── Personal — worn ─────────────────────────────────────────────────
+// ── Wardrobe ────────────────────────────────────────────────────────
 export const WardrobeMark = (p) => <Mark {...p}><path d="M12 4.5v3" /><path d="M4.5 16.5 12 7.5l7.5 9Z" /></Mark>
 export const OuterwearMark = (p) => <Mark {...p}><path d="M7.5 5.5h9l3 14h-15Z" /><path d="M12 5.5v14" /></Mark>
 export const ShoesMark = (p) => <Mark {...p}><path d="M4.5 19.5v-13h4v9h11v4Z" /></Mark>

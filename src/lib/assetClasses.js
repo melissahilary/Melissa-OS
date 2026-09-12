@@ -21,7 +21,10 @@ const f = (k, l, t = 'text') => ({ k, l, t })
 export const ASSET_GROUPS = [
   {
     id: 'worn',
-    label: 'Personal — worn',
+    // The section is the Wardrobe; the shelves inside it are Ready to wear,
+    // Outerwear, Shoes and the rest. That is the word doing the work it is
+    // actually good at — naming the whole of what she wears, not one rail of it.
+    label: 'Wardrobe',
     classes: [
       // The id stays `wardrobe`: it is what every list she already has is filed
       // under, and a label is a label.
