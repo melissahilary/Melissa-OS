@@ -10,6 +10,7 @@ import * as store from '../lib/dataStore'
 import { useSignedUrls } from '../hooks/useSignedUrls'
 import SearchBar from './shared/SearchBar'
 import ViewSwitcher from './shared/ViewSwitcher'
+import { compose, SIZES, sizeW } from '../lib/collage'
 
 // ── The Mood Board.
 //
@@ -33,12 +34,10 @@ const TEMPLATES = [
   { id: 'grid', label: 'Grid', icon: Grid3x3 },
   { id: 'column', label: 'Column', icon: Columns3 },
 ]
-const SIZES = { S: 150, M: 225, L: 330 }
 // The width the scrapbook is composed at. Everything on it is positioned and
 // sized against this, and the whole canvas is then scaled to whatever the screen
 // gives it — so one arrangement holds on a desk, a tablet and a phone.
 const CANVAS_W = 880
-const sizeW = (s) => SIZES[s] || SIZES.M
 
 const KEY = 'mos:dream:board'
 
@@ -103,6 +102,10 @@ export const normVision = (it) => ({
   sourceUrl: it.sourceUrl || '',
   hash: it.hash || '',
   read: !!it.read,
+  // She has put this card somewhere herself. Until she does, the board
+  // composes it — which is why an arrangement can be improved without ever
+  // moving a picture she placed on purpose.
+  placed: !!it.placed,
   // The one line she may write, if she wants to. Never required.
   caption: it.caption || '',
   // The goal this picture is of, if she has said so. Her judgement, never the
@@ -131,6 +134,7 @@ export default function DreamBoard() {
   const canvasRef = useRef(null)
   const canvasBoxRef = useRef(null)
   const reading = useRef(new Set())
+  const armTimer = useRef(null)
 
   // The scrapbook is a composition, not a flow: she puts a photograph where she
   // wants it and it stays there. That only survives a change of screen if the
@@ -153,7 +157,9 @@ export default function DreamBoard() {
     if (ro) ro.observe(box)
     window.addEventListener('resize', measure)
     return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure) }
-  })
+    // The canvas exists only in the scrapbook, and only once there is something
+    // on it. Without these the observer was rebuilt on every single render.
+  }, [template, all.length > 0])
 
   const thisYear = new Date().getFullYear()
   const [year, setYear] = useState(thisYear)
@@ -221,7 +227,7 @@ export default function DreamBoard() {
     if (!files.length) return
     setRejected([])
     setBusy((n) => n + files.length)
-    files.forEach((file, i) => {
+    files.forEach((file) => {
       processImage(file, 1400, async (out) => {
         // A file the browser cannot decode — most often an iPhone HEIC opened
         // on a desktop browser — used to disappear without a word, which looks
@@ -234,11 +240,10 @@ export default function DreamBoard() {
         let path = ''
         if (out.blob) path = (await store.uploadPhoto(out.blob)) || ''
         const id = uid()
+        // No position and no tilt: the board composes it, which is how a new
+        // picture laps into the arrangement instead of landing on a grid.
         setItems((arr) => [...arr, normVision({
           id, path, dataUrl: path ? '' : (out.dataUrl || ''), w: out.w, h: out.h, hash: out.hash,
-          x: 6 + ((arr.length + i) % 3) * 30 + Math.round(Math.random() * 6),
-          y: 24 + Math.floor((arr.length + i) / 3) * 250,
-          rot: Math.round((Math.random() * 7 - 3.5) * 10) / 10,
         })])
         // A photograph is not a keystroke. The file is already in the bucket, so
         // anything that ends the page before the debounce fires would leave an
@@ -268,8 +273,6 @@ export default function DreamBoard() {
         const id = uid()
         setItems((arr) => [...arr, normVision({
           id, remote: d.image, title: d.title || '', source: d.site || '', sourceUrl: d.url || u, w: 4, h: 3,
-          x: 6 + (arr.length % 3) * 30, y: 24 + Math.floor(arr.length / 3) * 250,
-          rot: Math.round((Math.random() * 7 - 3.5) * 10) / 10,
         })])
         store.flush(KEY)
       } else {
@@ -290,7 +293,7 @@ export default function DreamBoard() {
     return [...set].sort((a, b) => b - a)
   }, [all, thisYear])
 
-  const inYear = all.filter((it) => Number(String(it.savedOn).slice(0, 4)) === year)
+  const inYear = useMemo(() => all.filter((it) => Number(String(it.savedOn).slice(0, 4)) === year), [all, year])
   const shown = inYear
     .filter((it) => (state === 'all' ? true : state === 'have' ? !!it.haveOn : !it.haveOn))
     .filter((it) => matches(it, query))
@@ -309,31 +312,109 @@ export default function DreamBoard() {
 
   const toggleFlip = (id) => setFlipped((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
-  const onPointerDown = (e, it) => {
+  // Composed against everything in the year rather than against what is on
+  // screen, so a picture keeps its place when she filters to Want and back
+  // again. A board she can learn the shape of is the whole point of a board.
+  const layout = useMemo(() => compose(inYear, CANVAS_W), [inYear])
+
+  // Where a card actually goes. The composition, unless she has moved it — and
+  // a card she moved sits above the composition, because she put it there.
+  const placeOf = (it) => {
+    const c = layout[it.id] || { x: it.x, y: it.y, size: it.size, rot: it.rot, h: 220, z: 1 }
+    if (!it.placed) return c
+    const size = SIZES[it.size] ? it.size : c.size
+    return { x: it.x, y: it.y, size, rot: it.rot, h: Math.round(sizeW(size) * ((it.h || 3) / (it.w || 4))), z: c.z + 300 }
+  }
+
+  // ── Picking a picture up.
+  //
+  // On a desk, pressing and moving is a drag. On a phone it is how you scroll,
+  // and a board of overlapping cards leaves almost no bare canvas to scroll
+  // from — so cards that swallowed every touch made the page itself feel
+  // stuck. The grammar is therefore the one a phone already teaches: a tap
+  // turns the card over, a swipe scrolls the board, and a press and hold picks
+  // the picture up. A mouse skips the hold, because a mouse never scrolls by
+  // dragging.
+  const HOLD_MS = 340
+  const SLOP = 8
+  const armed = !!(drag && drag.armed)
+  // Turning the card over is the picture's own button, here as everywhere else
+  // — it is what gives the board a keyboard. The wrapper must therefore not
+  // turn it over as well: two handlers on one tap toggled the card twice and it
+  // sat there looking broken. So the wrapper's only job at the end of a drag is
+  // to swallow the click that a drag also produces.
+  const swallowClick = useRef(false)
+
+  // Once a card is in her hand, the page must not move under it.
+  useEffect(() => {
+    if (!armed) return undefined
+    const stop = (e) => e.preventDefault()
+    document.addEventListener('touchmove', stop, { passive: false })
+    return () => document.removeEventListener('touchmove', stop)
+  }, [armed])
+  useEffect(() => () => clearTimeout(armTimer.current), [])
+
+  const onPointerDown = (e, it, p, W) => {
     if (template !== 'scrapbook' || !canvasRef.current) return
     const rect = canvasRef.current.getBoundingClientRect()
-    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* older browsers */ }
-    setDrag({ id: it.id, sx: e.clientX, sy: e.clientY, ox: it.x, oy: it.y, cw: rect.width || 1, moved: false })
+    const touch = e.pointerType === 'touch'
+    // A drag does not always produce a click to swallow — a touch drag often
+    // produces none at all — and a flag left standing would eat the next real
+    // tap instead, which looks exactly like a card that has stopped working.
+    // It can only ever hold between this press and the click that press makes.
+    swallowClick.current = false
+    setDrag({ id: it.id, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, cw: rect.width || 1, w: W, armed: !touch, moved: false })
+    const target = e.currentTarget
+    const pid = e.pointerId
+    const grab = () => { try { target.setPointerCapture(pid) } catch { /* older browsers */ } }
+    clearTimeout(armTimer.current)
+    if (touch) armTimer.current = setTimeout(() => { grab(); setDrag((d) => (d && d.id === it.id ? { ...d, armed: true } : d)) }, HOLD_MS)
+    else grab()
   }
+
   const onPointerMove = (e) => {
     if (!drag) return
+    const far = Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > SLOP
+    if (!drag.armed) {
+      // She moved before the hold finished: this is a scroll, not a pick-up.
+      if (far) { clearTimeout(armTimer.current); setDrag(null); setDragPos(null) }
+      return
+    }
     // drag.cw is the canvas as it appears on screen, so the horizontal share is
     // already in the right units; the vertical offset is stored unscaled and has
     // to be divided back out.
     const dx = ((e.clientX - drag.sx) / drag.cw) * 100
     const dy = (e.clientY - drag.sy) / fit
-    if (!drag.moved && Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 4) setDrag((d) => ({ ...d, moved: true }))
-    setDragPos({ x: Math.max(0, Math.min(88, drag.ox + dx)), y: Math.max(0, drag.oy + dy) })
-  }
-  const onPointerUp = (it) => {
-    if (drag && dragPos && drag.moved) updateItem(drag.id, dragPos)
-    else if (drag && !drag.moved) toggleFlip(it.id)
-    setDrag(null); setDragPos(null)
+    if (!drag.moved && far) setDrag((d) => (d ? { ...d, moved: true } : d))
+    // Far enough right that the card still fits — the old ceiling of 88 per
+    // cent let a large card hang a quarter of itself off the edge.
+    const maxX = Math.max(0, 100 - (drag.w / CANVAS_W) * 100)
+    setDragPos({ x: Math.max(0, Math.min(maxX, drag.ox + dx)), y: Math.max(0, Math.round(drag.oy + dy)) })
   }
 
-  const estH = (it) => sizeW(it.size) * (it.h / (it.w || 1)) + 52
+  const onPointerUp = () => {
+    clearTimeout(armTimer.current)
+    if (drag && drag.armed && drag.moved && dragPos) {
+      updateItem(drag.id, { x: dragPos.x, y: dragPos.y, placed: true })
+      // Where she put it is not a keystroke to be batched. It goes now.
+      store.flush(KEY)
+      swallowClick.current = true
+    }
+    setDrag(null); setDragPos(null)
+  }
+  const onPointerCancel = () => { clearTimeout(armTimer.current); setDrag(null); setDragPos(null) }
+  const onClickCapture = (e) => {
+    if (!swallowClick.current) return
+    swallowClick.current = false
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
   const canvasH = template === 'scrapbook'
-    ? Math.max(620, ...shown.map((it) => (drag && drag.id === it.id && dragPos ? dragPos.y : it.y) + estH(it) + 120))
+    ? Math.max(560, ...shown.map((it) => {
+      const p = placeOf(it)
+      return (drag && drag.id === it.id && dragPos ? dragPos.y : p.y) + p.h + 80
+    }))
     : 0
 
   const cardProps = (it) => ({
@@ -345,6 +426,9 @@ export default function DreamBoard() {
     onFlip: () => toggleFlip(it.id),
     onEdit: (patch) => updateItem(it.id, patch),
     onRemove: () => removeItem(it),
+    // A card dropped somewhere she regrets is otherwise stuck there — there is
+    // no undo on a board, and on a phone a bad drop is easy.
+    onReplace: it.placed ? () => { updateItem(it.id, { placed: false }); store.flush(KEY) } : null,
   })
 
   if (all.length === 0) {
@@ -452,39 +536,63 @@ export default function DreamBoard() {
       {shown.length === 0 ? (
         <EmptyState mark={AestheticsMark} line="Nothing here yet." />
       ) : template === 'scrapbook' ? (
-        <div ref={canvasBoxRef} className="overflow-hidden rounded-2xl border border-stone-200 bg-white/30" style={{ height: canvasH * fit + 2 }}>
-          <div
-            ref={canvasRef}
-            className="relative select-none"
-            style={{
-              height: canvasH,
-              width: CANVAS_W,
-              transform: `scale(${fit})`,
-              transformOrigin: 'top left',
-              // Wider than the board it holds, the canvas centres rather than
-              // sitting left with a field of nothing beside it.
-              marginLeft: Math.max(0, (boxW - CANVAS_W * fit) / 2),
-            }}
-          >
-            {shown.map((it, i) => {
-              const dragging = drag && drag.id === it.id
-              const pos = dragging && dragPos ? dragPos : { x: it.x, y: it.y }
-              const W = sizeW(it.size)
-              return (
-                <div
-                  key={it.id}
-                  onPointerDown={(e) => onPointerDown(e, it)}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={() => onPointerUp(it)}
-                  className={`absolute touch-none ${dragging ? 'z-50 cursor-grabbing' : 'cursor-grab'}`}
-                  style={{ left: `${pos.x}%`, top: pos.y, width: W, transform: `rotate(${it.rot}deg)`, zIndex: flipped.has(it.id) ? 60 : dragging ? 50 : i + 1 }}
-                >
-                  <span aria-hidden className="absolute -top-2.5 left-1/2 z-10 h-5 w-14 -translate-x-1/2 -rotate-2" style={{ background: 'rgba(221,215,200,0.55)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.4)' }} />
-                  <Vision {...cardProps(it)} width={W} taped />
-                </div>
-              )
-            })}
+        <div>
+          <div ref={canvasBoxRef} className="overflow-hidden rounded-2xl border border-stone-200 bg-white/30" style={{ height: canvasH * fit + 2 }}>
+            <div
+              ref={canvasRef}
+              className="relative select-none"
+              style={{
+                height: canvasH,
+                width: CANVAS_W,
+                transform: `scale(${fit})`,
+                transformOrigin: 'top left',
+                // Wider than the board it holds, the canvas centres rather than
+                // sitting left with a field of nothing beside it.
+                marginLeft: Math.max(0, (boxW - CANVAS_W * fit) / 2),
+              }}
+            >
+              {shown.map((it) => {
+                const p = placeOf(it)
+                const dragging = drag && drag.id === it.id
+                const lifted = dragging && drag.armed
+                const pos = lifted && dragPos ? dragPos : { x: p.x, y: p.y }
+                const W = sizeW(p.size)
+                return (
+                  <div
+                    key={it.id}
+                    onPointerDown={(e) => onPointerDown(e, it, p, W)}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    onPointerCancel={onPointerCancel}
+                    onClickCapture={onClickCapture}
+                    // pan-y, not none: a finger that starts on a card must still
+                    // be able to scroll the board, or the page reads as frozen.
+                    style={{
+                      left: `${pos.x}%`,
+                      top: pos.y,
+                      width: W,
+                      touchAction: 'pan-y',
+                      // Straightening as it lifts is what makes it feel picked up
+                      // off the board rather than slid along it.
+                      transform: `rotate(${lifted ? p.rot * 0.35 : p.rot}deg) scale(${lifted ? 1.07 : 1})`,
+                      transition: lifted ? 'none' : 'transform 180ms ease-out',
+                      filter: lifted ? 'drop-shadow(0 14px 22px rgba(28,25,23,0.28))' : 'none',
+                      zIndex: flipped.has(it.id) ? 900 : dragging ? 800 : p.z,
+                    }}
+                    className={`absolute ${lifted ? 'cursor-grabbing' : 'cursor-grab'}`}
+                  >
+                    <span aria-hidden className="absolute -top-2.5 left-1/2 z-10 h-5 w-14 -translate-x-1/2 -rotate-2" style={{ background: 'rgba(221,215,200,0.55)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.4)' }} />
+                    <Vision {...cardProps(it)} width={W} taped />
+                  </div>
+                )
+              })}
+            </div>
           </div>
+          {/* The one instruction on the page, because a press-and-hold is the
+              only thing here she cannot discover by looking. */}
+          <p className="mt-2.5 text-center text-[11px] text-stone-400">
+            Tap a picture to turn it over. Press and hold to move it.
+          </p>
         </div>
       ) : template === 'grid' ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -577,7 +685,7 @@ function AddPanel({ draft, setDraft, onPick, onDropFiles, onAddUrl }) {
 }
 
 // ── One vision, front and back ──────────────────────────────────────
-function Vision({ it, src, dupes, goals, flipped, onFlip, onEdit, onRemove, width, square, taped }) {
+function Vision({ it, src, dupes, goals, flipped, onFlip, onEdit, onRemove, onReplace, width, square, taped }) {
   const ratio = (it.h || 3) / (it.w || 4)
   const height = square ? undefined : (width ? Math.round(width * ratio) : undefined)
 
@@ -598,7 +706,7 @@ function Vision({ it, src, dupes, goals, flipped, onFlip, onEdit, onRemove, widt
         </button>
 
         <div className={`mos-face mos-face-back ${taped ? 'bg-cream shadow-[0_2px_10px_rgba(28,25,23,0.12)]' : 'rounded-xl border border-stone-200 bg-cream'}`}>
-          <Back it={it} dupes={dupes} goals={goals} onFlip={onFlip} onEdit={onEdit} onRemove={onRemove} />
+          <Back it={it} dupes={dupes} goals={goals} onFlip={onFlip} onEdit={onEdit} onRemove={onRemove} onReplace={onReplace} />
         </div>
       </div>
     </div>
@@ -607,7 +715,7 @@ function Vision({ it, src, dupes, goals, flipped, onFlip, onEdit, onRemove, widt
 
 // The back holds facts and dates. Nothing here interprets the picture, decides
 // what it is for, or tells her anything about herself.
-function Back({ it, dupes, goals = [], onFlip, onEdit, onRemove }) {
+function Back({ it, dupes, goals = [], onFlip, onEdit, onRemove, onReplace }) {
   const took = elapsed(it.savedOn, it.haveOn)
   const facts = [it.brand, it.material, (it.colors || [])[0], it.room].filter(Boolean)
 
@@ -684,6 +792,9 @@ function Back({ it, dupes, goals = [], onFlip, onEdit, onRemove }) {
           >
             {it.haveOn ? 'Move to want' : 'Mark as have'}
           </button>
+          {onReplace && (
+            <button onClick={onReplace} className="text-[10px] text-stone-400 transition-colors hover:text-stone-900">Let it fall back</button>
+          )}
           <button onClick={onRemove} className="ml-auto text-[10px] text-stone-400 transition-colors hover:text-phase-menstrual">Delete</button>
         </div>
       </div>

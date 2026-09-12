@@ -323,7 +323,6 @@ export default function DreamDashboard({ cycleConfig = {} }) {
         const items = (Array.isArray(cur.items) ? cur.items : []).map(normVision).map((it) => (it.goalId === goalId ? { ...it, goalId: '' } : it))
         return { ...cur, items: [...items, normVision({
           id: uid(), path, dataUrl: path ? '' : (out.dataUrl || ''), w: out.w, h: out.h, hash: out.hash, goalId,
-          x: 6 + (items.length % 3) * 30, y: 24 + Math.floor(items.length / 3) * 250, rot: 0,
         })] }
       })
       store.flush('mos:dream:board')
