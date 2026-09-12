@@ -7,6 +7,7 @@ import { dateKey, parseKey, MONTHS, MONTHS_SHORT } from '../lib/date'
 import { useRegisterAdd } from './shared/AddButton'
 import { averageHash, duplicatesOf, clusters, matches } from '../lib/imageFacts'
 import * as store from '../lib/dataStore'
+import { useSignedUrls } from '../hooks/useSignedUrls'
 
 // ── The Mood Board.
 //
@@ -32,11 +33,6 @@ const TEMPLATES = [
 ]
 const SIZES = { S: 150, M: 225, L: 330 }
 const sizeW = (s) => SIZES[s] || SIZES.M
-
-// Signatures last eight hours; the board re-signs itself every seven, so a page
-// left open overnight still has its pictures in the morning.
-const SIGN_SECONDS = 28800
-const SIGN_REFRESH_MS = 7 * 60 * 60 * 1000
 
 const KEY = 'mos:dream:board'
 
@@ -115,7 +111,6 @@ export default function DreamBoard() {
   const all = useMemo(() => (Array.isArray(board.items) ? board.items : []).map(normVision), [board.items])
   const template = TEMPLATES.some((t) => t.id === board.template) ? board.template : 'scrapbook'
 
-  const [urls, setUrls] = useState({})
   const [busy, setBusy] = useState(0)
   const [flipped, setFlipped] = useState(() => new Set())
   const [state, setState] = useState('all') // all | want | have
@@ -157,31 +152,10 @@ export default function DreamBoard() {
   })
   const updateItem = (id, patch) => setItems((arr) => arr.map((x) => (x.id === id ? { ...x, ...patch } : x)))
 
-  // The bucket is private, so every picture needs a signed URL, and a signature
-  // expires. Asking once was enough to draw the board and not enough to keep it:
-  // a request that failed was never retried, so the square stayed empty as
-  // though the photograph had gone, and a board left open past the expiry went
-  // blank the same way. Ask again for anything still missing, and re-sign the
-  // whole board well before the signatures run out.
-  const [signTick, setSignTick] = useState(0)
-  useEffect(() => {
-    const retry = setInterval(() => setSignTick((n) => n + 1), 20000)
-    const refresh = setInterval(() => { setUrls({}); setSignTick((n) => n + 1) }, SIGN_REFRESH_MS)
-    return () => { clearInterval(retry); clearInterval(refresh) }
-  }, [])
-
-  useEffect(() => {
-    let alive = true
-    const missing = [...new Set(all.filter((it) => it.path && !urls[it.path]).map((it) => it.path))]
-    if (!missing.length) return undefined
-    ;(async () => {
-      const pairs = await Promise.all(missing.map(async (p) => [p, await store.signedPhotoUrl(p, SIGN_SECONDS)]))
-      if (!alive) return
-      setUrls((u) => { const next = { ...u }; pairs.forEach(([p, url]) => { if (url) next[p] = url }); return next })
-    })()
-    return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all.map((i) => i.path).join(','), signTick])
+  // The bucket is private, so every picture needs a signed URL and a signature
+  // expires. All of the ways that goes wrong now live in one hook, shared with
+  // the wishlist covers.
+  const urls = useSignedUrls(useMemo(() => all.filter((it) => it.path).map((it) => it.path), [all]))
 
   const srcOf = (it) => it.dataUrl || it.remote || urls[it.path] || ''
   const pickFiles = () => fileRef.current && fileRef.current.click()

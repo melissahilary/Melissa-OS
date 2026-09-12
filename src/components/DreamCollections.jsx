@@ -6,6 +6,7 @@ import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PILLAR_TAGS } from './DreamProjects'
 import EmptyState from './shared/EmptyState'
+import { useSignedUrls } from '../hooks/useSignedUrls'
 import PolaroidRail from './shared/PolaroidRail'
 import { assetMarkFor } from './shared/assetMarks'
 import {
@@ -75,24 +76,14 @@ export default function DreamCollections({ goals = [], projects = [] }) {
   const [choosing, setChoosing] = useState(null) // a topic she has more than one list in
   const [draftCls, setDraftCls] = useState(null) // a topic opened before it holds anything
   const draftRef = useRef(null)
+  const [coverNote, setCoverNote] = useState('') // what the cover is doing, when it isn't just there
 
   // Covers are real files in the private bucket like every other photograph
-  // here, so the board holds as many as she likes without bloating the row that
-  // loads at sign-in. Viewing one needs a signed link.
-  const [urls, setUrls] = useState({})
-  const paths = Object.values(covers).map((c) => (c && c.path) || '').filter(Boolean).join(',')
-  useEffect(() => {
-    let alive = true
-    const missing = [...new Set(paths.split(',').filter((p) => p && !urls[p]))]
-    if (!missing.length) return undefined
-    ;(async () => {
-      const pairs = await Promise.all(missing.map(async (p) => [p, await store.signedPhotoUrl(p)]))
-      if (!alive) return
-      setUrls((u) => { const next = { ...u }; pairs.forEach(([p, url]) => { if (url) next[p] = url }); return next })
-    })()
-    return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paths])
+  // here, so the wall holds as many as she likes without bloating the row that
+  // loads at sign-in. Viewing one needs a signed link, and getting that link is
+  // its own small saga — see the hook.
+  const paths = useMemo(() => Object.values(covers).map((c) => (c && c.path) || '').filter(Boolean), [covers])
+  const urls = useSignedUrls(paths)
 
   const coverSrc = (clsId) => {
     const c = covers[clsId]
@@ -102,8 +93,12 @@ export default function DreamCollections({ goals = [], projects = [] }) {
 
   const setCover = (clsId, file) => {
     if (!file) return
+    setCoverNote('SAVING')
     processImage(file, 900, async (out) => {
-      if (!out) return
+      // A file the browser cannot decode — most often an iPhone HEIC opened on
+      // a desktop browser — used to vanish without a word, which looks exactly
+      // like a cover that was added and didn't stay. Say so instead.
+      if (!out) { setCoverNote("THAT FILE COULDN'T BE READ"); return }
       let path = ''
       if (out.blob) path = (await store.uploadPhoto(out.blob)) || ''
       // If the upload could not land — offline, or signed out — keep the small
@@ -112,11 +107,13 @@ export default function DreamCollections({ goals = [], projects = [] }) {
       // The file is already in the bucket; anything that ends the page inside
       // the debounce would leave an uploaded cover with nothing pointing at it.
       store.flush(COVERS_KEY)
+      setCoverNote('')
     })
   }
   const clearCover = (clsId) => {
     setCovers((prev) => { const next = { ...(prev && typeof prev === 'object' ? prev : {}) }; delete next[clsId]; return next })
     store.flush(COVERS_KEY)
+    setCoverNote('')
   }
 
   const commit = (fn) => setStore((prev) => fn((Array.isArray(prev) ? prev : []).map(normList)))
@@ -172,6 +169,7 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         cover={coverSrc(draftCls)}
         onCover={(file) => setCover(draftCls, file)}
         onClearCover={() => clearCover(draftCls)}
+        coverNote={coverNote}
         onUpdate={materialise}
         onRemove={() => setDraftCls(null)}
         onBack={() => setDraftCls(null)}
@@ -189,6 +187,7 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         cover={coverSrc(open.cls)}
         onCover={(file) => setCover(open.cls, file)}
         onClearCover={() => clearCover(open.cls)}
+        coverNote={coverNote}
         onUpdate={(patch) => update(open.id, patch)}
         onRemove={() => remove(open.id)}
         onBack={() => setOpenId(null)}
@@ -306,7 +305,7 @@ function NewWishlist({ onCreate, onCancel }) {
 }
 
 // ── The list ────────────────────────────────────────────────────────
-function ListView({ list, goals, projects, cover, onCover, onClearCover, onUpdate, onRemove, onBack }) {
+function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNote, onUpdate, onRemove, onBack }) {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('all')
@@ -393,6 +392,7 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, onUpdat
             <ImagePlus size={12} strokeWidth={1.7} /> {cover ? 'Change cover' : 'Add a cover'}
           </label>
           {cover && <button onClick={onClearCover} className="text-xs text-stone-500 hover:text-stone-900">Remove</button>}
+          {coverNote && <span className="text-[10px] tracking-[0.16em] text-stone-500">{coverNote}</span>}
         </div>
       </div>
 
