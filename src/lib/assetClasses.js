@@ -71,7 +71,7 @@ export const ASSET_GROUPS = [
       // Named for the place rather than the payment, so it does not collide
       // with Memberships under Assets and money. This is the one you turn up
       // to and it counts your visits; that one is the one that bills you.
-      { id: 'memberships', label: 'Clubs & studios', about: 'Gym, pilates, yoga, tennis club, spa, clinic, co-working, members clubs.', fields: [f('kind', 'Gym · studio · clinic'), f('renewal', 'Renews', 'date'), f('visits', 'Visits', 'count')] },
+      { id: 'memberships', label: 'Clubs', about: 'Gym, pilates, yoga, tennis club, spa, clinic, co-working, members clubs.', fields: [f('kind', 'Gym · studio · clinic'), f('renewal', 'Renews', 'date'), f('visits', 'Visits', 'count')] },
       { id: 'courses', label: 'Programmes & courses', about: 'Courses, certifications, trainings, retreats, workshops, coaching, language classes.', fields: [f('provider', 'Provider'), f('start', 'Starts', 'date'), f('completed', 'Completed', 'date')] },
     ],
   },
