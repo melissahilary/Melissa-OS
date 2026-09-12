@@ -165,11 +165,6 @@ export default function DreamCollections({ goals = [], projects = [] }) {
       setCoverNote("THAT ONE DIDN'T SAVE — TRY AGAIN")
     }
   }
-  const clearCover = (clsId) => {
-    setCovers((prev) => { const next = { ...(prev && typeof prev === 'object' ? prev : {}) }; delete next[clsId]; return next })
-    store.flush(COVERS_KEY)
-    setCoverNote('')
-  }
 
   const commit = (fn) => setStore((prev) => fn((Array.isArray(prev) ? prev : []).map(normList)))
   const create = (label, cls, currency) => {
@@ -223,7 +218,6 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         projects={projects}
         cover={coverSrc(draftCls)}
         onCover={(file) => setCover(draftCls, file)}
-        onClearCover={() => clearCover(draftCls)}
         coverNote={coverNote}
         onDelete={() => hideTopic(draftCls)}
         onUpdate={materialise}
@@ -241,7 +235,6 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         projects={projects}
         cover={coverSrc(open.cls)}
         onCover={(file) => setCover(open.cls, file)}
-        onClearCover={() => clearCover(open.cls)}
         coverNote={coverNote}
         onDelete={() => {
           // An empty list takes its shelf down with it, unless another list of
@@ -424,7 +417,7 @@ function NewWishlist({ onCreate, onCancel }) {
 }
 
 // ── The list ────────────────────────────────────────────────────────
-function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNote, onDelete, onUpdate, onBack }) {
+function ListView({ list, goals, projects, cover, onCover, coverNote, onDelete, onUpdate, onBack }) {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('all')
@@ -504,7 +497,9 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
         <div className="mt-3 flex items-start gap-4">
           {/* The picture is the button, and the pencil sitting on its corner is
               how anyone knows that. Two text links saying Change cover and
-              Remove cover were a sentence where a mark would do. */}
+              Remove cover were a sentence where a mark would do — and an X for
+              removing it was a second mark crowding the title for something
+              nobody does. Replacing a cover is how you change your mind. */}
           <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onCover(f) }} />
           <span className="relative block h-16 w-16 shrink-0">
             <button
@@ -519,17 +514,6 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
             <span aria-hidden className="pointer-events-none absolute -bottom-2 -right-2 flex h-6 w-6 items-center justify-center bg-stone-900 text-cream">
               <EditIcon size={16} />
             </span>
-            {cover && (
-              <button
-                type="button"
-                onClick={onClearCover}
-                aria-label="Remove the cover"
-                title="Remove the cover"
-                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center border border-stone-300 bg-cream text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900"
-              >
-                <CloseIcon size={16} />
-              </button>
-            )}
           </span>
 
           <div className="min-w-0 flex-1">
