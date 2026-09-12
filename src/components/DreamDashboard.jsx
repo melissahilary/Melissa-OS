@@ -60,10 +60,13 @@ const VIEWS = [
 // rather than three pages of different lengths.
 //
 // The columns themselves are the exception, and it is a real one. Side by side
-// they hold eight. Stacked on a phone they hold three, because 868 of pane on an
-// 844 phone never scrolls — every goal in Now runs past the fold and Next begins
-// somewhere below the horizon. The height lives in a CSS variable so the
-// breakpoint is declared once, in the stylesheet, rather than measured in JS.
+// they hold five; stacked on a phone, three — because a pane taller than the
+// phone itself never scrolls, so every goal in Now would run past the fold and
+// Next would begin somewhere below the horizon. Five rather than the eight they
+// held before: three columns of eight is twenty-four goals at once, which is a
+// page to be audited rather than a horizon to be read. The height lives in a
+// CSS variable so the breakpoint is declared once, in the stylesheet, rather
+// than measured in JS.
 const COL_CARD_H = 98 // 96 of card, plus the hairline on each edge
 const COL_GAP = 12
 const COL_VISIBLE = 8
@@ -203,7 +206,15 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     })))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goals.length])
-  const removeGoal = (id) => { setGoals((p) => p.filter((g) => g.id !== id)); activities.filter((a) => a.details && a.details.goalId === id).forEach((a) => remove(a.id)); setOpenId(null) }
+  // Deleting the goal releases whatever was standing for it. Without this, a
+  // picture she had already deleted from the board would be held here by a goal
+  // that no longer exists — invisible everywhere and deletable from nowhere.
+  const removeGoal = (id) => {
+    setGoals((p) => p.filter((g) => g.id !== id))
+    activities.filter((a) => a.details && a.details.goalId === id).forEach((a) => remove(a.id))
+    releaseGoalPictures(id)
+    setOpenId(null)
+  }
 
   const stepsOf = (goalId) => activities.filter((a) => a.details && a.details.goalId === goalId && a.status !== 'archived')
   // A proposed plan becomes steps on the path, and each of its actions is
@@ -261,6 +272,8 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
   const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
   const [boardRaw, setBoardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
+  // Every row, including the ones taken off the board while a goal was still
+  // using them — that is the whole point of keeping them.
   const boardAll = (boardRaw && Array.isArray(boardRaw.items) ? boardRaw.items : []).filter((it) => it && it.id)
   const boardItems = boardAll.filter((it) => it.goalId)
 
@@ -286,13 +299,29 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     .map((it) => ({ id: it.id, url: it.dataUrl || it.remote || boardUrls[it.path] || '', title: it.caption || it.title || '' }))
     .filter((x) => x.url)
 
+  // A picture she deleted from the board was kept only because a goal was
+  // using it. Once it stops standing for anything it belongs nowhere, so the
+  // deletion she asked for that day finally happens — the row goes and the file
+  // goes with it. A picture still on the board is never touched by this.
+  const sweepOrphans = (items) => {
+    const gone = items.filter((it) => it && it.offBoard && !it.goalId)
+    gone.forEach((it) => { if (it.path) store.deletePhoto(it.path) })
+    return gone.length ? items.filter((it) => !(it && it.offBoard && !it.goalId)) : items
+  }
+
+  const releaseGoalPictures = (goalId) => setBoardRaw((prev) => {
+    const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
+    const items = (Array.isArray(cur.items) ? cur.items : []).map((it) => (it && it.goalId === goalId ? { ...it, goalId: '' } : it))
+    return { ...cur, items: sweepOrphans(items) }
+  })
+
   // Unpairing is the picture's business, so it writes the board, not the goal.
   // The photograph itself is never touched — it stays on the board, it simply
   // stops standing for this.
   const setPictureGoal = (imageId, goalId) => setBoardRaw((prev) => {
     const cur = prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : { template: 'scrapbook', items: [] }
     const items = (Array.isArray(cur.items) ? cur.items : []).map((it) => (it && it.id === imageId ? { ...it, goalId } : it))
-    return { ...cur, items }
+    return { ...cur, items: sweepOrphans(items) }
   })
   const unpairImage = (imageId) => setPictureGoal(imageId, '')
   // A goal has one picture. Giving it another lets the old one go — it stays on
@@ -305,7 +334,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       if (it.goalId === goalId) return { ...it, goalId: '' }
       return it
     })
-    return { ...cur, items }
+    return { ...cur, items: sweepOrphans(items) }
   })
 
   // A photo uploaded from the goal goes to the board like any other — same

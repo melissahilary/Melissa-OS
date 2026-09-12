@@ -1,92 +1,154 @@
-// ── The board, composed as a mosaic.
+// ── The board, composed as a paste-up.
 //
-// The reference is an editorial collage: blocks of picture packed flush into a
-// page, cream showing only at the seams and the margin, nothing tilted, nothing
-// taped, no white borders and no shadows. A few pictures are cut out of their
-// backgrounds altogether and sit over the grid, which is the only thing on the
-// page allowed to break the rectangle.
+// The reference is an editorial collage, and the thing to get right about it is
+// that it is *nearly* a grid and not actually one. Blocks run in three rough
+// columns, but they are not the same width as each other, they do not start on
+// the same line, some lap over their neighbour by an inch and some leave a
+// finger of ground showing. A true tiling — every block flush, every seam the
+// same width — was the first attempt here and it read as a contact sheet: very
+// tidy, and nothing like a page somebody laid out by hand.
 //
-// So the arrangement is a pattern that repeats rather than a scatter. Twelve
-// columns; a block of eight slots of varied span that tiles a square exactly;
-// two such blocks, alternating, so the repeat is felt rather than counted. Past
-// the last whole block a tail pattern of the right size finishes the page, so a
-// board of three pictures is a composition and not three blocks marooned in a
-// square of nothing.
+// So: three running columns, each picture into whichever is shortest, at its
+// own proportions rather than cropped into a slot; widths that sometimes exceed
+// the column so blocks lap sideways; vertical laps and, now and then, a
+// deliberate gap. No rotation, no tape, no borders and no shadows — the
+// reference has none of those, and they were what made the last-but-one attempt
+// read as a scrapbook rather than a collage.
 //
-// Slots are filled by shape, not by order: within a block the widest picture
-// goes to the widest slot. Everything is cropped to its slot, which is what
-// packs the page — so the crop may as well be the one that loses least.
+// Everything is drawn from the picture's own id, so the page is identical on
+// every screen and after every reload. Nothing is random at render time.
+//
+// Cut-outs are the only things allowed to break the rectangle. They keep their
+// block's place and are drawn larger, on nothing at all.
 
-const COLS = 12
+const COLS = 3
+// A block clipped by the edge of the page reads as a bug, never as a crop.
+const EDGE = 10
+// How much of the smaller of two blocks one may cover. Past about a third the
+// block underneath has stopped being a picture and become a texture.
+const MAX_COVER = 0.32
+// A very tall photograph at full width would run the height of the screen on
+// its own, so height is capped in multiples of its own width.
+const MAX_RATIO = 1.62
 
-// The two repeating blocks. Each is [col, row, colSpan, rowSpan] on the grid,
-// in reading order, and each tiles its rectangle exactly — no gaps, no overlaps.
-const BLOCKS = [
-  { rows: 12, slots: [[0, 0, 4, 5], [4, 0, 5, 3], [9, 0, 3, 6], [4, 3, 5, 4], [0, 5, 4, 4], [9, 6, 3, 6], [4, 7, 5, 5], [0, 9, 4, 3]] },
-  { rows: 12, slots: [[0, 0, 5, 4], [5, 0, 3, 6], [8, 0, 4, 3], [8, 3, 4, 5], [0, 4, 5, 5], [5, 6, 3, 6], [8, 8, 4, 4], [0, 9, 5, 3]] },
-]
+// Three weights. The multiplier is against the column width, so anything over
+// 1 is a block that laps into its neighbours by design.
+const WEIGHT = { S: 0.82, M: 1.02, L: 1.24 }
 
-// What finishes the page when fewer than eight are left.
-const TAILS = {
-  1: { rows: 8, slots: [[0, 0, 12, 8]] },
-  2: { rows: 7, slots: [[0, 0, 6, 7], [6, 0, 6, 7]] },
-  3: { rows: 8, slots: [[0, 0, 5, 8], [5, 0, 7, 4], [5, 4, 7, 4]] },
-  4: { rows: 10, slots: [[0, 0, 7, 5], [7, 0, 5, 5], [0, 5, 5, 5], [5, 5, 7, 5]] },
-  5: { rows: 11, slots: [[0, 0, 4, 6], [4, 0, 8, 6], [0, 6, 5, 5], [5, 6, 3, 5], [8, 6, 4, 5]] },
-  6: { rows: 11, slots: [[0, 0, 5, 5], [5, 0, 4, 5], [9, 0, 3, 5], [0, 5, 4, 6], [4, 5, 4, 6], [8, 5, 4, 6]] },
-  7: { rows: 11, slots: [[0, 0, 4, 5], [4, 0, 5, 5], [9, 0, 3, 5], [0, 5, 3, 6], [3, 5, 5, 6], [8, 5, 4, 3], [8, 8, 4, 3]] },
-}
-
-// Widest picture to widest slot. Sorting both by shape and pairing them off is
-// the whole of it — it costs nothing and it is the difference between a face
-// cropped to a band and a face that fits its block.
-function byShape(group, slots) {
-  const ss = slots.map((s, i) => ({ i, a: s[2] / s[3] })).sort((x, y) => x.a - y.a)
-  const gg = group.map((it, i) => ({ i, a: (it.w || 4) / (it.h || 3) })).sort((x, y) => x.a - y.a)
-  return ss.map((s, k) => ({ it: group[gg[k].i], slot: slots[s.i] }))
-}
-
-// Returns the tiles by id — position and size in canvas pixels — and the height
-// the whole page comes to.
-export function mosaic(items, canvasW, opts = {}) {
-  const pad = opts.pad == null ? 24 : opts.pad
-  const gut = opts.gutter == null ? 6 : opts.gutter
-  const col = (canvasW - pad * 2) / COLS
-  const tiles = {}
-  let y0 = pad
-  let at = 0
-  let block = 0
-
-  while (at < items.length) {
-    const left = items.length - at
-    const pat = left >= 8 ? BLOCKS[block % BLOCKS.length] : TAILS[left]
-    const group = items.slice(at, at + pat.slots.length)
-    byShape(group, pat.slots).forEach(({ it, slot }) => {
-      tiles[it.id] = {
-        x: Math.round(pad + slot[0] * col + gut / 2),
-        y: Math.round(y0 + slot[1] * col + gut / 2),
-        w: Math.round(slot[2] * col - gut),
-        h: Math.round(slot[3] * col - gut),
-        cut: false,
-        z: 1,
-      }
-    })
-    y0 += pat.rows * col
-    at += pat.slots.length
-    block += 1
+const hash32 = (s) => {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
   }
+  return h >>> 0
+}
 
-  // Which ones lift off the grid. A rhythm rather than a judgement — the
-  // picture itself gets the final say, because a cut only happens if the
-  // background actually comes away. Never the big blocks: a large picture
-  // grown another quarter swallows the page instead of sitting on it.
+const rng = (seed) => {
+  let s = (seed || 1) >>> 0
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
+
+// A page wants weight in it: a few large, a scatter of small, the rest even.
+// The rhythm comes from the position so it reads as a composition rather than
+// as noise; the picture's own shape then vetoes anything that would make a
+// tower or a strip of it.
+function weigh(ratio, i) {
+  let size = 'M'
+  if (i % 5 === 4) size = 'S'
+  if (i % 7 === 2) size = 'L'
+  if (size === 'L' && ratio > 1.45) size = 'M'
+  if (size === 'S' && ratio < 0.7) size = 'M'
+  return size
+}
+
+// The worst burial this block would inflict on anything already down.
+function buries(rects, b) {
+  const areaB = b.w * b.h
+  let worst = 0
+  for (let i = 0; i < rects.length; i += 1) {
+    const a = rects[i]
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
+    const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
+    if (ox <= 0 || oy <= 0) continue
+    const cover = (ox * oy) / Math.min(areaB, a.w * a.h)
+    if (cover > worst) worst = cover
+  }
+  return worst
+}
+
+// Returns the blocks by id — position and size in canvas pixels — and the
+// height the whole page comes to.
+export function mosaic(items, canvasW, opts = {}) {
+  const pad = opts.pad == null ? 18 : opts.pad
+  const inner = canvasW - pad * 2
+  const colW = inner / COLS
+  // The columns do not start on one line. A straight top edge is the first
+  // thing that gives away that a machine laid the page out.
+  const bottoms = [pad, pad + Math.round(colW * 0.11), pad + Math.round(colW * 0.04)]
+  const rects = []
+  const tiles = {}
+
   items.forEach((it, i) => {
-    const t = tiles[it.id]
-    if (t && i % 5 === 3 && t.w <= col * 4.5) {
-      t.cut = true
-      t.z = 10 + i
+    const r = rng(hash32(String(it.id || i)))
+    const ratio = Math.min(MAX_RATIO, (it.h || 3) / (it.w || 4))
+    const size = weigh(ratio, i)
+    const w = Math.round(colW * WEIGHT[size])
+    const h = Math.round(w * ratio)
+
+    let c = 0
+    for (let k = 1; k < COLS; k += 1) if (bottoms[k] < bottoms[c]) c = k
+
+    // Off the column's centre line, so the columns read as a drift rather than
+    // a ruling — and so blocks meet their neighbours at different places.
+    const jitter = (r() - 0.5) * colW * 0.3
+    // Mostly a lap over the block above; every so often a finger of ground.
+    const roll = r()
+    const lap = roll < 0.12 ? -h * 0.04 * r() : h * (0.03 + r() * 0.11)
+
+    let best = null
+    let worst = Infinity
+    for (let k = 0; k < 5; k += 1) {
+      const damp = 1 - k * 0.24
+      const at = {
+        x: Math.max(EDGE, Math.min(canvasW - w - EDGE, pad + c * colW + (colW - w) / 2 + jitter * damp)),
+        y: Math.max(pad, Math.round(bottoms[c] - lap * damp)),
+        w,
+        h,
+      }
+      const cover = buries(rects, at)
+      if (cover < worst) { worst = cover; best = at }
+      if (cover <= MAX_COVER) break
+    }
+
+    rects.push(best)
+    bottoms[c] = best.y + h
+    tiles[it.id] = {
+      x: Math.round(best.x),
+      y: Math.round(best.y),
+      w,
+      h,
+      cut: false,
+      // Later blocks sit over earlier ones, the way a paste-up is actually
+      // built; a small block tucked over a large one reads as deliberate.
+      z: i + 1 + (size === 'S' ? 400 : 0),
     }
   })
 
-  return { tiles, height: Math.round(y0 + pad) }
+  // Which ones lift off the page. A rhythm rather than a judgement — the
+  // photograph itself gets the final say, because a cut only happens if the
+  // background actually comes away. Never the big blocks: a large picture grown
+  // another quarter swallows the page instead of sitting on it.
+  items.forEach((it, i) => {
+    const t = tiles[it.id]
+    if (t && i % 5 === 3 && t.w <= colW * 1.05) {
+      t.cut = true
+      t.z = 900 + i
+    }
+  })
+
+  return { tiles, height: Math.round(Math.max(...bottoms, pad) + pad) }
 }

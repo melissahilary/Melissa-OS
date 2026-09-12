@@ -97,15 +97,19 @@ button {
   background: transparent;
 }
 
-/* How tall a horizon column stands before it scrolls. Eight cards where the
+/* How tall a horizon column stands before it scrolls. Five cards where the
    three columns sit side by side, three where they stack — because a pane
    taller than the phone itself never scrolls, and a column that never scrolls
    is not a column, it is the whole list with a heading on it.
 
+   Eight was too many even on a desk: three columns of eight is twenty-four
+   goals at once, which is a page to be audited rather than a horizon to be
+   read. Five is a glance, and the rest is one scroll away.
+
    A card is 96 with a hairline on each edge, and they are twelve apart. */
 :root { --mos-col-h: 318px; }  /* 3 × 98 + 2 × 12 */
 @media (min-width: 768px) {
-  :root { --mos-col-h: 868px; }  /* 8 × 98 + 7 × 12 */
+  :root { --mos-col-h: 538px; }  /* 5 × 98 + 4 × 12 */
 }
 
 /* A reading that scrolls says so. These panes keep a drawn track — a hairline

@@ -88,6 +88,7 @@ export default function DreamCollections({ goals = [], projects = [] }) {
   const [draftCls, setDraftCls] = useState(null) // a topic opened before it holds anything
   const draftRef = useRef(null)
   const [adding, setAdding] = useState(null) // the group she is putting a shelf back on
+  const [section, setSection] = useState(null) // the section she has opened, as a page of its own
 
   const [topicsRaw, setTopics] = useLocalStorage(TOPICS_KEY, { hidden: [], custom: [] })
   const topics = useMemo(() => normTopics(topicsRaw), [topicsRaw])
@@ -291,6 +292,23 @@ export default function DreamCollections({ goals = [], projects = [] }) {
     )
   }
 
+  if (section) {
+    const g = ASSET_GROUPS.find((x) => x.id === section)
+    if (g) {
+      return (
+        <SectionPage
+          group={g}
+          shelves={classesIn(g)}
+          coverSrc={coverSrc}
+          noteFor={noteFor}
+          onOpen={openTopic}
+          onAdd={() => setAdding(g.id)}
+          onBack={() => setSection(null)}
+        />
+      )
+    }
+  }
+
   return (
     <div>
       {/* The same toolbar the board has: whatever lives on the left, and the one
@@ -316,7 +334,16 @@ export default function DreamCollections({ goals = [], projects = [] }) {
             if (!shelves.length) return null
             return (
               <div key={g.id}>
-                <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
+                {/* The section name is the way into the section. A row of
+                    topics is a preview of the shelf, not the whole of it — the
+                    page behind the name is where they are all laid out. */}
+                <button
+                  onClick={() => setSection(g.id)}
+                  className="mb-3 flex w-full items-baseline gap-2 border-b border-stone-200 pb-1.5 text-left text-[10px] tracking-[0.16em] text-stone-400 transition-colors hover:text-stone-900"
+                >
+                  {g.label.toUpperCase()}
+                  <span aria-hidden className="ml-auto text-stone-300">→</span>
+                </button>
                 <PolaroidRail
                   items={shelves.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id), note: noteFor(c.id) }))}
                   reverse={gi % 2 === 1}
@@ -327,6 +354,71 @@ export default function DreamCollections({ goals = [], projects = [] }) {
             )
         })}
       </div>
+    </div>
+  )
+}
+
+// ── A section, laid out as a catalogue ──────────────────────────────
+//
+// The rail on the landing page is a preview: a few shelves drifting past, which
+// is right for browsing and useless for finding. Behind the section's name is
+// the whole of it at once — every shelf in the section, its picture, its name,
+// and underneath in small type the things that belong on it.
+//
+// It is a catalogue page, and it is laid out like one: the picture on plain
+// ground with nothing drawn around it, the name in italic serif beneath, the
+// examples smaller and greyer beneath that. Four across on a desk, two on a
+// phone. No frames, no cards, no borders — a page of products in a lookbook
+// has none of those, and they are what would make this read as an interface
+// rather than as something to look through.
+function SectionPage({ group, shelves, coverSrc, noteFor, onOpen, onAdd, onBack }) {
+  const [q, setQ] = useState('')
+  const shown = shelves.filter((c) => hits(`${c.label} ${c.about || ''}`, q))
+
+  return (
+    <div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <button onClick={onBack} className="text-[10px] tracking-[0.16em] text-stone-400 transition-colors hover:text-stone-900">
+          ← ALL SECTIONS
+        </button>
+        <button onClick={onAdd} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
+          <AddIcon size={15} strokeWidth={1.75} /> Add a list
+        </button>
+      </div>
+
+      <div className="mb-6 border-b border-stone-200 pb-4">
+        <h2 className="font-serif text-3xl leading-tight text-stone-900">{group.label}</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          {shelves.length} {shelves.length === 1 ? 'list' : 'lists'}. Open one to see what is on it.
+        </p>
+      </div>
+
+      <SearchBar value={q} onChange={setQ} label={`Search ${group.label}`} className="mb-6" />
+
+      {shown.length === 0 ? (
+        <p className="py-14 text-center font-serif italic text-lg text-stone-500">Nothing by that name.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+          {shown.map((c) => {
+            const cover = coverSrc(c.id)
+            const note = noteFor(c.id)
+            return (
+              <button key={c.id} onClick={() => onOpen(c.id)} className="group text-center">
+                {/* Plain ground, nothing drawn around it. A picture in a
+                    catalogue sits on the page; it is not in a box on it. */}
+                <span className="mb-3 flex h-32 w-full items-center justify-center overflow-hidden sm:h-36">
+                  {cover
+                    ? <img src={cover} alt="" className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.04]" />
+                    : React.createElement(assetMarkFor(c), { size: 44, className: 'text-stone-300 transition-colors group-hover:text-stone-900' })}
+                </span>
+                <span className="block font-serif text-[15px] italic leading-tight text-stone-900">{c.label}</span>
+                {note && <span className="mt-0.5 block text-[9px] tracking-[0.14em] text-stone-400">{note}</span>}
+                {c.about && <span className="mt-1 block text-[11px] leading-snug text-stone-500">{c.about}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

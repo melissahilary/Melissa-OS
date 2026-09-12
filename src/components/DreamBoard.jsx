@@ -101,6 +101,9 @@ export const normVision = (it) => ({
   sourceUrl: it.sourceUrl || '',
   hash: it.hash || '',
   read: !!it.read,
+  // Off the board but not gone: she deleted it here while a goal was still
+  // using it. Nothing on the board draws it; the goal still does.
+  offBoard: !!it.offBoard,
   // The one line she may write, if she wants to. Never required.
   caption: it.caption || '',
   // The goal this picture is of, if she has said so. Her judgement, never the
@@ -112,7 +115,10 @@ export const normVision = (it) => ({
 export default function DreamBoard() {
   const [raw, setRaw] = useLocalStorage(KEY, { template: 'scrapbook', items: [] })
   const board = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : { template: 'scrapbook', items: [] }
-  const all = useMemo(() => (Array.isArray(board.items) ? board.items : []).map(normVision), [board.items])
+  const all = useMemo(
+    () => (Array.isArray(board.items) ? board.items : []).map(normVision).filter((it) => !it.offBoard),
+    [board.items],
+  )
   const template = TEMPLATES.some((t) => t.id === board.template) ? board.template : 'scrapbook'
 
   const [busy, setBusy] = useState(0)
@@ -273,7 +279,17 @@ export default function DreamBoard() {
     setBusy((n) => Math.max(0, n - 1))
   }
 
+  // Taking a picture off the board is not the same as destroying it. A picture
+  // standing for a goal is that goal's picture too, and the goal has its own
+  // reason to keep it — so the row and the file stay and it simply leaves the
+  // board. It is properly deleted when nothing is using it any more, which the
+  // goals page does when the picture stops standing for anything.
   const removeItem = async (it) => {
+    if (it.goalId) {
+      setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, offBoard: true } : x)))
+      store.flush(KEY)
+      return
+    }
     setItems((arr) => arr.filter((x) => x.id !== it.id))
     if (it.path) await store.deletePhoto(it.path)
   }
@@ -444,8 +460,11 @@ export default function DreamBoard() {
         // here allowed to break the rectangle.
         <div
           ref={canvasBoxRef}
-          className="overflow-hidden border border-stone-200"
-          style={{ height: canvasH * fit + 2, backgroundColor: '#EFEAE0' }}
+          // White, not the ivory panel it had. The collage is the thing being
+          // looked at; a tinted ground behind it is a second surface competing
+          // with the photographs, and every other reading here sits on nothing.
+          className="overflow-hidden bg-white"
+          style={{ height: canvasH * fit + 2 }}
         >
           <div
             ref={canvasRef}
@@ -468,7 +487,7 @@ export default function DreamBoard() {
                 <div
                   key={it.id}
                   className="absolute"
-                  style={{ left: t.x, top: t.y, width: t.w, height: t.h, zIndex: flipped.has(it.id) ? 900 : t.z }}
+                  style={{ left: t.x, top: t.y, width: t.w, height: t.h, zIndex: flipped.has(it.id) ? 4000 : t.z }}
                 >
                   <Vision {...cardProps(it)} box={t} bare={bare} />
                 </div>
