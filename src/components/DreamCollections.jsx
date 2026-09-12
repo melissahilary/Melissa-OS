@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Share2, GripVertical, ImagePlus } from 'lucide-react'
 import { AddIcon, CloseIcon, LoggedIcon } from './shared/marks'
 import { processImage } from './DreamBoard'
@@ -73,6 +73,8 @@ export default function DreamCollections({ goals = [], projects = [] }) {
   const [openId, setOpenId] = useState(null)
   const [creating, setCreating] = useState(false)
   const [choosing, setChoosing] = useState(null) // a topic she has more than one list in
+  const [draftCls, setDraftCls] = useState(null) // a topic opened before it holds anything
+  const draftRef = useRef(null)
 
   // Covers are real files in the private bucket like every other photograph
   // here, so the board holds as many as she likes without bloating the row that
@@ -138,13 +140,43 @@ export default function DreamCollections({ goals = [], projects = [] }) {
     return `${t.owned} OF ${t.total} OWNED`
   }
 
-  // A topic card is a door, not a form. One list of that kind and it opens; none
-  // and it makes the obvious one and opens that; several and it asks which.
+  // A topic card is a door, not a form. One list of that kind and it opens;
+  // several and it asks which; none and it opens an empty one that does not
+  // exist yet — looking at a topic must not leave anything behind, and tapping
+  // through the wall used to litter it with lists she never asked for.
   const openTopic = (clsId) => {
     const mine = lists.filter((l) => l.cls === clsId)
     if (mine.length === 1) { setOpenId(mine[0].id); return }
-    if (!mine.length) { create(classMeta(clsId).label, clsId, 'USD'); return }
-    setChoosing(clsId)
+    if (mine.length > 1) { setChoosing(clsId); return }
+    draftRef.current = null
+    setDraftCls(clsId)
+  }
+
+  // The draft becomes real the moment she puts something in it, and everything
+  // after that goes to the list it became.
+  const materialise = (patch) => {
+    if (draftRef.current) { update(draftRef.current, patch); return }
+    const c = normList({ label: classMeta(draftCls).label, cls: draftCls, currency: 'USD', ...patch })
+    draftRef.current = c.id
+    commit((arr) => [...arr, c])
+    setDraftCls(null)
+    setOpenId(c.id)
+  }
+
+  if (draftCls) {
+    return (
+      <ListView
+        list={normList({ id: 'draft', label: classMeta(draftCls).label, cls: draftCls, currency: 'USD' })}
+        goals={goals}
+        projects={projects}
+        cover={coverSrc(draftCls)}
+        onCover={(file) => setCover(draftCls, file)}
+        onClearCover={() => clearCover(draftCls)}
+        onUpdate={materialise}
+        onRemove={() => setDraftCls(null)}
+        onBack={() => setDraftCls(null)}
+      />
+    )
   }
 
   const open = lists.find((c) => c.id === openId) || null
@@ -415,7 +447,10 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, onUpdat
         </>
       )}
 
-      <button onClick={onRemove} className="mt-8 text-xs text-stone-400 hover:text-phase-menstrual">Delete this list</button>
+      {/* A list she is only looking at has nothing to delete yet. */}
+      {list.id !== 'draft' && (
+        <button onClick={onRemove} className="mt-8 text-xs text-stone-400 hover:text-phase-menstrual">Delete this list</button>
+      )}
 
       {sharing && <ShareSheet list={list} onClose={() => setSharing(false)} />}
     </div>
