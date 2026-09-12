@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Share2, GripVertical, ImagePlus } from 'lucide-react'
 import { AddIcon, CloseIcon, LoggedIcon } from './shared/marks'
-import { processImage } from './DreamBoard'
+import { coverImage, blobToDataUrl } from '../lib/coverImage'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PILLAR_TAGS } from './DreamProjects'
@@ -91,24 +91,32 @@ export default function DreamCollections({ goals = [], projects = [] }) {
     return c.dataUrl || urls[c.path] || ''
   }
 
-  const setCover = (clsId, file) => {
+  const setCover = async (clsId, file) => {
     if (!file) return
     setCoverNote('SAVING')
-    processImage(file, 900, async (out) => {
-      // A file the browser cannot decode — most often an iPhone HEIC opened on
-      // a desktop browser — used to vanish without a word, which looks exactly
-      // like a cover that was added and didn't stay. Say so instead.
+    try {
+      const out = await coverImage(file, 900)
+      // A file the browser cannot decode — most often an iPhone HEIC opened
+      // somewhere with no decoder for it — used to vanish without a word, which
+      // looks exactly like a cover that was added and didn't stay. Say so.
       if (!out) { setCoverNote("THAT FILE COULDN'T BE READ"); return }
       let path = ''
       if (out.blob) path = (await store.uploadPhoto(out.blob)) || ''
-      // If the upload could not land — offline, or signed out — keep the small
-      // copy so the cover is at least there now rather than silently nothing.
-      setCovers((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [clsId]: { path, dataUrl: path ? '' : (out.dataUrl || out.thumb || '') } }))
+      // If the upload could not land — offline, or signed out — hold the small
+      // copy so the cover is there rather than silently nothing. An empty entry
+      // is the exact shape of the bug this is all about.
+      const held = path ? '' : (out.dataUrl || (await blobToDataUrl(out.blob)))
+      if (!path && !held) { setCoverNote("THAT ONE DIDN'T SAVE — TRY AGAIN"); return }
+      setCovers((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [clsId]: { path, dataUrl: held } }))
       // The file is already in the bucket; anything that ends the page inside
       // the debounce would leave an uploaded cover with nothing pointing at it.
       store.flush(COVERS_KEY)
       setCoverNote('')
-    })
+    } catch {
+      // Whatever went wrong, the control must not be left saying SAVING for
+      // ever — that is the state she has to reload the page to get out of.
+      setCoverNote("THAT ONE DIDN'T SAVE — TRY AGAIN")
+    }
   }
   const clearCover = (clsId) => {
     setCovers((prev) => { const next = { ...(prev && typeof prev === 'object' ? prev : {}) }; delete next[clsId]; return next })
@@ -311,6 +319,7 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
   const [filter, setFilter] = useState('all')
   const [dragId, setDragId] = useState(null)
   const [sharing, setSharing] = useState(false)
+  const coverRef = useRef(null)
 
   const cls = classMeta(list.cls)
   const t = tally(list)
@@ -387,10 +396,13 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
           {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : React.createElement(assetMarkFor(cls), { size: 32 })}
         </span>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
-            <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onCover(f) }} />
+          {/* A real input held by a ref, opened by a button — the same shape the
+              board uses. A hidden input inside a label is one node React is free
+              to replace under a phone that is mid-picker. */}
+          <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onCover(f) }} />
+          <button type="button" onClick={() => coverRef.current && coverRef.current.click()} className="flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
             <ImagePlus size={12} strokeWidth={1.7} /> {cover ? 'Change cover' : 'Add a cover'}
-          </label>
+          </button>
           {cover && <button onClick={onClearCover} className="text-xs text-stone-500 hover:text-stone-900">Remove</button>}
           {coverNote && <span className="text-[10px] tracking-[0.16em] text-stone-500">{coverNote}</span>}
         </div>
