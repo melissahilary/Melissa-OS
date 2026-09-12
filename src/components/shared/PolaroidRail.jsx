@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { PrevIcon, NextIcon } from './marks'
+import { PrevIcon, NextIcon, AddIcon } from './marks'
 
 // ── The wishlist rails.
 //
@@ -34,6 +34,32 @@ function Clip() {
       <path d="M4.5 9.5h31l-3 15h-25Z" fill="#16130F" />
       <path d="M9.5 13.5h21" stroke="#FAF6ED" strokeWidth="1" opacity="0.45" />
     </svg>
+  )
+}
+
+// The empty slot at the end of the row. Dashed, and wearing no clip, because it
+// is the one card that is not pinned up yet.
+function AddCard({ tilt, onPick, ghost }) {
+  return (
+    <button
+      type="button"
+      onClick={ghost ? undefined : onPick}
+      tabIndex={ghost ? -1 : 0}
+      aria-hidden={ghost || undefined}
+      title="Add a topic"
+      className="group relative mr-5 block shrink-0 w-32 pt-3 sm:mr-6 sm:w-36"
+      style={{ transform: `rotate(${tilt}deg)` }}
+    >
+      <span className="block border border-dashed border-stone-300 px-2.5 pb-4 pt-6 transition-colors group-hover:border-stone-900 sm:px-3 sm:pb-5">
+        <span className="flex h-20 w-full items-center justify-center text-stone-500 transition-colors group-hover:text-stone-900 sm:h-24">
+          <AddIcon size={24} />
+        </span>
+        <span className="mt-2.5 flex h-10 items-center justify-center px-0.5 text-center font-serif text-[14px] italic leading-tight text-stone-600 sm:text-[15px]">
+          Add a topic
+        </span>
+        <span className="block h-3.5" />
+      </span>
+    </button>
   )
 }
 
@@ -82,17 +108,20 @@ function Arrow({ side, onClick, label }) {
 
 // Every row must be wider than two screens or the loop shows its seam, so a
 // short group repeats until it is long enough and only then is doubled.
-export default function PolaroidRail({ items, reverse = false, onPick }) {
+export default function PolaroidRail({ items, reverse = false, onPick, onAdd }) {
   const [manual, setManual] = useState(false)
   const railRef = useRef(null)
   const trackRef = useRef(null)
 
   const { base, seconds } = useMemo(() => {
-    const reps = Math.max(1, Math.ceil(10 / Math.max(1, items.length)))
+    // The slot rides at the end of the set, so it comes round once a cycle
+    // rather than sitting in a corner of the page somewhere.
+    const set = onAdd ? [...items, { id: '__add__', add: true }] : items
+    const reps = Math.max(1, Math.ceil(10 / Math.max(1, set.length)))
     const out = []
-    for (let i = 0; i < reps; i += 1) out.push(...items)
+    for (let i = 0; i < reps; i += 1) out.push(...set)
     return { base: out, seconds: Math.round((out.length * CARD) / SPEED) }
-  }, [items])
+  }, [items, onAdd])
 
   const step = (dir) => {
     const rail = railRef.current
@@ -139,18 +168,23 @@ export default function PolaroidRail({ items, reverse = false, onPick }) {
           style={{ animationDuration: `${seconds}s`, animationDirection: reverse ? 'reverse' : 'normal' }}
         >
           {[0, 1].map((copy) =>
-            base.map((c, i) => (
-              <Polaroid
-                key={`${copy}-${i}-${c.id}`}
-                label={c.label}
-                Icon={c.Icon}
-                cover={c.cover}
-                note={c.note}
-                tilt={i % 3 === 0 ? -1.6 : i % 3 === 1 ? 1.2 : -0.5}
-                ghost={copy === 1}
-                onPick={() => onPick(c.id)}
-              />
-            )),
+            base.map((c, i) => {
+              const tilt = i % 3 === 0 ? -1.6 : i % 3 === 1 ? 1.2 : -0.5
+              return c.add ? (
+                <AddCard key={`${copy}-${i}-add`} tilt={tilt} ghost={copy === 1} onPick={onAdd} />
+              ) : (
+                <Polaroid
+                  key={`${copy}-${i}-${c.id}`}
+                  label={c.label}
+                  Icon={c.Icon}
+                  cover={c.cover}
+                  note={c.note}
+                  tilt={tilt}
+                  ghost={copy === 1}
+                  onPick={() => onPick(c.id)}
+                />
+              )
+            }),
           )}
         </div>
       </div>

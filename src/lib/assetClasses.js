@@ -146,7 +146,26 @@ export const ASSET_GROUPS = [
 
 export const ASSET_CLASSES = ASSET_GROUPS.flatMap((g) => g.classes.map((c) => ({ ...c, group: g.id, groupLabel: g.label })))
 export const CLASS_BY_ID = ASSET_CLASSES.reduce((m, c) => { m[c.id] = c; return m }, {})
-export const classMeta = (id) => CLASS_BY_ID[id] || { id: 'wardrobe', label: 'Ready to wear', fields: [] }
+
+// ── Topics she made herself.
+//
+// The sixty above are a starting set, not a fixture: she can take a shelf off
+// the wall and put one up. A shelf she invents has no drawing and no opinion
+// about its fields, so it gets the four that suit nearly anything a person buys.
+// They live in her own row in the store and are registered here so that every
+// existing caller of classMeta keeps working without knowing they exist.
+export const CUSTOM_FIELDS = [f('brand', 'Brand'), f('size', 'Size'), f('material', 'Material'), f('occasion', 'Occasion')]
+let CUSTOM = {}
+export function setCustomClasses(list) {
+  const next = {}
+  ;(Array.isArray(list) ? list : []).forEach((c) => {
+    if (c && c.id) next[c.id] = { fields: CUSTOM_FIELDS, sized: true, ...c, custom: true }
+  })
+  CUSTOM = next
+}
+export const customClasses = () => Object.values(CUSTOM)
+
+export const classMeta = (id) => CLASS_BY_ID[id] || CUSTOM[id] || { id: 'wardrobe', label: 'Ready to wear', fields: [] }
 
 // A size field is what makes a gift list actually work, so classes that have one
 // say so and the share sheet offers it.

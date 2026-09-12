@@ -118,9 +118,14 @@ const OWN = {
   vendors: VendorsMark, gifting: GiftingMark,
 }
 
+// A shelf she named herself. It gets an empty frame rather than someone else's
+// drawing, and the first cover she puts on it fills the frame in.
+export const OwnMark = (p) => <Mark {...p}><path d="M5.5 5.5h13v13h-13Z" /></Mark>
+
 export function assetMarkFor(cls) {
   if (!cls) return WardrobeMark
   if (OWN[cls.id]) return OWN[cls.id]
+  if (cls.custom || String(cls.id).startsWith('own_')) return OwnMark
   if (cls.pillar) return markFor(cls.pillar)
   return WardrobeMark
 }

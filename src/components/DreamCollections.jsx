@@ -10,7 +10,7 @@ import { useSignedUrls } from '../hooks/useSignedUrls'
 import PolaroidRail from './shared/PolaroidRail'
 import { assetMarkFor } from './shared/assetMarks'
 import {
-  ASSET_GROUPS, ASSET_CLASSES, classMeta, hasSizes, CURRENCIES,
+  ASSET_GROUPS, ASSET_CLASSES, classMeta, hasSizes, CURRENCIES, setCustomClasses,
   parseMoney, fmtMoney, parseTyped,
 } from '../lib/assetClasses'
 import { renderPages, downloadCanvas, asText, FORMATS, paginate } from '../lib/wishlistCard'
@@ -65,6 +65,16 @@ const normList = (c) => ({
 })
 
 const COVERS_KEY = 'mos:dream:covers'
+const TOPICS_KEY = 'mos:dream:topics'
+
+// The sixty shelves are a starting set, not a fixture. This row is the only
+// record of what she has done to it: which she has taken down, and which she has
+// put up that were never there. A new account has neither, so a new account sees
+// all sixty, which is the point of having them.
+const normTopics = (t) => ({
+  hidden: Array.isArray(t && t.hidden) ? t.hidden.filter((x) => typeof x === 'string') : [],
+  custom: Array.isArray(t && t.custom) ? t.custom.filter((c) => c && c.id && c.label) : [],
+})
 
 export default function DreamCollections({ goals = [], projects = [] }) {
   const [stored, setStore] = useLocalStorage('mos:dream:collections', [])
@@ -76,6 +86,43 @@ export default function DreamCollections({ goals = [], projects = [] }) {
   const [choosing, setChoosing] = useState(null) // a topic she has more than one list in
   const [draftCls, setDraftCls] = useState(null) // a topic opened before it holds anything
   const draftRef = useRef(null)
+  const [adding, setAdding] = useState(null) // the group she is putting a shelf back on
+
+  const [topicsRaw, setTopics] = useLocalStorage(TOPICS_KEY, { hidden: [], custom: [] })
+  const topics = useMemo(() => normTopics(topicsRaw), [topicsRaw])
+  // Registered before anything renders, so classMeta answers for her own shelves
+  // everywhere it is already called — the share sheet included.
+  useMemo(() => setCustomClasses(topics.custom), [topics.custom])
+  const hidden = useMemo(() => new Set(topics.hidden), [topics.hidden])
+
+  const classesIn = (g) => [
+    ...g.classes.filter((c) => !hidden.has(c.id)),
+    ...topics.custom.filter((c) => c.group === g.id && !hidden.has(c.id)),
+  ]
+  const hiddenIn = (gid) => {
+    const g = ASSET_GROUPS.find((x) => x.id === gid)
+    if (!g) return []
+    return [...g.classes, ...topics.custom.filter((c) => c.group === gid)].filter((c) => hidden.has(c.id))
+  }
+
+  const hideTopic = (id) => {
+    setTopics((prev) => { const t = normTopics(prev); return { ...t, hidden: [...new Set([...t.hidden, id])] } })
+    store.flush(TOPICS_KEY)
+    setOpenId(null)
+    setDraftCls(null)
+  }
+  const showTopic = (id) => {
+    setTopics((prev) => { const t = normTopics(prev); return { ...t, hidden: t.hidden.filter((x) => x !== id) } })
+    store.flush(TOPICS_KEY)
+  }
+  const addTopic = (gid, label) => {
+    const name = (label || '').trim()
+    if (!name) return
+    const id = `own_${uid()}`
+    setTopics((prev) => { const t = normTopics(prev); return { ...t, custom: [...t.custom, { id, label: name, group: gid }] } })
+    store.flush(TOPICS_KEY)
+    setAdding(null)
+  }
   const [coverNote, setCoverNote] = useState('') // what the cover is doing, when it isn't just there
 
   // Covers are real files in the private bucket like every other photograph
@@ -178,6 +225,7 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         onCover={(file) => setCover(draftCls, file)}
         onClearCover={() => clearCover(draftCls)}
         coverNote={coverNote}
+        onHideTopic={() => hideTopic(draftCls)}
         onUpdate={materialise}
         onRemove={() => setDraftCls(null)}
         onBack={() => setDraftCls(null)}
@@ -196,6 +244,7 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         onCover={(file) => setCover(open.cls, file)}
         onClearCover={() => clearCover(open.cls)}
         coverNote={coverNote}
+        onHideTopic={lists.filter((l) => l.cls === open.cls).every((l) => !l.items.length) ? () => { remove(open.id); hideTopic(open.cls) } : null}
         onUpdate={(patch) => update(open.id, patch)}
         onRemove={() => remove(open.id)}
         onBack={() => setOpenId(null)}
@@ -204,6 +253,19 @@ export default function DreamCollections({ goals = [], projects = [] }) {
   }
 
   if (creating) return <NewWishlist onCreate={create} onCancel={() => setCreating(false)} />
+
+  if (adding) {
+    const g = ASSET_GROUPS.find((x) => x.id === adding)
+    return (
+      <AddTopic
+        group={g}
+        back={hiddenIn(adding)}
+        onRestore={(id) => { showTopic(id); setAdding(null) }}
+        onCreate={(label) => addTopic(adding, label)}
+        onCancel={() => setAdding(null)}
+      />
+    )
+  }
 
   if (choosing) {
     const mine = lists.filter((l) => l.cls === choosing)
@@ -248,9 +310,10 @@ export default function DreamCollections({ goals = [], projects = [] }) {
           <div key={g.id}>
             <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
             <PolaroidRail
-              items={g.classes.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id), note: noteFor(c.id) }))}
+              items={classesIn(g).map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id), note: noteFor(c.id) }))}
               reverse={gi % 2 === 1}
               onPick={openTopic}
+              onAdd={() => setAdding(g.id)}
             />
           </div>
         ))}
@@ -266,6 +329,50 @@ function tally(list) {
   const spent = owned.reduce((n, i) => n + (parseMoney(i.price) || 0), 0)
   const remaining = live.filter((i) => i.status === 'wanted').reduce((n, i) => n + (parseMoney(i.price) || 0), 0)
   return { total: live.length, owned: owned.length, spent, remaining }
+}
+
+// ── Putting a shelf on the wall ─────────────────────────────────────
+// Two ways: one she took down and wants back, or one that was never in the
+// sixty. The first is the case that matters — she cleared Maternity out of the
+// Wardrobe two years ago and today she wants it there again.
+function AddTopic({ group, back, onRestore, onCreate, onCancel }) {
+  const [label, setLabel] = useState('')
+  const go = () => { if (label.trim()) onCreate(label.trim()) }
+  return (
+    <div className="mx-auto max-w-xl border border-stone-900 bg-white/60 p-5">
+      <p className="kicker">ADD TO {(group ? group.label : '').toUpperCase()}</p>
+
+      {back.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm text-stone-500">Ones you took down</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {back.map((c) => (
+              <button key={c.id} onClick={() => onRestore(c.id)} className="rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5">
+        <p className="text-sm text-stone-500">Or one of your own</p>
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          autoFocus={!back.length}
+          onKeyDown={(e) => e.key === 'Enter' && go()}
+          placeholder="Ski · Costume · Uniform"
+          className="mt-1 w-full border-b border-stone-300 bg-transparent pb-1.5 font-serif text-2xl outline-none placeholder:text-stone-300 focus:border-stone-900"
+        />
+      </div>
+
+      <div className="mt-5 flex items-center gap-3">
+        <button onClick={go} disabled={!label.trim()} className="rounded-full bg-stone-900 px-5 py-2 text-sm text-cream disabled:opacity-30">Put it up</button>
+        <button onClick={onCancel} className="text-xs text-stone-500 hover:text-stone-900">Cancel</button>
+      </div>
+    </div>
+  )
 }
 
 // ── Add a wishlist ──────────────────────────────────────────────────
@@ -313,7 +420,7 @@ function NewWishlist({ onCreate, onCancel }) {
 }
 
 // ── The list ────────────────────────────────────────────────────────
-function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNote, onUpdate, onRemove, onBack }) {
+function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNote, onHideTopic, onUpdate, onRemove, onBack }) {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('all')
@@ -405,6 +512,12 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
           </button>
           {cover && <button onClick={onClearCover} className="text-xs text-stone-500 hover:text-stone-900">Remove</button>}
           {coverNote && <span className="text-[10px] tracking-[0.16em] text-stone-500">{coverNote}</span>}
+          {/* Taking a shelf off the wall, from inside the shelf. Offered only
+              while it holds nothing, because the wall is the only door to a
+              list and hiding a full one would lock her out of it. */}
+          {onHideTopic && (
+            <button onClick={onHideTopic} className="text-xs text-stone-500 hover:text-oxblood">Take off the wall</button>
+          )}
         </div>
       </div>
 
