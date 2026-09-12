@@ -68,7 +68,10 @@ export const ASSET_GROUPS = [
       { id: 'treatments', label: 'Treatments', about: 'Facials, injectables, laser, microneedling, peels, massage, lymphatic, waxing.', pillar: 'aesthetics', fields: [f('provider', 'Provider'), f('interval', 'Interval'), f('lastdone', 'Last done', 'date'), f('nextdue', 'Next due', 'date'), f('downtime', 'Downtime')] },
       { id: 'practitioners', label: 'Practitioners', about: 'Doctor, dentist, dermatologist, OB-GYN, physio, therapist, nutritionist, trainer.', fields: [f('specialty', 'Specialty'), f('location', 'Location'), f('lastseen', 'Last seen', 'date'), f('nextdue', 'Next due', 'date'), f('referral', 'Referred by')] },
       { id: 'labs', label: 'Testing & labs', about: 'Blood panels, hormone panels, thyroid, vitamin D, pap smear, scans, DNA, allergy tests.', pillar: 'diagnostics', fields: [f('panel', 'Panel'), f('provider', 'Provider'), f('lastrun', 'Last run', 'date'), f('retest', 'Retest interval')] },
-      { id: 'memberships', label: 'Memberships', about: 'Gym, pilates, yoga, tennis club, spa, clinic, co-working, members clubs.', fields: [f('kind', 'Gym · studio · clinic'), f('renewal', 'Renews', 'date'), f('visits', 'Visits', 'count')] },
+      // Named for the place rather than the payment, so it does not collide
+      // with Memberships under Assets and money. This is the one you turn up
+      // to and it counts your visits; that one is the one that bills you.
+      { id: 'memberships', label: 'Clubs & studios', about: 'Gym, pilates, yoga, tennis club, spa, clinic, co-working, members clubs.', fields: [f('kind', 'Gym · studio · clinic'), f('renewal', 'Renews', 'date'), f('visits', 'Visits', 'count')] },
       { id: 'courses', label: 'Programmes & courses', about: 'Courses, certifications, trainings, retreats, workshops, coaching, language classes.', fields: [f('provider', 'Provider'), f('start', 'Starts', 'date'), f('completed', 'Completed', 'date')] },
     ],
   },
@@ -111,7 +114,11 @@ export const ASSET_GROUPS = [
       { id: 'investments', label: 'Investments', about: 'Stocks, funds, bonds, retirement accounts, crypto, private equity, savings.', fields: [f('kind', 'Type'), f('since', 'Held since', 'date'), f('value', 'Value', 'money')] },
       { id: 'collectibles', label: 'Collectibles', about: 'Watches, wine, art, handbags, coins, cars, first editions, sneakers.', fields: [f('category', 'Category'), f('provenance', 'Provenance'), f('valuation', 'Valuation', 'money'), f('insured', 'Insured', 'bool')] },
       { id: 'insurance', label: 'Insurance policies', about: 'Home, contents, car, travel, health, life, jewelry, pet.', fields: [f('kind', 'Type'), f('provider', 'Provider'), f('premium', 'Premium', 'money'), f('renewal', 'Renews', 'date'), f('cover', 'Cover')] },
-      { id: 'subscriptions', label: 'Subscriptions', about: 'Streaming, software, news, delivery boxes, cloud storage, memberships, apps.', fields: [f('service', 'Service'), f('renewal', 'Renews', 'date'), f('usage', 'Usage')] },
+      // The id stays `subscriptions`: it is what every list already filed here
+      // is keyed to, and a label is a label. The examples lead with the ones
+      // you join rather than the ones you stream, because that is the half
+      // the old name kept leaving out.
+      { id: 'subscriptions', label: 'Memberships', about: 'Streaming, software, news, delivery boxes, cloud storage, apps, clubs — anything that renews.', fields: [f('service', 'Service'), f('renewal', 'Renews', 'date'), f('usage', 'Usage')] },
     ],
   },
   {

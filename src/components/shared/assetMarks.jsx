@@ -51,7 +51,7 @@ export const MedicationMark = (p) => <Mark {...p}><path d="M4.5 9h15v6h-15Z" /><
 
 // ── Health — services ───────────────────────────────────────────────
 export const PractitionersMark = (p) => <Mark {...p}><circle cx="12" cy="8.5" r="4" /><path d="M5 19.5v-1.5l3.5-3h7l3.5 3v1.5" /></Mark>
-export const MembershipsMark = (p) => <Mark {...p}><path d="M4.5 7.5h15v9h-15Z" /><path d="M4.5 11h15M8 14h4" /></Mark>
+export const ClubsMark = (p) => <Mark {...p}><path d="M4.5 7.5h15v9h-15Z" /><path d="M4.5 11h15M8 14h4" /></Mark>
 export const CoursesMark = (p) => <Mark {...p}><path d="M4.5 9 12 5.5 19.5 9 12 12.5Z" /><path d="M8 10.75v5h8v-5" /></Mark>
 
 // ── Home ────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ export const PropertyMark = (p) => <Mark {...p}><path d="M4.5 11 12 5l7.5 6" /><
 export const InvestmentsMark = (p) => <Mark {...p}><path d="M6 19.5v-5M10.5 19.5v-9M15 19.5v-13M19.5 19.5v-7" /></Mark>
 export const CollectiblesMark = (p) => <Mark {...p}><path d="M4.5 7.5h15v12h-15Z" /><path d="M9.5 7.5v-3h5v3" /><path d="M4.5 13h15" /></Mark>
 export const InsuranceMark = (p) => <Mark {...p}><path d="M12 4.5 19 7v6l-7 6.5L5 13V7Z" /></Mark>
-export const SubscriptionsMark = (p) => <Mark {...p}><path d="M4.5 7.5h15v12h-15Z" /><path d="M8.5 4.5v6M15.5 4.5v6M4.5 12h15" /></Mark>
+export const MembershipsMark = (p) => <Mark {...p}><path d="M4.5 7.5h15v12h-15Z" /><path d="M8.5 4.5v6M15.5 4.5v6M4.5 12h15" /></Mark>
 
 // ── Life and experience ─────────────────────────────────────────────
 export const TravelMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M4.5 12h15" /><path d="M12 4.5a4.5 7.5 0 0 1 0 15 4.5 7.5 0 0 1 0-15" /></Mark>
@@ -107,13 +107,13 @@ const OWN = {
   activewear: ActivewearMark,
   accessories: AccessoriesMark, sleepwear: SleepwearMark, swim: SwimMark, maternity: MaternityMark,
   makeup: MakeupMark, fragrance: FragranceMark, devices: DevicesMark, medication: MedicationMark,
-  practitioners: PractitionersMark, memberships: MembershipsMark, courses: CoursesMark,
+  practitioners: PractitionersMark, memberships: ClubsMark, courses: CoursesMark,
   furniture: FurnitureMark, lighting: LightingMark, appliances: AppliancesMark,
   tableware: TablewareMark, linens: LinensMark, art: ArtMark, rugs: RugsMark, books: BooksMark,
   plants: PlantsMark, renovation: RenovationMark, maintenance: MaintenanceMark,
   cars: CarsMark, bicycles: BicyclesMark, othervehicles: BoatsMark, motorbikes: MotorbikesMark,
   property: PropertyMark, investments: InvestmentsMark, collectibles: CollectiblesMark,
-  insurance: InsuranceMark, subscriptions: SubscriptionsMark,
+  insurance: InsuranceMark, subscriptions: MembershipsMark,
   travel: TravelMark, restaurants: RestaurantsMark, places: PlacesMark, wine: WineMark,
   events: EventsMark, gifts: GiftsMark,
   tech: TechMark, stationery: StationeryMark, equipment: EquipmentMark, software: SoftwareMark,
