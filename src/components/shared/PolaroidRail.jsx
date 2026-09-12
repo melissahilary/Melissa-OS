@@ -102,16 +102,22 @@ export default function PolaroidRail({ items, reverse = false, onPick }) {
     // Taking an arrow hands the row over: read where the animation had got to,
     // turn that into a scroll position, and stop animating. Same pixel, same
     // instant, no jump — and it stays stopped.
+    //
+    // On a touch screen there is no drift to take over and the row is already
+    // where she last swiped it to, so converting a transform of none into a
+    // scrollLeft of zero would throw the row back to the start under her hand.
+    // Only a row that is actually animating gets frozen.
     if (!manual) {
-      const tx = (() => {
-        const m = getComputedStyle(track).transform
-        if (!m || m === 'none') return 0
-        const n = m.match(/matrix\(([^)]+)\)/)
-        return n ? parseFloat(n[1].split(',')[4]) : 0
-      })()
-      track.style.animation = 'none'
-      track.style.transform = 'none'
-      rail.scrollLeft = Math.max(0, -tx)
+      const cs = getComputedStyle(track)
+      const running = cs.animationName && cs.animationName !== 'none'
+      if (running) {
+        const m = cs.transform
+        const n = m && m !== 'none' ? m.match(/matrix\(([^)]+)\)/) : null
+        const tx = n ? parseFloat(n[1].split(',')[4]) : 0
+        track.style.animation = 'none'
+        track.style.transform = 'none'
+        rail.scrollLeft = Math.max(0, -tx)
+      }
       setManual(true)
     }
 

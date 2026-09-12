@@ -177,39 +177,58 @@ input[type='number'] {
   .mos-settle { animation: none; }
 }
 
-/* ── The wishlist rails. Each group of classes drifts sideways for ever, which
-   only works if the loop is invisible: the track holds the same set twice and
-   travels exactly half its width, so the moment it snaps back is the moment the
-   second copy is where the first one was. Hover or focus stops the row so a card
-   can be aimed at, and the edges fade rather than being cut off by a border. */
+/* ── The wishlist rails.
+   The drift is scenery. It only works because hovering a row stops it, so a
+   card can be aimed at rather than chased — and a touch screen has no hover.
+   On a phone the rows therefore never stopped, every card was a moving target,
+   and a tap that drifted under the finger was read as a drag and swallowed;
+   the way out was to reload the page. So the animation is declared only where
+   a pointer can hover. Everywhere else the row is a plain swipeable strip, with
+   the arrows doing the same job they always did.
+
+   The loop is invisible because the track holds the same set twice and travels
+   exactly half its width: the moment it snaps back is the moment the second
+   copy is standing where the first one was. */
 @keyframes mos-rail {
   from { transform: translate3d(0, 0, 0); }
   to   { transform: translate3d(-50%, 0, 0); }
 }
 .mos-rail {
-  overflow: hidden;
+  /* Swipeable by default; the bar is hidden because the arrows are the control
+     and a scrollbar under a row of polaroids is not part of the picture. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   /* The fade is a fraction of the row, not a fixed slab: 56px off a desk is a
      margin, 56px off a phone is a whole polaroid. */
   --mos-fade: 26px;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--mos-fade), #000 calc(100% - var(--mos-fade)), transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0, #000 var(--mos-fade), #000 calc(100% - var(--mos-fade)), transparent 100%);
 }
+.mos-rail::-webkit-scrollbar { display: none; }
+.mos-rail-track { will-change: transform; }
+
 @media (min-width: 640px) {
   .mos-rail { --mos-fade: 56px; }
 }
-.mos-rail-track {
-  animation-name: mos-rail;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform;
-}
-.mos-rail:hover .mos-rail-track,
-.mos-rail:focus-within .mos-rail-track { animation-play-state: paused; }
 
-/* Once she has taken an arrow the row is hers: it scrolls, it never drifts
-   again, and the arrows are the only control it needs — so the bar is hidden. */
-.mos-rail-manual { overflow-x: auto; scrollbar-width: none; }
-.mos-rail-manual::-webkit-scrollbar { display: none; }
+/* Only where there is a pointer that can hover — which is the only place the
+   drift can be stopped, and so the only place it belongs. */
+@media (hover: hover) and (pointer: fine) {
+  .mos-rail { overflow-x: hidden; }
+  .mos-rail-track {
+    animation-name: mos-rail;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  .mos-rail:hover .mos-rail-track,
+  .mos-rail:focus-within .mos-rail-track { animation-play-state: paused; }
+  /* Once she has taken an arrow the row is hers: it scrolls, and it never
+     drifts again. */
+  .mos-rail-manual { overflow-x: auto; }
+  .mos-rail-manual .mos-rail-track { animation: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mos-rail { overflow-x: auto; }
   .mos-rail-track { animation: none; }
