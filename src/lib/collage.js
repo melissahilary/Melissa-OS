@@ -1,161 +1,92 @@
-// ── The board, composed.
+// ── The board, composed as a mosaic.
 //
-// A scrapbook and a contact sheet hold the same photographs. What separates
-// them is entirely the arrangement, and it comes down to two things: cards of
-// different weight, and edges that lap over each other rather than abut.
+// The reference is an editorial collage: blocks of picture packed flush into a
+// page, cream showing only at the seams and the margin, nothing tilted, nothing
+// taped, no white borders and no shadows. A few pictures are cut out of their
+// backgrounds altogether and sit over the grid, which is the only thing on the
+// page allowed to break the rectangle.
 //
-// The old placement had neither. Three fixed columns at six, thirty-six and
-// sixty-six per cent, a fixed two hundred and fifty pixels of drop between
-// rows, and a degree or two of tilt on top. Cards never overlapped sideways
-// because the columns were further apart than the cards were wide; they
-// collided vertically at random, because a fixed drop cannot know how tall the
-// next picture is. That is the choppiness — a grid with tape on it, and the
-// tape doing all the work.
+// So the arrangement is a pattern that repeats rather than a scatter. Twelve
+// columns; a block of eight slots of varied span that tiles a square exactly;
+// two such blocks, alternating, so the repeat is felt rather than counted. Past
+// the last whole block a tail pattern of the right size finishes the page, so a
+// board of three pictures is a composition and not three blocks marooned in a
+// square of nothing.
 //
-// So: three running columns, each card dropped into whichever column is
-// currently shortest, so the board grows evenly instead of leaving one side
-// hanging. Every card is pushed off its column's centre line by a share of the
-// slack, which is what turns three columns into a suggestion rather than a
-// ruling — and it is what makes cards lap sideways into their neighbours. Every
-// card is then pulled up over the one above it by a slice of its own height.
-//
-// The overlaps are deliberately shallow — six to seventeen per cent of a card,
-// landing at corners. A collage that covers the middle of its own pictures is
-// not imperfect, it is just a mess.
-//
-// Everything is drawn from the picture's own id, so a card sits in exactly the
-// same place on her phone, her laptop and after every reload. Nothing here is
-// random at render time.
+// Slots are filled by shape, not by order: within a block the widest picture
+// goes to the widest slot. Everything is cropped to its slot, which is what
+// packs the page — so the crop may as well be the one that loses least.
 
-export const SIZES = { S: 150, M: 225, L: 330 }
-export const sizeW = (s) => (SIZES[s] ? SIZES[s] : SIZES.M)
+const COLS = 12
 
-// Three across is the density she asked for, and the density a phone holds
-// without the pictures becoming stamps.
-const COLS = 3
-// A card clipped by the edge of the board reads as a bug, never as a crop.
-const EDGE = 10
-// The columns do not start on one rule. A straight top edge on a scrapbook is
-// the first thing that gives away that a machine placed it.
-const TOPS = [14, 46, 26]
+// The two repeating blocks. Each is [col, row, colSpan, rowSpan] on the grid,
+// in reading order, and each tiles its rectangle exactly — no gaps, no overlaps.
+const BLOCKS = [
+  { rows: 12, slots: [[0, 0, 4, 5], [4, 0, 5, 3], [9, 0, 3, 6], [4, 3, 5, 4], [0, 5, 4, 4], [9, 6, 3, 6], [4, 7, 5, 5], [0, 9, 4, 3]] },
+  { rows: 12, slots: [[0, 0, 5, 4], [5, 0, 3, 6], [8, 0, 4, 3], [8, 3, 4, 5], [0, 4, 5, 5], [5, 6, 3, 6], [8, 8, 4, 4], [0, 9, 5, 3]] },
+]
 
-const hash32 = (s) => {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
+// What finishes the page when fewer than eight are left.
+const TAILS = {
+  1: { rows: 8, slots: [[0, 0, 12, 8]] },
+  2: { rows: 7, slots: [[0, 0, 6, 7], [6, 0, 6, 7]] },
+  3: { rows: 8, slots: [[0, 0, 5, 8], [5, 0, 7, 4], [5, 4, 7, 4]] },
+  4: { rows: 10, slots: [[0, 0, 7, 5], [7, 0, 5, 5], [0, 5, 5, 5], [5, 5, 7, 5]] },
+  5: { rows: 11, slots: [[0, 0, 4, 6], [4, 0, 8, 6], [0, 6, 5, 5], [5, 6, 3, 5], [8, 6, 4, 5]] },
+  6: { rows: 11, slots: [[0, 0, 5, 5], [5, 0, 4, 5], [9, 0, 3, 5], [0, 5, 4, 6], [4, 5, 4, 6], [8, 5, 4, 6]] },
+  7: { rows: 11, slots: [[0, 0, 4, 5], [4, 0, 5, 5], [9, 0, 3, 5], [0, 5, 3, 6], [3, 5, 5, 6], [8, 5, 4, 3], [8, 8, 4, 3]] },
 }
 
-// A stream that depends only on the id it was seeded with.
-const rng = (seed) => {
-  let s = (seed || 1) >>> 0
-  return () => {
-    s = (Math.imul(s, 1664525) + 1013904223) >>> 0
-    return s / 4294967296
-  }
+// Widest picture to widest slot. Sorting both by shape and pairing them off is
+// the whole of it — it costs nothing and it is the difference between a face
+// cropped to a band and a face that fits its block.
+function byShape(group, slots) {
+  const ss = slots.map((s, i) => ({ i, a: s[2] / s[3] })).sort((x, y) => x.a - y.a)
+  const gg = group.map((it, i) => ({ i, a: (it.w || 4) / (it.h || 3) })).sort((x, y) => x.a - y.a)
+  return ss.map((s, k) => ({ it: group[gg[k].i], slot: slots[s.i] }))
 }
 
-// A board wants weight in it: a few large, a scatter of small, the rest even.
-// The rhythm comes from the position so it reads as a composition rather than
-// as noise — then the picture's own shape vetoes anything that would make a
-// tower or a strip of it.
-function pickSize(ratio, i) {
-  let size = 'M'
-  if (i % 5 === 4) size = 'S'
-  if (i % 7 === 2) size = 'L'
-  if (size === 'L' && ratio > 1.45) size = 'M'
-  if (size === 'S' && ratio < 0.72) size = 'M'
-  return size
-}
+// Returns the tiles by id — position and size in canvas pixels — and the height
+// the whole page comes to.
+export function mosaic(items, canvasW, opts = {}) {
+  const pad = opts.pad == null ? 24 : opts.pad
+  const gut = opts.gutter == null ? 6 : opts.gutter
+  const col = (canvasW - pad * 2) / COLS
+  const tiles = {}
+  let y0 = pad
+  let at = 0
+  let block = 0
 
-// How much of the smaller of two cards one is allowed to cover. Past about a
-// third, the card underneath has stopped being a picture on a board and has
-// become a texture behind another one.
-const MAX_COVER = 0.3
-
-// The worst burial this card would inflict on anything already down.
-function buries(rects, b) {
-  const areaB = b.w * b.h
-  let worst = 0
-  for (let i = 0; i < rects.length; i += 1) {
-    const a = rects[i]
-    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
-    const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
-    if (ox <= 0 || oy <= 0) continue
-    const cover = (ox * oy) / Math.min(areaB, a.w * a.h)
-    if (cover > worst) worst = cover
-  }
-  return worst
-}
-
-// Returns, per item id: x as a percentage of the canvas, y in canvas pixels,
-// the size it should be drawn at, its tilt, its height, and where it sits in
-// the stack.
-export function compose(items, canvasW, cols = COLS) {
-  const colW = canvasW / cols
-  const bottoms = Array.from({ length: cols }, (_, i) => TOPS[i % TOPS.length])
-  const rects = []
-  const out = {}
-
-  items.forEach((it, i) => {
-    const r = rng(hash32(String(it.id || i)))
-    const ratio = (it.h || 3) / (it.w || 4)
-    const size = pickSize(ratio, i)
-    const w = sizeW(size)
-    const h = Math.round(w * ratio)
-
-    let c = 0
-    for (let k = 1; k < cols; k += 1) if (bottoms[k] < bottoms[c]) c = k
-
-    // Off the centre line by a share of the slack. A large card has negative
-    // slack — it is wider than its column — so it is already lapping into both
-    // neighbours, and only needs a nudge.
-    const slack = colW - w
-    const jitter = (r() - 0.5) * (slack > 0 ? slack * 1.7 : 64)
-    // Lap it over the card above. The first card in a column has nothing to lap.
-    const first = bottoms[c] === TOPS[c % TOPS.length]
-    const lap = first ? 0 : h * (0.06 + r() * 0.11)
-
-    // Then settle it. A large card thrown hard off its column line can land
-    // almost squarely on top of a smaller one — which is not an imperfect
-    // overlap, it is a lost picture. So the card is offered its intended place
-    // first and, if that buries something, walked back toward its column and up
-    // off the card above until it doesn't. The first offer is almost always the
-    // one taken; this only bites where it has to.
-    let best = null
-    let worst = Infinity
-    for (let k = 0; k < 5; k += 1) {
-      const damp = 1 - k * 0.22
-      const at = {
-        x: Math.max(EDGE, Math.min(canvasW - w - EDGE, c * colW + (colW - w) / 2 + jitter * damp)),
-        y: Math.max(0, Math.round(bottoms[c] - lap * damp)),
-        w,
-        h,
+  while (at < items.length) {
+    const left = items.length - at
+    const pat = left >= 8 ? BLOCKS[block % BLOCKS.length] : TAILS[left]
+    const group = items.slice(at, at + pat.slots.length)
+    byShape(group, pat.slots).forEach(({ it, slot }) => {
+      tiles[it.id] = {
+        x: Math.round(pad + slot[0] * col + gut / 2),
+        y: Math.round(y0 + slot[1] * col + gut / 2),
+        w: Math.round(slot[2] * col - gut),
+        h: Math.round(slot[3] * col - gut),
+        cut: false,
+        z: 1,
       }
-      const cover = buries(rects, at)
-      if (cover < worst) { worst = cover; best = at }
-      if (cover <= MAX_COVER) break
-    }
+    })
+    y0 += pat.rows * col
+    at += pat.slots.length
+    block += 1
+  }
 
-    const { x, y } = best
-    rects.push(best)
-    bottoms[c] = y + h
-
-    out[it.id] = {
-      x: (x / canvasW) * 100,
-      y,
-      size,
-      h,
-      // Never nought. One card sitting perfectly straight among tilted ones
-      // reads as a card that failed to get tilted.
-      rot: Math.round((1.1 + r() * 2.7) * (r() < 0.5 ? -1 : 1) * 10) / 10,
-      // A small card tucked over a large one reads as deliberate; a large one
-      // dropped across a small one reads as an accident.
-      z: i + 1 + (size === 'S' ? 400 : 0),
+  // Which ones lift off the grid. A rhythm rather than a judgement — the
+  // picture itself gets the final say, because a cut only happens if the
+  // background actually comes away. Never the big blocks: a large picture
+  // grown another quarter swallows the page instead of sitting on it.
+  items.forEach((it, i) => {
+    const t = tiles[it.id]
+    if (t && i % 5 === 3 && t.w <= col * 4.5) {
+      t.cut = true
+      t.z = 10 + i
     }
   })
 
-  return out
+  return { tiles, height: Math.round(y0 + pad) }
 }
