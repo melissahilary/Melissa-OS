@@ -13,6 +13,7 @@ import { useLifeStage } from '../lib/lifeStage'
 import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
 import EmptyState from './shared/EmptyState'
+import SearchBar, { hits } from './shared/SearchBar'
 import * as store from '../lib/dataStore'
 import { adherenceOf, trajectoryOf } from '../lib/goalSignals'
 import { PHASES, phaseMeta, dueFromHorizon, newGoal } from '../lib/goals'
@@ -147,7 +148,8 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('goals')
-  const [goalView, setGoalView] = useState('wall') // see VIEWS
+  const [goalView, setGoalView] = useState('wall')
+  const [goalQuery, setGoalQuery] = useState('')
   const [dropAt, setDropAt] = useState(null) // { phase, index } while a card is over a column
   const [boardFilter, setBoardFilter] = useState(null) // a pillar id, from tapping a metrics bar
 
@@ -323,7 +325,20 @@ export default function DreamDashboard({ cycleConfig = {} }) {
 
 
   // One working set, so every reading is looking at the same goals.
-  const inView = active.filter((g) => !boardFilter || g.pillar === boardFilter)
+  // What a goal is made of, for finding it again: its name, why it matters, the
+  // steps under it and anything she has written in the comments. The horizon is
+  // in there too, so "later" brings back the far shelf.
+  const goalText = (g) => [
+    g.title,
+    g.vision,
+    phaseMeta(g.phase).label,
+    phaseMeta(g.phase).note,
+    (g.milestones || []).map((m) => m.title).join(' '),
+    (g.notes || []).map((n) => n.text).join(' '),
+  ].join(' ')
+  const inView = active
+    .filter((g) => !boardFilter || g.pillar === boardFilter)
+    .filter((g) => hits(goalText(g), goalQuery))
   const byHorizon = (a, b) => PHASES.findIndex((x) => x.id === a.phase) - PHASES.findIndex((x) => x.id === b.phase)
 
   const cardFor = (g, { dragging = false, plate = false, text = false } = {}) => (
@@ -410,6 +425,11 @@ export default function DreamDashboard({ cycleConfig = {} }) {
             </div>
             <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
           </div>
+
+          {/* The same rule the board carries. Once there are forty goals across
+              three horizons, remembering which one held the thing is harder than
+              typing a word of it. */}
+          <SearchBar value={goalQuery} onChange={setGoalQuery} label="Search your goals" className="mb-6" />
 
           {goalView === 'timeline' && <GoalTimeline goals={inView} onOpen={openGoal} />}
 

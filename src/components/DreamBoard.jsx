@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Shuffle, Grid3x3, Columns3, ImagePlus, Minus, Link2, Search } from 'lucide-react'
+import { Shuffle, Grid3x3, Columns3, ImagePlus, Minus, Link2 } from 'lucide-react'
 import { AddIcon, CloseIcon, AestheticsMark } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import EmptyState from './shared/EmptyState'
@@ -8,6 +8,7 @@ import { useRegisterAdd } from './shared/AddButton'
 import { averageHash, duplicatesOf, clusters, matches } from '../lib/imageFacts'
 import * as store from '../lib/dataStore'
 import { useSignedUrls } from '../hooks/useSignedUrls'
+import SearchBar from './shared/SearchBar'
 
 // ── The Mood Board.
 //
@@ -376,16 +377,7 @@ export default function DreamBoard() {
 
       {/* Finding it again, from memory. She never labelled any of this — the
           words being searched are the ones the picture gave up by itself. */}
-      <div className="mb-4 flex items-center gap-2.5 border-b border-stone-200 pb-1.5 transition-colors focus-within:border-stone-900">
-        <Search size={14} className="shrink-0 text-stone-300" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-300"
-          aria-label="Search the board"
-        />
-        {query && <button onClick={() => setQuery('')} aria-label="Clear" className="shrink-0 text-stone-300 hover:text-stone-700"><CloseIcon size={13} /></button>}
-      </div>
+      <SearchBar value={query} onChange={setQuery} label="Search the board" className="mb-4" />
 
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
         {[['all', 'All'], ['want', 'Want'], ['have', 'Have']].map(([id, label]) => (

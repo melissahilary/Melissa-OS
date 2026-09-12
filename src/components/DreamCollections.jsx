@@ -6,6 +6,7 @@ import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { PILLAR_TAGS } from './DreamProjects'
 import EmptyState from './shared/EmptyState'
+import SearchBar, { hits } from './shared/SearchBar'
 import { useSignedUrls } from '../hooks/useSignedUrls'
 import PolaroidRail from './shared/PolaroidRail'
 import { assetMarkFor } from './shared/assetMarks'
@@ -124,6 +125,7 @@ export default function DreamCollections({ goals = [], projects = [] }) {
     setAdding(null)
   }
   const [coverNote, setCoverNote] = useState('') // what the cover is doing, when it isn't just there
+  const [topicQuery, setTopicQuery] = useState('')
 
   // Covers are real files in the private bucket like every other photograph
   // here, so the wall holds as many as she likes without bloating the row that
@@ -299,21 +301,31 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         </button>
       </div>
 
+      <SearchBar value={topicQuery} onChange={setTopicQuery} label="Search your wishlists" className="mb-7" />
+
       {/* The topics are the wishlists. There is no separate shelf of boxes above
           them — a topic she has something in says so under its name, and opening
           it is the same tap as opening an empty one. */}
       <div className="space-y-7">
-        {ASSET_GROUPS.map((g, gi) => (
-          <div key={g.id}>
-            <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
-            <PolaroidRail
-              items={classesIn(g).map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id), note: noteFor(c.id) }))}
-              reverse={gi % 2 === 1}
-              onPick={openTopic}
-              onAdd={() => setAdding(g.id)}
-            />
-          </div>
-        ))}
+        {ASSET_GROUPS.map((g, gi) => {
+          // Sixty shelves is more than anyone scrolls. The search runs over the
+          // name and the examples underneath it, so "socks" finds Accessories
+          // even though the word is not on the card. A row with no match is not
+          // an empty row; it is not there.
+            const shelves = classesIn(g).filter((c) => hits(`${c.label} ${c.about || ''}`, topicQuery))
+            if (!shelves.length) return null
+            return (
+              <div key={g.id}>
+                <p className="mb-3 border-b border-stone-200 pb-1.5 text-[10px] tracking-[0.16em] text-stone-400">{g.label.toUpperCase()}</p>
+                <PolaroidRail
+                  items={shelves.map((c) => ({ id: c.id, label: c.label, Icon: assetMarkFor(c), cover: coverSrc(c.id), note: noteFor(c.id) }))}
+                  reverse={gi % 2 === 1}
+                  onPick={openTopic}
+                  onAdd={topicQuery ? undefined : () => setAdding(g.id)}
+                />
+              </div>
+            )
+        })}
       </div>
     </div>
   )
@@ -421,6 +433,7 @@ function ListView({ list, goals, projects, cover, onCover, coverNote, onDelete, 
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [itemQuery, setItemQuery] = useState('')
   const [dragId, setDragId] = useState(null)
   const [sharing, setSharing] = useState(false)
   const [killing, setKilling] = useState(false)
@@ -476,7 +489,12 @@ function ListView({ list, goals, projects, cover, onCover, coverNote, onDelete, 
     })
   }
 
-  const shown = filter === 'all' ? list.items : list.items.filter((i) => i.status === filter)
+  // The same rule as the board and the goals wall: everything the item knows
+  // about itself, including the class's own fields, so a size or a brand finds
+  // it as readily as its name.
+  const itemText = (i) => [i.title, i.brand, i.site, i.size, i.note, ...Object.values(i.fields || {})].join(' ')
+  const shown = (filter === 'all' ? list.items : list.items.filter((i) => i.status === filter))
+    .filter((i) => hits(itemText(i), itemQuery))
 
   return (
     <div>
@@ -572,6 +590,8 @@ function ListView({ list, goals, projects, cover, onCover, coverNote, onDelete, 
         <EmptyState line="Nothing here yet." />
       ) : (
         <>
+          <SearchBar value={itemQuery} onChange={setItemQuery} label="Search this wishlist" className="mb-4" />
+
           <div className="mb-4 flex flex-wrap gap-1.5">
             {[{ id: 'all', label: 'All' }, ...STATUS].map((s) => (
               <button key={s.id} onClick={() => setFilter(s.id)} className={`rounded-full border px-3 py-1 text-xs transition-colors ${filter === s.id ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-500 hover:border-stone-400'}`}>{s.label}</button>
