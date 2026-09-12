@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { PrevIcon, NextIcon, AddIcon } from './marks'
 
 // ── The wishlist rails.
@@ -21,6 +21,35 @@ import { PrevIcon, NextIcon, AddIcon } from './marks'
 
 const CARD = 168 // 144 of card and 24 of margin — the loop's unit of distance
 const SPEED = 34 // pixels a second, the same in every row whatever it holds
+
+// Does this row drift at all? Only where there is a pointer that can hover,
+// which is the same test the stylesheet makes — and everything expensive about
+// a marquee hangs off the answer.
+//
+// A drifting row carries a second copy of every card so the loop has no seam,
+// and the browser keeps the whole track on a composited layer so it can slide
+// cheaply. On a phone neither is earned: nothing drifts there, so the second
+// copy is a second wall of photographs held in memory for nothing, and the
+// layer is a track several thousand pixels wide kept rastered at three times
+// scale. Nine rows of that is hundreds of megabytes of backing store, which is
+// how a phone ends up with a page that stops responding and needs a reload —
+// and swapping a mark for a newly added cover is exactly the kind of thing that
+// forces the whole lot to be drawn again.
+function useDrift() {
+  const query = '(hover: hover) and (pointer: fine)'
+  const read = () => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(query).matches : false)
+  const [drifts, setDrifts] = useState(read)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+    const mq = window.matchMedia(query)
+    const on = () => setDrifts(mq.matches)
+    on()
+    if (mq.addEventListener) { mq.addEventListener('change', on); return () => mq.removeEventListener('change', on) }
+    mq.addListener(on)
+    return () => mq.removeListener(on)
+  }, [])
+  return drifts
+}
 
 // A binder clip, drawn rather than photographed: the body a dark trapezoid, the
 // two handles solid wires leaning out of it. No shadow anywhere in this app, so
@@ -110,18 +139,36 @@ function Arrow({ side, onClick, label }) {
 // short group repeats until it is long enough and only then is doubled.
 export default function PolaroidRail({ items, reverse = false, onPick, onAdd }) {
   const [manual, setManual] = useState(false)
+  const drifts = useDrift()
   const railRef = useRef(null)
   const trackRef = useRef(null)
 
-  const { base, seconds } = useMemo(() => {
+  // A row only loops if it has enough in it to fill the screen on its own.
+  // Short sections used to be padded out — the same four topics repeated until
+  // the row was long enough to loop without showing its seam — which on the
+  // page reads as exactly what it is: the same list printed four times. A
+  // section with a handful of lists is now simply a row with a handful of
+  // lists in it, shown once.
+  const { base, loops, seconds } = useMemo(() => {
     // The slot rides at the end of the set, so it comes round once a cycle
     // rather than sitting in a corner of the page somewhere.
     const set = onAdd ? [...items, { id: '__add__', add: true }] : items
-    const reps = Math.max(1, Math.ceil(10 / Math.max(1, set.length)))
-    const out = []
-    for (let i = 0; i < reps; i += 1) out.push(...set)
-    return { base: out, seconds: Math.round((out.length * CARD) / SPEED) }
-  }, [items, onAdd])
+    const wide = set.length * CARD > 1200
+    return { base: set, loops: drifts && wide, seconds: Math.round((set.length * CARD) / SPEED) }
+  }, [items, onAdd, drifts])
+
+  // Arrows that scroll nothing are furniture. They appear when the row is
+  // actually longer than the space it has.
+  const [runsOver, setRunsOver] = useState(false)
+  useEffect(() => {
+    const rail = railRef.current
+    if (!rail) return undefined
+    const measure = () => setRunsOver(rail.scrollWidth - rail.clientWidth > 8)
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ro) ro.observe(rail)
+    return () => { if (ro) ro.disconnect() }
+  }, [base, loops])
 
   const step = (dir) => {
     const rail = railRef.current
@@ -150,12 +197,15 @@ export default function PolaroidRail({ items, reverse = false, onPick, onAdd }) 
       setManual(true)
     }
 
-    // The row holds the same set twice, so jumping a whole set is invisible.
-    // That is what makes stepping endless in both directions.
-    const half = track.scrollWidth / 2
+    // A drifting row holds the same set twice, so jumping a whole set is
+    // invisible — that is what makes stepping endless in both directions. A row
+    // that holds one copy simply runs out at each end, like any other scroller.
     const page = Math.max(220, rail.clientWidth * 0.8)
-    if (dir < 0 && rail.scrollLeft < page) rail.scrollLeft += half
-    else if (dir > 0 && rail.scrollLeft > half) rail.scrollLeft -= half
+    if (loops) {
+      const half = track.scrollWidth / 2
+      if (dir < 0 && rail.scrollLeft < page) rail.scrollLeft += half
+      else if (dir > 0 && rail.scrollLeft > half) rail.scrollLeft -= half
+    }
     rail.scrollBy({ left: dir * page, behavior: 'smooth' })
   }
 
@@ -165,9 +215,15 @@ export default function PolaroidRail({ items, reverse = false, onPick, onAdd }) 
         <div
           ref={trackRef}
           className="mos-rail-track flex w-max"
-          style={{ animationDuration: `${seconds}s`, animationDirection: reverse ? 'reverse' : 'normal' }}
+          style={{
+            animationDuration: `${seconds}s`,
+            animationDirection: reverse ? 'reverse' : 'normal',
+            // Inline, so it beats the stylesheet's hover rule for a row that
+            // has nothing to loop.
+            animationName: loops ? undefined : 'none',
+          }}
         >
-          {[0, 1].map((copy) =>
+          {(loops ? [0, 1] : [0]).map((copy) =>
             base.map((c, i) => {
               const tilt = i % 3 === 0 ? -1.6 : i % 3 === 1 ? 1.2 : -0.5
               return c.add ? (
@@ -188,8 +244,12 @@ export default function PolaroidRail({ items, reverse = false, onPick, onAdd }) 
           )}
         </div>
       </div>
-      <Arrow side="left" label="Earlier in this row" onClick={() => step(-1)} />
-      <Arrow side="right" label="Later in this row" onClick={() => step(1)} />
+      {(loops || runsOver) && (
+        <>
+          <Arrow side="left" label="Earlier in this row" onClick={() => step(-1)} />
+          <Arrow side="right" label="Later in this row" onClick={() => step(1)} />
+        </>
+      )}
     </div>
   )
 }

@@ -42,7 +42,6 @@ export const SwimMark = (p) => (
 // A circle sitting above an arc was the first attempt and it read as a face,
 // which is the one thing these marks may never do.
 export const MaternityMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="14.5" r="5" /></Mark>
-export const VintageMark = (p) => <Mark {...p}><path d="M6.5 4.5h11L6.5 19.5h11Z" /></Mark>
 
 // ── Personal — used ─────────────────────────────────────────────────
 export const MakeupMark = (p) => <Mark {...p}><path d="M10.5 4.5h3v4h-3Z" /><path d="M9.5 8.5h5v11h-5Z" /></Mark>
@@ -71,7 +70,10 @@ export const MaintenanceMark = (p) => <Mark {...p}><path d="M5 19 13.5 10.5" /><
 // ── Vehicles ────────────────────────────────────────────────────────
 export const CarsMark = (p) => <Mark {...p}><path d="M4.5 12h15v4.5h-15Z" /><path d="M7.5 12 9.5 7.5h5L16.5 12" /><circle cx="8" cy="16.5" r="2" /><circle cx="16" cy="16.5" r="2" /></Mark>
 export const BicyclesMark = (p) => <Mark {...p}><circle cx="7" cy="14.5" r="4.5" /><circle cx="17" cy="14.5" r="4.5" /><path d="M7 14.5 11 7.5h4l2 7" /></Mark>
-export const OtherVehiclesMark = (p) => <Mark {...p}><path d="M4.5 15h15l-2.5 4.5h-10Z" /><path d="M12 15V4.5L17 12h-5" /></Mark>
+// A hull and a sail — which is what the mark always drew, and now what the
+// shelf is actually called.
+export const BoatsMark = (p) => <Mark {...p}><path d="M4.5 15h15l-2.5 4.5h-10Z" /><path d="M12 15V4.5L17 12h-5" /></Mark>
+export const MotorbikesMark = (p) => <Mark {...p}><circle cx="6" cy="16.5" r="3.5" /><circle cx="18" cy="16.5" r="3.5" /><path d="M6 16.5 10.5 9h4.5l3 7.5M9 9h4" /></Mark>
 
 // ── Assets and money ────────────────────────────────────────────────
 export const PropertyMark = (p) => <Mark {...p}><path d="M4.5 11 12 5l7.5 6" /><path d="M6.5 11v8.5h11V11" /><path d="M10.5 19.5v-5h3v5" /></Mark>
@@ -102,14 +104,14 @@ export const GiftingMark = (p) => <Mark {...p}><path d="M6.5 4.5h11v15h-11Z" /><
 const OWN = {
   wardrobe: WardrobeMark, outerwear: OuterwearMark, shoes: ShoesMark, bags: BagsMark,
   jewellery: JewelleryMark, watches: WatchesMark, eyewear: EyewearMark, lingerie: LingerieMark,
-  activewear: ActivewearMark, vintage: VintageMark,
+  activewear: ActivewearMark,
   accessories: AccessoriesMark, sleepwear: SleepwearMark, swim: SwimMark, maternity: MaternityMark,
   makeup: MakeupMark, fragrance: FragranceMark, devices: DevicesMark, medication: MedicationMark,
   practitioners: PractitionersMark, memberships: MembershipsMark, courses: CoursesMark,
   furniture: FurnitureMark, lighting: LightingMark, appliances: AppliancesMark,
   tableware: TablewareMark, linens: LinensMark, art: ArtMark, rugs: RugsMark, books: BooksMark,
   plants: PlantsMark, renovation: RenovationMark, maintenance: MaintenanceMark,
-  cars: CarsMark, bicycles: BicyclesMark, othervehicles: OtherVehiclesMark,
+  cars: CarsMark, bicycles: BicyclesMark, othervehicles: BoatsMark, motorbikes: MotorbikesMark,
   property: PropertyMark, investments: InvestmentsMark, collectibles: CollectiblesMark,
   insurance: InsuranceMark, subscriptions: SubscriptionsMark,
   travel: TravelMark, restaurants: RestaurantsMark, places: PlacesMark, wine: WineMark,

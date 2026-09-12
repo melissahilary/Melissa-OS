@@ -45,7 +45,6 @@ export const ASSET_GROUPS = [
       // The one gap the app makes for itself: it already knows the stage, and
       // until now it had nowhere to put the clothes the stage needs.
       { id: 'maternity', label: 'Maternity', about: 'Bump dresses, nursing tops, maternity jeans, nursing bras, belly bands, postpartum leggings.', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('stage', 'Pregnancy · nursing · postpartum'), f('trimester', 'Trimester'), f('nursing', 'Nursing access', 'bool'), f('worn', 'Worn', 'count')] },
-      { id: 'vintage', label: 'Vintage & archive', about: 'Archive pieces, secondhand finds, inherited pieces, deadstock, reworked, consignment.', fields: [f('provenance', 'Provenance'), f('condition', 'Condition'), f('era', 'Era'), f('valuation', 'Valuation', 'money')] },
     ],
   },
   {
@@ -96,7 +95,12 @@ export const ASSET_GROUPS = [
     classes: [
       { id: 'cars', label: 'Cars', about: 'Cars, leases, tires, servicing, insurance, detailing, parking, chargers.', fields: [f('make', 'Make'), f('model', 'Model'), f('year', 'Year'), f('reg', 'Registration'), f('mileage', 'Mileage', 'num'), f('service', 'Service due', 'date'), f('mot', 'MOT', 'date'), f('insurance', 'Insurance renews', 'date'), f('valuation', 'Valuation', 'money')] },
       { id: 'bicycles', label: 'Bicycles', about: 'Road bikes, e-bikes, helmets, locks, lights, racks, servicing.', sized: true, fields: [f('brand', 'Brand'), f('size', 'Frame size'), f('service', 'Service', 'date')] },
-      { id: 'othervehicles', label: 'Other vehicles', about: 'Boats, motorbikes, scooters, jet skis, trailers, moorings, storage.', fields: [f('kind', 'Boat · motorbike'), f('reg', 'Registration'), f('service', 'Service', 'date'), f('insurance', 'Insurance renews', 'date'), f('storage', 'Mooring / storage')] },
+      // The id stays `othervehicles`: it is what anything already filed here
+      // is keyed to, and a label is a label.
+      { id: 'othervehicles', label: 'Boats', about: 'Boats, tenders, yachts, dinghies, jet skis, moorings, trailers, winter storage.', fields: [f('kind', 'Sail · motor · tender'), f('length', 'Length'), f('reg', 'Registration'), f('service', 'Service', 'date'), f('insurance', 'Insurance renews', 'date'), f('storage', 'Mooring / storage')] },
+      // Renaming the catch-all to Boats left these without a shelf, and a
+      // motorbike is not a boat.
+      { id: 'motorbikes', label: 'Motorbikes', about: 'Motorbikes, scooters, mopeds, helmets, leathers, servicing, insurance.', fields: [f('make', 'Make'), f('model', 'Model'), f('year', 'Year'), f('reg', 'Registration'), f('mileage', 'Mileage', 'num'), f('service', 'Service due', 'date'), f('insurance', 'Insurance renews', 'date')] },
     ],
   },
   {

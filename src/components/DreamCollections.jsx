@@ -117,6 +117,18 @@ export default function DreamCollections({ goals = [], projects = [] }) {
     setTopics((prev) => { const t = normTopics(prev); return { ...t, hidden: t.hidden.filter((x) => x !== id) } })
     store.flush(TOPICS_KEY)
   }
+  // Hiding takes a shelf down and keeps it: Add a list offers it back. Deleting
+  // is only ever offered for a shelf she invented, because a built-in one has
+  // nothing to delete — taking it down is the whole of it.
+  const dropTopic = (id) => {
+    setTopics((prev) => {
+      const t = normTopics(prev)
+      return { ...t, custom: t.custom.filter((c) => c.id !== id), hidden: t.hidden.filter((x) => x !== id) }
+    })
+    store.flush(TOPICS_KEY)
+    setOpenId(null)
+    setDraftCls(null)
+  }
   const addTopic = (gid, label) => {
     const name = (label || '').trim()
     if (!name) return
@@ -302,6 +314,9 @@ export default function DreamCollections({ goals = [], projects = [] }) {
           coverSrc={coverSrc}
           noteFor={noteFor}
           onOpen={openTopic}
+          onHide={hideTopic}
+          onDrop={dropTopic}
+          mine={new Set(topics.custom.map((c) => c.id))}
           onAdd={() => setAdding(g.id)}
           onBack={() => setSection(null)}
         />
@@ -371,8 +386,9 @@ export default function DreamCollections({ goals = [], projects = [] }) {
 // phone. No frames, no cards, no borders — a page of products in a lookbook
 // has none of those, and they are what would make this read as an interface
 // rather than as something to look through.
-function SectionPage({ group, shelves, coverSrc, noteFor, onOpen, onAdd, onBack }) {
+function SectionPage({ group, shelves, coverSrc, noteFor, onOpen, onHide, onDrop, mine, onAdd, onBack }) {
   const [q, setQ] = useState('')
+  const [confirm, setConfirm] = useState(null)
   const shown = shelves.filter((c) => hits(`${c.label} ${c.about || ''}`, q))
 
   return (
@@ -388,9 +404,7 @@ function SectionPage({ group, shelves, coverSrc, noteFor, onOpen, onAdd, onBack 
 
       <div className="mb-6 border-b border-stone-200 pb-4">
         <h2 className="font-serif text-3xl leading-tight text-stone-900">{group.label}</h2>
-        <p className="mt-1 text-sm text-stone-500">
-          {shelves.length} {shelves.length === 1 ? 'list' : 'lists'}. Open one to see what is on it.
-        </p>
+        <p className="mt-1 text-sm text-stone-500">{shelves.length} {shelves.length === 1 ? 'list' : 'lists'}</p>
       </div>
 
       <SearchBar value={q} onChange={setQ} label={`Search ${group.label}`} className="mb-6" />
@@ -403,18 +417,41 @@ function SectionPage({ group, shelves, coverSrc, noteFor, onOpen, onAdd, onBack 
             const cover = coverSrc(c.id)
             const note = noteFor(c.id)
             return (
-              <button key={c.id} onClick={() => onOpen(c.id)} className="group text-center">
-                {/* Plain ground, nothing drawn around it. A picture in a
-                    catalogue sits on the page; it is not in a box on it. */}
-                <span className="mb-3 flex h-32 w-full items-center justify-center overflow-hidden sm:h-36">
-                  {cover
-                    ? <img src={cover} alt="" className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.04]" />
-                    : React.createElement(assetMarkFor(c), { size: 44, className: 'text-stone-300 transition-colors group-hover:text-stone-900' })}
+              <div key={c.id} className="group text-center">
+              <button onClick={() => onOpen(c.id)} className="block w-full text-center">
+                {/* One frame, the same for every list. Letting each picture keep
+                    its own proportions made a page of different-sized holes and
+                    a ragged line of names; a catalogue's whole argument is that
+                    the things on it are directly comparable, and that starts
+                    with them being drawn the same size. */}
+                <span className="mb-3 block w-full overflow-hidden bg-stone-500/5">
+                  <span className="flex aspect-[3/4] w-full items-center justify-center">
+                    {cover
+                      ? <img src={cover} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+                      : React.createElement(assetMarkFor(c), { size: 40, className: 'text-stone-300 transition-colors group-hover:text-stone-900' })}
+                  </span>
                 </span>
                 <span className="block font-serif text-[15px] italic leading-tight text-stone-900">{c.label}</span>
                 {note && <span className="mt-0.5 block text-[9px] tracking-[0.14em] text-stone-400">{note}</span>}
-                {c.about && <span className="mt-1 block text-[11px] leading-snug text-stone-500">{c.about}</span>}
               </button>
+              {/* Quiet, and under the name rather than over the picture: taking
+                  a shelf down is a thing she does rarely and on purpose. */}
+              <div className="mt-1.5 flex items-center justify-center gap-3 text-[9px] tracking-[0.14em]">
+                {confirm === c.id ? (
+                  <>
+                    <button onClick={() => { onDrop(c.id); setConfirm(null) }} className="text-phase-menstrual">DELETE FOR GOOD</button>
+                    <button onClick={() => setConfirm(null)} className="text-stone-400 hover:text-stone-900">KEEP</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => onHide(c.id)} className="text-stone-300 transition-colors hover:text-stone-900">HIDE</button>
+                    {mine.has(c.id) && (
+                      <button onClick={() => setConfirm(c.id)} className="text-stone-300 transition-colors hover:text-phase-menstrual">DELETE</button>
+                    )}
+                  </>
+                )}
+              </div>
+              </div>
             )
           })}
         </div>

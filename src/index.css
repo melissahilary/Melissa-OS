@@ -221,7 +221,7 @@ input[type='number'] {
   mask-image: linear-gradient(90deg, transparent 0, #000 var(--mos-fade), #000 calc(100% - var(--mos-fade)), transparent 100%);
 }
 .mos-rail::-webkit-scrollbar { display: none; }
-.mos-rail-track { will-change: transform; }
+
 
 @media (min-width: 640px) {
   .mos-rail { --mos-fade: 56px; }
@@ -232,6 +232,11 @@ input[type='number'] {
 @media (hover: hover) and (pointer: fine) {
   .mos-rail { overflow-x: hidden; }
   .mos-rail-track {
+    /* Only where it actually slides. Off a hover pointer this pinned a
+       composited layer the full width of the track — several thousand pixels,
+       rastered at device scale, nine times over — for an animation that never
+       runs there. */
+    will-change: transform;
     animation-name: mos-rail;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
