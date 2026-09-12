@@ -26,15 +26,16 @@ import React from 'react'
 // one. Never a face: the circle is a floor plan, not a head. And never the
 // wordmark — this identifies the assistant and appears nowhere else.
 //
-// The book also gives the mark four states, carried by which parts are drawn
-// rather than by colour: resting, listening (the circle breathes on 2.4s),
-// reading (the circle breaks to a dashed rule) and answering (the circle takes
-// the one cobalt). Nothing here uses them yet; whoever wires them should read
-// the book rather than invent a fifth.
+// The book gives the mark four states, carried by which parts are drawn rather
+// than by colour: resting, listening (the circle breathes on 2.4s), reading (the
+// circle breaks to a dashed rule) and answering (the circle takes the one
+// cobalt). Two are wired here. Whoever needs a fifth should read the book rather
+// than invent one.
 
 const RULE = 1.1 // the rendered hairline, in pixels, at every size
 
-export default function ConciergeMark({ size = 24, className = '', title, ...rest }) {
+export default function ConciergeMark({ size = 24, state = 'resting', className = '', title, ...rest }) {
+  const w = (RULE * 120) / size
   return (
     <svg
       width={size}
@@ -42,7 +43,7 @@ export default function ConciergeMark({ size = 24, className = '', title, ...res
       viewBox="0 0 120 120"
       fill="none"
       stroke="currentColor"
-      strokeWidth={(RULE * 120) / size}
+      strokeWidth={w}
       strokeLinecap="butt"
       className={className}
       role={title ? 'img' : undefined}
@@ -52,7 +53,13 @@ export default function ConciergeMark({ size = 24, className = '', title, ...res
     >
       <path d="M18 40h84" />
       <path d="M18 80h84" />
-      <circle cx="60" cy="60" r="15" />
+      <circle
+        cx="60"
+        cy="60"
+        r="15"
+        strokeDasharray={state === 'reading' ? `${w * 2.6} ${w * 3.8}` : undefined}
+        style={state === 'listening' ? { animation: 'mos-breath 2.4s ease-in-out infinite' } : undefined}
+      />
     </svg>
   )
 }

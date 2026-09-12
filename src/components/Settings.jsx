@@ -424,7 +424,7 @@ export default function Settings() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-serif text-lg leading-tight text-stone-900">Claude</p>
-                    <p className="mt-0.5 text-xs text-stone-400">Powers Esmé, your daily horoscope, and goal plans — reading only your own planner, never the open internet.</p>
+                    <p className="mt-0.5 text-xs text-stone-400">Powers Ask your planner, your daily horoscope, and goal plans — reading only your own planner, never the open internet.</p>
                   </div>
                   <Toggle on={!connections.claude?.off} onClick={() => setConn('claude', { off: !connections.claude?.off })} title={connections.claude?.off ? 'Paused' : 'Connected'} />
                 </div>

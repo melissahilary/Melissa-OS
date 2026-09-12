@@ -8,7 +8,7 @@ import { dateKey, addDays, MONTHS_SHORT } from '../lib/date'
 import Checkbox from './shared/Checkbox'
 
 // ── Diet — ONE food system. This page is a view over the same activities that
-// power Today, the Schedule, and Esmé: meal items and supplements, with their
+// power Today, the Schedule, and Ask your planner: meal items and supplements, with their
 // days-of-week and mealtime slots. Check something off here and it's checked
 // everywhere.
 

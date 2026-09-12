@@ -234,6 +234,17 @@ input[type='number'] {
   .mos-rail-track { animation: none; }
 }
 
+/* The concierge mark, listening. The book allows exactly one of its four states
+   to move, and this is it: a microphone that is open has to be visible without
+   colour. Reduced motion holds it at full opacity rather than stopping halfway. */
+@keyframes mos-breath {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*='mos-breath'] { animation: none !important; opacity: 1 !important; }
+}
+
 /* The mic, while it is listening. A live microphone has to be unmistakable —
    this is the one place a pulse is information rather than decoration. */
 @keyframes mos-listen {

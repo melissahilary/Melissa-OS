@@ -365,14 +365,14 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
             thing without spelling it, and sits opposite the index as its peer
             rather than as a badge. */}
         {onAsk && (
-          <button onClick={onAsk} aria-label="Esmé, your concierge" title="Esmé, your concierge" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
+          <button onClick={onAsk} aria-label="Ask your planner" title="Ask your planner" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
             <ConciergeMark size={26} />
           </button>
         )}
         {/* On the home (Today) page the big cursive masthead already carries the
             name, so the bar wordmark is hidden there to avoid showing it twice.
             On a phone it is hidden everywhere: centred in a bar with a button at
-            each end, it had nowhere to go but underneath Esmé, and the page's own
+            each end, it had nowhere to go but underneath the ask control, and the page's own
             title sits an inch below it anyway. */}
         {showWordmark && (
           <button
