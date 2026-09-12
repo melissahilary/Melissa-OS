@@ -9,8 +9,8 @@
 // Field types: text · num · money · date · bool · count
 //
 // These were set in letterspaced mono for a long time, on the argument that
-// forty-eight marks would be forty-eight chances to look like a bank. Drawn to
-// the pillar marks' rules — 24-unit square, outline, circles, lines and
+// sixty marks would be sixty chances to look like a bank. Drawn to the pillar
+// marks' rules — 24-unit square, outline, circles, lines and
 // diagonals only — they are not, and a wall of them is how you choose. The
 // drawings live in components/shared/assetMarks.jsx, keyed on the ids below; a
 // class that belongs to a pillar wears that pillar's mark instead of a second
@@ -32,11 +32,19 @@ export const ASSET_GROUPS = [
       { id: 'outerwear', label: 'Outerwear', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('season', 'Season'), f('warmth', 'Warmth'), f('worn', 'Worn', 'count')] },
       { id: 'shoes', label: 'Shoes', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('heel', 'Heel height'), f('occasion', 'Occasion'), f('resole', 'Resole due', 'date'), f('worn', 'Worn', 'count')] },
       { id: 'bags', label: 'Bags', fields: [f('brand', 'Brand'), f('size', 'Size'), f('material', 'Material'), f('occasion', 'Occasion'), f('resale', 'Resale value', 'money')] },
+      // Where socks live, and hats, belts, scarves and hair. One shelf rather
+      // than five thin ones, which is how a department store files hosiery too.
+      { id: 'accessories', label: 'Accessories', sized: true, fields: [f('kind', 'Hat · belt · scarf · socks · hair'), f('brand', 'Brand'), f('size', 'Size'), f('material', 'Material'), f('occasion', 'Occasion')] },
       { id: 'jewellery', label: 'Jewellery', sized: true, fields: [f('metal', 'Metal'), f('stone', 'Stone'), f('carat', 'Carat'), f('occasion', 'Occasion'), f('insured', 'Insured', 'bool'), f('valuation', 'Valuation', 'money'), f('appraised', 'Appraised', 'date')] },
       { id: 'watches', label: 'Watches', fields: [f('brand', 'Brand'), f('reference', 'Reference'), f('movement', 'Movement'), f('service', 'Service due', 'date'), f('valuation', 'Valuation', 'money')] },
       { id: 'eyewear', label: 'Eyewear', fields: [f('brand', 'Brand'), f('prescription', 'Prescription'), f('lens', 'Lens type'), f('eyetest', 'Last eye test', 'date')] },
       { id: 'lingerie', label: 'Lingerie', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('category', 'Category'), f('replace', 'Replace by', 'date')] },
+      { id: 'sleepwear', label: 'Sleepwear', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('kind', 'Slip · set · robe'), f('material', 'Material'), f('season', 'Season'), f('worn', 'Worn', 'count')] },
       { id: 'activewear', label: 'Activewear', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('sport', 'Sport'), f('washes', 'Washes', 'count')] },
+      { id: 'swim', label: 'Swim', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('kind', 'One-piece · bikini'), f('colour', 'Colour'), f('trip', 'For'), f('worn', 'Worn', 'count')] },
+      // The one gap the app makes for itself: it already knows the stage, and
+      // until now it had nowhere to put the clothes the stage needs.
+      { id: 'maternity', label: 'Maternity', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('stage', 'Pregnancy · nursing · postpartum'), f('trimester', 'Trimester'), f('nursing', 'Nursing access', 'bool'), f('worn', 'Worn', 'count')] },
       { id: 'vintage', label: 'Vintage & archive', fields: [f('provenance', 'Provenance'), f('condition', 'Condition'), f('era', 'Era'), f('valuation', 'Valuation', 'money')] },
     ],
   },

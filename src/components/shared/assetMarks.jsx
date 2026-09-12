@@ -3,7 +3,7 @@ import Mark, { markFor } from './marks'
 
 // ── The asset marks.
 //
-// Forty-eight of them, one per class on the wishlist, drawn to exactly the same
+// Sixty of them, one per class on the wishlist, drawn to exactly the same
 // rules as the twelve pillar marks: a 24-unit square, 1.5 units of optical
 // padding, butt terminals, mitred joins, outline only, and nothing but circles,
 // lines and diagonals on the half-unit grid. They name a class. They never
@@ -23,6 +23,25 @@ export const WatchesMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="5" /><
 export const EyewearMark = (p) => <Mark {...p}><circle cx="7.5" cy="13" r="3.5" /><circle cx="16.5" cy="13" r="3.5" /><path d="M11 13h2M4 10.5 5.5 8M20 10.5 18.5 8" /></Mark>
 export const LingerieMark = (p) => <Mark {...p}><path d="M12 12 5 8v8ZM12 12l7-4v8Z" /></Mark>
 export const ActivewearMark = (p) => <Mark {...p}><path d="M5 8 12 12l-7 4M12 8l7 4-7 4" /></Mark>
+// A hat stands for the whole shelf: hats, belts, scarves, hair and socks drawn
+// separately would be five thin marks nobody can tell apart at this size.
+export const AccessoriesMark = (p) => <Mark {...p}><path d="M5.5 14a6.5 6.5 0 0 1 13 0Z" /><path d="M4.5 14h15v2.5h-15Z" /></Mark>
+// The first pass drew a slip and a maillot. Both came out as narrow uprights
+// with a band across them, which at 32 units is a bottle — and worse, they were
+// a bottle each and indistinguishable from one another. Night and water say the
+// two things instantly, and both are built from circles like everything else.
+export const SleepwearMark = (p) => <Mark {...p}><path d="M16.5 6a7.5 7.5 0 1 0 0 12 6 6 0 0 1 0-12Z" /></Mark>
+export const SwimMark = (p) => (
+  <Mark {...p}>
+    <path d="M4.5 8.5a5.5 5.5 0 0 1 7.5 0 5.5 5.5 0 0 0 7.5 0" />
+    <path d="M4.5 12a5.5 5.5 0 0 1 7.5 0 5.5 5.5 0 0 0 7.5 0" />
+    <path d="M4.5 15.5a5.5 5.5 0 0 1 7.5 0 5.5 5.5 0 0 0 7.5 0" />
+  </Mark>
+)
+// Carried, not illustrated: one circle held inside another, resting on its floor.
+// A circle sitting above an arc was the first attempt and it read as a face,
+// which is the one thing these marks may never do.
+export const MaternityMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="14.5" r="5" /></Mark>
 export const VintageMark = (p) => <Mark {...p}><path d="M6.5 4.5h11L6.5 19.5h11Z" /></Mark>
 
 // ── Personal — used ─────────────────────────────────────────────────
@@ -84,6 +103,7 @@ const OWN = {
   wardrobe: WardrobeMark, outerwear: OuterwearMark, shoes: ShoesMark, bags: BagsMark,
   jewellery: JewelleryMark, watches: WatchesMark, eyewear: EyewearMark, lingerie: LingerieMark,
   activewear: ActivewearMark, vintage: VintageMark,
+  accessories: AccessoriesMark, sleepwear: SleepwearMark, swim: SwimMark, maternity: MaternityMark,
   makeup: MakeupMark, fragrance: FragranceMark, devices: DevicesMark, medication: MedicationMark,
   practitioners: PractitionersMark, memberships: MembershipsMark, courses: CoursesMark,
   furniture: FurnitureMark, lighting: LightingMark, appliances: AppliancesMark,
