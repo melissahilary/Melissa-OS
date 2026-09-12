@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Shuffle, Grid3x3, Columns3, ImagePlus, Link2 } from 'lucide-react'
-import { AddIcon, CloseIcon, AestheticsMark } from './shared/marks'
+import { AddIcon, CloseIcon, AestheticsMark, EditIcon, LoggedIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import EmptyState from './shared/EmptyState'
 import { dateKey, parseKey, MONTHS, MONTHS_SHORT } from '../lib/date'
@@ -126,6 +126,9 @@ export default function DreamBoard() {
   const [query, setQuery] = useState('')
   const [drag, setDrag] = useState(null)
   const [dragPos, setDragPos] = useState(null)
+  // Arranging is a mode, not a stored preference: she comes back to a board
+  // she can read, never to one that is still half in her hands.
+  const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
   const [linkDraft, setLinkDraft] = useState('')
   const [rejected, setRejected] = useState([]) // files the browser could not read
@@ -134,7 +137,6 @@ export default function DreamBoard() {
   const canvasRef = useRef(null)
   const canvasBoxRef = useRef(null)
   const reading = useRef(new Set())
-  const armTimer = useRef(null)
 
   // The scrapbook is a composition, not a flow: she puts a photograph where she
   // wants it and it stays there. That only survives a change of screen if the
@@ -326,83 +328,126 @@ export default function DreamBoard() {
     return { x: it.x, y: it.y, size, rot: it.rot, h: Math.round(sizeW(size) * ((it.h || 3) / (it.w || 4))), z: c.z + 300 }
   }
 
-  // ── Picking a picture up.
+  // ── Arranging, as a mode she enters and leaves.
   //
-  // On a desk, pressing and moving is a drag. On a phone it is how you scroll,
-  // and a board of overlapping cards leaves almost no bare canvas to scroll
-  // from — so cards that swallowed every touch made the page itself feel
-  // stuck. The grammar is therefore the one a phone already teaches: a tap
-  // turns the card over, a swipe scrolls the board, and a press and hold picks
-  // the picture up. A mouse skips the hold, because a mouse never scrolls by
-  // dragging.
-  const HOLD_MS = 340
+  // Moving a picture used to be a press and hold — a gesture with nothing on
+  // screen to announce it, which meant a board that looked fixed to anyone who
+  // never tried holding, and a board that could be knocked out of shape by
+  // anyone who held too long. So it is a mode now: Edit to arrange, Save to
+  // stop. Outside it the board behaves like any other page — a tap turns a card
+  // over, a swipe scrolls, and nothing can be moved by accident.
+  //
+  // Inside it a card follows the finger from the first pixel, with no hold to
+  // wait out, because entering the mode has already said that is what she came
+  // to do. Turning cards over is off while arranging: a tap that does not move
+  // does nothing, rather than flipping the picture she was reaching for.
   const SLOP = 8
-  const armed = !!(drag && drag.armed)
-  // Turning the card over is the picture's own button, here as everywhere else
-  // — it is what gives the board a keyboard. The wrapper must therefore not
-  // turn it over as well: two handlers on one tap toggled the card twice and it
-  // sat there looking broken. So the wrapper's only job at the end of a drag is
-  // to swallow the click that a drag also produces.
+  const EDGE_ZONE = 96
+  // The wrapper must not turn the card over as well — the picture's own button
+  // does that, and it is what gives the board a keyboard. Two handlers on one
+  // tap toggled it twice and it sat there looking broken. So the wrapper's only
+  // job with a click is to swallow the one a drag produces.
   const swallowClick = useRef(false)
+  const dragRef = useRef(null)
+  const ptRef = useRef({ x: 0, y: 0 })
+  const rafRef = useRef(0)
 
-  // Once a card is in her hand, the page must not move under it.
+  // Arranging is not a place to be left standing in. Changing the reading, or
+  // the year, or filtering, all mean she has moved on.
+  useEffect(() => { if (template !== 'scrapbook') setEditing(false) }, [template])
+
+  // A card in her hand, and the page must not move under it.
   useEffect(() => {
-    if (!armed) return undefined
+    if (!drag) return undefined
     const stop = (e) => e.preventDefault()
     document.addEventListener('touchmove', stop, { passive: false })
     return () => document.removeEventListener('touchmove', stop)
-  }, [armed])
-  useEffect(() => () => clearTimeout(armTimer.current), [])
+  }, [!!drag])
+
+  const setDragBoth = (d) => { dragRef.current = d; setDrag(d) }
+
+  // Where the card goes, from where the finger is. Both in viewport
+  // coordinates, so the page's own scroll has to be carried in the sum —
+  // otherwise a board that scrolls under a dragged card leaves the card behind.
+  const applyMove = (cx, cy) => {
+    const d = dragRef.current
+    if (!d) return
+    // d.cw is the canvas as it appears on screen, so the horizontal share is
+    // already in the right units; the vertical offset is stored unscaled and
+    // has to be divided back out.
+    const dx = ((cx - d.sx) / d.cw) * 100
+    const dy = ((cy + window.scrollY) - (d.sy + d.sy0)) / fit
+    if (!d.moved && Math.abs(cx - d.sx) + Math.abs(cy - d.sy) > SLOP) setDragBoth({ ...d, moved: true })
+    // Far enough right that the card still fits — the old ceiling of 88 per
+    // cent let a large card hang a quarter of itself off the edge.
+    const maxX = Math.max(0, 100 - (d.w / CANVAS_W) * 100)
+    setDragPos({ x: Math.max(0, Math.min(maxX, d.ox + dx)), y: Math.max(0, Math.round(d.oy + dy)) })
+  }
+  const applyRef = useRef(applyMove)
+  applyRef.current = applyMove
+
+  // A board is taller than a phone, and while a card is in her hand there is no
+  // scrolling left to do with the other one. So carrying a picture to the top or
+  // bottom of the screen scrolls the board under it, the way it does in every
+  // other place you drag something a long way.
+  const edgeScroll = () => {
+    if (!dragRef.current) { rafRef.current = 0; return }
+    const { y } = ptRef.current
+    const h = window.innerHeight
+    let v = 0
+    if (y < EDGE_ZONE) v = -Math.ceil((EDGE_ZONE - y) / 5)
+    else if (y > h - EDGE_ZONE) v = Math.ceil((y - (h - EDGE_ZONE)) / 5)
+    if (v) {
+      const before = window.scrollY
+      window.scrollBy(0, v)
+      if (window.scrollY !== before) applyRef.current(ptRef.current.x, ptRef.current.y)
+    }
+    rafRef.current = requestAnimationFrame(edgeScroll)
+  }
+
+  const endDrag = () => {
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = 0
+    setDragBoth(null)
+    setDragPos(null)
+  }
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
   const onPointerDown = (e, it, p, W) => {
-    if (template !== 'scrapbook' || !canvasRef.current) return
-    const rect = canvasRef.current.getBoundingClientRect()
-    const touch = e.pointerType === 'touch'
-    // A drag does not always produce a click to swallow — a touch drag often
-    // produces none at all — and a flag left standing would eat the next real
-    // tap instead, which looks exactly like a card that has stopped working.
-    // It can only ever hold between this press and the click that press makes.
+    // Cleared on every press, in the mode or out of it — the reset must sit
+    // above the guard. A drag does not always produce a click to swallow, a
+    // touch drag often produces none at all, and a flag left standing eats the
+    // next real tap: press Save after moving something and the first card you
+    // touched afterwards would simply not turn over. It can only ever hold
+    // between this press and the click this press makes.
     swallowClick.current = false
-    setDrag({ id: it.id, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, cw: rect.width || 1, w: W, armed: !touch, moved: false })
-    const target = e.currentTarget
-    const pid = e.pointerId
-    const grab = () => { try { target.setPointerCapture(pid) } catch { /* older browsers */ } }
-    clearTimeout(armTimer.current)
-    if (touch) armTimer.current = setTimeout(() => { grab(); setDrag((d) => (d && d.id === it.id ? { ...d, armed: true } : d)) }, HOLD_MS)
-    else grab()
+    if (!editing || template !== 'scrapbook' || !canvasRef.current) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    ptRef.current = { x: e.clientX, y: e.clientY }
+    setDragBoth({ id: it.id, sx: e.clientX, sy: e.clientY, sy0: window.scrollY, ox: p.x, oy: p.y, cw: rect.width || 1, w: W, moved: false })
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* older browsers */ }
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(edgeScroll)
   }
 
   const onPointerMove = (e) => {
-    if (!drag) return
-    const far = Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > SLOP
-    if (!drag.armed) {
-      // She moved before the hold finished: this is a scroll, not a pick-up.
-      if (far) { clearTimeout(armTimer.current); setDrag(null); setDragPos(null) }
-      return
-    }
-    // drag.cw is the canvas as it appears on screen, so the horizontal share is
-    // already in the right units; the vertical offset is stored unscaled and has
-    // to be divided back out.
-    const dx = ((e.clientX - drag.sx) / drag.cw) * 100
-    const dy = (e.clientY - drag.sy) / fit
-    if (!drag.moved && far) setDrag((d) => (d ? { ...d, moved: true } : d))
-    // Far enough right that the card still fits — the old ceiling of 88 per
-    // cent let a large card hang a quarter of itself off the edge.
-    const maxX = Math.max(0, 100 - (drag.w / CANVAS_W) * 100)
-    setDragPos({ x: Math.max(0, Math.min(maxX, drag.ox + dx)), y: Math.max(0, Math.round(drag.oy + dy)) })
+    if (!dragRef.current) return
+    ptRef.current = { x: e.clientX, y: e.clientY }
+    applyMove(e.clientX, e.clientY)
   }
 
   const onPointerUp = () => {
-    clearTimeout(armTimer.current)
-    if (drag && drag.armed && drag.moved && dragPos) {
-      updateItem(drag.id, { x: dragPos.x, y: dragPos.y, placed: true })
-      // Where she put it is not a keystroke to be batched. It goes now.
+    const d = dragRef.current
+    if (d && d.moved && dragPos) {
+      updateItem(d.id, { x: dragPos.x, y: dragPos.y, placed: true })
+      // Where she put it is not a keystroke to be batched. It goes now, so that
+      // Save has nothing left to do but stop — and so a phone put down halfway
+      // through arranging has lost nothing.
       store.flush(KEY)
-      swallowClick.current = true
     }
-    setDrag(null); setDragPos(null)
+    // While arranging, no tap turns a card over — moved or not.
+    if (d) swallowClick.current = true
+    endDrag()
   }
-  const onPointerCancel = () => { clearTimeout(armTimer.current); setDrag(null); setDragPos(null) }
   const onClickCapture = (e) => {
     if (!swallowClick.current) return
     swallowClick.current = false
@@ -455,9 +500,36 @@ export default function DreamBoard() {
             canvas that did not fit a phone, and asking her to dial it down to
             fifty per cent before she could see her own board is a control
             standing in for a layout that works. The board fits itself now. */}
-        <button onClick={() => setAdding((v) => !v)} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
-          <ImagePlus size={15} strokeWidth={1.75} /> Add photos
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Arranging and adding are different errands, and the one she is on
+              is the only one that should be lit. Adding photographs to a board
+              she is in the middle of rearranging is neither. */}
+          {template === 'scrapbook' && shown.length > 0 && (
+            editing ? (
+              <button
+                onClick={() => { store.flush(KEY); setEditing(false) }}
+                className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90"
+              >
+                <LoggedIcon size={15} strokeWidth={1.75} /> Save
+              </button>
+            ) : (
+              <button
+                // Face up to arrange. She is composing pictures, not shuffling
+                // index cards, and a card left showing its back is a hole in
+                // the composition she is trying to judge.
+                onClick={() => { setAdding(false); setFlipped(new Set()); setEditing(true) }}
+                className="flex items-center gap-2 rounded-full border border-stone-300 px-5 py-2.5 text-sm text-stone-900 transition-colors hover:border-stone-900"
+              >
+                <EditIcon size={15} strokeWidth={1.75} /> Edit
+              </button>
+            )
+          )}
+          {!editing && (
+            <button onClick={() => setAdding((v) => !v)} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
+              <ImagePlus size={15} strokeWidth={1.75} /> Add photos
+            </button>
+          )}
+        </div>
       </div>
 
       {adding && (
@@ -537,7 +609,13 @@ export default function DreamBoard() {
         <EmptyState mark={AestheticsMark} line="Nothing here yet." />
       ) : template === 'scrapbook' ? (
         <div>
-          <div ref={canvasBoxRef} className="overflow-hidden rounded-2xl border border-stone-200 bg-white/30" style={{ height: canvasH * fit + 2 }}>
+          {/* The board says which mode it is in, so Save is never the only
+              thing on screen that knows. */}
+          <div
+            ref={canvasBoxRef}
+            className={`overflow-hidden rounded-2xl border bg-white/30 transition-colors ${editing ? 'border-cobalt' : 'border-stone-200'}`}
+            style={{ height: canvasH * fit + 2 }}
+          >
             <div
               ref={canvasRef}
               className="relative select-none"
@@ -554,7 +632,7 @@ export default function DreamBoard() {
               {shown.map((it) => {
                 const p = placeOf(it)
                 const dragging = drag && drag.id === it.id
-                const lifted = dragging && drag.armed
+                const lifted = !!dragging
                 const pos = lifted && dragPos ? dragPos : { x: p.x, y: p.y }
                 const W = sizeW(p.size)
                 return (
@@ -563,15 +641,15 @@ export default function DreamBoard() {
                     onPointerDown={(e) => onPointerDown(e, it, p, W)}
                     onPointerMove={onPointerMove}
                     onPointerUp={onPointerUp}
-                    onPointerCancel={onPointerCancel}
+                    onPointerCancel={endDrag}
                     onClickCapture={onClickCapture}
-                    // pan-y, not none: a finger that starts on a card must still
-                    // be able to scroll the board, or the page reads as frozen.
                     style={{
                       left: `${pos.x}%`,
                       top: pos.y,
                       width: W,
-                      touchAction: 'pan-y',
+                      // Only while arranging does a card take the whole touch.
+                      // Outside the mode the board scrolls like any other page.
+                      touchAction: editing ? 'none' : 'auto',
                       // Straightening as it lifts is what makes it feel picked up
                       // off the board rather than slid along it.
                       transform: `rotate(${lifted ? p.rot * 0.35 : p.rot}deg) scale(${lifted ? 1.07 : 1})`,
@@ -579,7 +657,7 @@ export default function DreamBoard() {
                       filter: lifted ? 'drop-shadow(0 14px 22px rgba(28,25,23,0.28))' : 'none',
                       zIndex: flipped.has(it.id) ? 900 : dragging ? 800 : p.z,
                     }}
-                    className={`absolute ${lifted ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    className={`absolute ${editing ? (lifted ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
                   >
                     <span aria-hidden className="absolute -top-2.5 left-1/2 z-10 h-5 w-14 -translate-x-1/2 -rotate-2" style={{ background: 'rgba(221,215,200,0.55)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.4)' }} />
                     <Vision {...cardProps(it)} width={W} taped />
@@ -588,10 +666,10 @@ export default function DreamBoard() {
               })}
             </div>
           </div>
-          {/* The one instruction on the page, because a press-and-hold is the
-              only thing here she cannot discover by looking. */}
           <p className="mt-2.5 text-center text-[11px] text-stone-400">
-            Tap a picture to turn it over. Press and hold to move it.
+            {editing
+              ? 'Drag the pictures where you want them, then Save.'
+              : 'Tap a picture to turn it over. Edit to move them around.'}
           </p>
         </div>
       ) : template === 'grid' ? (
