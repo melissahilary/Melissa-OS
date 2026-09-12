@@ -10,7 +10,6 @@ import DreamBoard, { processImage, normVision } from './DreamBoard'
 import { routeStepToSection } from '../lib/goalRoutes'
 import { phaseForConfig } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
-import { isoWeek } from '../lib/week'
 import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
 import EmptyState from './shared/EmptyState'
@@ -1063,13 +1062,6 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
 // name, and under it a state line — not prose, and not encouragement. Just the
 // readings, including the zeroes.
 function Header({ phase, cycleLength, fertile }) {
-  const now = new Date()
-  const mon = addDays(now, -((now.getDay() + 6) % 7))
-  const sun = addDays(mon, 6)
-  const span = mon.getMonth() === sun.getMonth()
-    ? `${MONTHS_SHORT[mon.getMonth()].toUpperCase()} ${mon.getDate()}–${sun.getDate()}`
-    : `${MONTHS_SHORT[mon.getMonth()].toUpperCase()} ${mon.getDate()}–${MONTHS_SHORT[sun.getMonth()].toUpperCase()} ${sun.getDate()}`
-
   const day = phase ? phase.cycleDay : null
   // The most-checked number in a woman's life, and absent from every planner
   // header ever built.
@@ -1085,19 +1077,15 @@ function Header({ phase, cycleLength, fertile }) {
     untilPeriod != null ? (untilPeriod === 0 ? 'PERIOD TODAY' : `PERIOD IN ${untilPeriod}`) : null,
   ].filter(Boolean)
 
-  const Zone = ({ parts, className = '' }) => (
-    <span className={`whitespace-nowrap text-[11px] tracking-[0.18em] text-stone-400 ${className}`}>{parts.join(' · ')}</span>
-  )
-
   return (
     <div className="mb-9">
       <h1 className="text-center font-serif text-4xl text-stone-900 md:text-5xl">Becoming</h1>
-      {/* Two readings, spread — the week and the body. The tally of what she
+      {/* One reading, and it is the body. The week number was the calendar
+          talking, and this page is not about the week; the tally of what she
           owes was the page grading her before she had read a word of it. */}
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5 sm:justify-between">
-        <Zone parts={[`WEEK ${isoWeek(now)}`, span]} />
-        {body.length > 0 && <Zone parts={body} className="text-stone-500" />}
-      </div>
+      {body.length > 0 && (
+        <p className="mt-4 text-center text-[11px] tracking-[0.18em] text-stone-500">{body.join(' · ')}</p>
+      )}
     </div>
   )
 }
