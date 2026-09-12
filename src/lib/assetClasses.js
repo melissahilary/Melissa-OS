@@ -23,7 +23,9 @@ export const ASSET_GROUPS = [
     id: 'worn',
     label: 'Personal — worn',
     classes: [
-      { id: 'wardrobe', label: 'Wardrobe', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('colour', 'Colour'), f('season', 'Season'), f('category', 'Category'), f('worn', 'Worn', 'count')] },
+      // The id stays `wardrobe`: it is what every list she already has is filed
+      // under, and a label is a label.
+      { id: 'wardrobe', label: 'Ready to wear', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('colour', 'Colour'), f('season', 'Season'), f('category', 'Category'), f('worn', 'Worn', 'count')] },
       { id: 'outerwear', label: 'Outerwear', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('season', 'Season'), f('warmth', 'Warmth'), f('worn', 'Worn', 'count')] },
       { id: 'shoes', label: 'Shoes', sized: true, fields: [f('brand', 'Brand'), f('size', 'Size'), f('heel', 'Heel height'), f('occasion', 'Occasion'), f('resole', 'Resole due', 'date'), f('worn', 'Worn', 'count')] },
       { id: 'bags', label: 'Bags', fields: [f('brand', 'Brand'), f('size', 'Size'), f('material', 'Material'), f('occasion', 'Occasion'), f('resale', 'Resale value', 'money')] },
@@ -133,7 +135,7 @@ export const ASSET_GROUPS = [
 
 export const ASSET_CLASSES = ASSET_GROUPS.flatMap((g) => g.classes.map((c) => ({ ...c, group: g.id, groupLabel: g.label })))
 export const CLASS_BY_ID = ASSET_CLASSES.reduce((m, c) => { m[c.id] = c; return m }, {})
-export const classMeta = (id) => CLASS_BY_ID[id] || { id: 'wardrobe', label: 'Wardrobe', fields: [] }
+export const classMeta = (id) => CLASS_BY_ID[id] || { id: 'wardrobe', label: 'Ready to wear', fields: [] }
 
 // A size field is what makes a gift list actually work, so classes that have one
 // say so and the share sheet offers it.
