@@ -295,13 +295,13 @@ export default function DreamCollections({ goals = [], projects = [] }) {
     <div>
       {/* The same toolbar the board has: whatever lives on the left, and the one
           cobalt action on the right, at the size Add photos is. */}
-      <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
         <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
           <ImagePlus size={15} strokeWidth={1.75} /> Add wishlist
         </button>
       </div>
 
-      <SearchBar value={topicQuery} onChange={setTopicQuery} label="Search your wishlists" className="mb-7" />
+      <SearchBar value={topicQuery} onChange={setTopicQuery} label="Search your wishlists" className="mb-4" />
 
       {/* The topics are the wishlists. There is no separate shelf of boxes above
           them — a topic she has something in says so under its name, and opening

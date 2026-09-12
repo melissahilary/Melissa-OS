@@ -403,7 +403,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {tab === 'collections' && <DreamCollections goals={active} projects={Array.isArray(projectsRaw) ? projectsRaw : []} />}
       {tab === 'goals' && (
         <>
-          <div className="relative mb-7 flex items-center justify-between gap-3">
+          <div className="relative mb-5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
                 {VIEWS.map((v) => {
@@ -429,7 +429,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
           {/* The same rule the board carries. Once there are forty goals across
               three horizons, remembering which one held the thing is harder than
               typing a word of it. */}
-          <SearchBar value={goalQuery} onChange={setGoalQuery} label="Search your goals" className="mb-6" />
+          <SearchBar value={goalQuery} onChange={setGoalQuery} label="Search your goals" className="mb-4" />
 
           {goalView === 'timeline' && <GoalTimeline goals={inView} onOpen={openGoal} />}
 
