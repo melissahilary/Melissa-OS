@@ -4,7 +4,6 @@ import { AddIcon, CloseIcon, LoggedIcon, EditIcon } from './shared/marks'
 import { coverImage, blobToDataUrl } from '../lib/coverImage'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { PILLAR_TAGS } from './DreamProjects'
 import EmptyState from './shared/EmptyState'
 import SearchBar, { hits } from './shared/SearchBar'
 import { useSignedUrls } from '../hooks/useSignedUrls'
@@ -18,7 +17,6 @@ import { renderPages, downloadCanvas, asText, FORMATS, paginate } from '../lib/w
 import { dateKey, parseKey, MONTHS_SHORT } from '../lib/date'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
-const tagMeta = (id) => PILLAR_TAGS.find((p) => p.id === id) || null
 const fmtDay = (k) => { const d = parseKey(k); return d ? `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}` : '' }
 
 // ── Wishlist.
@@ -48,7 +46,6 @@ const normItem = (it, i = 0) => ({
   site: it.site || '',
   status: ['wanted', 'owned', 'passed'].includes(it.status) ? it.status : (it.done ? 'owned' : 'wanted'),
   ownedOn: it.ownedOn || '',
-  pillar: it.pillar || '',
   goalId: it.goalId || '',
   projectId: it.projectId || '',
   note: it.note || '',
@@ -835,12 +832,6 @@ function ItemCard({ item: it, cls, currency, goals, projects, onPatch, onAcquire
                   value={it.fields[fd.k] || ''}
                   onChange={(v) => onPatch({ fields: { ...it.fields, [fd.k]: v } })}
                 />
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-1 pt-1">
-              {PILLAR_TAGS.map((tg) => (
-                <button key={tg.id} onClick={() => onPatch({ pillar: it.pillar === tg.id ? '' : tg.id })} className={`rounded-full border px-2 py-0.5 text-[10px] transition-colors ${it.pillar === tg.id ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-500'}`}>{tg.label}</button>
               ))}
             </div>
 
