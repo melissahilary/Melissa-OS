@@ -14,6 +14,7 @@ import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
 import EmptyState from './shared/EmptyState'
 import SearchBar, { hits } from './shared/SearchBar'
+import ViewSwitcher from './shared/ViewSwitcher'
 import * as store from '../lib/dataStore'
 import { adherenceOf, trajectoryOf } from '../lib/goalSignals'
 import { PHASES, phaseMeta, dueFromHorizon, newGoal } from '../lib/goals'
@@ -404,25 +405,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {tab === 'goals' && (
         <>
           <div className="relative mb-5 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
-                {VIEWS.map((v) => {
-                  const on = goalView === v.id
-                  const Icon = v.icon
-                  return (
-                    // The mark alone. Four words across the top of a phone
-                    // wrapped the row and pushed New goal onto a line of its
-                    // own; the board's three readings have never needed
-                    // labels, and neither do these.
-                    <button key={v.id} onClick={() => setGoalView(v.id)} title={`${v.label} — ${v.note}`} aria-label={v.label} aria-pressed={on}
-                      className={`flex h-9 w-11 items-center justify-center rounded-full transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-900 hover:bg-stone-500/5'}`}>
-                      <Icon size={17} />
-                    </button>
-                  )
-                })}
-              </div>
-
-            </div>
+            <ViewSwitcher options={VIEWS} value={goalView} onChange={setGoalView} />
             <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
           </div>
 

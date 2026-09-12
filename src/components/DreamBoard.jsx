@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Shuffle, Grid3x3, Columns3, ImagePlus, Minus, Link2 } from 'lucide-react'
+import { Shuffle, Grid3x3, Columns3, ImagePlus, Link2 } from 'lucide-react'
 import { AddIcon, CloseIcon, AestheticsMark } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import EmptyState from './shared/EmptyState'
@@ -9,6 +9,7 @@ import { averageHash, duplicatesOf, clusters, matches } from '../lib/imageFacts'
 import * as store from '../lib/dataStore'
 import { useSignedUrls } from '../hooks/useSignedUrls'
 import SearchBar from './shared/SearchBar'
+import ViewSwitcher from './shared/ViewSwitcher'
 
 // ── The Mood Board.
 //
@@ -33,6 +34,10 @@ const TEMPLATES = [
   { id: 'column', label: 'Column', icon: Columns3 },
 ]
 const SIZES = { S: 150, M: 225, L: 330 }
+// The width the scrapbook is composed at. Everything on it is positioned and
+// sized against this, and the whole canvas is then scaled to whatever the screen
+// gives it — so one arrangement holds on a desk, a tablet and a phone.
+const CANVAS_W = 880
 const sizeW = (s) => SIZES[s] || SIZES.M
 
 const KEY = 'mos:dream:board'
@@ -116,7 +121,6 @@ export default function DreamBoard() {
   const [flipped, setFlipped] = useState(() => new Set())
   const [state, setState] = useState('all') // all | want | have
   const [query, setQuery] = useState('')
-  const [zoom, setZoom] = useState(1)
   const [drag, setDrag] = useState(null)
   const [dragPos, setDragPos] = useState(null)
   const [adding, setAdding] = useState(false)
@@ -125,7 +129,31 @@ export default function DreamBoard() {
   const [saveState, setSaveState] = useState(() => store.getSaveState())
   const fileRef = useRef(null)
   const canvasRef = useRef(null)
+  const canvasBoxRef = useRef(null)
   const reading = useRef(new Set())
+
+  // The scrapbook is a composition, not a flow: she puts a photograph where she
+  // wants it and it stays there. That only survives a change of screen if the
+  // whole canvas is drawn at one width and then scaled to whatever it is given —
+  // otherwise a board arranged on a desk becomes a heap on a phone, which is
+  // exactly what it was doing. Scaled, her arrangement is preserved exactly and
+  // simply arrives smaller.
+  const [fit, setFit] = useState(1)
+  const [boxW, setBoxW] = useState(CANVAS_W)
+  useEffect(() => {
+    const box = canvasBoxRef.current
+    if (!box) return undefined
+    const measure = () => {
+      const w = box.clientWidth || CANVAS_W
+      setBoxW(w)
+      setFit(Math.min(1, w / CANVAS_W))
+    }
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ro) ro.observe(box)
+    window.addEventListener('resize', measure)
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure) }
+  })
 
   const thisYear = new Date().getFullYear()
   const [year, setYear] = useState(thisYear)
@@ -289,8 +317,11 @@ export default function DreamBoard() {
   }
   const onPointerMove = (e) => {
     if (!drag) return
-    const dx = ((e.clientX - drag.sx) / zoom / drag.cw) * 100
-    const dy = (e.clientY - drag.sy) / zoom
+    // drag.cw is the canvas as it appears on screen, so the horizontal share is
+    // already in the right units; the vertical offset is stored unscaled and has
+    // to be divided back out.
+    const dx = ((e.clientX - drag.sx) / drag.cw) * 100
+    const dy = (e.clientY - drag.sy) / fit
     if (!drag.moved && Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 4) setDrag((d) => ({ ...d, moved: true }))
     setDragPos({ x: Math.max(0, Math.min(88, drag.ox + dx)), y: Math.max(0, drag.oy + dy) })
   }
@@ -335,34 +366,14 @@ export default function DreamBoard() {
       <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFiles} className="hidden" />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-full border border-stone-200 bg-cream p-0.5">
-          {TEMPLATES.map((t) => {
-            const Icon = t.icon
-            return (
-              <button
-                key={t.id}
-                onClick={() => setBoard({ template: t.id })}
-                title={t.label}
-                aria-label={t.label}
-                className={`flex h-8 w-9 items-center justify-center rounded-full transition-colors ${template === t.id ? 'bg-stone-900 text-cream' : 'text-stone-400 hover:text-stone-800'}`}
-              ><Icon size={14} strokeWidth={1.7} /></button>
-            )
-          })}
-        </div>
-        <div className="flex items-center gap-2">
-          {template === 'scrapbook' && (
-            <div className="flex items-center gap-1 rounded-full border border-stone-200 px-1 py-0.5">
-              <button onClick={() => setZoom((z) => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))} aria-label="Zoom out" className="flex h-6 w-6 items-center justify-center text-stone-400 hover:text-stone-900"><Minus size={13} /></button>
-              <span className="w-9 text-center text-[10px] tabular-nums text-stone-400">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom((z) => Math.min(1.3, Math.round((z + 0.1) * 10) / 10))} aria-label="Zoom in" className="flex h-6 w-6 items-center justify-center text-stone-400 hover:text-stone-900"><AddIcon size={13} /></button>
-            </div>
-          )}
-          {/* One way in. Both routes live inside it, so she never has to choose
-              between two buttons before she has added anything. */}
-          <button onClick={() => setAdding((v) => !v)} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
-            <ImagePlus size={15} strokeWidth={1.75} /> Add photos
-          </button>
-        </div>
+        <ViewSwitcher options={TEMPLATES} value={template} onChange={(id) => setBoard({ template: id })} />
+        {/* The zoom is gone. It existed because the scrapbook was a fixed
+            canvas that did not fit a phone, and asking her to dial it down to
+            fifty per cent before she could see her own board is a control
+            standing in for a layout that works. The board fits itself now. */}
+        <button onClick={() => setAdding((v) => !v)} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-opacity hover:opacity-90">
+          <ImagePlus size={15} strokeWidth={1.75} /> Add photos
+        </button>
       </div>
 
       {adding && (
@@ -441,11 +452,19 @@ export default function DreamBoard() {
       {shown.length === 0 ? (
         <EmptyState mark={AestheticsMark} line="Nothing here yet." />
       ) : template === 'scrapbook' ? (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white/30" style={{ height: canvasH * zoom + 2 }}>
+        <div ref={canvasBoxRef} className="overflow-hidden rounded-2xl border border-stone-200 bg-white/30" style={{ height: canvasH * fit + 2 }}>
           <div
             ref={canvasRef}
             className="relative select-none"
-            style={{ height: canvasH, transform: `scale(${zoom})`, transformOrigin: 'top left', width: `${100 / zoom}%` }}
+            style={{
+              height: canvasH,
+              width: CANVAS_W,
+              transform: `scale(${fit})`,
+              transformOrigin: 'top left',
+              // Wider than the board it holds, the canvas centres rather than
+              // sitting left with a field of nothing beside it.
+              marginLeft: Math.max(0, (boxW - CANVAS_W * fit) / 2),
+            }}
           >
             {shown.map((it, i) => {
               const dragging = drag && drag.id === it.id
