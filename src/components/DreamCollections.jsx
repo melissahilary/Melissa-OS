@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Share2, GripVertical, ImagePlus } from 'lucide-react'
-import { AddIcon, CloseIcon, LoggedIcon } from './shared/marks'
+import { AddIcon, CloseIcon, LoggedIcon, EditIcon } from './shared/marks'
 import { coverImage, blobToDataUrl } from '../lib/coverImage'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -225,9 +225,8 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         onCover={(file) => setCover(draftCls, file)}
         onClearCover={() => clearCover(draftCls)}
         coverNote={coverNote}
-        onHideTopic={() => hideTopic(draftCls)}
+        onDelete={() => hideTopic(draftCls)}
         onUpdate={materialise}
-        onRemove={() => setDraftCls(null)}
         onBack={() => setDraftCls(null)}
       />
     )
@@ -244,9 +243,14 @@ export default function DreamCollections({ goals = [], projects = [] }) {
         onCover={(file) => setCover(open.cls, file)}
         onClearCover={() => clearCover(open.cls)}
         coverNote={coverNote}
-        onHideTopic={lists.filter((l) => l.cls === open.cls).every((l) => !l.items.length) ? () => { remove(open.id); hideTopic(open.cls) } : null}
+        onDelete={() => {
+          // An empty list takes its shelf down with it, unless another list of
+          // the same kind is still standing on it.
+          const others = lists.filter((l) => l.cls === open.cls && l.id !== open.id)
+          remove(open.id)
+          if (!open.items.length && !others.length) hideTopic(open.cls)
+        }}
         onUpdate={(patch) => update(open.id, patch)}
-        onRemove={() => remove(open.id)}
         onBack={() => setOpenId(null)}
       />
     )
@@ -420,12 +424,13 @@ function NewWishlist({ onCreate, onCancel }) {
 }
 
 // ── The list ────────────────────────────────────────────────────────
-function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNote, onHideTopic, onUpdate, onRemove, onBack }) {
+function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNote, onDelete, onUpdate, onBack }) {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('all')
   const [dragId, setDragId] = useState(null)
   const [sharing, setSharing] = useState(false)
+  const [killing, setKilling] = useState(false)
   const coverRef = useRef(null)
 
   const cls = classMeta(list.cls)
@@ -497,16 +502,35 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
         </div>
 
         <div className="mt-3 flex items-start gap-4">
-          {/* The cover is its own control: the picture is the button. */}
+          {/* The picture is the button, and the pencil sitting on its corner is
+              how anyone knows that. Two text links saying Change cover and
+              Remove cover were a sentence where a mark would do. */}
           <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onCover(f) }} />
-          <button
-            type="button"
-            onClick={() => coverRef.current && coverRef.current.click()}
-            aria-label={cover ? 'Change the cover' : 'Add a cover'}
-            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border border-stone-200 bg-[#EFEAE0] text-stone-900 transition-colors hover:border-stone-900"
-          >
-            {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : React.createElement(assetMarkFor(cls), { size: 32 })}
-          </button>
+          <span className="relative block h-16 w-16 shrink-0">
+            <button
+              type="button"
+              onClick={() => coverRef.current && coverRef.current.click()}
+              aria-label={cover ? 'Change the cover' : 'Add a cover'}
+              title={cover ? 'Change the cover' : 'Add a cover'}
+              className="flex h-full w-full items-center justify-center overflow-hidden border border-stone-200 bg-[#EFEAE0] text-stone-900 transition-colors hover:border-stone-900"
+            >
+              {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : React.createElement(assetMarkFor(cls), { size: 32 })}
+            </button>
+            <span aria-hidden className="pointer-events-none absolute -bottom-2 -right-2 flex h-6 w-6 items-center justify-center bg-stone-900 text-cream">
+              <EditIcon size={16} />
+            </span>
+            {cover && (
+              <button
+                type="button"
+                onClick={onClearCover}
+                aria-label="Remove the cover"
+                title="Remove the cover"
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center border border-stone-300 bg-cream text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900"
+              >
+                <CloseIcon size={16} />
+              </button>
+            )}
+          </span>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-x-3">
@@ -520,13 +544,20 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
             {/* What the shelf is for, in the words she would use looking for it.
                 Outerwear meant nothing to her until someone said coats. */}
             {cls.about && <p className="mt-1 text-sm leading-snug text-stone-500">{cls.about}</p>}
+            {/* One delete, in one place. An empty list takes its shelf off the
+                wall with it, because an empty shelf she has just deleted is not
+                something she wants to keep looking at; a list with things in it
+                is asked about first and leaves the shelf standing. */}
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500">
-              <button type="button" onClick={() => coverRef.current && coverRef.current.click()} className="hover:text-stone-900">{cover ? 'Change cover' : 'Add a cover'}</button>
-              {cover && <button onClick={onClearCover} className="hover:text-stone-900">Remove cover</button>}
-              {/* Taking a shelf off the wall, from inside the shelf. Offered only
-                  while it holds nothing, because the wall is the only door to a
-                  list and hiding a full one would lock her out of it. */}
-              {onHideTopic && <button onClick={onHideTopic} className="hover:text-oxblood">Take off the wall</button>}
+              {killing ? (
+                <>
+                  <span className="text-stone-600">Delete {list.items.length} {list.items.length === 1 ? 'thing' : 'things'}?</span>
+                  <button onClick={onDelete} className="text-oxblood underline underline-offset-2">Delete</button>
+                  <button onClick={() => setKilling(false)} className="hover:text-stone-900">Keep</button>
+                </>
+              ) : (
+                <button onClick={() => (list.items.length ? setKilling(true) : onDelete())} className="hover:text-oxblood">Delete list</button>
+              )}
               {coverNote && <span className="tracking-[0.16em] text-stone-500">{coverNote}</span>}
             </div>
           </div>
@@ -582,11 +613,6 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
             ))}
           </div>
         </>
-      )}
-
-      {/* A list she is only looking at has nothing to delete yet. */}
-      {list.id !== 'draft' && (
-        <button onClick={onRemove} className="mt-8 text-xs text-stone-400 hover:text-phase-menstrual">Delete this list</button>
       )}
 
       {sharing && <ShareSheet list={list} onClose={() => setSharing(false)} />}

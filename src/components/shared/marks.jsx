@@ -88,6 +88,9 @@ export const DueIcon = (p) => <Mark {...p}><circle cx="12" cy="12" r="3.5" /></M
 export const NextIcon = (p) => <Mark {...p}><path d="M9 5.5 16 12l-7 6.5" /></Mark>
 export const PrevIcon = (p) => <Mark {...p}><path d="M15 5.5 8 12l7 6.5" /></Mark>
 export const ExportIcon = (p) => <Mark {...p}><path d="M12 15.5V4.5M7.5 9 12 4.5 16.5 9" /><path d="M4.5 14.5v5h15v-5" /></Mark>
+// The signifier on a picture that can be replaced. Small enough to sit in the
+// corner of a thumbnail without covering what it is pointing at.
+export const EditIcon = (p) => <Mark {...p}><path d="M4.5 19.5l1-4 9.5-9.5 3 3-9.5 9.5Z" /><path d="M15 6l2-2 3 3-2 2" /></Mark>
 export const LockedIcon = (p) => <Mark {...p}><path d="M6.5 11v-2.5a5.5 5.5 0 0 1 11 0V11" /><path d="M4.5 11h15v8.5h-15Z" /></Mark>
 
 // The readings of a set of goals. Each is a picture of the layout it opens —
