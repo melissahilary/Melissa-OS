@@ -482,42 +482,54 @@ function ListView({ list, goals, projects, cover, onCover, onClearCover, coverNo
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-baseline gap-3">
-        <button onClick={onBack} className="text-xs tracking-[0.14em] text-stone-400 hover:text-stone-900">← ALL LISTS</button>
-        <h2 className="font-serif text-2xl text-stone-900">{list.label}</h2>
-        {/* A list opened from a topic card is named after the topic, so saying
-            it twice on one line is just noise. */}
-        {list.label.toLowerCase() !== cls.label.toLowerCase() && (
-          <span className="text-[10px] tracking-[0.16em] text-stone-400">{cls.label.toUpperCase()}</span>
-        )}
-        <button onClick={() => setSharing(true)} className="ml-auto flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
-          <Share2 size={12} strokeWidth={1.7} /> Share
-        </button>
-      </div>
-
-      {/* The topic's face on the board. The mark is what it wears until she puts
-          a photograph there, and the cover belongs to the topic rather than to
-          this list — every Bags list shows the same one. */}
-      <div className="mb-6 flex items-center gap-4">
-        <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border border-stone-200 bg-[#EFEAE0] text-stone-900">
-          {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : React.createElement(assetMarkFor(cls), { size: 32 })}
-        </span>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* A real input held by a ref, opened by a button — the same shape the
-              board uses. A hidden input inside a label is one node React is free
-              to replace under a phone that is mid-picker. */}
-          <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onCover(f) }} />
-          <button type="button" onClick={() => coverRef.current && coverRef.current.click()} className="flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
-            <ImagePlus size={12} strokeWidth={1.7} /> {cover ? 'Change cover' : 'Add a cover'}
+            {/* ── The head of a list.
+          It had four bordered controls, a thumbnail and a title fighting over
+          two lines of a phone, which is what congestion is. Now: the way back
+          on its own line with Share opposite it; then the cover, the name and
+          what the topic is actually for, in one block; then the small changes
+          she rarely makes, as plain text under all of it. */}
+      <div className="mb-5">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="text-xs tracking-[0.14em] text-stone-400 hover:text-stone-900">← ALL LISTS</button>
+          <button onClick={() => setSharing(true)} className="ml-auto flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+            <Share2 size={12} strokeWidth={1.7} /> Share
           </button>
-          {cover && <button onClick={onClearCover} className="text-xs text-stone-500 hover:text-stone-900">Remove</button>}
-          {coverNote && <span className="text-[10px] tracking-[0.16em] text-stone-500">{coverNote}</span>}
-          {/* Taking a shelf off the wall, from inside the shelf. Offered only
-              while it holds nothing, because the wall is the only door to a
-              list and hiding a full one would lock her out of it. */}
-          {onHideTopic && (
-            <button onClick={onHideTopic} className="text-xs text-stone-500 hover:text-oxblood">Take off the wall</button>
-          )}
+        </div>
+
+        <div className="mt-3 flex items-start gap-4">
+          {/* The cover is its own control: the picture is the button. */}
+          <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onCover(f) }} />
+          <button
+            type="button"
+            onClick={() => coverRef.current && coverRef.current.click()}
+            aria-label={cover ? 'Change the cover' : 'Add a cover'}
+            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border border-stone-200 bg-[#EFEAE0] text-stone-900 transition-colors hover:border-stone-900"
+          >
+            {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : React.createElement(assetMarkFor(cls), { size: 32 })}
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-3">
+              <h2 className="font-serif text-2xl leading-tight text-stone-900">{list.label}</h2>
+              {/* A list opened from a topic card is named after the topic, so
+                  saying it twice on one line is just noise. */}
+              {list.label.toLowerCase() !== cls.label.toLowerCase() && (
+                <span className="text-[10px] tracking-[0.16em] text-stone-400">{cls.label.toUpperCase()}</span>
+              )}
+            </div>
+            {/* What the shelf is for, in the words she would use looking for it.
+                Outerwear meant nothing to her until someone said coats. */}
+            {cls.about && <p className="mt-1 text-sm leading-snug text-stone-500">{cls.about}</p>}
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500">
+              <button type="button" onClick={() => coverRef.current && coverRef.current.click()} className="hover:text-stone-900">{cover ? 'Change cover' : 'Add a cover'}</button>
+              {cover && <button onClick={onClearCover} className="hover:text-stone-900">Remove cover</button>}
+              {/* Taking a shelf off the wall, from inside the shelf. Offered only
+                  while it holds nothing, because the wall is the only door to a
+                  list and hiding a full one would lock her out of it. */}
+              {onHideTopic && <button onClick={onHideTopic} className="hover:text-oxblood">Take off the wall</button>}
+              {coverNote && <span className="tracking-[0.16em] text-stone-500">{coverNote}</span>}
+            </div>
+          </div>
         </div>
       </div>
 
