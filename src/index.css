@@ -97,6 +97,17 @@ button {
   background: transparent;
 }
 
+/* How tall a horizon column stands before it scrolls. Eight cards where the
+   three columns sit side by side, three where they stack — because a pane
+   taller than the phone itself never scrolls, and a column that never scrolls
+   is not a column, it is the whole list with a heading on it.
+
+   A card is 96 with a hairline on each edge, and they are twelve apart. */
+:root { --mos-col-h: 318px; }  /* 3 × 98 + 2 × 12 */
+@media (min-width: 768px) {
+  :root { --mos-col-h: 868px; }  /* 8 × 98 + 7 × 12 */
+}
+
 /* A reading that scrolls says so. These panes keep a drawn track — a hairline
    in the ivory ramp — so a column reads as a measured stack of eight rather
    than one that happens to be cut off, and the bar is square like everything

@@ -56,13 +56,20 @@ const VIEWS = [
   { id: 'timeline', label: 'Timeline', note: 'Everything with a date on it', icon: TimelineIcon },
 ]
 
-// A column is a countable stack: eight cards of one height, then it scrolls.
-// The other readings take the same height so the four of them are one
-// instrument rather than four pages of different lengths.
+// A column is a countable stack: so many cards of one height, then it scrolls.
+// The wall and the list take the same height so the readings are one instrument
+// rather than four pages of different lengths.
+//
+// The columns themselves are the exception, and it is a real one. Side by side
+// they hold eight. Stacked on a phone they hold three, because 868 of pane on an
+// 844 phone never scrolls — every goal in Now runs past the fold and Next begins
+// somewhere below the horizon. The height lives in a CSS variable so the
+// breakpoint is declared once, in the stylesheet, rather than measured in JS.
 const COL_CARD_H = 98 // 96 of card, plus the hairline on each edge
 const COL_GAP = 12
 const COL_VISIBLE = 8
 const VIEW_H = COL_VISIBLE * COL_CARD_H + (COL_VISIBLE - 1) * COL_GAP
+const COL_H = 'var(--mos-col-h)'
 
 const todayKey = () => dateKey(new Date())
 const daysAgoKey = (n) => dateKey(addDays(new Date(), -n))
@@ -482,7 +489,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                         whenever she wants them, rather than a form in the way. */}
                     <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
                   </div>
-                  <div className="mos-scroll min-h-[60px] space-y-3 overflow-y-auto pr-5" style={{ maxHeight: VIEW_H }}>
+                  <div className="mos-scroll min-h-[60px] space-y-3 overflow-y-auto pr-5" style={{ maxHeight: COL_H }}>
                     {(() => {
                       // The dragged card stays where it was, dimmed; the line
                       // is placed among the others.
