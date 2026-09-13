@@ -223,8 +223,15 @@ export default function PolaroidRail({ items, reverse = false, onPick, onAdd }) 
             animationName: loops ? undefined : 'none',
           }}
         >
-          {(loops ? [0, 1] : [0]).map((copy) =>
-            base.map((c, i) => {
+          {(loops ? [0, 1] : [0]).map((copy) => [
+            // A shoulder at the head of every copy. The arrows sit over the row
+            // rather than beside it, and the fade eats the first inch of it, so
+            // a card parked at the very start of the row was under both — which
+            // is why the first topic in a section could not be clicked at all.
+            // One spacer per copy, so the two halves stay identical and the loop
+            // keeps its seam.
+            <span key={`${copy}-cap`} aria-hidden className="block w-12 shrink-0 sm:w-16" />,
+            ...base.map((c, i) => {
               const tilt = i % 3 === 0 ? -1.6 : i % 3 === 1 ? 1.2 : -0.5
               return c.add ? (
                 <AddCard key={`${copy}-${i}-add`} tilt={tilt} ghost={copy === 1} onPick={onAdd} />
@@ -241,7 +248,8 @@ export default function PolaroidRail({ items, reverse = false, onPick, onAdd }) 
                 />
               )
             }),
-          )}
+            <span key={`${copy}-tail`} aria-hidden className="block w-12 shrink-0 sm:w-16" />,
+          ])}
         </div>
       </div>
       {(loops || runsOver) && (

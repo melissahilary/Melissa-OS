@@ -65,14 +65,11 @@ export const ASSET_GROUPS = [
       // head, a whitening cycle, a retainer — which is the one thing the
       // fields here are actually good at.
       { id: 'oral', label: 'Oral care', about: 'Toothpaste, brush heads, whitening strips, floss, mouthwash, tongue scrapers, water flossers, retainers.', fields: [f('kind', 'Kind'), f('brand', 'Brand'), f('replace', 'Replace by', 'date'), f('lastdone', 'Last replaced', 'date'), f('repurchased', 'Repurchased', 'count')] },
-      // Named for what the shelf does rather than for who is using it. Period
-      // care puts a period in the title of a list plenty of people will keep
-      // without having one, and Intimate care reads as lingerie. Hygiene is
-      // plain, assumes nothing, and sits with Medication and Testing rather
-      // than against them. The period products are on it either way — they are
-      // the first thing in the examples.
-      { id: 'intimate', label: 'Hygiene', about: 'Period underwear, cups, discs, tampons, pads, liners, washes, pH balance, wipes.', fields: [f('kind', 'Kind'), f('brand', 'Brand'), f('size', 'Size · absorbency'), f('reorder', 'Reorder by', 'date'), f('left', 'Left', 'num')] },
-      { id: 'devices', label: 'Tools & devices', about: 'Hair dryers, straighteners, curlers, cleansing brushes, red light, microcurrent, razors.', fields: [f('kind', 'Kind'), f('warranty', 'Warranty until', 'date'), f('replacement', 'Head / filter due', 'date'), f('lastused', 'Last used', 'date')] },
+      // Her word for it, after Period care and Intimate care were both turned
+      // down. The app already tracks the cycle elsewhere, so the page speaks one
+      // language about it.
+      { id: 'intimate', label: 'Cycle', about: 'Period underwear, cups, discs, tampons, pads, liners, washes, pH balance, wipes.', fields: [f('kind', 'Kind'), f('brand', 'Brand'), f('size', 'Size · absorbency'), f('reorder', 'Reorder by', 'date'), f('left', 'Left', 'num')] },
+      { id: 'devices', label: 'Devices', about: 'Hair dryers, straighteners, curlers, cleansing brushes, red light, microcurrent, razors.', fields: [f('kind', 'Kind'), f('warranty', 'Warranty until', 'date'), f('replacement', 'Head / filter due', 'date'), f('lastused', 'Last used', 'date')] },
       { id: 'supplements', label: 'Supplements', about: 'Vitamins, minerals, collagen, protein, probiotics, omega, adaptogens, powders.', pillar: 'nutrition', fields: [f('dose', 'Dose'), f('form', 'Form'), f('brand', 'Brand'), f('protocol', 'Linked protocol'), f('servings', 'Servings left', 'num'), f('reorder', 'Reorder by', 'date')] },
       { id: 'medication', label: 'Medication', about: 'Prescriptions, over the counter, inhalers, creams, allergy, pain relief.', fields: [f('dose', 'Dose'), f('prescriber', 'Prescriber'), f('refill', 'Refill by', 'date'), f('interactions', 'Interaction notes')] },
     ],
@@ -88,7 +85,6 @@ export const ASSET_GROUPS = [
       // with Memberships under Assets and money. This is the one you turn up
       // to and it counts your visits; that one is the one that bills you.
       { id: 'memberships', label: 'Clubs', about: 'Gym, pilates, yoga, tennis club, spa, clinic, co-working, members clubs.', fields: [f('kind', 'Gym · studio · clinic'), f('renewal', 'Renews', 'date'), f('visits', 'Visits', 'count')] },
-      { id: 'courses', label: 'Programmes & courses', about: 'Courses, certifications, trainings, retreats, workshops, coaching, language classes.', fields: [f('provider', 'Provider'), f('start', 'Starts', 'date'), f('completed', 'Completed', 'date')] },
     ],
   },
   {
@@ -124,7 +120,7 @@ export const ASSET_GROUPS = [
   },
   {
     id: 'money',
-    label: 'Assets and money',
+    label: 'Assets',
     classes: [
       { id: 'property', label: 'Property', about: 'Homes, apartments, land, garages, rentals, mortgages, ground rent, insurance.', fields: [f('address', 'Address'), f('purchase', 'Purchase price', 'money'), f('valuation', 'Valuation', 'money'), f('mortgage', 'Mortgage renews', 'date'), f('insurance', 'Insurance renews', 'date'), f('works', 'Works due')] },
       { id: 'investments', label: 'Investments', about: 'Stocks, funds, bonds, retirement accounts, crypto, private equity, savings.', fields: [f('kind', 'Type'), f('since', 'Held since', 'date'), f('value', 'Value', 'money')] },
@@ -158,15 +154,6 @@ export const ASSET_GROUPS = [
       { id: 'stationery', label: 'Stationery & supplies', about: 'Notebooks, pens, paper, planners, folders, labels, ink, printer paper.', fields: [f('reorder', 'Reorder by', 'date')] },
       { id: 'equipment', label: 'Equipment', about: 'Cameras, lenses, lighting, microphones, tripods, instruments, machines.', fields: [f('model', 'Model'), f('service', 'Service', 'date'), f('insured', 'Insured', 'bool')] },
       { id: 'software', label: 'Software & tools', about: 'Subscriptions, licenses, plugins, fonts, templates, domains, hosting.', fields: [f('renewal', 'Renews', 'date'), f('usage', 'Usage')] },
-    ],
-  },
-  {
-    id: 'people',
-    label: 'People',
-    classes: [
-      { id: 'circle', label: 'Circle', about: 'Family, close friends, godchildren, mentors, colleagues you keep up with.', pillar: 'relationship', fields: [f('relationship', 'Relationship'), f('lastcontact', 'Last contact', 'date'), f('birthday', 'Birthday', 'date'), f('notes', 'Notes')] },
-      { id: 'vendors', label: 'Vendors & services', about: 'Cleaner, plumber, electrician, tailor, cobbler, hairdresser, florist, dog walker.', fields: [f('trade', 'Trade'), f('lastused', 'Last used', 'date'), f('rating', 'Rating')] },
-      { id: 'gifting', label: 'Gifting register', about: 'Sizes, colors they wear, brands they love, what you have given before.', sized: true, fields: [f('person', 'Person'), f('ideas', 'Ideas'), f('history', 'Given before'), f('size', 'Sizes')] },
     ],
   },
 ]

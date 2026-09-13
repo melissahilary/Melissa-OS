@@ -61,7 +61,6 @@ export const MedicationMark = (p) => <Mark {...p}><path d="M4.5 9h15v6h-15Z" /><
 // ── Health — services ───────────────────────────────────────────────
 export const PractitionersMark = (p) => <Mark {...p}><circle cx="12" cy="8.5" r="4" /><path d="M5 19.5v-1.5l3.5-3h7l3.5 3v1.5" /></Mark>
 export const ClubsMark = (p) => <Mark {...p}><path d="M4.5 7.5h15v9h-15Z" /><path d="M4.5 11h15M8 14h4" /></Mark>
-export const CoursesMark = (p) => <Mark {...p}><path d="M4.5 9 12 5.5 19.5 9 12 12.5Z" /><path d="M8 10.75v5h8v-5" /></Mark>
 
 // ── Home ────────────────────────────────────────────────────────────
 export const FurnitureMark = (p) => <Mark {...p}><path d="M4.5 10.5h15v6h-15Z" /><path d="M4.5 10.5V7.5h15v3" /><path d="M7 16.5v3M17 16.5v3" /></Mark>
@@ -117,7 +116,7 @@ const OWN = {
   accessories: AccessoriesMark, sleepwear: SleepwearMark, swim: SwimMark, maternity: MaternityMark,
   makeup: MakeupMark, fragrance: FragranceMark, devices: DevicesMark, medication: MedicationMark,
   nails: NailsMark, oral: OralMark, intimate: IntimateMark, lashes: LashesMark,
-  practitioners: PractitionersMark, memberships: ClubsMark, courses: CoursesMark,
+  practitioners: PractitionersMark, memberships: ClubsMark,
   furniture: FurnitureMark, lighting: LightingMark, appliances: AppliancesMark,
   tableware: TablewareMark, linens: LinensMark, art: ArtMark, rugs: RugsMark, books: BooksMark,
   plants: PlantsMark, renovation: RenovationMark, maintenance: MaintenanceMark,
