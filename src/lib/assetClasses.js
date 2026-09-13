@@ -67,7 +67,7 @@ export const ASSET_GROUPS = [
     classes: [
       { id: 'treatments', label: 'Treatments', about: 'Facials, injectables, laser, microneedling, peels, massage, lymphatic, waxing.', pillar: 'aesthetics', fields: [f('provider', 'Provider'), f('interval', 'Interval'), f('lastdone', 'Last done', 'date'), f('nextdue', 'Next due', 'date'), f('downtime', 'Downtime')] },
       { id: 'practitioners', label: 'Practitioners', about: 'Doctor, dentist, dermatologist, OB-GYN, physio, therapist, nutritionist, trainer.', fields: [f('specialty', 'Specialty'), f('location', 'Location'), f('lastseen', 'Last seen', 'date'), f('nextdue', 'Next due', 'date'), f('referral', 'Referred by')] },
-      { id: 'labs', label: 'Testing & labs', about: 'Blood panels, hormone panels, thyroid, vitamin D, pap smear, scans, DNA, allergy tests.', pillar: 'diagnostics', fields: [f('panel', 'Panel'), f('provider', 'Provider'), f('lastrun', 'Last run', 'date'), f('retest', 'Retest interval')] },
+      { id: 'labs', label: 'Testing', about: 'Blood panels, hormone panels, thyroid, vitamin D, pap smear, scans, DNA, allergy tests.', pillar: 'diagnostics', fields: [f('panel', 'Panel'), f('provider', 'Provider'), f('lastrun', 'Last run', 'date'), f('retest', 'Retest interval')] },
       // Named for the place rather than the payment, so it does not collide
       // with Memberships under Assets and money. This is the one you turn up
       // to and it counts your visits; that one is the one that bills you.
