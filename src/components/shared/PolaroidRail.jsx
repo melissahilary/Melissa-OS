@@ -72,7 +72,13 @@ function AddCard({ tilt, onPick, ghost }) {
   return (
     <button
       type="button"
-      onClick={ghost ? undefined : onPick}
+      // The duplicate is kept out of the tab order and out of the screen
+      // reader — one row of topics should be announced once, not twice — but it
+      // is NOT kept out of the pointer's way. A marquee shows the second copy
+      // for half of every cycle, so a card that only worked on the first copy
+      // was a card that ignored the mouse half the time. That is the whole of
+      // "I cannot click Travel": the drift had simply brought the ghost round.
+      onClick={onPick}
       tabIndex={ghost ? -1 : 0}
       aria-hidden={ghost || undefined}
       title="Add a topic"
@@ -96,7 +102,13 @@ function Polaroid({ label, Icon, cover, note, tilt, onPick, ghost }) {
   return (
     <button
       type="button"
-      onClick={ghost ? undefined : onPick}
+      // The duplicate is kept out of the tab order and out of the screen
+      // reader — one row of topics should be announced once, not twice — but it
+      // is NOT kept out of the pointer's way. A marquee shows the second copy
+      // for half of every cycle, so a card that only worked on the first copy
+      // was a card that ignored the mouse half the time. That is the whole of
+      // "I cannot click Travel": the drift had simply brought the ghost round.
+      onClick={onPick}
       tabIndex={ghost ? -1 : 0}
       aria-hidden={ghost || undefined}
       title={label}
