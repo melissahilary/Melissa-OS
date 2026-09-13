@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Dumbbell } from 'lucide-react'
 import { CloseIcon } from './shared/marks'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -59,6 +59,15 @@ export default function FitnessPlan() {
   const maxN = Math.max(1, ...coverage.map((c) => c.n))
   const open = workouts.find((w) => w.id === openId) || null
 
+  // A plan is read as a week, so it is ordered as one. A workout sits where its
+  // earliest day falls, Monday first — not where it happened to be typed. The
+  // ones with no day on them yet wait at the end rather than interrupting the
+  // run of the week.
+  const inOrder = useMemo(() => {
+    const first = (w) => ((w.days || []).length ? Math.min(...w.days) : 99)
+    return [...workouts].sort((a, b) => first(a) - first(b) || (a.name || '').localeCompare(b.name || ''))
+  }, [workouts])
+
   return (
     <div className="mx-auto max-w-3xl">
       {/* Coverage — is the plan balanced? */}
@@ -75,9 +84,6 @@ export default function FitnessPlan() {
             </div>
           ))}
         </div>
-        {workouts.length > 0 && coverage.some((c) => c.n === 0) && (
-          <p className="mt-4 text-xs italic text-stone-400">Uncovered: {coverage.filter((c) => c.n === 0).map((c) => c.label).join(' · ')}</p>
-        )}
       </div>
 
       <div className="mb-4 flex items-center justify-between">
@@ -89,13 +95,13 @@ export default function FitnessPlan() {
         <p className="rounded-2xl border border-dashed border-stone-200 py-14 text-center font-serif italic text-lg text-stone-400">No plan yet.<br /><span className="text-sm not-italic text-stone-400">Add a workout and tag what it hits — the coverage fills in above.</span></p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {workouts.map((w) => (
+          {inOrder.map((w) => (
             <button key={w.id} onClick={() => setOpenId(w.id)} className="rounded-2xl border border-stone-200 bg-white/50 p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center gap-2.5">
                 <Dumbbell size={16} strokeWidth={1.5} className="text-stone-400" />
                 <span className="flex-1 truncate font-serif text-lg text-stone-900">{w.name || 'Untitled workout'}</span>
               </div>
-              {(w.days || []).length > 0 && <p className="mt-1.5 text-xs text-stone-400">{w.days.map((d) => DAYS[d]).join(' · ')}{pairedOf(w.id) ? ' · on the schedule' : ''}</p>}
+              {(w.days || []).length > 0 && <p className="mt-1.5 text-xs text-stone-400">{w.days.map((d) => DAYS[d]).join(' · ')}</p>}
               {(w.focus || []).length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {w.focus.map((f) => { const F = focusMeta(f); return <span key={f} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px]" style={{ background: `${F.tint}1a`, color: F.tint }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: F.tint }} />{F.label}</span> })}

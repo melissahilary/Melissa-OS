@@ -91,6 +91,10 @@ export const InsuranceMark = (p) => <Mark {...p}><path d="M12 4.5 19 7v6l-7 6.5L
 export const MembershipsMark = (p) => <Mark {...p}><path d="M4.5 7.5h15v12h-15Z" /><path d="M8.5 4.5v6M15.5 4.5v6M4.5 12h15" /></Mark>
 
 // ── Life and experience ─────────────────────────────────────────────
+// Steam off water: the line of it, and two curls rising.
+export const RetreatsMark = (p) => <Mark {...p}><path d="M4.5 16.5h15" /><path d="M9 13c-2-2 0-3.5 0-5.5M15 13c-2-2 0-3.5 0-5.5" /><path d="M4.5 19.5h15" /></Mark>
+// A mortarboard: the board, and the head beneath it.
+export const CoursesMark = (p) => <Mark {...p}><path d="M4.5 9 12 5.5 19.5 9 12 12.5Z" /><path d="M8 10.75v5h8v-5" /></Mark>
 export const TravelMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M4.5 12h15" /><path d="M12 4.5a4.5 7.5 0 0 1 0 15 4.5 7.5 0 0 1 0-15" /></Mark>
 export const RestaurantsMark = (p) => <Mark {...p}><path d="M8 19.5V9M5.5 4.5v4.5h5V4.5" /><path d="M16 19.5V4.5l3 4.5-3 2.5" /></Mark>
 export const PlacesMark = (p) => <Mark {...p}><circle cx="12" cy="9" r="4.5" /><path d="M12 13.5v6M8 19.5h8" /></Mark>
@@ -124,6 +128,7 @@ const OWN = {
   property: PropertyMark, investments: InvestmentsMark, collectibles: CollectiblesMark,
   insurance: InsuranceMark, subscriptions: MembershipsMark,
   travel: TravelMark, restaurants: RestaurantsMark, places: PlacesMark, wine: WineMark,
+  retreats: RetreatsMark, courses: CoursesMark,
   events: EventsMark, gifts: GiftsMark,
   tech: TechMark, stationery: StationeryMark, equipment: EquipmentMark, software: SoftwareMark,
   vendors: VendorsMark, gifting: GiftingMark,
