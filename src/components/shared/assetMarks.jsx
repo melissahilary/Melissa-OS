@@ -44,6 +44,15 @@ export const SwimMark = (p) => (
 export const MaternityMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="14.5" r="5" /></Mark>
 
 // ── Personal — used ─────────────────────────────────────────────────
+// A lash line, and three lashes rising off it.
+export const LashesMark = (p) => <Mark {...p}><path d="M4.5 15c3.5-5.5 11.5-5.5 15 0" /><path d="M8.2 10.6 6.8 7.4M12 9.4V6M15.8 10.6l1.4-3.2" /></Mark>
+// A nail: the arc of its tip and the straight sides below it.
+export const NailsMark = (p) => <Mark {...p}><path d="M8.5 11.5a3.5 3.5 0 0 1 7 0v8h-7Z" /><path d="M8.5 15.5h7" /></Mark>
+// A brush: the head, and the handle it sits on.
+export const OralMark = (p) => <Mark {...p}><path d="M10 4.5h4v5h-4Z" /><path d="M12 9.5v10" /><path d="M10 7h4" /></Mark>
+// A cup and its stem. Drawn as the object, like everything else here, and
+// discreet enough to sit on a wall of sixty marks without announcing itself.
+export const IntimateMark = (p) => <Mark {...p}><path d="M8 7.5h8l-1.5 9h-5Z" /><path d="M12 16.5v3" /></Mark>
 export const MakeupMark = (p) => <Mark {...p}><path d="M10.5 4.5h3v4h-3Z" /><path d="M9.5 8.5h5v11h-5Z" /></Mark>
 export const FragranceMark = (p) => <Mark {...p}><path d="M10.5 4.5h3v2.5h-3Z" /><path d="M8 7h8v12.5H8Z" /><path d="M8 11h8" /></Mark>
 export const DevicesMark = (p) => <Mark {...p}><path d="M8 4.5h8v6H8Z" /><path d="M12 10.5v9M9 19.5h6" /></Mark>
@@ -107,6 +116,7 @@ const OWN = {
   activewear: ActivewearMark,
   accessories: AccessoriesMark, sleepwear: SleepwearMark, swim: SwimMark, maternity: MaternityMark,
   makeup: MakeupMark, fragrance: FragranceMark, devices: DevicesMark, medication: MedicationMark,
+  nails: NailsMark, oral: OralMark, intimate: IntimateMark, lashes: LashesMark,
   practitioners: PractitionersMark, memberships: ClubsMark, courses: CoursesMark,
   furniture: FurnitureMark, lighting: LightingMark, appliances: AppliancesMark,
   tableware: TablewareMark, linens: LinensMark, art: ArtMark, rugs: RugsMark, books: BooksMark,

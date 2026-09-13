@@ -54,8 +54,24 @@ export const ASSET_GROUPS = [
       { id: 'skincare', label: 'Skincare', about: 'Cleansers, serums, creams, SPF, retinol, masks, eye cream, toners.', pillar: 'skincare', fields: [f('step', 'Step'), f('opened', 'Opened', 'date'), f('pao', 'PAO (months)', 'num'), f('actives', 'Actives'), f('repurchased', 'Repurchased', 'count')] },
       { id: 'haircare', label: 'Haircare', about: 'Shampoo, conditioner, masks, oils, heat protectant, dry shampoo, scalp treatments.', pillar: 'haircare', fields: [f('goal', 'Hair goal'), f('opened', 'Opened', 'date'), f('repurchased', 'Repurchased', 'count')] },
       { id: 'makeup', label: 'Makeup', about: 'Foundation, concealer, blush, lipstick, mascara, brows, brushes, setting spray.', fields: [f('shade', 'Shade'), f('finish', 'Finish'), f('opened', 'Opened', 'date'), f('pao', 'PAO (months)', 'num')] },
+      // It was living in two places at once: the serums and spoolies under
+      // Makeup, the lamination and the tint under Treatments. It is one
+      // shelf, and the growth serums alone are a category.
+      { id: 'lashes', label: 'Lashes & brows', about: 'Growth serums, lamination, tints, extensions, individual lashes, spoolies, brow gel, pencils.', fields: [f('kind', 'Kind'), f('brand', 'Brand'), f('opened', 'Opened', 'date'), f('pao', 'PAO (months)', 'num'), f('nextdue', 'Next appointment', 'date')] },
       { id: 'fragrance', label: 'Fragrance', about: 'Eau de parfum, eau de toilette, body mist, oils, decants, travel sprays.', fields: [f('house', 'House'), f('notes', 'Notes'), f('size', 'Size'), f('season', 'Season'), f('decant', 'Decant', 'bool')] },
       { id: 'bodycare', label: 'Bodycare', about: 'Body wash, lotion, hand cream, deodorant, scrubs, body oil, SPF.', pillar: 'bodycare', fields: [f('opened', 'Opened', 'date'), f('repurchased', 'Repurchased', 'count')] },
+      { id: 'nails', label: 'Nails', about: 'Polish, gel, builder gel, press-ons, lamps, files, cuticle oil, remover, nail art.', fields: [f('kind', 'Polish · gel · press-on'), f('brand', 'Brand'), f('shade', 'Shade'), f('opened', 'Opened', 'date'), f('repurchased', 'Repurchased', 'count')] },
+      // Almost everything on this shelf is on a replacement clock — a brush
+      // head, a whitening cycle, a retainer — which is the one thing the
+      // fields here are actually good at.
+      { id: 'oral', label: 'Oral care', about: 'Toothpaste, brush heads, whitening strips, floss, mouthwash, tongue scrapers, water flossers, retainers.', fields: [f('kind', 'Kind'), f('brand', 'Brand'), f('replace', 'Replace by', 'date'), f('lastdone', 'Last replaced', 'date'), f('repurchased', 'Repurchased', 'count')] },
+      // Named for what the shelf does rather than for who is using it. Period
+      // care puts a period in the title of a list plenty of people will keep
+      // without having one, and Intimate care reads as lingerie. Hygiene is
+      // plain, assumes nothing, and sits with Medication and Testing rather
+      // than against them. The period products are on it either way — they are
+      // the first thing in the examples.
+      { id: 'intimate', label: 'Hygiene', about: 'Period underwear, cups, discs, tampons, pads, liners, washes, pH balance, wipes.', fields: [f('kind', 'Kind'), f('brand', 'Brand'), f('size', 'Size · absorbency'), f('reorder', 'Reorder by', 'date'), f('left', 'Left', 'num')] },
       { id: 'devices', label: 'Tools & devices', about: 'Hair dryers, straighteners, curlers, cleansing brushes, red light, microcurrent, razors.', fields: [f('kind', 'Kind'), f('warranty', 'Warranty until', 'date'), f('replacement', 'Head / filter due', 'date'), f('lastused', 'Last used', 'date')] },
       { id: 'supplements', label: 'Supplements', about: 'Vitamins, minerals, collagen, protein, probiotics, omega, adaptogens, powders.', pillar: 'nutrition', fields: [f('dose', 'Dose'), f('form', 'Form'), f('brand', 'Brand'), f('protocol', 'Linked protocol'), f('servings', 'Servings left', 'num'), f('reorder', 'Reorder by', 'date')] },
       { id: 'medication', label: 'Medication', about: 'Prescriptions, over the counter, inhalers, creams, allergy, pain relief.', fields: [f('dose', 'Dose'), f('prescriber', 'Prescriber'), f('refill', 'Refill by', 'date'), f('interactions', 'Interaction notes')] },
