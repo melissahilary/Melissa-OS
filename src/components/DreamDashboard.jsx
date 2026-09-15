@@ -393,7 +393,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
 
   const TABS = [
     { id: 'goals', label: 'Goals', icon: Target },
-    { id: 'board', label: 'Mood Board', icon: ImageIcon },
+    { id: 'board', label: 'Vision Board', icon: ImageIcon },
     { id: 'collections', label: 'Wishlist', icon: Sparkles },
   ]
 
@@ -439,8 +439,16 @@ export default function DreamDashboard({ cycleConfig = {} }) {
       {tab === 'goals' && (
         <>
           <div className="relative mb-5 flex items-center justify-between gap-3">
+            {/* The plus under each horizon is the way in, and it writes the
+                goal into the horizon she is looking at — so in the columns the
+                button in the corner was a second way to do one thing, and a
+                worse one, since it has to guess a horizon. It stays on the wall
+                and the list, which have no plus of their own; without it those
+                two readings would have no way to add a goal at all. */}
             <ViewSwitcher options={VIEWS} value={goalView} onChange={setGoalView} />
-            <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
+            {goalView !== 'columns' && (
+              <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
+            )}
           </div>
 
           {/* The same rule the board carries. Once there are forty goals across
@@ -512,7 +520,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                     {/* Write it into the horizon it belongs to. Enter makes it a
                         card and stops — the details are behind the card, for
                         whenever she wants them, rather than a form in the way. */}
-                    <AddInline onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
+                    <AddInline label={`Add to ${ph.label}`} onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
                   </div>
                   <div className="mos-scroll min-h-[60px] space-y-3 overflow-y-auto pr-5" style={{ maxHeight: COL_H }}>
                     {(() => {

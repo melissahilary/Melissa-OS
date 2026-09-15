@@ -17,17 +17,25 @@ export default function AddInline({ onSubmit, onClick, label = '', className = '
     setDraft('')
   }
 
+  // A label, not a div: the plus was a drawing sitting next to a field with no
+  // placeholder in it, so the row looked like a button, did nothing when you
+  // pressed it, and never said that typing was the way in. Wrapped in a label
+  // the whole row — plus included — puts the cursor in the field, and the
+  // placeholder says what the field is for.
   if (onSubmit) {
     return (
-      <div className={`flex items-center gap-2.5 border-b border-stone-200 pb-1.5 transition-colors focus-within:border-stone-900 ${className}`}>
+      <label className={`flex cursor-text items-center gap-2.5 border-b border-stone-200 pb-1.5 transition-colors focus-within:border-stone-900 hover:border-stone-400 ${className}`}>
         <AddIcon size={14} className="shrink-0 text-stone-300" />
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commit()}
-          className="flex-1 bg-transparent py-1 text-sm text-stone-800 outline-none"
+          onBlur={commit}
+          placeholder={label || 'Add one'}
+          aria-label={label || 'Add one'}
+          className="flex-1 bg-transparent py-1 text-sm text-stone-800 outline-none placeholder:text-stone-400"
         />
-      </div>
+      </label>
     )
   }
 

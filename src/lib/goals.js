@@ -12,9 +12,9 @@ import { dateKey, parseKey } from './date'
 // about when; six to twelve months does, and it is the thing she is actually
 // deciding when she drags a goal across.
 export const PHASES = [
-  { id: 'now', label: 'Now', note: 'Next 6 months', months: 6 },
+  { id: 'now', label: 'Now', note: '0–6 months', months: 6 },
   { id: 'next', label: 'Next', note: '6–12 months', months: 12 },
-  { id: 'later', label: 'Later', note: 'Beyond a year', months: 18 },
+  { id: 'later', label: 'Later', note: '12+ months', months: 18 },
 ]
 export const phaseMeta = (id) => PHASES.find((p) => p.id === id) || PHASES[0]
 
