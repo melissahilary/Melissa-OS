@@ -185,12 +185,18 @@ export default function DreamDashboard({ cycleConfig = {} }) {
     return [...rest.slice(0, at), moved, ...rest.slice(at)]
   })
   const fresh = (phase, title = '') => newGoal(phase, title)
-  const addGoalIn = (phase, title) => {
-    const t = (title || '').trim()
-    if (!t) return
-    setGoals((p) => [...p, fresh(phase, t)])
+  // Adding a goal is one action wherever it is started from: a goal in the
+  // horizon she asked for, opened straight away so she can write it. The plus
+  // under a column passes that column's horizon, which is what makes 0–6 months
+  // already chosen when she opens it from Now — typing the name into the column
+  // and never seeing the rest of the goal was the wrong shape for this. The
+  // button on the wall and the list has no horizon to pass, so it starts in Now
+  // and she can move it in the same breath.
+  const addGoal = (phase = 'now') => {
+    const g = fresh(PHASES.some((p) => p.id === phase) ? phase : 'now')
+    setGoals((p) => [...p, g])
+    openGoal(g.id)
   }
-  const addGoal = () => { const g = fresh('now'); setGoals((p) => [...p, g]); openGoal(g.id) }
 
   // Goals written before the clock existed get one, once. Their start is the
   // day this ran, which is the honest answer to "when did the count begin".
@@ -447,7 +453,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                 two readings would have no way to add a goal at all. */}
             <ViewSwitcher options={VIEWS} value={goalView} onChange={setGoalView} />
             {goalView !== 'columns' && (
-              <button onClick={addGoal} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
+              <button onClick={() => addGoal()} className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream transition-colors hover:bg-stone-700"><AddIcon size={15} strokeWidth={1.75} /> New goal</button>
             )}
           </div>
 
@@ -520,7 +526,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
                     {/* Write it into the horizon it belongs to. Enter makes it a
                         card and stops — the details are behind the card, for
                         whenever she wants them, rather than a form in the way. */}
-                    <AddInline label={`Add to ${ph.label}`} onSubmit={(title) => addGoalIn(ph.id, title)} className="mt-1.5" />
+                    <AddInline label={`Add to ${ph.label}`} onClick={() => addGoal(ph.id)} className="mt-1.5" />
                   </div>
                   <div className="mos-scroll min-h-[60px] space-y-3 overflow-y-auto pr-5" style={{ maxHeight: COL_H }}>
                     {(() => {
