@@ -37,7 +37,7 @@ import Aesthetics from './components/Aesthetics'
 import Spirituality from './components/Spirituality'
 import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
-import Settings from './components/Settings'
+import Settings, { THEME_IDS, DEFAULT_THEME } from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import AskConcierge from './components/AskConcierge'
 import Dictation from './components/shared/Dictation'
@@ -252,9 +252,11 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [askOpen, setAskOpen] = useState(false)
   // The chosen wardrobe palette re-skins the whole app via CSS variables.
-  const [themeRaw] = useLocalStorage('mos:settings:theme', 'porcelain')
+  const [themeRaw] = useLocalStorage('mos:settings:theme', DEFAULT_THEME)
   useEffect(() => {
-    const t = typeof themeRaw === 'string' ? themeRaw : 'porcelain'
+    // Anyone still carrying porcelain, ecru, rosewater or sage lands on the
+    // house paper rather than on no paper at all.
+    const t = THEME_IDS.includes(themeRaw) ? themeRaw : DEFAULT_THEME
     document.documentElement.setAttribute('data-mos-theme', t)
   }, [themeRaw])
 

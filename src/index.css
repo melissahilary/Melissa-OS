@@ -14,25 +14,22 @@
    variable directly, and once as channels, which is the only form that lets a
    utility carry an opacity. ── */
 :root,
-:root[data-mos-theme='ecru'] {
-  --mos-cream: #FAF6ED;
-  --mos-cream-rgb: 250 246 237;
+:root[data-mos-theme='ivory'] {
+  /* ivory 050 — the house ground, and the value the `cream` token has always
+     documented as its own fallback. Every theme block used to override it to
+     something else, so `bg-cream` has never actually been the house ivory. */
+  --mos-cream: #F7F4ED;
+  --mos-cream-rgb: 247 244 237;
 }
-:root[data-mos-theme='porcelain'] {
-  --mos-cream: #FAFAF7;
-  --mos-cream-rgb: 250 250 247;
+:root[data-mos-theme='chalk'] {
+  /* The same ivory, one weight lighter than the ramp starts. */
+  --mos-cream: #FCFAF4;
+  --mos-cream-rgb: 252 250 244;
 }
-:root[data-mos-theme='rosewater'] {
-  --mos-cream: #FBF6F4;
-  --mos-cream-rgb: 251 246 244;
-}
-:root[data-mos-theme='sage'] {
-  --mos-cream: #F7F8F4;
-  --mos-cream-rgb: 247 248 244;
-}
-
-body {
-  background-color: var(--mos-cream, #FAF6ED);
+:root[data-mos-theme='parchment'] {
+  /* ivory 100 — one weight deeper, straight off the ramp. */
+  --mos-cream: #EFEAE0;
+  --mos-cream-rgb: 239 234 224;
 }
 
 html,
@@ -43,7 +40,10 @@ body,
 
 body {
   margin: 0;
-  background-color: #FAF6ED;
+  /* From the variable, not a literal. A second body rule down here hard-coded
+     the ground and overrode the one above it, so the wardrobe has never once
+     changed the paper the app is printed on. */
+  background-color: var(--mos-cream, #F7F4ED);
   color: #16130F;
   font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;

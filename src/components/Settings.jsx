@@ -38,13 +38,25 @@ const ROOMS = [
   { id: 'contact', label: 'Contact', icon: MessageCircle, blurb: 'Reach us' },
 ]
 
-// The wardrobe — theme palettes. Values must match index.css.
+// The wardrobe — the paper the house is printed on. Values must match index.css.
+//
+// It used to offer four palettes, and none of them were the brand's. The
+// guidelines give this house ivory, walnut, ink and one blue; Rosewater was a
+// pink ground and Sage a green one, neither of which exists anywhere in the
+// palette, and Porcelain was a neutral grey-white sitting outside the ivory
+// family altogether. Each also carried its own hairline and its own ink, so
+// choosing a theme quietly replaced three brand values at once.
+//
+// The house has one ground. What is actually on offer is how heavy you want it
+// — the same ivory, at three weights off the ramp, with the hairline and the
+// ink left alone because those are not hers to change.
 export const THEMES = [
-  { id: 'porcelain', label: 'Porcelain', blurb: 'The house cream', ground: '#FAFAF7', mid: '#E7E5E4', ink: '#1C1917' },
-  { id: 'ecru', label: 'Écru', blurb: 'Warm parchment', ground: '#FAF6ED', mid: '#E8E1D1', ink: '#1D1913' },
-  { id: 'rosewater', label: 'Rosewater', blurb: 'The faintest blush', ground: '#FBF6F4', mid: '#EADFDC', ink: '#1D1817' },
-  { id: 'sage', label: 'Sage', blurb: 'Quiet green air', ground: '#F7F8F4', mid: '#E2E5DB', ink: '#191B16' },
+  { id: 'chalk', label: 'Chalk', blurb: 'The lightest weight', ground: '#FCFAF4', mid: '#E2DACB', ink: '#16130F' },
+  { id: 'ivory', label: 'Ivory', blurb: 'The house paper', ground: '#F7F4ED', mid: '#E2DACB', ink: '#16130F' },
+  { id: 'parchment', label: 'Parchment', blurb: 'One weight deeper', ground: '#EFEAE0', mid: '#E2DACB', ink: '#16130F' },
 ]
+export const THEME_IDS = THEMES.map((t) => t.id)
+export const DEFAULT_THEME = 'ivory'
 
 // Life stages live in src/lib/lifeStage.js — one source of truth for the
 // whole arc, with per-stage feature manifests and behavior flags.
@@ -132,7 +144,7 @@ export default function Settings() {
   const [notifs, setNotifs] = useLocalStorage('mos:settings:notifs', { daily: true, cycle: true, horoscope: true, rituals: false })
   const nf = notifs && typeof notifs === 'object' ? notifs : {}
   const toggleNotif = (id) => setNotifs((prev) => { const cur = prev && typeof prev === 'object' ? prev : {}; return { ...cur, [id]: !cur[id] } })
-  const [theme, setTheme] = useLocalStorage('mos:settings:theme', 'porcelain')
+  const [theme, setTheme] = useLocalStorage('mos:settings:theme', DEFAULT_THEME)
   // Speaking instead of typing, everywhere. On by default — it is the way in.
   const [dictationRaw, setDictation] = useLocalStorage('mos:settings:dictation', true)
   const dictation = dictationRaw !== false
@@ -306,21 +318,26 @@ export default function Settings() {
           </>)}
 
           {room === 'appearance' && (
-            <Card title="The wardrobe." blurb="Choose the palette your whole planner wears. Elegant in every shade.">
-              <div className="grid grid-cols-2 gap-4">
+            <Card title="The wardrobe." blurb="The house is printed on one paper. This is how heavy you want it.">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {THEMES.map((t) => {
-                  const on = (theme || 'porcelain') === t.id
+                  const on = (THEME_IDS.includes(theme) ? theme : DEFAULT_THEME) === t.id
                   return (
                     <button
                       key={t.id}
                       onClick={() => setTheme(t.id)}
                       className={`overflow-hidden border text-left transition-all ${on ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'}`}
                     >
-                      {/* Swatch preview — ground, hairline, ink dot */}
-                      <div className="relative h-20" style={{ background: t.ground }}>
-                        <span className="absolute left-4 top-4 h-2 w-14 rounded-full" style={{ background: t.mid }} />
-                        <span className="absolute left-4 top-8 h-2 w-9 rounded-full" style={{ background: t.mid }} />
-                        <span className="absolute right-4 top-4 h-6 w-6 rounded-full" style={{ background: t.ink }} />
+                      {/* The brand as it sits on that paper: a rule of ink, two
+                          ivory hairlines and the one accent. Square, because
+                          nothing in this house is a pill — the old preview was
+                          three rounded blobs, which is the only shape the
+                          guidelines forbid outright. */}
+                      <div className="relative h-24" style={{ background: t.ground }}>
+                        <span className="absolute left-4 top-5 h-[3px] w-16" style={{ background: t.ink }} />
+                        <span className="absolute left-4 top-[42px] h-px w-20" style={{ background: t.mid }} />
+                        <span className="absolute left-4 top-[54px] h-px w-12" style={{ background: t.mid }} />
+                        <span className="absolute right-4 top-5 h-5 w-5" style={{ background: '#1D2FC4' }} />
                       </div>
                       <div className="flex items-center justify-between border-t border-stone-200 px-4 py-3">
                         <span>
