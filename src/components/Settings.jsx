@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Copy, LogOut, Upload, Trash2, Mail, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
 import { CloseIcon, LoggedIcon } from './shared/marks'
 import * as store from '../lib/dataStore'
+import { BTN, BTN_SM, GHOST_SM, QUIET, DANGER, DANGER_SOLID, TAG, TAG_QUIET } from './shared/buttons'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
 import LocationField from './shared/LocationField'
@@ -99,7 +100,7 @@ function resizePhoto(file, max, cb) {
 }
 
 const Card = ({ title, blurb, children }) => (
-  <section className="rounded-2xl border border-stone-200 bg-white/40 p-6 md:p-7">
+  <section className="border border-stone-200 bg-white/40 p-6 md:p-7">
     <h2 className="font-serif italic text-2xl text-stone-900">{title}</h2>
     {blurb && <p className="mt-1 text-sm text-stone-500">{blurb}</p>}
     <div className="mt-5">{children}</div>
@@ -228,7 +229,8 @@ export default function Settings() {
               <button
                 key={r.id}
                 onClick={() => setRoom(r.id)}
-                className={`flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-500/5'}`}
+                aria-current={on ? 'page' : undefined}
+                className={`flex shrink-0 items-center gap-3 px-4 py-3 text-left transition-colors ${on ? 'bg-stone-900 text-cream' : 'text-stone-600 hover:bg-stone-500/5'}`}
               >
                 <Icon size={16} strokeWidth={1.75} className={on ? 'text-cream' : 'text-stone-400'} />
                 <span className="min-w-0">
@@ -250,8 +252,8 @@ export default function Settings() {
                   {p.photo ? <img src={p.photo} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-lg text-stone-300">{(p.firstName || p.name || st.email || '?').charAt(0).toUpperCase()}</span>}
                 </div>
                 <div className="flex items-center gap-3">
-                  {p.photo && <button onClick={editPhoto} className="rounded-full border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500">Edit</button>}
-                  <button onClick={() => photoRef.current && photoRef.current.click()} className="flex items-center gap-1.5 rounded-full border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"><Upload size={13} /> Upload</button>
+                  {p.photo && <button onClick={editPhoto} className={GHOST_SM}>Edit</button>}
+                  <button onClick={() => photoRef.current && photoRef.current.click()} className={GHOST_SM}><Upload size={13} /> Upload</button>
                   <input ref={photoRef} type="file" accept="image/*" onChange={onPickFile} className="hidden" />
                 </div>
               </div>
@@ -293,13 +295,13 @@ export default function Settings() {
                 <Field label="Change email">
                   <div className="flex items-center gap-2">
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="new@email.com" className={input} />
-                    <button onClick={changeEmail} className="shrink-0 rounded-full bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Update</button>
+                    <button onClick={changeEmail} className={`shrink-0 ${BTN_SM}`}>Update</button>
                   </div>
                   <p className="mt-2 text-xs italic text-stone-400">You sign in with a magic link — no password. We'll email the new address to confirm.</p>
                   {msg && <p className="mt-2 text-sm text-stone-600">{msg}</p>}
                 </Field>
               </div>
-              <button onClick={() => store.signOut()} className="mt-5 flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-700"><LogOut size={14} /> Sign out</button>
+              <button onClick={() => store.signOut()} className={`mt-5 ${QUIET}`}><LogOut size={14} /> Sign out</button>
             </Card>
           </>)}
 
@@ -312,7 +314,7 @@ export default function Settings() {
                     <button
                       key={t.id}
                       onClick={() => setTheme(t.id)}
-                      className={`overflow-hidden rounded-2xl border text-left transition-all ${on ? 'border-stone-900 shadow-md' : 'border-stone-200 hover:border-stone-400'}`}
+                      className={`overflow-hidden border text-left transition-all ${on ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'}`}
                     >
                       {/* Swatch preview — ground, hairline, ink dot */}
                       <div className="relative h-20" style={{ background: t.ground }}>
@@ -340,7 +342,7 @@ export default function Settings() {
                 {LIFE_STAGES.map((s) => {
                   const on = (lifeStage || 'cycling') === s.id
                   return (
-                    <div key={s.id} className={`rounded-2xl border transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200 hover:border-stone-400'}`}>
+                    <div key={s.id} className={`border transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200 hover:border-stone-400'}`}>
                       <button onClick={() => setLifeStage(s.id)} className="flex w-full items-start gap-4 p-4 text-left">
                         <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${on ? 'border-stone-900 bg-stone-900' : 'border-stone-300'}`}>{on && <LoggedIcon size={12} className="text-cream" />}</span>
                         <span>
@@ -420,7 +422,7 @@ export default function Settings() {
 
           {room === 'connected' && (<>
             <Card title="Intelligence." blurb="The mind behind the house.">
-              <div className={`rounded-2xl border p-5 transition-all ${connections.claude?.off ? 'border-stone-200' : 'border-stone-900 bg-white/60'}`}>
+              <div className={`border p-5 transition-all ${connections.claude?.off ? 'border-stone-200' : 'border-stone-900 bg-white/60'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-serif text-lg leading-tight text-stone-900">Claude</p>
@@ -436,7 +438,7 @@ export default function Settings() {
                 )}
               </div>
 
-              <div className={`mt-3 rounded-2xl border p-5 transition-all ${dictation ? 'border-stone-900 bg-white/60' : 'border-stone-200'}`}>
+              <div className={`mt-3 border p-5 transition-all ${dictation ? 'border-stone-900 bg-white/60' : 'border-stone-200'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-serif text-lg leading-tight text-stone-900">Dictation</p>
@@ -461,7 +463,7 @@ export default function Settings() {
                   const c = connections[d.id] || {}
                   const on = !!c.on
                   return (
-                    <div key={d.id} className={`rounded-2xl border p-4 transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200'}`}>
+                    <div key={d.id} className={`border p-4 transition-all ${on ? 'border-stone-900 bg-white/60' : 'border-stone-200'}`}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-serif text-lg leading-tight text-stone-900">{d.label}</p>
@@ -472,7 +474,7 @@ export default function Settings() {
                       {on && (
                         <div className="mt-3 border-t border-stone-100 pt-3">
                           <input value={c.note || ''} onChange={(e) => setConn(d.id, { note: e.target.value })} placeholder="What you watch for…" className="w-full bg-transparent text-xs text-stone-600 outline-none placeholder:text-stone-300" />
-                          <span className="mt-2 inline-block rounded-full bg-stone-500/5 px-2.5 py-0.5 text-[10px] tracking-[0.12em] text-stone-400">AUTO-SYNC COMING SOON</span>
+                          <span className={`mt-2 ${TAG_QUIET}`}>AUTO-SYNC COMING SOON</span>
                         </div>
                       )}
                     </div>
@@ -508,7 +510,7 @@ export default function Settings() {
                   <p className="kicker text-stone-400">Current plan</p>
                   <p className="mt-1 font-serif text-2xl text-stone-900">Personal</p>
                 </div>
-                <span className="rounded-full bg-stone-900 px-3 py-1 text-xs text-cream">Active</span>
+                <span className={TAG}>Active</span>
               </div>
               <p className="mt-4 text-sm text-stone-600">Your private planner — every section, unlimited entries, cloud-synced across your devices.</p>
             </Card>
@@ -518,16 +520,16 @@ export default function Settings() {
                 <>
                   <p className="text-sm text-stone-600">Enter your email to generate your link. Your $25 Visa card arrives here each time a friend subscribes.</p>
                   <div className="mt-4 flex items-center gap-2">
-                    <input type="email" value={refEmail} onChange={(e) => setRefEmail(e.target.value)} placeholder="your email" className="flex-1 rounded-full border border-stone-300 bg-white/50 px-4 py-2 text-sm text-stone-700 outline-none focus:border-stone-900" />
-                    <button onClick={() => { if (refEmail.trim()) { setP({ referralEmail: refEmail.trim() }); setRefReady(true) } }} className="shrink-0 rounded-full bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">Get my link</button>
+                    <input type="email" value={refEmail} onChange={(e) => setRefEmail(e.target.value)} placeholder="your email" className={`flex-1 ${input}`} />
+                    <button onClick={() => { if (refEmail.trim()) { setP({ referralEmail: refEmail.trim() }); setRefReady(true) } }} className={`shrink-0 ${BTN_SM}`}>Get my link</button>
                   </div>
                 </>
               ) : (
                 <div>
                   <p className="kicker text-stone-400 mb-2">your link — copy and send it</p>
                   <div className="flex items-center gap-2">
-                    <input readOnly value={link} className="flex-1 rounded-full border border-stone-300 bg-white/50 px-4 py-2 text-sm text-stone-700 outline-none" />
-                    <button onClick={copyLink} className="flex shrink-0 items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm text-cream hover:bg-stone-700">
+                    <input readOnly value={link} className={`flex-1 ${input}`} />
+                    <button onClick={copyLink} className={`shrink-0 ${BTN_SM}`}>
                       {copied ? <><LoggedIcon size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
                     </button>
                   </div>
@@ -539,9 +541,9 @@ export default function Settings() {
           {room === 'privacy' && (<>
             <Card title="Your data." blurb="Take it with you any time.">
               <div className="flex flex-wrap gap-2">
-                <button onClick={exportAll} className="rounded-full border border-stone-300 px-4 py-1.5 text-sm text-stone-700 hover:border-stone-500">Download everything (JSON)</button>
-                <button onClick={exportActivitiesCSV} className="rounded-full border border-stone-300 px-4 py-1.5 text-sm text-stone-700 hover:border-stone-500">Activities (CSV)</button>
-                <button onClick={exportCycleCSV} className="rounded-full border border-stone-300 px-4 py-1.5 text-sm text-stone-700 hover:border-stone-500">Cycle log (CSV)</button>
+                <button onClick={exportAll} className={GHOST_SM}>Download everything (JSON)</button>
+                <button onClick={exportActivitiesCSV} className={GHOST_SM}>Activities (CSV)</button>
+                <button onClick={exportCycleCSV} className={GHOST_SM}>Cycle log (CSV)</button>
               </div>
             </Card>
 
@@ -561,15 +563,15 @@ export default function Settings() {
 
             <Card title="Danger zone." blurb="Permanent, immediate, irreversible.">
               {!confirmDelete ? (
-                <button onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 rounded-full border border-phase-menstrual/40 px-4 py-1.5 text-sm text-phase-menstrual hover:bg-phase-menstrual/5"><Trash2 size={14} /> Delete all my data</button>
+                <button onClick={() => setConfirmDelete(true)} className={DANGER}><Trash2 size={14} /> Delete all my data</button>
               ) : (
-                <div className="rounded-xl border border-phase-menstrual/40 bg-phase-menstrual/5 p-4">
+                <div className="border border-oxblood/40 bg-oxblood/5 p-4">
                   <p className="text-sm text-stone-700">This permanently erases every section of your planner and signs you out. This can't be undone.</p>
                   <p className="mt-2 text-xs text-stone-500">Type <span className="font-semibold">DELETE</span> to confirm.</p>
                   <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" className="mt-2 w-40 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
                   <div className="mt-3 flex items-center gap-3">
-                    <button onClick={() => { setConfirmDelete(false); setConfirmText('') }} className="px-3 py-1.5 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-                    <button onClick={doDelete} disabled={confirmText.trim().toUpperCase() !== 'DELETE'} className={`rounded-full px-4 py-1.5 text-sm text-cream ${confirmText.trim().toUpperCase() === 'DELETE' ? 'bg-phase-menstrual hover:opacity-90' : 'bg-stone-300 cursor-not-allowed'}`}>Delete everything</button>
+                    <button onClick={() => { setConfirmDelete(false); setConfirmText('') }} className={QUIET}>Cancel</button>
+                    <button onClick={doDelete} disabled={confirmText.trim().toUpperCase() !== 'DELETE'} className={DANGER_SOLID}>Delete everything</button>
                   </div>
                 </div>
               )}
@@ -578,7 +580,7 @@ export default function Settings() {
 
           {room === 'contact' && (
             <Card title="Reach us." blurb="Something not working, or an idea to make your planner better? We read every message.">
-              <a href="mailto:devenishmelissa@gmail.com" className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream hover:bg-stone-700">
+              <a href="mailto:devenishmelissa@gmail.com" className={BTN}>
                 <Mail size={15} /> Email support
               </a>
               <p className="mt-3 text-xs italic text-stone-400">We usually reply within a day or two.</p>
@@ -656,14 +658,14 @@ function PhotoCropper({ src, initial, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-sm border border-stone-200 bg-cream">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
           <span className="kicker text-stone-400">Profile photo</span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
         <div className="px-6 py-6">
           <div
-            className="relative mx-auto touch-none select-none overflow-hidden rounded-md bg-stone-100"
+            className="relative mx-auto touch-none select-none overflow-hidden bg-stone-100"
             style={{ width: V, height: V, cursor: 'grab' }}
             onPointerDown={onDown}
             onPointerMove={onMove}
@@ -687,8 +689,8 @@ function PhotoCropper({ src, initial, onSave, onClose }) {
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-stone-200 px-6 py-4">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-          <button onClick={save} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Save</button>
+          <button onClick={onClose} className={QUIET}>Cancel</button>
+          <button onClick={save} className={BTN_SM}>Save</button>
         </div>
       </div>
     </div>
