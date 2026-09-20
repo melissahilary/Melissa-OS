@@ -103,6 +103,44 @@ export function phaseForConfig(cfg, date) {
   return phaseFor(date, cfg && cfg.lastPeriodStart, cfg && cfg.cycleLength)
 }
 
+
+// ── What a phase is for.
+//
+// The app has known the phase since the beginning and has only ever used it to
+// tint a calendar. Knowing you are on day twenty is not worth anything on its
+// own; knowing that day twenty is a day to finish rather than start, to lift
+// rather than sprint, and to guard your sleep, is the whole reason to track it.
+//
+// Counsel, not diagnosis. Each line is something she can act on before lunch,
+// and none of it claims to be medicine.
+export const PHASE_GUIDE = {
+  menstrual: {
+    energy: 'Lowest',
+    train: 'Walking, stretching, rest',
+    eat: 'Iron, red meat, warmth',
+    note: 'Take things off the week rather than adding to it. This is the one where saying no costs you nothing.',
+  },
+  follicular: {
+    energy: 'Rising',
+    train: 'Build — new skills, heavier lifts',
+    eat: 'Fresh, light, fermented',
+    note: 'Start things here. Ideas land and stick, and the week has room to carry them.',
+  },
+  ovulation: {
+    energy: 'Peak',
+    train: 'The hardest session of the month',
+    eat: 'Fibre, cruciferous, colour',
+    note: 'Put the difficult conversation and the big ask here. You will never be more persuasive.',
+  },
+  luteal: {
+    energy: 'Winding down',
+    train: 'Steady strength over intervals',
+    eat: 'Protein, magnesium, slow carbohydrate',
+    note: 'Finish rather than start, and protect your sleep before anything else on the list.',
+  },
+}
+export const guideFor = (phase) => (phase && PHASE_GUIDE[phase.id]) || null
+
 // ── Frequency codes ──────────────────────────────────────────────
 export const FREQ_OPTIONS = [
   { value: 'once', label: 'Once', code: '1x' },

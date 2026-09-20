@@ -3,10 +3,10 @@ import { Trash2, ChevronDown, Pause, BookOpen, ShoppingBag } from 'lucide-react'
 import { CloseIcon, NextIcon } from './shared/marks'
 import { BTN, BTN_SM, GHOST, GHOST_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/buttons'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { phaseForConfig, PHASES } from '../lib/cycle'
+import { phaseForConfig, PHASES, guideFor } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
 import {
-  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
+  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW, DOW_LONG,
 } from '../lib/date'
 import { fmtSpan } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
@@ -725,7 +725,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     const seen = new Set()
     return dayRituals(k)
       .filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)))
-      .map((a) => ({ id: a.id, title: a.title, done: a.done }))
+      .map((a) => ({ id: a.id, title: a.title, done: a.done, part: a.part, time: a.time }))
   }
 
   // NOURISHMENT — meal items + supplements for a day, shaped for the slots.
@@ -889,6 +889,90 @@ const PHASE_AGENDA_HINT = {
   menstrual: 'Keep it light today.',
 }
 
+// ── The day, as a masthead ──────────────────────────────────────────
+//
+// What stood here was the date, centred, in one size — a caption on an empty
+// page. Everything under it said "Nothing yet." three times over, so on any day
+// she had not yet filled in, the whole screen said nothing at all.
+//
+// A page has to be worth opening before it is worth writing on. This one now
+// answers three questions without her touching it: what day is it, where is she
+// in the cycle, and what shape is the day in. The first is set the way a date
+// is set in print — one enormous numeral against mono capitals, which is the
+// scale contrast the guidelines ask for and the app had nowhere else.
+//
+// The second is the part no other planner does. The app has known the phase
+// since the beginning and spent it on a tint; here it is spent on counsel —
+// what today's energy is, what to train, what to eat, and one line she can act
+// on before lunch.
+function Reading({ label, children }) {
+  return (
+    <div>
+      <p className="kicker mb-1 text-stone-500">{label}</p>
+      <p className="text-sm leading-snug text-stone-900">{children}</p>
+    </div>
+  )
+}
+
+function DayMasthead({ selected, selectedKey, cycleConfig, rituals = [], meals = [] }) {
+  // The same flag the rest of the page reads. A life stage with no cycle in it
+  // must not be handed cycle counsel.
+  const { flags } = useLifeStage()
+  const phase = flags.phases ? phaseForConfig(cycleConfig, selected) : null
+  const guide = guideFor(phase)
+  const tint = phase ? (PHASES[phase.id] || {}).color : null
+
+  const parts = { morning: 0, afternoon: 0, evening: 0 }
+  rituals.forEach((r) => { if (parts[r.part] != null) parts[r.part] += 1 })
+  const total = rituals.length + meals.length
+  const done = rituals.filter((r) => r.done).length + meals.filter((m) => m.done).length
+
+  return (
+    <header className="mb-8 border-t border-stone-900 pt-6">
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        {/* The date, set the way print sets a date. */}
+        <div>
+          <p className="kicker text-stone-500">{DOW_LONG[selected.getDay()]}</p>
+          <div className="mt-1 flex items-end gap-5">
+            <span className="font-serif tabular-nums text-[5rem] leading-[0.78] text-stone-900 sm:text-[6rem]">
+              {selected.getDate()}
+            </span>
+            <span className="pb-2 font-serif text-2xl leading-none text-stone-900">
+              {MONTHS[selected.getMonth()]}
+              <span className="block text-sm tracking-[0.1em] text-stone-500">{selected.getFullYear()}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Where she is in the cycle, and what that is for. */}
+        {phase && guide && (
+          <div className="border-t border-stone-200 pt-4 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+            <div className="flex items-baseline gap-2.5">
+              {tint && <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: tint }} />}
+              <p className="kicker text-stone-900">{phase.name}</p>
+              {phase.cycleDay != null && <p className="kicker text-stone-500">Day {phase.cycleDay}</p>}
+            </div>
+            <p className="mt-2 max-w-sm text-sm leading-snug text-stone-700">{guide.note}</p>
+            <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-2">
+              <Reading label="Energy">{guide.energy}</Reading>
+              <Reading label="Train">{guide.train}</Reading>
+              <Reading label="Eat">{guide.eat}</Reading>
+            </dl>
+          </div>
+        )}
+      </div>
+
+      {/* The shape of the day, before she scrolls into it. */}
+      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-stone-200 pt-4 sm:grid-cols-4">
+        <Reading label="Morning">{parts.morning || '—'}</Reading>
+        <Reading label="Daytime">{parts.afternoon || '—'}</Reading>
+        <Reading label="Evening">{parts.evening || '—'}</Reading>
+        <Reading label="Done">{total ? `${done} of ${total}` : '—'}</Reading>
+      </dl>
+    </header>
+  )
+}
+
 // ── Calendar ───────────────────────────────────────────────────────
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
@@ -916,8 +1000,14 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
       />
 
       {/* Selected day — expands into everything planned that day */}
-      <div className="mt-10 border-t border-stone-200 pt-6">
-        <h3 className="mb-6 text-center font-serif text-2xl text-stone-900">{longDate(selected)}</h3>
+      <div className="mt-10">
+        <DayMasthead
+          selected={selected}
+          selectedKey={selectedKey}
+          cycleConfig={cycleConfig}
+          rituals={ritualsFor(selectedKey)}
+          meals={mealsFor(selectedKey)}
+        />
         <DayColumns
           rituals={ritualsFor(selectedKey)}
           dateKeyStr={selectedKey}
