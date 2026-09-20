@@ -5,7 +5,7 @@ import ConciergeMark from './shared/ConciergeMark'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 
-// ── Ask your planner.
+// ── Ask.
 //
 // Named after the action, because there is no actor. She is not talking to
 // something; she is searching her own record in plain language and getting it
@@ -74,7 +74,7 @@ export default function AskConcierge({ open, onClose }) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Ask your planner">
+    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Ask">
       <div className={`absolute inset-0 bg-stone-900/45 backdrop-blur-[3px] transition-opacity duration-300 ${mounted ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
 
       <aside className={`absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-stone-200 bg-cream transition-transform duration-300 ease-out ${mounted ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -83,7 +83,7 @@ export default function AskConcierge({ open, onClose }) {
             the same sentence used to appear again at the foot of the panel. */}
         <div className="flex items-center gap-3 border-b border-stone-200 px-6 py-4 sm:px-8">
           <ConciergeMark size={22} className="shrink-0 text-stone-800" />
-          <span className="text-[10px] tracking-[0.18em] text-stone-900">ASK YOUR PLANNER</span>
+          <span className="text-[10px] tracking-[0.18em] text-stone-900">ASK</span>
           <button onClick={onClose} aria-label="Close" className="ml-auto shrink-0 text-stone-400 transition-colors hover:text-stone-900"><CloseIcon size={20} /></button>
         </div>
 
@@ -92,16 +92,17 @@ export default function AskConcierge({ open, onClose }) {
             nothing above it and three hundred below. */}
         <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-6 py-6 sm:px-8">
           {thread.length === 0 ? (
-            /* The starting view. The mark stands behind it at the weight the
-               book gives every other size — a hairline — so it reads as a
-               watermark pressed into the paper rather than a picture hung on
-               it. Both it and the greeting go the moment she asks anything;
-               a transcript is not a place for a name. */
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <ConciergeMark size={340} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-stone-900 opacity-[0.14] sm:hidden" />
-              <ConciergeMark size={460} className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-stone-900 opacity-[0.14] sm:block" />
-              <p className="relative font-serif text-[26px] leading-tight text-stone-900">{partOfDay}{first ? `, ${first}` : ''}.</p>
-              <p className="relative mt-2 max-w-[26em] text-sm text-stone-500">Answers come only from what you have written down.</p>
+            /* The starting view. The mark was a watermark behind the words —
+               absolutely placed inside a parent that was never positioned, so
+               it anchored to the scroll pane instead and came to rest directly
+               on top of the greeting, a grey ring through the middle of Good
+               morning. It stands above the words now, at its own size, and the
+               three read as one stack. Both go the moment she asks anything; a
+               transcript is not a place for a name. */
+            <div className="flex h-full flex-col items-center justify-center px-2 text-center">
+              <ConciergeMark size={64} className="shrink-0 text-stone-300" />
+              <p className="mt-7 font-serif text-[28px] leading-tight text-stone-900">{partOfDay}{first ? `, ${first}` : ''}.</p>
+              <p className="mt-2 max-w-[26em] text-sm leading-snug text-stone-500">Answers come only from what you have written down.</p>
             </div>
           ) : (
             <div>
@@ -152,6 +153,11 @@ export default function AskConcierge({ open, onClose }) {
             primary action: squared by the rule above, set in mono, and filled
             with the one cobalt. It pales to ivory by itself when there is
             nothing to send. */}
+        {/* One focus indicator, not two. The bar shows focus by going to ink,
+            and the house gives every focused field a cobalt ring besides — so a
+            focused input inside a focused bar drew a cobalt rectangle nested
+            inside a black one, which is what made this read as broken. The bar
+            keeps the job; the input's own ring stands down. */}
         <div className="border-t border-stone-200 bg-cream px-6 pb-6 pt-4 sm:px-8">
           <div className="flex items-center gap-2 border border-stone-300 bg-white py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-900">
             <input
@@ -159,8 +165,8 @@ export default function AskConcierge({ open, onClose }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') ask(q) }}
-              placeholder="Ask your planner"
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-stone-900 outline-none placeholder:text-stone-400"
+              placeholder="Ask a question"
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-stone-900 outline-none focus-visible:outline-none placeholder:text-stone-400"
             />
             <button
               onClick={() => ask(q)}

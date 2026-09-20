@@ -367,7 +367,7 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
             thing without spelling it, and sits opposite the index as its peer
             rather than as a badge. */}
         {onAsk && (
-          <button onClick={onAsk} aria-label="Ask your planner" title="Ask your planner" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
+          <button onClick={onAsk} aria-label="Ask" title="Ask" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
             <ConciergeMark size={26} />
           </button>
         )}
