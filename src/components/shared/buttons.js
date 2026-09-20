@@ -39,3 +39,15 @@ export const DANGER_SOLID = 'inline-flex items-center gap-2 rounded-full bg-oxbl
 // it must not borrow the pill's class and pretend to be a button.
 export const TAG = 'inline-block bg-stone-900 px-2.5 py-1 text-[10px] tracking-[0.14em] text-cream'
 export const TAG_QUIET = 'inline-block bg-stone-500/5 px-2.5 py-1 text-[10px] tracking-[0.14em] text-stone-500'
+
+// A field. The house writes on a ruled line, not in a box — a bordered input
+// is a second rectangle competing with the card it sits in, and the stylesheet
+// squares it anyway, so a pill-shaped field only ever looked like a mistake.
+export const FIELD = 'w-full bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none transition-colors focus:border-stone-900 placeholder:text-stone-400'
+
+// A chip is a state, not an action: it says which way a list is filtered. It is
+// small, it is ruled, and when it is on it fills — which the stylesheet then
+// paints cobalt, so only one set of these belongs on a screen.
+export const CHIP = 'rounded-full border px-3.5 py-1 text-xs transition-colors'
+export const CHIP_ON = 'border-stone-900 bg-stone-900 text-cream'
+export const CHIP_OFF = 'border-stone-200 text-stone-500 hover:border-stone-900'

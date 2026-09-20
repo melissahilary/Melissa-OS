@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Trash2, ChevronDown, Pause, BookOpen, ShoppingBag } from 'lucide-react'
 import { CloseIcon, NextIcon } from './shared/marks'
+import { BTN, BTN_SM, GHOST, GHOST_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/buttons'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig, PHASES } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
@@ -376,7 +377,7 @@ function DatePopup({ value, today, cycleConfig, onPick, onClose }) {
   const cells = monthGrid(month)
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-xs bg-cream border border-stone-200">
         <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
           <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="px-2 text-base text-stone-500 hover:text-stone-900">‹</button>
           <span className="font-serif text-base text-stone-900">{MONTHS[month.getMonth()]} {month.getFullYear()}</span>
@@ -445,7 +446,7 @@ function WeatherPopup({ w, onClose }) {
   ]
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-xs bg-cream border border-stone-200">
         <div className="flex justify-end px-4 pt-3">
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
@@ -519,7 +520,7 @@ function CyclePopup({ cycleConfig, today, onEdit, onClose }) {
   const rows = useMemo(() => buildCycleRows(cycleStats({ cycleConfig, logs, today })), [cycleConfig, logs, today])
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-12 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-sm bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-sm bg-cream border border-stone-200">
         <div className="flex justify-end px-4 pt-3">
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
@@ -534,7 +535,7 @@ function CyclePopup({ cycleConfig, today, onEdit, onClose }) {
             ))}
           </div>
           {onEdit && (
-            <button onClick={() => { onEdit(); onClose() }} className="mt-5 w-full bg-stone-900 px-4 py-2.5 text-sm text-cream hover:bg-stone-700">Edit my cycle</button>
+            <button onClick={() => { onEdit(); onClose() }} className={`mt-5 w-full justify-center ${BTN}`}>Edit my cycle</button>
           )}
         </div>
       </div>
@@ -546,7 +547,7 @@ function CyclePopup({ cycleConfig, today, onEdit, onClose }) {
 function UvPopup({ uv, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-xs bg-cream border border-stone-200">
         <div className="flex justify-end px-4 pt-3">
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
@@ -614,7 +615,7 @@ function MoonPopup({ info, onClose }) {
   }
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-xs bg-cream border border-stone-200">
         <div className="flex justify-end px-4 pt-3">
           <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
         </div>
@@ -1096,7 +1097,7 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
 }
 
 // Soft framed card used for each slide.
-const DAY_CARD = 'rounded-2xl border border-stone-200/80 bg-white/50 p-6 shadow-sm md:p-8'
+const DAY_CARD = 'border border-stone-200/80 bg-white/50 p-6 md:p-8'
 
 // Nourishment rides a carousel (Empty Stomach · Breakfast · Lunch · Dinner ·
 // Before Bed); the three to-do time blocks stack beneath it as a quiet vertical
@@ -1322,12 +1323,12 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
   }
 
   const Pill = ({ onClick, active, children }) => (
-    <button onClick={onClick} className={`rounded-full border px-4 py-2 text-sm transition-colors ${active ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:bg-stone-900 hover:text-cream'}`}>{children}</button>
+    <button onClick={onClick} className={`${CHIP} ${active ? CHIP_ON : CHIP_OFF}`}>{children}</button>
   )
 
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xs overflow-hidden rounded-2xl border border-stone-200 bg-cream shadow-2xl">
+      <div className="w-full max-w-xs overflow-hidden border border-stone-200 bg-cream">
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
           <span className="kicker text-stone-400">
             {!type ? 'Add' : type.label}{type && where ? ` · ${where.label}` : ''}
@@ -1346,14 +1347,14 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
             /* Appointment — name + an optional time, on the day you're viewing. */
             <div>
               <p className="kicker mb-2 text-stone-400">Appointment</p>
-              <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder="What is it?" className="mb-3 w-full rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm outline-none placeholder-stone-300 focus:border-stone-400" />
+              <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder="What is it?" className={`mb-3 ${FIELD}`} />
               <div className="flex items-center gap-2">
-                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm text-stone-600 outline-none focus:border-stone-400" />
+                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={FIELD} />
                 {!!time && <>
                   <span className="text-sm text-stone-400">to</span>
-                  <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm text-stone-600 outline-none focus:border-stone-400" />
+                  <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={FIELD} />
                 </>}
-                <button onClick={commit} className="ml-auto shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream hover:bg-stone-700">Add</button>
+                <button onClick={commit} className={`ml-auto shrink-0 ${BTN_SM}`}>Add</button>
               </div>
               <button onClick={() => { setType(null); setVal(''); setTime(''); setEndTime('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
             </div>
@@ -1372,8 +1373,8 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
             /* Step 3 — name it. */
             <div>
               <div className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-4 pr-1.5 focus-within:border-stone-400">
-                <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder={`Add ${type.label.toLowerCase()}…`} className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300" />
-                <button onClick={commit} className="shrink-0 rounded-full bg-stone-900 px-4 py-1.5 text-sm text-cream hover:bg-stone-700">Add</button>
+                <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} placeholder={`Add ${type.label.toLowerCase()}…`} className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-400" />
+                <button onClick={commit} className={`shrink-0 ${BTN_SM}`}>Add</button>
               </div>
               <button onClick={() => { setWhere(null); setVal('') }} className="mt-3 text-xs text-stone-400 hover:text-stone-700">‹ Back</button>
             </div>
@@ -1417,15 +1418,15 @@ function TodayNotes() {
     <section className="mb-14">
       <h2 className="mb-4 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>Today's Notes.</h2>
 
-      <div className="mx-auto mb-8 flex w-full max-w-xl items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400 xl:max-w-none">
+      <div className="mx-auto mb-8 flex w-full max-w-xl items-center gap-3 border-b border-stone-200 pb-1.5 transition-colors focus-within:border-stone-900 xl:max-w-none">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Write a note…"
-          className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300"
+          className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-400"
         />
-        <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-colors hover:bg-stone-700">Add</button>
+        <button onClick={add} className={`shrink-0 ${GHOST_SM}`}>Add</button>
       </div>
 
       {todaysNotes.length > 0 && (
@@ -1438,7 +1439,7 @@ function TodayNotes() {
 
       {/* One clean button into the whole notebook — search and filter live inside. */}
       <div className={`flex justify-center ${todaysNotes.length > 0 ? 'mt-8' : 'mt-4'}`}>
-        <button onClick={() => setBrowsing(true)} className="flex items-center gap-2 rounded-full border border-stone-300 px-6 py-2.5 text-sm text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+        <button onClick={() => setBrowsing(true)} className={GHOST}>
           <BookOpen size={15} strokeWidth={1.75} />
           Notebook
         </button>
@@ -1498,15 +1499,15 @@ function ShoppingList() {
       <h2 className="mb-6 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>Shopping List.</h2>
 
       <div className="mx-auto w-full max-w-xl xl:max-w-none">
-        <div className="mb-6 flex items-center gap-1.5 rounded-full border border-stone-200 bg-cream py-1.5 pl-5 pr-1.5 transition-colors focus-within:border-stone-400">
+        <div className="mb-6 flex items-center gap-3 border-b border-stone-200 pb-1.5 transition-colors focus-within:border-stone-900">
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && add()}
             placeholder="Something to buy…"
-            className="flex-1 bg-transparent py-1.5 text-sm outline-none placeholder-stone-300"
+            className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-400"
           />
-          <button onClick={add} className="shrink-0 rounded-full bg-stone-900 px-5 py-2 text-sm text-cream transition-colors hover:bg-stone-700">Add</button>
+          <button onClick={add} className={`shrink-0 ${GHOST_SM}`}>Add</button>
         </div>
 
         {carried > 0 && (
@@ -1514,7 +1515,7 @@ function ShoppingList() {
         )}
 
         {ordered.length > 0 ? (
-          <div className="divide-y divide-stone-200/70 overflow-hidden rounded-2xl border border-stone-200 bg-cream/50">
+          <div className="divide-y divide-stone-200/70 overflow-hidden border border-stone-200 bg-cream/50">
             {ordered.map((it) => (
               <div key={it.id} className="group flex items-center gap-3 px-5 py-3">
                 <Checkbox checked={it.bought} onClick={() => toggle(it.id)} />
@@ -1529,7 +1530,7 @@ function ShoppingList() {
 
         {boughtEver.length > 0 && (
           <div className="mt-6 flex justify-center">
-            <button onClick={() => setBrowsing(true)} className="flex items-center gap-2 rounded-full border border-stone-300 px-6 py-2.5 text-sm text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-cream">
+            <button onClick={() => setBrowsing(true)} className={GHOST}>
               <ShoppingBag size={15} strokeWidth={1.75} />
               Basket
             </button>
@@ -1561,7 +1562,7 @@ function ShoppingArchive({ items, onAddAgain, onClose }) {
   const dates = Object.keys(byDate).sort((a, b) => (a < b ? 1 : -1))
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-lg bg-cream border border-stone-200">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="font-serif italic text-2xl text-stone-900">Basket</span>
           <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
@@ -1603,7 +1604,7 @@ function NoteCard({ note, onOpen }) {
   return (
     <button
       onClick={onOpen}
-      className="flex flex-col items-start rounded-2xl border border-stone-200 bg-cream/50 p-5 text-left transition-shadow hover:shadow-sm"
+      className="flex flex-col items-start border border-stone-200 bg-cream/50 p-5 text-left transition-colors hover:border-stone-900"
     >
       <h3 className="font-serif text-xl text-stone-900">{note.title || 'Untitled'}</h3>
       {firstLine ? (
@@ -1632,7 +1633,7 @@ function NotesArchive({ notes, onOpen, onClose }) {
   const dates = Object.keys(byDate).sort((a, b) => (a < b ? 1 : -1))
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-lg bg-cream border border-stone-200">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
           <span className="font-serif italic text-2xl text-stone-900">All notes</span>
           <button onClick={onClose} aria-label="Close" className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
@@ -1693,7 +1694,7 @@ function NoteDetail({ note, onChange, onDelete, onClose }) {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-xl bg-cream rounded-2xl border border-stone-200 shadow-2xl">
+      <div className="w-full max-w-xl bg-cream border border-stone-200">
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
           <input
             value={note.title}
@@ -1724,7 +1725,7 @@ function NoteDetail({ note, onChange, onDelete, onClose }) {
           <button onClick={onDelete} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-phase-menstrual">
             <Trash2 size={15} /> Delete
           </button>
-          <button onClick={onClose} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Done</button>
+          <button onClick={onClose} className={BTN_SM}>Done</button>
         </div>
       </div>
     </div>

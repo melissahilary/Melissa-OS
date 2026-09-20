@@ -63,10 +63,10 @@ export default function MonthGrid({ month, setMonth, selectedKey, onPickDay, tod
               onClick={() => inMonth && onPickDay(key)}
               role="button"
               tabIndex={inMonth ? 0 : -1}
-              className={`relative min-h-[74px] overflow-hidden border-b border-r border-stone-200 px-1.5 pb-2.5 pt-1.5 text-left transition-shadow ${inMonth ? 'cursor-pointer hover:shadow-[inset_0_0_0_1px_rgba(120,113,108,0.25)]' : 'text-stone-300'} ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
+              className={`relative min-h-[74px] overflow-hidden border-b border-r border-stone-200 px-1.5 pb-2.5 pt-1.5 text-left transition-colors ${inMonth ? 'cursor-pointer hover:bg-stone-500/5' : 'text-stone-300'} ${isSel ? 'ring-1 ring-inset ring-stone-900' : ''}`}
             >
               <div className="flex items-start justify-between">
-                <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'rounded-full bg-stone-900 text-cream' : inMonth ? 'text-stone-700' : 'text-stone-300'}`}>
+                <span className={`inline-flex h-6 w-6 items-center justify-center text-xs ${isTod ? 'rounded-full bg-cobalt text-cream' : inMonth ? 'text-stone-700' : 'text-stone-300'}`}>
                   {cell.getDate()}
                 </span>
                 {sig.special && <span title="Appointment or special day" className="mt-0.5 text-[12px] leading-none text-stone-500">✦</span>}
