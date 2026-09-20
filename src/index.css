@@ -2,34 +2,193 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-}
+/* ── The wardrobe.
+ *
+ * It used to offer three weights of the same ivory — chalk, ivory, parchment —
+ * which is a swatch book, not a choice. Three papers you cannot tell apart in a
+ * side-by-side, let alone a week apart.
+ *
+ * So the papers are now the four rooms of the app, and picking one turns the
+ * whole house over rather than tinting the background of it: the ground, the
+ * hairlines, the label ink and the body copy all move together, because the
+ * ivory-to-ink ramp is read semantically everywhere — light end for surfaces,
+ * dark end for type. Invert the ramp and every pairing in the app inverts with
+ * it, still legible, with no per-component dark mode anywhere.
+ *
+ * What does not move: the one blue, the phase colours, oxblood. A theme may
+ * change what the house is printed on. It may not spend a colour that already
+ * has a job.
+ *
+ * Each value is written as channels, which is the only form that lets a utility
+ * carry an opacity, and the few that are read straight by a CSS rule are
+ * mirrored as hexes. Values must match THEMES in src/components/Settings.jsx.
+ * ── */
 
-/* ── Ground. The four themes are hers and are left exactly as she chose them;
-   the ivory-to-ink ramp above them belongs to the brand and does not shift.
-   Écru is canonical — it is the ground everything else is drawn against.
-
-   Each ground is written twice: once as a hex, for anything that reads the
-   variable directly, and once as channels, which is the only form that lets a
-   utility carry an opacity. ── */
+/* TODAY — the morning paper. Ivory ground, ink type, cobalt. The house
+   default, and the one every other theme is a departure from. */
 :root,
-:root[data-mos-theme='ivory'] {
-  /* ivory 050 — the house ground, and the value the `cream` token has always
-     documented as its own fallback. Every theme block used to override it to
-     something else, so `bg-cream` has never actually been the house ivory. */
+:root[data-mos-theme='today'] {
+  color-scheme: light;
   --mos-cream: #F7F4ED;
   --mos-cream-rgb: 247 244 237;
+  --mos-white: 255 255 255;
+  --mos-s50: 247 244 237;
+  --mos-s100: 239 234 224;
+  --mos-s200: 226 218 203;
+  --mos-s300: 206 195 175;
+  --mos-s400: 180 166 141;
+  --mos-s500: 150 134 108;
+  --mos-s600: 110 69 38;
+  --mos-s700: 62 37 19;
+  --mos-s800: 32 29 25;
+  --mos-s900: 22 19 15;
+  --mos-accent: #1D2FC4;
+  --mos-accent-rgb: 29 47 196;
+  --mos-accent-ink: #F7F4ED;
+  --mos-ink: #16130F;
+  --mos-kicker: #6E4526;
+  --mos-disabled-bg: #E2DACB;
+  --mos-disabled-ink: #96866C;
+  /* The legibility floor, and its opposite on a reversed tile. See the block
+     at the foot of this file. */
+  --mos-t300: #7A6C53;
+  --mos-t400: #6E6250;
+  --mos-t500: #5F5442;
+  --mos-tph: #8A7B61;
+  --mos-r300: #B4A68D;
+  --mos-r400: #CEC3AF;
+  --mos-rph: #96866C;
+  /* The mood scale. It is a data scale, so it cannot simply ride the ramp —
+     on the dark papers its ink end has to become the ivory end or the days
+     most worth seeing are the ones that cannot be seen. */
+  --mos-band-up: 22 19 15;
+  --mos-band-up-ink: #F7F4ED;
+  --mos-band-even: 180 166 141;
+  --mos-band-even-ink: #16130F;
+  --mos-band-down: 138 90 50;
+  --mos-band-down-ink: #FAF6ED;
 }
-:root[data-mos-theme='chalk'] {
-  /* The same ivory, one weight lighter than the ramp starts. */
-  --mos-cream: #FCFAF4;
-  --mos-cream-rgb: 252 250 244;
+
+/* BECOMING — night. The ramp turned end for end: a warm near-black ground and
+   ivory type, with walnut kept at the middle of the ramp so the page stays
+   warm rather than going to grey. The accent lifts to cobalt 300, because
+   cobalt 500 on this ground is a shape you can see and not read — and 300 is
+   not light enough to carry dark type at the floor either, so it goes to 200. */
+:root[data-mos-theme='becoming'] {
+  color-scheme: dark;
+  --mos-cream: #16130F;
+  --mos-cream-rgb: 22 19 15;
+  --mos-white: 28 25 22;
+  --mos-s50: 28 25 22;
+  --mos-s100: 35 32 25;
+  --mos-s200: 52 48 42;
+  --mos-s300: 74 68 60;
+  --mos-s400: 110 102 91;
+  --mos-s500: 156 146 132;
+  --mos-s600: 200 148 104;
+  --mos-s700: 216 195 168;
+  --mos-s800: 233 227 214;
+  --mos-s900: 244 240 230;
+  --mos-accent: #7D88F0;
+  --mos-accent-rgb: 125 136 240;
+  --mos-accent-ink: #0D0B09;
+  --mos-ink: #F4F0E6;
+  --mos-kicker: #C89468;
+  --mos-disabled-bg: #34302A;
+  --mos-disabled-ink: #9C9284;
+  --mos-t300: #9C9284;
+  --mos-t400: #B3A897;
+  --mos-t500: #C6BCAA;
+  --mos-tph: #8E8477;
+  --mos-r300: #4A443C;
+  --mos-r400: #34302A;
+  --mos-rph: #6E665B;
+  --mos-band-up: 244 240 230;
+  --mos-band-up-ink: #16130F;
+  --mos-band-even: 180 166 141;
+  --mos-band-even-ink: #16130F;
+  --mos-band-down: 200 148 104;
+  --mos-band-down-ink: #16130F;
 }
-:root[data-mos-theme='parchment'] {
-  /* ivory 100 — one weight deeper, straight off the ramp. */
-  --mos-cream: #EFEAE0;
-  --mos-cream-rgb: 239 234 224;
+
+/* THE PILLARS — walnut. The same inversion as Becoming, but printed on wood
+   instead of ink: a deep walnut ground, warm ivory type, the whole ramp held
+   in the brown family. */
+:root[data-mos-theme='pillars'] {
+  color-scheme: dark;
+  --mos-cream: #2C1B10;
+  --mos-cream-rgb: 44 27 16;
+  --mos-white: 53 35 18;
+  --mos-s50: 53 35 18;
+  --mos-s100: 62 42 22;
+  --mos-s200: 79 56 35;
+  --mos-s300: 106 78 51;
+  --mos-s400: 138 106 71;
+  --mos-s500: 173 140 99;
+  --mos-s600: 200 148 104;
+  --mos-s700: 220 194 155;
+  --mos-s800: 237 227 210;
+  --mos-s900: 247 241 228;
+  --mos-accent: #7D88F0;
+  --mos-accent-rgb: 125 136 240;
+  --mos-accent-ink: #16130F;
+  --mos-ink: #F7F1E4;
+  --mos-kicker: #DCC29B;
+  --mos-disabled-bg: #4F3823;
+  --mos-disabled-ink: #AD8C63;
+  --mos-t300: #AD8C63;
+  --mos-t400: #C2A47E;
+  --mos-t500: #D3BC9A;
+  --mos-tph: #9C7F5C;
+  --mos-r300: #6A4E33;
+  --mos-r400: #4F3823;
+  --mos-rph: #8A6A47;
+  --mos-band-up: 247 241 228;
+  --mos-band-up-ink: #2C1B10;
+  --mos-band-even: 200 148 104;
+  --mos-band-even-ink: #2C1B10;
+  --mos-band-down: 169 114 74;
+  --mos-band-down-ink: #F7F1E4;
+}
+
+/* WISHLIST — the gallery. Paper white rather than ivory, and the type walnut
+   rather than ink, so it reads warm and printed instead of screen-black. The
+   one theme that is lighter than the house, and it is still nothing like it. */
+:root[data-mos-theme='wishlist'] {
+  color-scheme: light;
+  --mos-cream: #FFFFFF;
+  --mos-cream-rgb: 255 255 255;
+  --mos-white: 253 252 249;
+  --mos-s50: 253 252 249;
+  --mos-s100: 246 242 234;
+  --mos-s200: 230 223 210;
+  --mos-s300: 210 199 180;
+  --mos-s400: 180 156 126;
+  --mos-s500: 138 113 84;
+  --mos-s600: 110 69 38;
+  --mos-s700: 85 52 27;
+  --mos-s800: 62 37 19;
+  --mos-s900: 42 26 16;
+  --mos-accent: #1D2FC4;
+  --mos-accent-rgb: 29 47 196;
+  --mos-accent-ink: #FFFFFF;
+  --mos-ink: #2A1A10;
+  --mos-kicker: #6E4526;
+  --mos-disabled-bg: #E6DFD2;
+  --mos-disabled-ink: #8A7154;
+  --mos-t300: #8A7053;
+  --mos-t400: #7A6247;
+  --mos-t500: #675340;
+  --mos-tph: #A08A6D;
+  --mos-r300: #B49C7E;
+  --mos-r400: #D2C7B4;
+  --mos-rph: #8A7154;
+  --mos-band-up: 42 26 16;
+  --mos-band-up-ink: #FFFFFF;
+  --mos-band-even: 180 156 126;
+  --mos-band-even-ink: #2A1A10;
+  --mos-band-down: 138 90 50;
+  --mos-band-down-ink: #FFFFFF;
 }
 
 html,
@@ -44,7 +203,7 @@ body {
      the ground and overrode the one above it, so the wardrobe has never once
      changed the paper the app is printed on. */
   background-color: var(--mos-cream, #F7F4ED);
-  color: #16130F;
+  color: var(--mos-ink, #16130F);
   font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
   line-height: 1.7;
@@ -63,7 +222,7 @@ body {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  color: #96866C;
+  color: var(--mos-t300, #7E7057);
 }
 
 /* Small caps anywhere in the app are mono — a label, a date, a dose, a phase,
@@ -83,14 +242,14 @@ button {
 /* Thin, quiet scrollbars to keep the editorial feel */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #CEC3AF transparent;
+  scrollbar-color: rgb(var(--mos-s300, 206 195 175)) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #CEC3AF;
+  background-color: rgb(var(--mos-s300, 206 195 175));
   border-radius: 9999px;
 }
 *::-webkit-scrollbar-track {
@@ -118,7 +277,7 @@ button {
    else rather than the pill the global rule gives it. */
 .mos-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #B4A68D #EFEAE0;
+  scrollbar-color: rgb(var(--mos-s400, 180 166 141)) rgb(var(--mos-s100, 239 234 224));
   /* Reserve the gutter. Without it the browser is free to float an overlay bar
      that appears only while she is already scrolling — which is no use to
      someone deciding whether there is more below. */
@@ -128,10 +287,10 @@ button {
   width: 9px;
 }
 .mos-scroll::-webkit-scrollbar-track {
-  background: #EFEAE0;
+  background: rgb(var(--mos-s100, 239 234 224));
 }
 .mos-scroll::-webkit-scrollbar-thumb {
-  background-color: #B4A68D;
+  background-color: rgb(var(--mos-s400, 180 166 141));
   border-radius: 0;
 }
 
@@ -169,7 +328,7 @@ button {
 
 input::placeholder,
 textarea::placeholder {
-  color: #a8a29e;
+  color: var(--mos-tph, #8A7B61);
 }
 
 /* Remove number spinners for the quiet numeric fields */
@@ -375,40 +534,46 @@ button.rounded-full:not(.font-serif) {
    they set nearly every label, date, count and caption in the house. These
    three rules lift the type and nothing else, so a border-stone-300 is still a
    hairline and a bg-stone-200 is still a tile. Same family, same restraint,
-   several steps further down the ladder. */
+   several steps further down the ladder.
+
+   These used to be four hard-coded browns, which was correct for exactly one
+   theme. On a walnut or a near-black ground the lift has to run the other way
+   or it buries the type it was written to rescue — so each paper carries its
+   own floor, and the rules below only spend it. */
 .text-stone-200,
-.text-stone-300 { color: #7E7057; }  /* 4.5:1 — faint marks */
-.text-stone-400 { color: #6E6250; }  /* 5.5:1 — secondary text */
-.text-stone-500 { color: #5F5442; }  /* 6.9:1 — labels and kickers */
-.kicker { color: #7E7057; }
+.text-stone-300 { color: var(--mos-t300, #7E7057); }  /* faint marks */
+.text-stone-400 { color: var(--mos-t400, #6E6250); }  /* secondary text */
+.text-stone-500 { color: var(--mos-t500, #5F5442); }  /* labels and kickers */
+.kicker { color: var(--mos-t300, #7E7057); }
 
 input::placeholder,
 textarea::placeholder,
 .placeholder-stone-200::placeholder,
 .placeholder-stone-300::placeholder,
-.placeholder-stone-400::placeholder { color: #8A7B61; }
+.placeholder-stone-400::placeholder { color: var(--mos-tph, #8A7B61); }
 
-/* On a night surface the ladder runs the other way, so the same utilities have
-   to go back up. Without this, lifting the type would bury it. */
+/* On a reversed tile the ladder runs the other way, so the same utilities have
+   to go back up — or, on the dark papers where a stone-900 tile is the *light*
+   one, back down. Either way it is the opposite of the ground. */
 .bg-stone-900 .text-stone-300,
 .bg-stone-800 .text-stone-300,
 .bg-ink .text-stone-300,
 .bg-stone-900 .text-stone-500,
 .bg-stone-800 .text-stone-500,
-.bg-ink .text-stone-500 { color: #B4A68D; }
+.bg-ink .text-stone-500 { color: var(--mos-r300, #B4A68D); }
 .bg-stone-900 .text-stone-400,
 .bg-stone-800 .text-stone-400,
-.bg-ink .text-stone-400 { color: #CEC3AF; }
+.bg-ink .text-stone-400 { color: var(--mos-r400, #CEC3AF); }
 .bg-stone-900 input::placeholder,
 .bg-stone-800 input::placeholder,
 .bg-ink input::placeholder,
 .bg-stone-900 textarea::placeholder,
 .bg-stone-800 textarea::placeholder,
-.bg-ink textarea::placeholder { color: #96866C; }
+.bg-ink textarea::placeholder { color: var(--mos-rph, #96866C); }
 
-/* Hairlines sit at 18% ink. */
-.border-stone-100 { border-color: #EFEAE0; }
-.border-stone-200 { border-color: #E2DACB; }
+/* Hairlines sit at 18% of the type colour, whatever the type colour is. */
+.border-stone-100 { border-color: rgb(var(--mos-s100, 239 234 224)); }
+.border-stone-200 { border-color: rgb(var(--mos-s200, 226 218 203)); }
 
 /* ── Motion. Four movements in the whole product, and none of them announce
    anything. Nothing bounces, nothing springs, nothing slides in. ── */
@@ -436,7 +601,7 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
    Spinners and skeleton shimmer are not movements this system has: loading is
    a mono line of text. */
 .animate-spin { animation: none; }
-.animate-pulse { animation: none; background-color: #EFEAE0; }
+.animate-pulse { animation: none; background-color: rgb(var(--mos-s100, 239 234 224)); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -448,12 +613,12 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
 
 /* Focus: a 1px cobalt ring with a 2px offset. Never removed, never colour-only. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 1px solid #1D2FC4;
+  outline: 1px solid var(--mos-accent, #1D2FC4);
   outline-offset: 2px;
 }
 
-/* Mono labels never sit in chrome grey on ivory — ink 700 is the floor. */
-.kicker { color: #6E4526; }
+/* Mono labels never sit in chrome grey on ivory — the warm mid is the floor. */
+.kicker { color: var(--mos-kicker, #6E4526); }
 
 /* ── Cobalt means due, and the section you are in. Nothing else.
    It is never a warning, never a streak, never a success, never a chart series
@@ -468,22 +633,22 @@ nav .bg-stone-900,
 /* One cobalt action per screen: the primary, filled button. Everything else is
    a ruled outline. */
 button.rounded-full.bg-stone-900 {
-  background-color: #1D2FC4;
-  color: #F7F4ED;
+  background-color: var(--mos-accent, #1D2FC4);
+  color: var(--mos-accent-ink, #F7F4ED);
 }
 button.rounded-full.bg-stone-900:disabled {
-  background-color: #E2DACB;
-  color: #96866C;
+  background-color: var(--mos-disabled-bg, #E2DACB);
+  color: var(--mos-disabled-ink, #96866C);
 }
 
 /* The active pillar and the active tab. */
 [aria-current='page'],
 .mos-active {
-  background-color: #1D2FC4 !important;
-  color: #F7F4ED !important;
+  background-color: var(--mos-accent, #1D2FC4) !important;
+  color: var(--mos-accent-ink, #F7F4ED) !important;
 }
 
 /* Links take the accent; nothing else does. */
 a:not(.no-accent):not([class*='text-']) {
-  color: #1D2FC4;
+  color: var(--mos-accent, #1D2FC4);
 }

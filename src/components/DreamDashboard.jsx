@@ -8,7 +8,6 @@ import { dateKey, parseKey, addDays, MONTHS, MONTHS_SHORT, DOW_LONG } from '../l
 import Checkbox from './shared/Checkbox'
 import DreamBoard, { processImage, normVision } from './DreamBoard'
 import { routeStepToSection } from '../lib/goalRoutes'
-import { phaseForConfig } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
 import DreamCollections from './DreamCollections'
 import AddInline from './shared/AddInline'
@@ -148,11 +147,11 @@ function stepActivity(goalId, milestoneId, s) {
   return blankActivity('protocol', { title: s.title, category: P.cat, frequency, seriesStart: todayKey(), timeOfDay: ['morning'], details: { ...details, block: 'morning', categoryFields: {} } })
 }
 
-export default function DreamDashboard({ cycleConfig = {} }) {
+export default function DreamDashboard() {
   const [rawGoals, setRawGoals] = useLocalStorage('mos:dream:goals', [])
   const goals = (Array.isArray(rawGoals) ? rawGoals : []).map(normGoal)
   const { activities, add, remove } = useActivities()
-  const { flags: lifeFlags, stage } = useLifeStage()
+  const { stage } = useLifeStage()
   const [openId, setOpenId] = useState(null)
   const [openMs, setOpenMs] = useState(() => new Set())
   const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
@@ -271,12 +270,8 @@ export default function DreamDashboard({ cycleConfig = {} }) {
   const achieved = goals.filter((g) => g.status === 'achieved')
   const openGoalObj = goals.find((g) => g.id === openId) || null
 
-  const now = new Date()
-
-  // Projects live in their own store; the phase only belongs on the state line
-  // for the stages that actually have one.
+  // Projects live in their own store.
   const projectsRaw = useLocalStorage('mos:dream:projects', [])[0]
-  const statePhase = lifeFlags.phases ? phaseForConfig(cycleConfig, now) : null
   const [boardRaw, setBoardRaw] = useLocalStorage('mos:dream:board', { template: 'scrapbook', items: [] })
   // Every row, including the ones taken off the board while a goal was still
   // using them — that is the whole point of keeping them.
@@ -405,11 +400,7 @@ export default function DreamDashboard({ cycleConfig = {} }) {
 
   return (
     <section>
-      <Header
-        phase={statePhase}
-        cycleLength={Number(cycleConfig && cycleConfig.cycleLength) || 28}
-        fertile={lifeFlags.fertile}
-      />
+      <Header />
 
       {/* section tabs */}
       {/* Three names, and on the narrowest phone they only just fit. Centred
@@ -1108,33 +1099,17 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
 // ── The header ──
 // Today already owns the date and the greeting; repeating them here made this
 // read as a second homepage rather than the workspace it is. So: the section's
-// name, and under it a state line — not prose, and not encouragement. Just the
-// readings, including the zeroes.
-function Header({ phase, cycleLength, fertile }) {
-  const day = phase ? phase.cycleDay : null
-  // The most-checked number in a woman's life, and absent from every planner
-  // header ever built.
-  const untilPeriod = day != null && cycleLength ? (cycleLength - day + 1) % cycleLength : null
-  // The fertile window is roughly the five days before ovulation and the day of
-  // it. Shown only where the life stage actually asks the question.
-  const inFertile = fertile && day != null && day >= 10 && day <= 16
-
-  const body = [
-    day != null ? `DAY ${day}` : null,
-    phase ? phase.name.toUpperCase() : null,
-    inFertile ? 'FERTILE' : null,
-    untilPeriod != null ? (untilPeriod === 0 ? 'PERIOD TODAY' : `PERIOD IN ${untilPeriod}`) : null,
-  ].filter(Boolean)
-
+// name, and nothing else.
+//
+// There used to be a state line under it — day of cycle, phase, fertile
+// window, days to the next period. Every one of those readings is already on
+// Today, at the top of the day, where she looks for them. Repeated here they
+// were the page talking about her body on the one screen that is about what
+// she is building.
+function Header() {
   return (
     <div className="mb-9">
       <h1 className="text-center font-serif text-4xl text-stone-900 md:text-5xl">Becoming</h1>
-      {/* One reading, and it is the body. The week number was the calendar
-          talking, and this page is not about the week; the tally of what she
-          owes was the page grading her before she had read a word of it. */}
-      {body.length > 0 && (
-        <p className="mt-4 text-center text-[11px] tracking-[0.18em] text-stone-500">{body.join(' · ')}</p>
-      )}
     </div>
   )
 }

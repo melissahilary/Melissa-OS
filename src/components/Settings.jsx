@@ -38,25 +38,51 @@ const ROOMS = [
   { id: 'contact', label: 'Contact', icon: MessageCircle, blurb: 'Reach us' },
 ]
 
-// The wardrobe — the paper the house is printed on. Values must match index.css.
+// The wardrobe — the paper the house is printed on. Values must match the
+// theme blocks at the head of src/index.css.
 //
-// It used to offer four palettes, and none of them were the brand's. The
-// guidelines give this house ivory, walnut, ink and one blue; Rosewater was a
-// pink ground and Sage a green one, neither of which exists anywhere in the
-// palette, and Porcelain was a neutral grey-white sitting outside the ivory
-// family altogether. Each also carried its own hairline and its own ink, so
-// choosing a theme quietly replaced three brand values at once.
+// Two goes at this were wrong in opposite directions. First four palettes that
+// were not the brand's at all — a pink ground, a green one, a grey-white
+// outside the ivory family — each carrying its own hairline and its own ink,
+// so picking a theme quietly replaced three brand values at once. Then the
+// correction overshot: three weights of the same ivory, which is a swatch book
+// rather than a choice. Nobody can tell chalk from parchment side by side, let
+// alone a week apart.
 //
-// The house has one ground. What is actually on offer is how heavy you want it
-// — the same ivory, at three weights off the ramp, with the hairline and the
-// ink left alone because those are not hers to change.
+// So the papers are the four rooms of the app, and each one turns the whole
+// house over: ground, hairline, label ink and body copy move together, because
+// the ramp is read semantically everywhere. Two are dark, and they are dark all
+// the way down rather than a tinted background with black type still on it.
+//
+// What a theme may not touch: the one blue, the phase colours, oxblood.
 export const THEMES = [
-  { id: 'chalk', label: 'Chalk', blurb: 'The lightest weight', ground: '#FCFAF4', mid: '#E2DACB', ink: '#16130F' },
-  { id: 'ivory', label: 'Ivory', blurb: 'The house paper', ground: '#F7F4ED', mid: '#E2DACB', ink: '#16130F' },
-  { id: 'parchment', label: 'Parchment', blurb: 'One weight deeper', ground: '#EFEAE0', mid: '#E2DACB', ink: '#16130F' },
+  {
+    id: 'today',
+    label: 'Today',
+    blurb: 'Ivory and ink. The house paper.',
+    ground: '#F7F4ED', mid: '#E2DACB', ink: '#16130F', accent: '#1D2FC4',
+  },
+  {
+    id: 'becoming',
+    label: 'Becoming',
+    blurb: 'Night. The whole house turned over.',
+    ground: '#16130F', mid: '#34302A', ink: '#F4F0E6', accent: '#7D88F0',
+  },
+  {
+    id: 'pillars',
+    label: 'The Pillars',
+    blurb: 'Walnut, and warm all the way down.',
+    ground: '#2C1B10', mid: '#4F3823', ink: '#F7F1E4', accent: '#7D88F0',
+  },
+  {
+    id: 'wishlist',
+    label: 'Wishlist',
+    blurb: 'Gallery white, printed in walnut.',
+    ground: '#FFFFFF', mid: '#E6DFD2', ink: '#2A1A10', accent: '#1D2FC4',
+  },
 ]
 export const THEME_IDS = THEMES.map((t) => t.id)
-export const DEFAULT_THEME = 'ivory'
+export const DEFAULT_THEME = 'today'
 
 // Life stages live in src/lib/lifeStage.js — one source of truth for the
 // whole arc, with per-stage feature manifests and behavior flags.
@@ -318,8 +344,8 @@ export default function Settings() {
           </>)}
 
           {room === 'appearance' && (
-            <Card title="The wardrobe." blurb="The house is printed on one paper. This is how heavy you want it.">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Card title="The wardrobe." blurb="Four papers, named for the four rooms. Picking one re-prints the whole planner — the ground, the rules, and the ink it is set in.">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {THEMES.map((t) => {
                   const on = (THEME_IDS.includes(theme) ? theme : DEFAULT_THEME) === t.id
                   return (
@@ -329,22 +355,25 @@ export default function Settings() {
                       className={`overflow-hidden border text-left transition-all ${on ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'}`}
                     >
                       {/* The brand as it sits on that paper: a rule of ink, two
-                          ivory hairlines and the one accent. Square, because
-                          nothing in this house is a pill — the old preview was
-                          three rounded blobs, which is the only shape the
-                          guidelines forbid outright. */}
-                      <div className="relative h-24" style={{ background: t.ground }}>
-                        <span className="absolute left-4 top-5 h-[3px] w-16" style={{ background: t.ink }} />
-                        <span className="absolute left-4 top-[42px] h-px w-20" style={{ background: t.mid }} />
-                        <span className="absolute left-4 top-[54px] h-px w-12" style={{ background: t.mid }} />
-                        <span className="absolute right-4 top-5 h-5 w-5" style={{ background: '#1D2FC4' }} />
+                          hairlines and the one accent. Square, because nothing
+                          in this house is a pill — the old preview was three
+                          rounded blobs, which is the only shape the guidelines
+                          forbid outright.
+                          Taller than it was, because these papers are now
+                          different enough that a strip is worth reading. */}
+                      <div className="relative h-32" style={{ background: t.ground }}>
+                        <span className="absolute left-5 top-6 h-[3px] w-20" style={{ background: t.ink }} />
+                        <span className="absolute left-5 top-[52px] h-px w-24" style={{ background: t.mid }} />
+                        <span className="absolute left-5 top-[64px] h-px w-14" style={{ background: t.mid }} />
+                        <span className="absolute left-5 top-[86px] h-px w-20" style={{ background: t.mid }} />
+                        <span className="absolute right-5 top-6 h-6 w-6" style={{ background: t.accent }} />
                       </div>
-                      <div className="flex items-center justify-between border-t border-stone-200 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3 border-t border-stone-200 px-4 py-3">
                         <span>
                           <span className="block font-serif text-lg leading-tight text-stone-900">{t.label}</span>
                           <span className="text-xs text-stone-400">{t.blurb}</span>
                         </span>
-                        {on && <LoggedIcon size={16} className="text-stone-900" />}
+                        {on && <LoggedIcon size={16} className="shrink-0 text-stone-900" />}
                       </div>
                     </button>
                   )

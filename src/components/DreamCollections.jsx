@@ -651,7 +651,7 @@ function ListView({ list, goals, projects, cover, onCover, coverNote, onDelete, 
               onClick={() => coverRef.current && coverRef.current.click()}
               aria-label={cover ? 'Change the cover' : 'Add a cover'}
               title={cover ? 'Change the cover' : 'Add a cover'}
-              className="flex h-full w-full items-center justify-center overflow-hidden border border-stone-200 bg-[#EFEAE0] text-stone-900 transition-colors hover:border-stone-900"
+              className="flex h-full w-full items-center justify-center overflow-hidden border border-stone-200 bg-stone-100 text-stone-900 transition-colors hover:border-stone-900"
             >
               {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : React.createElement(assetMarkFor(cls), { size: 32 })}
             </button>

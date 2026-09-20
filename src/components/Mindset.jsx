@@ -44,25 +44,24 @@ const DOMAIN_ORDER = ['mood', 'anxiety', 'irritability', 'energy', 'focus', 'dri
 // apart across a room. Dysregulated used to be ivory 100, which is the same
 // value as an empty square: the days most worth seeing were the ones that
 // couldn't be seen. It is walnut now.
+//
+// The three tints come from the stylesheet rather than from here, because the
+// wardrobe can turn the whole house over: on a near-black paper an ink tile is
+// the same value as the ground, which is the very bug the paragraph above
+// records being fixed once already at the other end of the scale. Each theme
+// declares its own three, and its own ink for the numeral that sits on them —
+// which is why the luminance guess that used to pick that ink is gone.
 const BANDS = [
-  { id: 'up', label: 'Regulated', tint: '#16130F', dir: 1 },
-  { id: 'even', label: 'Even', tint: '#B4A68D', dir: 0 },
-  { id: 'down', label: 'Dysregulated', tint: '#8A5A32', dir: -1 },
+  { id: 'up', label: 'Regulated', tint: 'rgb(var(--mos-band-up, 22 19 15))', soft: 'rgb(var(--mos-band-up, 22 19 15) / 0.15)', ink: 'var(--mos-band-up-ink, #F7F4ED)', dir: 1 },
+  { id: 'even', label: 'Even', tint: 'rgb(var(--mos-band-even, 180 166 141))', soft: 'rgb(var(--mos-band-even, 180 166 141) / 0.15)', ink: 'var(--mos-band-even-ink, #16130F)', dir: 0 },
+  { id: 'down', label: 'Dysregulated', tint: 'rgb(var(--mos-band-down, 138 90 50))', soft: 'rgb(var(--mos-band-down, 138 90 50) / 0.15)', ink: 'var(--mos-band-down-ink, #FAF6ED)', dir: -1 },
 ]
 const bandMeta = (id) => BANDS.find((b) => b.id === id) || BANDS[1]
 
-// A day with nothing in it, and the line around a day still to come.
-const UNLOGGED = '#EFEAE0'
-const HAIRLINE = '#CEC3AF'
-
-// Which ink a number takes on a given tile. Chosen from the tile's luminance
-// rather than by hand, so a tint can change without a number going dark on dark.
-function onTint(hex) {
-  if (!hex) return '#6E4526'
-  const n = parseInt(hex.slice(1), 16)
-  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
-  return lum > 0.62 ? '#16130F' : '#FAF6ED'
-}
+// A day with nothing in it, and the line around a day still to come. Both off
+// the ramp, so they follow whichever paper is on.
+const UNLOGGED = 'rgb(var(--mos-s100, 239 234 224))'
+const HAIRLINE = 'rgb(var(--mos-s300, 206 195 175))'
 
 // Six domains × three levels. Every row is the same question asked at a
 // different intensity, which is what makes a month of it readable.
@@ -264,7 +263,7 @@ function MoodTracker({ cycleConfig = {} }) {
                   <span
                     key={i}
                     className="h-2 w-2 rounded-full transition-colors"
-                    style={{ background: i < selected.length ? (selBucket ? bandMeta(selBucket).tint : '#1C1C1A') : 'rgba(120,113,108,0.22)' }}
+                    style={{ background: i < selected.length ? (selBucket ? bandMeta(selBucket).tint : 'rgb(var(--mos-s800, 32 29 25))') : 'rgb(var(--mos-s400, 180 166 141) / 0.4)' }}
                   />
                 ))}
                 <span className="ml-1 text-[11px] tabular-nums text-stone-400">{selected.length} of {MAX_PICKS}</span>
@@ -290,7 +289,7 @@ function MoodTracker({ cycleConfig = {} }) {
                         disabled={locked}
                         title={DOMAINS[m.domain]}
                         className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border transition-all ${on ? 'border-stone-900 shadow-sm' : locked ? 'border-stone-100 opacity-40' : 'border-stone-200 hover:border-stone-400'}`}
-                        style={{ background: on ? `${b.tint}26` : undefined }}
+                        style={{ background: on ? b.soft : undefined }}
                       >
                         <span className={`px-1 text-center text-[12.5px] leading-tight ${on ? 'text-stone-900' : 'text-stone-500'}`}>{m.label}</span>
                         <span className="text-[9px] tracking-[0.12em] text-stone-400">{DOMAINS[m.domain].toUpperCase()}</span>
@@ -317,7 +316,7 @@ function MoodTracker({ cycleConfig = {} }) {
               const inMonth = c.getMonth() === monthIdx
               const key = dateKey(c)
               const bucket = bucketOf(dayFeelings(map[key]))
-              const tint = bucket ? bandMeta(bucket).tint : null
+              const band = bucket ? bandMeta(bucket) : null
               const isSel = key === selKey
               const ahead = isFuture(key)
               const ph = inMonth && !ahead ? phaseForConfig(phaseCfg, c) : null
@@ -329,7 +328,7 @@ function MoodTracker({ cycleConfig = {} }) {
                   title={inMonth && ahead ? 'Not yet' : undefined}
                   className={`relative flex aspect-square items-center justify-center overflow-hidden text-xs tabular-nums transition-colors ${inMonth ? '' : 'pointer-events-none opacity-0'} ${ahead ? 'cursor-default' : ''} ${isSel ? 'ring-1 ring-stone-900 ring-offset-1' : ''}`}
                   style={{
-                    backgroundColor: ahead ? 'transparent' : (tint || UNLOGGED),
+                    backgroundColor: ahead ? 'transparent' : (band ? band.tint : UNLOGGED),
                     // A day still to come is an outline, not a ghost. Dropping it
                     // to 40% left a whole month ahead of today — all of
                     // September, in September — as pale marks on pale paper.
@@ -337,7 +336,7 @@ function MoodTracker({ cycleConfig = {} }) {
                     // rule is an !important, and it would eat an inset ring.)
                     outline: ahead ? `1px solid ${HAIRLINE}` : 'none',
                     outlineOffset: '-1px',
-                    color: ahead ? '#75684F' : onTint(tint),
+                    color: ahead ? 'var(--mos-t500, #5F5442)' : (band ? band.ink : 'var(--mos-t400, #6E6250)'),
                   }}
                 >
                   <span>{c.getDate()}</span>

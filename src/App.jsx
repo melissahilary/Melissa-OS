@@ -254,10 +254,18 @@ export default function App() {
   // The chosen wardrobe palette re-skins the whole app via CSS variables.
   const [themeRaw] = useLocalStorage('mos:settings:theme', DEFAULT_THEME)
   useEffect(() => {
-    // Anyone still carrying porcelain, ecru, rosewater or sage lands on the
-    // house paper rather than on no paper at all.
+    // Anyone still carrying porcelain, ecru, rosewater, sage, chalk or
+    // parchment lands on the house paper rather than on no paper at all.
     const t = THEME_IDS.includes(themeRaw) ? themeRaw : DEFAULT_THEME
     document.documentElement.setAttribute('data-mos-theme', t)
+    // The browser's own chrome — the phone's status bar, the tab strip — takes
+    // the ground too. Two of these papers are dark, and a black page under a
+    // bright ivory status bar reads as a page that failed to load.
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) {
+      const ground = getComputedStyle(document.documentElement).getPropertyValue('--mos-cream').trim()
+      if (ground) meta.setAttribute('content', ground)
+    }
   }, [themeRaw])
 
   const isToday = active === 'today'
@@ -332,7 +340,7 @@ export default function App() {
         title="Settings"
         aria-label="Settings"
         className="fixed bottom-6 left-6 z-40 flex h-11 w-11 items-center justify-center shadow-lg transition-opacity hover:opacity-90"
-        style={{ backgroundColor: '#16130F', color: '#F7F4ED', borderRadius: 0 }}
+        style={{ backgroundColor: 'rgb(var(--mos-s900, 22 19 15))', color: 'var(--mos-cream, #F7F4ED)', borderRadius: 0 }}
       >
         <SettingsIcon size={18} />
       </button>

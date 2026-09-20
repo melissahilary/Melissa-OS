@@ -119,7 +119,7 @@ function Polaroid({ label, Icon, cover, note, tilt, onPick, ghost }) {
         <Clip />
       </span>
       <span className="block border border-stone-200 bg-white px-2.5 pb-4 pt-6 transition-colors group-hover:border-stone-900 sm:px-3 sm:pb-5">
-        <span className="flex h-20 w-full items-center justify-center overflow-hidden bg-[#EFEAE0] text-stone-900 sm:h-24">
+        <span className="flex h-20 w-full items-center justify-center overflow-hidden bg-stone-100 text-stone-900 sm:h-24">
           {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : <Icon size={32} />}
         </span>
         <span className="mt-2.5 flex h-10 items-center justify-center px-0.5 text-center font-serif text-[14px] italic leading-tight text-stone-900 sm:text-[15px]">

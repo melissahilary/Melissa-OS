@@ -18,28 +18,44 @@ export default {
         // bug: light type on a dark tile fell back to inherited ink and simply
         // disappeared, in twenty places, with nothing in the console.
         cream: 'rgb(var(--mos-cream-rgb, 247 244 237) / <alpha-value>)',
-        // Ivory into ink. Fixed, not themed: the ground belongs to her, this
-        // ramp belongs to the brand.
+        // A raised surface — a card lifted off the ground. On ivory it is
+        // literally white; on the dark papers it is the ground plus a little
+        // light, because a white box on a black page is a hole in the page.
+        white: 'rgb(var(--mos-white, 255 255 255) / <alpha-value>)',
+        // Ivory into ink — and themed, which is new.
+        //
+        // The ramp is used semantically everywhere in the app: the light end is
+        // surfaces and hairlines, the dark end is type. So swapping the ends
+        // turns the whole house over at once, and every pairing the components
+        // already make (`bg-stone-900 text-cream`, `text-stone-500` on
+        // `bg-cream`) stays legible, because both halves move together. That is
+        // the only reason a theme can be dramatic without a thousand
+        // dark-mode variants.
+        //
+        // Defaults are the ivory ramp, so a page with no theme attribute set —
+        // the login screen, a stale bundle — still looks like the house.
         stone: {
-          50: '#F7F4ED',  // ivory 050
-          100: '#EFEAE0', // ivory 100
-          200: '#E2DACB', // ivory 200 — hairlines, 18% ink
-          300: '#CEC3AF', // ivory 300
-          400: '#B4A68D', // ivory 400
-          500: '#96866C', // ivory 500 — label ink
-          600: '#6E4526', // walnut 500
-          700: '#3E2513', // walnut 700
-          800: '#201D19', // ink 700
-          900: '#16130F', // ink 800 — body copy, night surfaces
+          50: 'rgb(var(--mos-s50, 247 244 237) / <alpha-value>)',   // lightest surface
+          100: 'rgb(var(--mos-s100, 239 234 224) / <alpha-value>)', // surface
+          200: 'rgb(var(--mos-s200, 226 218 203) / <alpha-value>)', // hairlines
+          300: 'rgb(var(--mos-s300, 206 195 175) / <alpha-value>)',
+          400: 'rgb(var(--mos-s400, 180 166 141) / <alpha-value>)',
+          500: 'rgb(var(--mos-s500, 150 134 108) / <alpha-value>)', // label ink
+          600: 'rgb(var(--mos-s600, 110 69 38) / <alpha-value>)',   // the warm mid
+          700: 'rgb(var(--mos-s700, 62 37 19) / <alpha-value>)',
+          800: 'rgb(var(--mos-s800, 32 29 25) / <alpha-value>)',
+          900: 'rgb(var(--mos-s900, 22 19 15) / <alpha-value>)',    // body copy
         },
         // The single accent. It marks what is due today and the active section,
-        // and it never marks a warning or a streak.
+        // and it never marks a warning or a streak. It stays one blue in every
+        // theme; only its weight moves, because cobalt 500 on a near-black
+        // ground is a shape you can see but not read.
         cobalt: {
           300: '#5A68E8',
           400: '#3A4BE0',
-          500: '#1D2FC4',
+          500: 'rgb(var(--mos-accent-rgb, 29 47 196) / <alpha-value>)',
           600: '#16249A',
-          DEFAULT: '#1D2FC4',
+          DEFAULT: 'rgb(var(--mos-accent-rgb, 29 47 196) / <alpha-value>)',
         },
         // Chrome greys are for hairlines, tab hardware and crystal in
         // photographs. Never for type.

@@ -12,8 +12,11 @@ const signSig = (s) => `${s.sun}|${s.moon}|${s.rising}`
 // old voice is discarded and re-fetched fresh (the cache is otherwise per-day).
 const VOICE = 'goddess-3'
 
-const INK = '#1C1C1A'
-const inkA = (a) => `rgba(28, 28, 26, ${a})`
+// The reading is set in the body ink at a few weights. Off the ramp rather
+// than a literal, because the wardrobe can turn the page black — and a fixed
+// near-black at 72% on a near-black ground is a paragraph at 1.1:1, which is
+// to say a paragraph that is not there.
+const inkA = (a) => `rgb(var(--mos-s900, 22 19 15) / ${a})`
 
 // Classical (Chaldean) planetary ruler of each weekday — a fixed function of the
 // day, no ephemeris needed. Indexed by Date.getDay() (0 = Sunday). Trailing
