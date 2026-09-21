@@ -3,7 +3,7 @@ import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, ChevronDown, Compass, PanelLeftClose, PanelLeftOpen, CalendarDays, CalendarRange, ClipboardList, Flower2, Gem, FlaskConical, Sun,
   Target, UserRound, MapPin, Shirt, Car, TrendingUp, Sparkles, MessageCircle,
-  Settings as SettingsIcon, X,
+  X,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
@@ -308,7 +308,7 @@ export default function App() {
       <main className="overflow-x-hidden px-6 pt-10 pb-28 md:px-10 lg:px-12">
         <div className="mx-auto max-w-5xl">
           {pageTitle && <h1 className="mb-9 text-center font-serif text-4xl text-stone-900 md:text-5xl">{pageTitle}</h1>}
-          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
+          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} goToDream={() => setActive('dream')} />}
           {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
           {isPillar && ActivePillar && (
             <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
@@ -423,29 +423,16 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
             })}
           </div>
 
-          {/* Becoming lives apart from the pillars — a place you step into
-              rather than a section you maintain. The one filled action in the
-              index, which the stylesheet paints cobalt. */}
-          <div className="mt-14 flex justify-center">
-            <button
-              onClick={() => go(onGoDream)}
-              className="inline-flex items-center gap-2.5 rounded-full bg-stone-900 px-7 py-3 font-serif text-lg tracking-wide text-cream transition-opacity hover:opacity-90"
-            >
-              Becoming
-            </button>
-          </div>
+          {/* Settings, set the way the guidelines set a label: a hairline, and
+              the name under it in cobalt mono caps. No gear — an icon beside a
+              word that is already the word is a drawing of itself, and the
+              index has no other icons to keep it company.
 
-          {/* Settings sits with the pillars, because it is where you go from
-              here — not a gear hovering over every page. Quiet, under a rule,
-              so it reads as the end of the index rather than a thirteenth
-              pillar. */}
-          <div className="mt-12 border-t border-stone-200 pt-5">
-            <button
-              onClick={() => go(onGoSettings)}
-              className={`group mx-auto flex items-center gap-3 py-2 transition-colors ${active === 'settings' ? 'text-stone-900' : 'text-stone-500 hover:text-stone-900'}`}
-            >
-              <SettingsIcon size={16} strokeWidth={1.5} className="shrink-0" />
-              <span className="text-[11px] uppercase tracking-[0.18em]">Settings</span>
+              Becoming has left this page for the foot of Today, so the accent
+              is unspent here and this is the one thing wearing it. */}
+          <div className="mt-14 border-t border-stone-200 pt-5">
+            <button onClick={() => go(onGoSettings)} className="mx-auto block py-2 text-[11px] uppercase tracking-[0.18em] text-cobalt transition-opacity hover:opacity-60">
+              Settings
             </button>
           </div>
         </div>

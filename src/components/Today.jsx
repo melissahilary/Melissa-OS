@@ -786,7 +786,7 @@ function MoonPopup({ info, onClose }) {
   )
 }
 
-export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle }) {
+export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle, goToDream }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
@@ -998,6 +998,22 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         <TodayNotes />
         <ShoppingList />
       </div>
+
+      {/* The way into Becoming. It used to sit in the index, under the twelve
+          pillars, which put a place you visit once a week beside twelve you
+          keep daily. At the foot of the day it is where it belongs for now:
+          after everything today asks of her, the thing the days are for. */}
+      {goToDream && (
+        <div className="mt-6 flex flex-col items-center border-t border-stone-200 pt-10">
+          <p className="kicker text-stone-500">What the days are for</p>
+          <button
+            onClick={goToDream}
+            className="mt-4 inline-flex items-center gap-2.5 rounded-full bg-stone-900 px-8 py-3 font-serif text-lg tracking-wide text-cream transition-opacity hover:opacity-90"
+          >
+            Becoming
+          </button>
+        </div>
+      )}
 
       {blockAdd && (
         <BlockAddChooser
