@@ -139,14 +139,13 @@ export const ASSET_GROUPS = [
     classes: [
       { id: 'travel', label: 'Travel', about: 'Trips, flights, hotels, villas, cruises, road trips, weekends away.', fields: [f('destination', 'Destination'), f('season', 'Season'), f('booked', 'Booked', 'bool'), f('dates', 'Dates')] },
       { id: 'restaurants', label: 'Restaurants & bars', about: 'Restaurants, bars, wine bars, cafes, bakeries, supper clubs, pop-ups.', fields: [f('city', 'City'), f('occasion', 'Occasion'), f('booked', 'Booked', 'bool'), f('been', 'Been', 'bool')] },
-      { id: 'places', label: 'Places to see', about: 'Museums, galleries, gardens, churches, viewpoints, markets, neighborhoods.', fields: [f('city', 'City'), f('kind', 'Type'), f('been', 'Been', 'bool')] },
-      { id: 'retreats', label: 'Spas & retreats', about: 'Wellness retreats, spas, bathhouses, hot springs, saunas, sound baths, silent retreats.', fields: [f('place', 'Place'), f('city', 'City'), f('length', 'Length'), f('booked', 'Booked', 'bool'), f('been', 'Been', 'bool')] },
+      { id: 'retreats', label: 'Spas', about: 'Spas, bathhouses, hot springs, hammams, saunas, day spas, wellness retreats.', fields: [f('place', 'Place'), f('city', 'City'), f('length', 'Length'), f('booked', 'Booked', 'bool'), f('been', 'Been', 'bool')] },
       // Back from Health — services, where it never really belonged: a pottery
       // course and a language class are not health, they are a life.
-      { id: 'courses', label: 'Courses & learning', about: 'Languages, pottery, cooking school, tennis coaching, photography, certifications, workshops.', fields: [f('provider', 'Provider'), f('start', 'Starts', 'date'), f('completed', 'Completed', 'date')] },
+      { id: 'courses', label: 'Education', about: 'Languages, pottery, cooking school, tennis coaching, photography, certifications, workshops.', fields: [f('provider', 'Provider'), f('start', 'Starts', 'date'), f('completed', 'Completed', 'date')] },
       { id: 'recipes', label: 'Recipes', about: 'Dinners, bakes, sauces, cocktails, batch cooking, sides, cakes.', pillar: 'nutrition', fields: [f('source', 'Source'), f('occasion', 'Occasion'), f('cooked', 'Cooked', 'count')] },
-      { id: 'wine', label: 'Wine & spirits', about: 'Reds, whites, champagne, sake, spirits, vermouth, cases to lay down.', fields: [f('producer', 'Producer'), f('vintage', 'Vintage'), f('window', 'Drink window'), f('stored', 'Stored')] },
-      { id: 'events', label: 'Events & tickets', about: 'Concerts, theater, opera, games, festivals, exhibitions, talks.', fields: [f('date', 'Date', 'date'), f('venue', 'Venue'), f('booked', 'Booked', 'bool')] },
+      { id: 'wine', label: 'Wines', about: 'Reds, whites, rosé, champagne, sake, vermouth, spirits, cases to lay down.', fields: [f('producer', 'Producer'), f('vintage', 'Vintage'), f('window', 'Drink window'), f('stored', 'Stored')] },
+      { id: 'events', label: 'Events', about: 'Concerts, theater, opera, games, festivals, exhibitions, talks.', fields: [f('date', 'Date', 'date'), f('venue', 'Venue'), f('booked', 'Booked', 'bool')] },
       { id: 'gifts', label: 'Gifts', about: 'Birthdays, Christmas, weddings, new babies, housewarmings, thank yous, hosts.', fields: [f('recipient', 'For'), f('occasion', 'Occasion'), f('given', 'Given', 'date')] },
     ],
   },
