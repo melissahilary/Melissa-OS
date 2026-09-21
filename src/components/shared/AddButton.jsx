@@ -115,8 +115,8 @@ export function AddProvider({ children }) {
           onClick={() => setOpen(true)}
           aria-label="Add something"
           title="Add"
-          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105"
-          style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7' }}
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center transition-opacity hover:opacity-90"
+          style={{ backgroundColor: 'rgb(var(--mos-s900, 22 19 15))', color: 'var(--mos-cream, #F7F4ED)' }}
         >
           <AddIcon size={22} strokeWidth={1.75} />
         </button>

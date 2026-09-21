@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Trash2, ChevronDown, Pause, BookOpen, ShoppingBag } from 'lucide-react'
 import { CloseIcon, NextIcon } from './shared/marks'
-import { BTN, BTN_SM, GHOST, GHOST_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/buttons'
+import { BTN, BTN_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/buttons'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { phaseForConfig, PHASES, guideFor } from '../lib/cycle'
 import { useLifeStage } from '../lib/lifeStage'
@@ -922,10 +922,17 @@ function DayMasthead({ selected, selectedKey, cycleConfig, rituals = [], meals =
   const guide = guideFor(phase)
   const tint = phase ? (PHASES[phase.id] || {}).color : null
 
-  const parts = { morning: 0, afternoon: 0, evening: 0 }
-  rituals.forEach((r) => { if (parts[r.part] != null) parts[r.part] += 1 })
-  const total = rituals.length + meals.length
-  const done = rituals.filter((r) => r.done).length + meals.filter((m) => m.done).length
+  // Counted exactly the way the blocks below count, or the masthead says
+  // Morning 32 over a Morning block that lists fourteen — two numbers for one
+  // thing, disagreeing, on the same screen. Deduped, and keyed on the block a
+  // task actually sits in rather than its part of day.
+  const uniq = dedupeById(rituals)
+  const counts = { morning: 0, daytime: 0, evening: 0 }
+  uniq.forEach((r) => { const b = effectiveBlock(r); if (counts[b] != null) counts[b] += 1 })
+  const tickable = [...uniq, ...meals]
+  const total = tickable.length
+  const done = tickable.filter((x) => x.done).length
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   return (
     <header className="mb-8 border-t border-stone-900 pt-6">
@@ -962,13 +969,22 @@ function DayMasthead({ selected, selectedKey, cycleConfig, rituals = [], meals =
         )}
       </div>
 
-      {/* The shape of the day, before she scrolls into it. */}
-      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-stone-200 pt-4 sm:grid-cols-4">
-        <Reading label="Morning">{parts.morning || '—'}</Reading>
-        <Reading label="Daytime">{parts.afternoon || '—'}</Reading>
-        <Reading label="Evening">{parts.evening || '—'}</Reading>
-        <Reading label="Done">{total ? `${done} of ${total}` : '—'}</Reading>
+      {/* The shape of the day, before she scrolls into it — and then the day
+          itself as one measure: a rule that fills to what has been kept. It is
+          the same object every block below repeats at its own scale, which is
+          what makes eight lists read as one day. */}
+      <dl className="mt-6 grid grid-cols-3 gap-x-6 border-t border-stone-200 pt-4">
+        <Reading label="Morning">{counts.morning || '—'}</Reading>
+        <Reading label="Daytime">{counts.daytime || '—'}</Reading>
+        <Reading label="Evening">{counts.evening || '—'}</Reading>
       </dl>
+      <div className="mt-5 flex items-center gap-4">
+        <span className="kicker shrink-0 text-stone-900">Kept</span>
+        <span className="relative h-px flex-1 bg-stone-200">
+          <span className="absolute inset-y-0 left-0 bg-stone-900 transition-[width] duration-500" style={{ width: `${pct}%` }} />
+        </span>
+        <span className="shrink-0 text-[10px] tracking-[0.16em] text-stone-900">{total ? <>{done}&thinsp;/&thinsp;{total}</> : '—'}</span>
+      </div>
     </header>
   )
 }
@@ -1047,30 +1063,35 @@ const sortEvents = (a, b) => {
 // only); to-dos live in their own time slides (Empty Stomach → Before Bed). A
 // couple of to-do slots also carry the supplements taken then, so nothing is
 // lost. `type` is 'meal' or 'todo'; `mealRows` is the nourishment shown.
+//
+// `no` and `hours` are what turn eight lists into one day. A planner that shows
+// you five identical white boxes has told you nothing about when any of it
+// happens; a running order — VII · Evening · 18—22 — is a shape you can hold in
+// your head, and it is the difference between a checklist and a day.
 const DAY_BLOCKS = [
-  { id: 'waking', type: 'todo', noTasks: true, top: 'Nourish', sub: 'Empty Stomach', mealRows: [
+  { id: 'waking', type: 'todo', noTasks: true, no: 'I', hours: '06—07', top: 'Nourish', sub: 'Empty Stomach', mealRows: [
     { kind: 'food', slot: 'emptydrink', label: 'Drink' },
     { kind: 'supp', slot: 'empty', label: 'Supplements' },
   ] },
-  { id: 'breakfast', type: 'meal', top: 'Meal', sub: 'Breakfast', mealRows: [
+  { id: 'breakfast', type: 'meal', no: 'II', hours: '07—09', top: 'Meal', sub: 'Breakfast', mealRows: [
     { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
     { kind: 'food', slot: 'drink', label: 'Drink' },
     { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
   ] },
-  { id: 'morning', type: 'todo', top: 'To Do', sub: 'Morning', mealRows: [] },
-  { id: 'lunch', type: 'meal', top: 'Meal', sub: 'Lunch', mealRows: [
+  { id: 'morning', type: 'todo', no: 'III', hours: '07—12', top: 'To Do', sub: 'Morning', mealRows: [] },
+  { id: 'lunch', type: 'meal', no: 'IV', hours: '12—14', top: 'Meal', sub: 'Lunch', mealRows: [
     { kind: 'food', slot: 'lunch', label: 'Lunch' },
     { kind: 'food', slot: 'lunchdrink', label: 'Drink' },
     { kind: 'supp', slot: 'lunch', label: 'Supplements' },
   ] },
-  { id: 'daytime', type: 'todo', top: 'To Do', sub: 'Daytime', mealRows: [] },
-  { id: 'dinner', type: 'meal', top: 'Meal', sub: 'Dinner', mealRows: [
+  { id: 'daytime', type: 'todo', no: 'V', hours: '12—18', top: 'To Do', sub: 'Daytime', mealRows: [] },
+  { id: 'dinner', type: 'meal', no: 'VI', hours: '18—20', top: 'Meal', sub: 'Dinner', mealRows: [
     { kind: 'food', slot: 'dinner', label: 'Dinner' },
     { kind: 'food', slot: 'dinnerdrink', label: 'Drink' },
     { kind: 'supp', slot: 'dinner', label: 'Supplements' },
   ] },
-  { id: 'evening', type: 'todo', top: 'To Do', sub: 'Evening', mealRows: [] },
-  { id: 'bed', type: 'todo', noTasks: true, top: 'Nourish', sub: 'Before Bed', mealRows: [
+  { id: 'evening', type: 'todo', no: 'VII', hours: '18—22', top: 'To Do', sub: 'Evening', mealRows: [] },
+  { id: 'bed', type: 'todo', noTasks: true, no: 'VIII', hours: '22—23', top: 'Nourish', sub: 'Before Bed', mealRows: [
     { kind: 'food', slot: 'beddrink', label: 'Drink' },
     { kind: 'supp', slot: 'bed', label: 'Supplements' },
   ] },
@@ -1186,8 +1207,55 @@ function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMov
   )
 }
 
-// Soft framed card used for each slide.
-const DAY_CARD = 'border border-stone-200/80 bg-white/50 p-6 md:p-8'
+// A movement of the day. It used to be a framed white box, and eight of them
+// down a phone is eight identical rectangles — the most generic object software
+// makes. It is a column under a rule now: one ink hairline across the top, the
+// heading sitting on it, and the rows below in the ground. Nothing is drawn that
+// isn't carrying information.
+const DAY_CARD = 'border-t border-stone-900 pt-4'
+
+// ── The head of a movement ──────────────────────────────────────────
+//
+// Number, name, hours, and a measure: a hairline that fills to the share of the
+// block that has been kept. That last part is the only thing on this page that
+// answers "how is today going" without making her count, and it is the reason
+// the page is worth a screenshot.
+function BlockHead({ block, done, total, left, right }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0
+  return (
+    <div className="mb-4">
+      <div className="flex items-baseline gap-3">
+        {left}
+        <span className="shrink-0 font-serif text-sm leading-none text-stone-400">{block.no}</span>
+        <h3 className="min-w-0 flex-1 truncate font-serif text-xl leading-none text-stone-900 md:text-[26px]">{block.sub}</h3>
+        <span className="shrink-0 text-[10px] leading-none tracking-[0.16em] text-stone-500">{block.hours}</span>
+        {right}
+      </div>
+      <div className="relative mt-3 h-px w-full bg-stone-200">
+        <span className="absolute inset-y-0 left-0 bg-stone-900 transition-[width] duration-300" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-2 text-[10px] leading-none tracking-[0.16em] text-stone-400">
+        {total > 0 ? `${done} OF ${total} KEPT` : 'NOTHING SET'}
+      </p>
+    </div>
+  )
+}
+
+// ── A line in the ledger ────────────────────────────────────────────
+//
+// A row is a mark, a word and a rule — the same three things a menu or an order
+// of service is made of. The rule is what was missing: fourteen rows floating in
+// a box is a wall, fourteen ruled lines is a list you can read down.
+function LedgerRow({ done, onToggle, onOpen, children }) {
+  return (
+    <div className="group flex items-center gap-3.5 border-b border-stone-200 py-2.5 last:border-b-0">
+      <Checkbox checked={done} onClick={onToggle} size={13} />
+      <button onClick={onOpen} className={`min-w-0 flex-1 text-left text-[15px] leading-snug transition-colors ${done ? 'text-stone-400 line-through' : 'text-stone-800 group-hover:text-stone-900'}`}>
+        {children}
+      </button>
+    </div>
+  )
+}
 
 // Nourishment rides a carousel (Empty Stomach · Breakfast · Lunch · Dinner ·
 // Before Bed); the three to-do time blocks stack beneath it as a quiet vertical
@@ -1206,41 +1274,50 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
   useEffect(() => { if (onBlockChange) onBlockChange(block) }, [i])
   const jump = (idx) => setI(Math.max(0, Math.min(n - 1, idx)))
 
+  const blockMeals = (meals || []).filter((m) => block.mealRows.some((r) => r.kind === m.kind && r.slot === m.slot))
+
   return (
     <div>
-      {/* ── Meals — a small carousel. Held to a readable measure even on a wide
-          desk, so the day's food never sprawls across the whole screen. ── */}
+      {/* ── Nourishment — one movement at a time. The arrows ride in the heading
+          rather than flanking a centred caption, so the name of the meal starts
+          at the margin like every other heading on the page. ── */}
       <div className={`${DAY_CARD} xl:mx-auto xl:max-w-3xl`}>
-        <div className="mb-7 flex items-center justify-between">
-          <button onClick={() => jump(i - 1)} disabled={i === 0} className={`px-2 py-1 text-xl ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
-          <div className="text-center leading-tight">
-            <p className="font-serif text-2xl text-stone-900">{block.sub}</p>
-            <span className="mx-auto mt-3 block h-px w-8 bg-stone-300" />
-          </div>
-          <button onClick={() => jump(i + 1)} disabled={i === n - 1} className={`px-2 py-1 text-xl ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
-        </div>
+        <BlockHead
+          block={block}
+          done={blockMeals.filter((m) => m.done).length}
+          total={blockMeals.length}
+          right={(
+            <span className="ml-1 flex shrink-0 items-center gap-1">
+              <button onClick={() => jump(i - 1)} disabled={i === 0} aria-label="Previous" className={`px-1 text-lg leading-none ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
+              <button onClick={() => jump(i + 1)} disabled={i === n - 1} aria-label="Next" className={`px-1 text-lg leading-none ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
+            </span>
+          )}
+        />
 
-        <div className="min-h-[150px] space-y-5">
+        <div className="min-h-[150px] space-y-6">
           {block.mealRows.map((row) => (
             <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
           ))}
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-1.5">
+      {/* Which movement is showing, as five marks on a rule rather than five
+          pills — the same language as the measures above them. */}
+      <div className="mt-6 flex items-center justify-center gap-2">
         {MEAL_BLOCKS.map((b, idx) => (
           <button
             key={b.id}
             onClick={() => jump(idx)}
             aria-label={b.sub}
-            className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-5 bg-stone-700' : 'w-1.5 bg-stone-300 hover:bg-stone-400'}`}
+            aria-current={idx === i ? 'true' : undefined}
+            className={`h-[3px] transition-all ${idx === i ? 'w-8 bg-stone-900' : 'w-4 bg-stone-300 hover:bg-stone-500'}`}
           />
         ))}
       </div>
 
-      {/* ── Time blocks — Empty Stomach → Before Bed. Stacked on a phone; on a
-          wide desk they stand side by side, so the whole day is one glance. ── */}
-      <div className="mt-10 space-y-4 xl:grid xl:grid-cols-3 xl:items-start xl:gap-5 xl:space-y-0">
+      {/* ── The hours she works through. Stacked on a phone; side by side on a
+          desk, where three ruled columns read as one page of a programme. ── */}
+      <div className="mt-12 space-y-9 xl:grid xl:grid-cols-3 xl:items-start xl:gap-8 xl:space-y-0">
         {TODO_BLOCKS.map((b) => (
           <TodoBlock
             key={b.id}
@@ -1263,29 +1340,29 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onToggle, onOpen }) {
   const tasks = block.noTasks ? [] : dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
 
+  const blockMeals = (meals || []).filter((m) => block.mealRows.some((r) => r.kind === m.kind && r.slot === m.slot))
+  const all = [...tasks, ...blockMeals]
+
   return (
     <div className={DAY_CARD}>
-      <div className="mb-5 text-center leading-tight">
-        <p className="font-serif text-xl text-stone-900">{block.sub}</p>
-        <span className="mx-auto mt-2.5 block h-px w-7 bg-stone-300" />
-      </div>
+      <BlockHead block={block} done={all.filter((x) => x.done).length} total={all.length} />
 
       <div className="space-y-6">
         {!block.noTasks && (
           tasks.length > 0 ? (
-            <div className="space-y-0.5">
+            <div>
               {tasks.map((t) => (
                 <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} />
               ))}
             </div>
           ) : (
-            <p className="text-center text-sm italic text-stone-300">Nothing yet.</p>
+            <p className="py-2 text-sm italic text-stone-400">Nothing here yet.</p>
           )
         )}
 
         {/* Nourishment on the blocks that carry it (Empty Stomach / Before Bed). */}
         {block.mealRows.length > 0 && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {block.mealRows.map((row) => (
               <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
             ))}
@@ -1303,13 +1380,10 @@ function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onToggle, onOpen 
 // alike.
 function TaskRow({ task, onToggle, onOpen }) {
   return (
-    <div className="flex items-center gap-3 py-1">
-      <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={task.done} onClick={() => onToggle(task.id)} /></span>
-      <button onClick={() => onOpen(task.id)} className={`flex-1 text-left text-sm ${task.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
-        {fmtApptTime(task.time) && <span className="mr-2 font-serif text-stone-500 tabular-nums">{fmtSpan(task.time, task.endTime)}</span>}
-        {task.title || 'Untitled'}
-      </button>
-    </div>
+    <LedgerRow done={task.done} onToggle={() => onToggle(task.id)} onOpen={() => onOpen(task.id)}>
+      {fmtApptTime(task.time) && <span className="mr-2.5 text-[11px] tracking-[0.12em] text-stone-500">{fmtSpan(task.time, task.endTime)}</span>}
+      {task.title || 'Untitled'}
+    </LedgerRow>
   )
 }
 
@@ -1321,22 +1395,23 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onOpen, onToggle }) {
   const addLabel = section.label === 'Drink' ? 'add drink' : section.kind === 'supp' ? 'add supplement' : 'add food'
   return (
     <div>
-      <p className="kicker text-stone-400 mb-2">{section.label}</p>
+      {/* The label runs out into a rule rather than sitting alone over a gap —
+          the same break the page uses between its sections, one size down. */}
+      <div className="mb-1.5 flex items-center gap-3">
+        <span className="kicker shrink-0 text-stone-500">{section.label}</span>
+        <span className="h-px flex-1 bg-stone-200" />
+      </div>
       {items.length > 0 && (
-        <div className="mb-1 space-y-0.5">
+        <div>
           {items.map((m) => (
-            <div key={m.id} className="flex items-center gap-3 py-1">
-              <span className="flex w-4 shrink-0 justify-center"><Checkbox checked={m.done} onClick={() => onToggle(m.id)} /></span>
-              <button onClick={() => onOpen(m.id)} className={`flex-1 text-left text-sm ${m.done ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{m.name}</button>
-            </div>
+            <LedgerRow key={m.id} done={m.done} onToggle={() => onToggle(m.id)} onOpen={() => onOpen(m.id)}>{m.name}</LedgerRow>
           ))}
         </div>
       )}
       {/* When a section is blank, a quiet add line keeps the structure actionable
           without cluttering populated sections. */}
       {adding ? (
-        <div className="flex items-start gap-3">
-          <span className="w-4 shrink-0" />
+        <div className="flex items-start gap-3 pt-2">
           <div className="flex-1">
             <AddMealForm
               slot={slotMeta(section.slot)}
@@ -1348,10 +1423,7 @@ function MealSection({ section, meals, dateKeyStr, onAdd, onOpen, onToggle }) {
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="flex items-center gap-3">
-          <span className="w-4 shrink-0" />
-          <button onClick={() => setAdding(true)} className="text-sm italic text-stone-400 transition-colors hover:text-stone-700">{addLabel}</button>
-        </div>
+        <button onClick={() => setAdding(true)} className="py-2 text-sm italic text-stone-400 transition-colors hover:text-stone-900">{addLabel}</button>
       ) : null}
     </div>
   )
@@ -1475,6 +1547,46 @@ function BlockAddChooser({ block, onAddTask, onAddMeal, onAddEvent, onClose }) {
   )
 }
 
+// ── A section break ────────────────────────────────────────────────
+//
+// What stood here was an <h2> set to text-4xl and then dragged back down to
+// 0.62em by an inline style — a heading fighting its own class list, twice, in
+// two places. A break is a name between two rules: the house's own signature,
+// and it costs nothing.
+function SectionRule({ children }) {
+  return (
+    <div className="mb-7 flex items-center gap-4">
+      <span className="h-px flex-1 bg-stone-200" />
+      <span className="kicker shrink-0 text-stone-900">{children}</span>
+      <span className="h-px flex-1 bg-stone-200" />
+    </div>
+  )
+}
+
+// A line you write on, with the verb riding inside it. The verb used to be a
+// bordered box standing outside the end of the rule, which is a second rectangle
+// doing the job a word does — and there were two of them on this page.
+function WriteLine({ value, onChange, onCommit, placeholder, action = 'Add' }) {
+  return (
+    <div className="flex items-center gap-4 border-b border-stone-300 pb-1.5 transition-colors focus-within:border-stone-900">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onCommit()}
+        placeholder={placeholder}
+        className="min-w-0 flex-1 bg-transparent py-1 text-[15px] outline-none placeholder:text-stone-400"
+      />
+      {/* Not disabled when the line is empty. A greyed-out 10px mono label on
+          ivory is 1.6:1 — a word you cannot read, telling you about a state you
+          can already see. It stays legible and says what Enter does; pressing
+          it with nothing written does nothing, which is the same as Enter. */}
+      <button onClick={onCommit} className="shrink-0 text-[10px] tracking-[0.16em] text-stone-500 transition-colors hover:text-stone-900">
+        {action.toUpperCase()}
+      </button>
+    </div>
+  )
+}
+
 // ── Today's notes — Keep-style card grid; click a card to edit it ───
 const noteDateLabel = (d) => {
   const x = parseKey(d)
@@ -1506,32 +1618,29 @@ function TodayNotes() {
 
   return (
     <section className="mb-14">
-      <h2 className="mb-4 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>Today's Notes.</h2>
+      <SectionRule>Today's notes</SectionRule>
 
-      <div className="mx-auto mb-8 flex w-full max-w-xl items-center gap-3 border-b border-stone-200 pb-1.5 transition-colors focus-within:border-stone-900 xl:max-w-none">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="Write a note…"
-          className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-400"
-        />
-        <button onClick={add} className={`shrink-0 ${GHOST_SM}`}>Add</button>
+      <div className="mx-auto mb-8 w-full max-w-xl xl:max-w-none">
+        <WriteLine value={draft} onChange={setDraft} onCommit={add} placeholder="Write a note…" />
       </div>
 
       {todaysNotes.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4">
           {todaysNotes.map((n) => (
             <NoteCard key={n.id} note={n} onOpen={() => setOpenId(n.id)} />
           ))}
         </div>
       )}
 
-      {/* One clean button into the whole notebook — search and filter live inside. */}
-      <div className={`flex justify-center ${todaysNotes.length > 0 ? 'mt-8' : 'mt-4'}`}>
-        <button onClick={() => setBrowsing(true)} className={GHOST}>
-          <BookOpen size={15} strokeWidth={1.75} />
-          Notebook
+      {/* The way into the whole notebook. It was a bordered button floating in
+          the middle of the column, which is the shape of a primary action — and
+          reading back through what you have written is not one. It is a verb at
+          the end of the section now, on the section's own rule. */}
+      <div className={`flex items-center gap-4 border-t border-stone-200 pt-3 ${todaysNotes.length > 0 ? 'mt-7' : 'mt-5'}`}>
+        <span className="text-[11px] italic text-stone-400">{olderCount > 0 ? `${olderCount} before today` : 'Kept as you write them'}</span>
+        <button onClick={() => setBrowsing(true)} className={`ml-auto ${QUIET}`}>
+          <BookOpen size={14} strokeWidth={1.75} />
+          Notebook <span aria-hidden>→</span>
         </button>
       </div>
 
@@ -1586,46 +1695,41 @@ function ShoppingList() {
 
   return (
     <section className="mb-16">
-      <h2 className="mb-6 text-center text-4xl md:text-5xl leading-tight text-stone-900" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>Shopping List.</h2>
+      <SectionRule>Shopping list</SectionRule>
 
       <div className="mx-auto w-full max-w-xl xl:max-w-none">
-        <div className="mb-6 flex items-center gap-3 border-b border-stone-200 pb-1.5 transition-colors focus-within:border-stone-900">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
-            placeholder="Something to buy…"
-            className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-stone-400"
-          />
-          <button onClick={add} className={`shrink-0 ${GHOST_SM}`}>Add</button>
+        <div className="mb-5">
+          <WriteLine value={draft} onChange={setDraft} onCommit={add} placeholder="Something to buy…" />
         </div>
 
-        {carried > 0 && (
-          <p className="mb-3 text-center text-xs italic text-stone-400">{carried} carried over from before</p>
-        )}
-
+        {/* The same ledger the day is written in — a mark, a word, a rule. It
+            was a bordered box with its own tinted fill, which made a shopping
+            list the heaviest object on a page about a whole day. */}
         {ordered.length > 0 ? (
-          <div className="divide-y divide-stone-200/70 overflow-hidden border border-stone-200 bg-cream/50">
+          <div>
             {ordered.map((it) => (
-              <div key={it.id} className="group flex items-center gap-3 px-5 py-3">
-                <Checkbox checked={it.bought} onClick={() => toggle(it.id)} />
-                <span className={`flex-1 text-sm ${it.bought ? 'text-stone-400 line-through' : 'text-stone-700'}`}>{it.text}</span>
-                <button onClick={() => remove(it.id)} aria-label="Remove" className="text-stone-300 opacity-0 transition-opacity hover:text-stone-600 group-hover:opacity-100"><CloseIcon size={14} /></button>
+              <div key={it.id} className="group flex items-center gap-3.5 border-b border-stone-200 py-2.5">
+                <Checkbox checked={it.bought} onClick={() => toggle(it.id)} size={13} />
+                <span className={`min-w-0 flex-1 text-[15px] leading-snug ${it.bought ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{it.text}</span>
+                <button onClick={() => remove(it.id)} aria-label="Remove" className="shrink-0 text-stone-300 transition-colors hover:text-stone-900 sm:opacity-0 sm:group-hover:opacity-100"><CloseIcon size={14} /></button>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-center text-sm italic text-stone-300">Nothing on today's list.</p>
+          <p className="py-2 text-sm italic text-stone-400">Nothing on today's list.</p>
         )}
 
-        {boughtEver.length > 0 && (
-          <div className="mt-6 flex justify-center">
-            <button onClick={() => setBrowsing(true)} className={GHOST}>
-              <ShoppingBag size={15} strokeWidth={1.75} />
-              Basket
+        <div className="mt-5 flex items-center gap-4 border-t border-stone-200 pt-3">
+          <span className="text-[11px] italic text-stone-400">
+            {carried > 0 ? `${carried} carried over` : 'Carries over until you tick it'}
+          </span>
+          {boughtEver.length > 0 && (
+            <button onClick={() => setBrowsing(true)} className={`ml-auto ${QUIET}`}>
+              <ShoppingBag size={14} strokeWidth={1.75} />
+              Basket <span aria-hidden>→</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {browsing && (
@@ -1696,13 +1800,11 @@ function NoteCard({ note, onOpen }) {
       onClick={onOpen}
       className="flex flex-col items-start border border-stone-200 bg-cream/50 p-5 text-left transition-colors hover:border-stone-900"
     >
-      <h3 className="font-serif text-xl text-stone-900">{note.title || 'Untitled'}</h3>
-      {firstLine ? (
-        <p className="mt-2 line-clamp-1 text-sm leading-relaxed text-stone-500">{firstLine}</p>
-      ) : (
-        <p className="mt-2 text-sm italic text-stone-300">No content yet.</p>
-      )}
-      <p className="kicker text-stone-400 mt-3">{noteDateLabel(note.date)}</p>
+      <h3 className="font-serif text-xl leading-tight text-stone-900">{note.title || 'Untitled'}</h3>
+      {/* An empty note used to announce itself — "No content yet." under every
+          one-line note, which is a sentence spent saying there is no sentence. */}
+      {firstLine && <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-stone-500">{firstLine}</p>}
+      <p className="kicker mt-3 text-stone-500">{noteDateLabel(note.date)}</p>
     </button>
   )
 }

@@ -298,7 +298,7 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} onAsk={() => setAskOpen(true)} />
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} onAsk={() => setAskOpen(true)} onSettings={() => setActive('settings')} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -334,17 +334,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Floating Settings — bottom-left, opposite the Add button */}
-      <button
-        onClick={() => setActive('settings')}
-        title="Settings"
-        aria-label="Settings"
-        className="fixed bottom-6 left-6 z-40 flex h-11 w-11 items-center justify-center shadow-lg transition-opacity hover:opacity-90"
-        style={{ backgroundColor: 'rgb(var(--mos-s900, 22 19 15))', color: 'var(--mos-cream, #F7F4ED)', borderRadius: 0 }}
-      >
-        <SettingsIcon size={18} />
-      </button>
-
       <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} />
 
       {/* Speaking, anywhere there is somewhere to write. Mounted once rather
@@ -359,7 +348,7 @@ export default function App() {
 // A slim, calm bar: the hairline "index" mark on the left opens the full index
 // (NavMenu); the centered cursive wordmark is a persistent masthead that taps
 // home to Today, so home is always one tap away from any pillar page.
-function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
+function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk, onSettings }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
       <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
@@ -374,11 +363,24 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
             corner of a bar that already carries one; the drawing says the same
             thing without spelling it, and sits opposite the index as its peer
             rather than as a badge. */}
-        {onAsk && (
-          <button onClick={onAsk} aria-label="Ask" title="Ask" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
-            <ConciergeMark size={26} />
-          </button>
-        )}
+        <span className="relative z-10 ml-auto flex items-center gap-4">
+          {onAsk && (
+            <button onClick={onAsk} aria-label="Ask" title="Ask" className="flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
+              <ConciergeMark size={26} />
+            </button>
+          )}
+          {/* Settings used to float over the page as a solid ink square in the
+              bottom-left — which is the corner every checkbox in the app lives
+              in, so on a long list it parked on top of a row and made that row
+              untickable. It belongs in the bar with the other two marks, and
+              that leaves exactly one thing floating over the page: the Add,
+              which is the one action a screen is allowed. */}
+          {onSettings && (
+            <button onClick={onSettings} aria-label="Settings" title="Settings" className="-mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
+              <SettingsIcon size={20} strokeWidth={1.5} />
+            </button>
+          )}
+        </span>
         {/* On the home (Today) page the big cursive masthead already carries the
             name, so the bar wordmark is hidden there to avoid showing it twice.
             On a phone it is hidden everywhere: centred in a bar with a button at
