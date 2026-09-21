@@ -39,6 +39,43 @@ async function fetchUvHourly(location) {
   return map
 }
 
+// Hourly air quality for the location — US AQI and the fine-particulate number
+// behind it — keyed the same way as the UV map so the two read off the same
+// clock. Null on failure, which the strip shows as a dash rather than a zero.
+async function fetchAirHourly(location) {
+  const loc = await resolveCoords(location)
+  if (!loc) return null
+  const f = await fetch(
+    `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${loc.latitude}&longitude=${loc.longitude}&hourly=us_aqi,pm2_5&timezone=GMT&forecast_days=2`,
+  )
+  const fj = await f.json()
+  const times = fj && fj.hourly && fj.hourly.time
+  const aqi = fj && fj.hourly && fj.hourly.us_aqi
+  const pm = fj && fj.hourly && fj.hourly.pm2_5
+  if (!Array.isArray(times) || !Array.isArray(aqi)) return null
+  const map = {}
+  times.forEach((t, i) => { map[t] = { aqi: aqi[i], pm: Array.isArray(pm) ? pm[i] : null } })
+  return map
+}
+
+// ── The time zone, in place of the town.
+//
+// The strip used to print the exact city she lives in, which is a thing a
+// screenshot gives away for good. The zone is what the page actually needs —
+// the clock and the sun times run on it — and it says nothing narrower than a
+// third of a continent.
+const tzLabel = (tz) => {
+  if (!tz) return ''
+  for (const style of ['longGeneric', 'long', 'short']) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: style }).formatToParts(new Date())
+      const v = parts.find((x) => x.type === 'timeZoneName')
+      if (v && v.value && !/^GMT[+-]/.test(v.value)) return v.value
+    } catch { /* try the next style */ }
+  }
+  return String(tz).split('/').pop().replace(/_/g, ' ')
+}
+
 // UTC-hour key matching Open-Meteo's GMT hourly timestamps.
 const utcHourKey = (d) =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}T${String(d.getUTCHours()).padStart(2, '0')}:00`
@@ -53,6 +90,21 @@ const UV_ADVICE = {
   'very high': 'SPF, hat, UPF gloves, UV umbrella',
 }
 const uvLabel = (n) => UV_TITLE[uvBand(n)]
+
+// US EPA air quality bands, and what each one is actually asking of her. The
+// names are the EPA's; the counsel is the house's — where to train, what to do
+// with the windows, whether the purifier goes on.
+const aqiBand = (n) => (n <= 50 ? 'good' : n <= 100 ? 'moderate' : n <= 150 ? 'sensitive' : n <= 200 ? 'unhealthy' : n <= 300 ? 'very' : 'hazardous')
+const AQI_TITLE = { good: 'Good', moderate: 'Moderate', sensitive: 'Sensitive', unhealthy: 'Unhealthy', very: 'Very poor', hazardous: 'Hazardous' }
+const aqiLabel = (n) => AQI_TITLE[aqiBand(n)]
+const AQI_ADVICE = {
+  good: 'Open the windows. Train outside for as long as you like.',
+  moderate: 'Fine for almost everyone. If you are reactive, keep the long outdoor session for another day.',
+  sensitive: 'Take the hard session indoors. Windows shut through the afternoon, purifier on.',
+  unhealthy: 'Train indoors today. Windows shut, purifier on, and mask anything long outside.',
+  very: 'Stay in. Windows sealed, purifier running, no outdoor exertion at all.',
+  hazardous: 'Stay in, seal the windows, run the purifier, and go out only if you have to — masked.',
+}
 
 // ── Cycle statistics — staged so a baseline only appears once enough data exists.
 const daysBetweenKeys = (a, b) => Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / 86400000)
@@ -239,12 +291,6 @@ const byTime = (a, b) => {
   return ta.localeCompare(tb)
 }
 
-const Cursive = ({ children, className = '' }) => (
-  <span className={className} style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }}>
-    {children}
-  </span>
-)
-
 // A live, ticking clock (seconds) in the location's time zone, with a breathing
 // dot. Always shows the real current time — locked, even when a past/future day
 // is selected below.
@@ -304,52 +350,41 @@ function Clock({ location }) {
   return (
     <div className="mt-4 flex flex-col items-center">
       <svg viewBox="0 0 200 200" className="h-24 w-24 md:h-28 md:w-28" role="img" aria-label="Clock">
-        <circle cx="100" cy="100" r="96" fill="none" stroke="#dcd8d1" strokeWidth="1.25" />
-        {CK_BATONS.map((b, i) => <line key={i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} stroke="#bdb7ac" strokeWidth="1.75" strokeLinecap="round" />)}
-        <line x1="100" y1="100" x2={hx} y2={hy} stroke="#2a2724" strokeWidth="2.75" strokeLinecap="round" />
-        <line x1="100" y1="100" x2={mx} y2={my} stroke="#2a2724" strokeWidth="1.75" strokeLinecap="round" />
-        <line x1={stx} y1={sty} x2={sx} y2={sy} stroke="#a89684" strokeWidth="0.9" strokeLinecap="round" />
-        <circle cx="100" cy="100" r="2.5" fill="#2a2724" />
+        {/* Off the ramp, not four hard-coded greys: the wardrobe can turn the
+            page black, and a pale grey clock face on a black page is a rumour. */}
+        <circle cx="100" cy="100" r="96" fill="none" stroke="rgb(var(--mos-s300, 206 195 175))" strokeWidth="1.25" />
+        {CK_BATONS.map((b, i) => <line key={i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} stroke="rgb(var(--mos-s400, 180 166 141))" strokeWidth="1.75" strokeLinecap="round" />)}
+        <line x1="100" y1="100" x2={hx} y2={hy} stroke="rgb(var(--mos-s900, 22 19 15))" strokeWidth="2.75" strokeLinecap="round" />
+        <line x1="100" y1="100" x2={mx} y2={my} stroke="rgb(var(--mos-s900, 22 19 15))" strokeWidth="1.75" strokeLinecap="round" />
+        <line x1={stx} y1={sty} x2={sx} y2={sy} stroke="rgb(var(--mos-s600, 110 69 38))" strokeWidth="0.9" strokeLinecap="round" />
+        <circle cx="100" cy="100" r="2.5" fill="rgb(var(--mos-s900, 22 19 15))" />
       </svg>
     </div>
   )
 }
 
-// ── Info strip — phase · date · weather · UV · location, one elegant row. The date
-// is a button that opens a calendar to view any day; a reset returns to today.
-function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycleConfig, goToCycle }) {
-  const [cycleOpen, setCycleOpen] = useState(false)
+// ── Info strip — moon · date · forecast · UV · air · zone, one elegant row.
+//
+// The cycle used to open it: LUTEAL · DAY 23, printed twice on the same screen,
+// because the masthead an inch below says the same thing and then says what to
+// do about it. The strip's job is the world outside the window — what the sky
+// is doing, what the air is doing, what hour it is where she stands — and all
+// of it re-reads itself on the clock rather than sitting where it was at dawn.
+//
+// The town is gone from the end of it. A planner that prints the city you live
+// in has put that in every screenshot you will ever send; the time zone is what
+// the page actually runs on and gives away nothing narrower than a coast.
+function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycleConfig }) {
   const [dateOpen, setDateOpen] = useState(false)
   const todayKey = dateKey(today)
   const selected = parseKey(selectedKey)
-  // The first field is the life stage's headline — phase for a cycling body,
-  // weeks for a pregnant or recovering one, steady words beyond cycles.
-  const { stage, flags } = useLifeStage()
-  const [pregRaw] = useLocalStorage('mos:pregnancy', {})
-  const [ppRaw] = useLocalStorage('mos:postpartum', {})
-  const phase = flags.phases ? phaseForConfig(cycleConfig, selected) : null
-  const phaseDay = (() => {
-    if (stage === 'pregnant') {
-      const due = pregRaw && typeof pregRaw === 'object' ? pregRaw.dueDate : ''
-      const week = due ? Math.max(1, Math.min(42, 40 - Math.floor((parseKey(due).getTime() - selected.getTime()) / (7 * 86400000)))) : null
-      return week ? `Week ${week} · expecting` : 'Expecting'
-    }
-    if (stage === 'postpartum') {
-      const bd = ppRaw && typeof ppRaw === 'object' ? ppRaw.birthDate : ''
-      const wk = bd ? Math.max(0, Math.floor((selected.getTime() - parseKey(bd).getTime()) / (7 * 86400000))) : null
-      return wk != null ? `Week ${wk} postpartum` : 'Postpartum'
-    }
-    if (stage === 'menopause') return 'Beyond cycles'
-    if (phase) return `${phase.name} · Day ${phase.cycleDay}`
-    return stage === 'perimenopause' ? 'Perimenopause' : '—'
-  })()
   const dateStr = `${MONTHS[selected.getMonth()]} ${selected.getDate()}, ${selected.getFullYear()}`
-  const Dot = () => <span className="text-stone-300">·</span>
+  // The separators are flex children, so a wrap strands one at the end of a
+  // line — a full stop where the line simply ran out. Six readings across three
+  // lines on a phone need no dots at all; the gap already separates them.
+  const Dot = () => <span aria-hidden className="hidden text-stone-300 sm:inline">·</span>
   return (
-    <div className="mb-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-y border-stone-200 py-3 text-sm text-stone-600">
-      <button onClick={() => (flags.phases ? setCycleOpen(true) : goToCycle())} className="text-stone-600 hover:text-stone-900 transition-colors">{phaseDay}</button>
-      {cycleOpen && flags.phases && <CyclePopup cycleConfig={cycleConfig || {}} today={selected} onEdit={goToCycle} onClose={() => setCycleOpen(false)} />}
-      <Dot />
+    <div className="mb-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 border-y border-stone-200 py-3 text-sm text-stone-600 sm:gap-x-6">
       <MoonField />
       <Dot />
       <button onClick={() => setDateOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{dateStr}</button>
@@ -362,11 +397,123 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycle
       <Dot />
       <UvField location={location} />
       <Dot />
-      <LocationField
-        location={location}
-        setLocation={setLocation}
-        className="w-32 bg-transparent border-b border-stone-200 pb-0.5 text-sm text-stone-700 outline-none focus:border-stone-900 transition-colors"
-      />
+      <AirField location={location} />
+      <Dot />
+      <ZoneField location={location} setLocation={setLocation} />
+    </div>
+  )
+}
+
+// The zone, and the way back to changing it. It reads as a word rather than a
+// field because it is not somewhere to type — the picker opens on a tap, and
+// what it sets is still a city, because the forecast needs one. Only the
+// printing of it changed.
+function ZoneField({ location, setLocation }) {
+  const [tz, setTz] = useState(null)
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!location) { setTz(null); return undefined }
+    let alive = true
+    ;(async () => {
+      try { const loc = await resolveCoords(location); if (alive) setTz(loc && loc.timezone ? loc.timezone : null) }
+      catch { if (alive) setTz(null) }
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locKey(location)])
+
+  const label = tzLabel(tz)
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className="text-stone-600 transition-colors hover:text-stone-900">
+        {label || 'Set a city'}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
+          <div className="w-full max-w-xs border border-stone-200 bg-cream">
+            <div className="flex justify-end px-4 pt-3">
+              <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
+            </div>
+            <div className="px-6 pb-6">
+              <p className="kicker mb-2 text-stone-500">Where you are</p>
+              <LocationField
+                location={location}
+                setLocation={setLocation}
+                className="w-full border-b border-stone-300 bg-transparent pb-1.5 text-sm text-stone-900 outline-none transition-colors focus:border-stone-900 placeholder:text-stone-400"
+              />
+              <p className="mt-3 text-xs italic text-stone-500">
+                The forecast, the sun times and the clock run on this. Only the zone{label ? ` — ${label} —` : ''} is printed on the page.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// Air quality, read off the same clock as the UV.
+function AirField({ location }) {
+  const [map, setMap] = useState(null)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!location) { setMap(null); return undefined }
+    let alive = true
+    const load = async () => {
+      try { const m = await fetchAirHourly(location); if (alive) setMap(m) }
+      catch { if (alive) setMap(null) }
+    }
+    load()
+    const id = setInterval(load, 30 * 60 * 1000)
+    return () => { alive = false; clearInterval(id) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locKey(location)])
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const now = useMemo(() => {
+    if (!map) return null
+    const v = map[utcHourKey(new Date())]
+    return v && v.aqi != null ? { aqi: Math.round(v.aqi), pm: v.pm } : null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, tick])
+
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        onClick={() => now && setOpen(true)}
+        disabled={!now}
+        className={`text-stone-700 ${now ? 'transition-colors hover:text-stone-900' : ''}`}
+      >
+        Air {now ? `${now.aqi} ${aqiLabel(now.aqi)}` : '—'}
+      </button>
+      {open && now && <AirPopup air={now} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+function AirPopup({ air, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-xs border border-stone-200 bg-cream">
+        <div className="flex justify-end px-4 pt-3">
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
+        </div>
+        <div className="px-6 pb-6">
+          <p className="kicker mb-1 text-stone-500">Today</p>
+          <p className="text-sm text-stone-800">{AQI_ADVICE[aqiBand(air.aqi)]}</p>
+          {air.pm != null && (
+            <p className="mt-3 border-t border-stone-200 pt-3 text-xs tracking-[0.12em] text-stone-500">
+              PM2.5 {Math.round(air.pm * 10) / 10} µg/m³
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -807,13 +954,13 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   return (
     <div>
-      {/* Page title — centered at the very top of the main content */}
+      {/* The name lives in the bar now, on every page, so the page itself opens
+          on the clock rather than on a second copy of its own title. */}
       <div className="mb-6 text-center">
-        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
         <Clock location={location} />
       </div>
 
-      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} goToCycle={goToCycle} />
+      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} />
 
       <Horoscope />
 
@@ -825,6 +972,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         setSelectedKey={setSelectedKey}
         today={today}
         cycleConfig={cycleConfig}
+        goToCycle={goToCycle}
         eventsFor={dayGridItems}
         ritualsFor={dayRituals}
         mealsFor={dayMeals}
@@ -914,7 +1062,8 @@ function Reading({ label, children }) {
   )
 }
 
-function DayMasthead({ selected, selectedKey, cycleConfig, rituals = [], meals = [] }) {
+function DayMasthead({ selected, selectedKey, cycleConfig, goToCycle, rituals = [], meals = [] }) {
+  const [cycleOpen, setCycleOpen] = useState(false)
   // The same flag the rest of the page reads. A life stage with no cycle in it
   // must not be handed cycle counsel.
   const { flags } = useLifeStage()
@@ -954,11 +1103,16 @@ function DayMasthead({ selected, selectedKey, cycleConfig, rituals = [], meals =
         {/* Where she is in the cycle, and what that is for. */}
         {phase && guide && (
           <div className="border-t border-stone-200 pt-4 md:border-l md:border-t-0 md:pl-8 md:pt-0">
-            <div className="flex items-baseline gap-2.5">
+            {/* The way into the cycle's statistics. It used to hang off the
+                info strip above, which printed the phase a second time to do
+                it; the phase is stated once now, and it is the thing you
+                press. */}
+            <button onClick={() => setCycleOpen(true)} className="flex items-baseline gap-2.5 text-left transition-opacity hover:opacity-60">
               {tint && <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: tint }} />}
-              <p className="kicker text-stone-900">{phase.name}</p>
-              {phase.cycleDay != null && <p className="kicker text-stone-500">Day {phase.cycleDay}</p>}
-            </div>
+              <span className="kicker text-stone-900">{phase.name}</span>
+              {phase.cycleDay != null && <span className="kicker text-stone-500">Day {phase.cycleDay}</span>}
+            </button>
+            {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={selected} onEdit={goToCycle || (() => {})} onClose={() => setCycleOpen(false)} />}
             <p className="mt-2 max-w-sm text-sm leading-snug text-stone-700">{guide.note}</p>
             <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-2">
               <Reading label="Energy">{guide.energy}</Reading>
@@ -992,7 +1146,7 @@ function DayMasthead({ selected, selectedKey, cycleConfig, rituals = [], meals =
 // ── Calendar ───────────────────────────────────────────────────────
 // A full month grid with prev/next month navigation; clicking a day expands the
 // whole day's plan (routine, nourishment, agenda) below the grid.
-function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
+function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, goToCycle, eventsFor, ritualsFor, mealsFor, carry, onCompleteCarry, agendaHint, onPickDay, onAddMeal, onRemoveMeal, onReorder, onMovePart, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
   const selected = parseKey(selectedKey)
 
   return (
@@ -1021,6 +1175,7 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, even
           selected={selected}
           selectedKey={selectedKey}
           cycleConfig={cycleConfig}
+          goToCycle={goToCycle}
           rituals={ritualsFor(selectedKey)}
           meals={mealsFor(selectedKey)}
         />
