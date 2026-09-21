@@ -2,37 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── The wardrobe.
+/* ── The ground.
  *
- * It used to offer three weights of the same ivory — chalk, ivory, parchment —
- * which is a swatch book, not a choice. Three papers you cannot tell apart in a
- * side-by-side, let alone a week apart.
+ * One paper, and no way to change it. There were four for a while — the four
+ * rooms of the app, two of them dark — and that was a swatch book with better
+ * manners than the three weights of ivory before it. A house has one paper.
+ * Picking it is the designer's job, not a setting.
  *
- * So the papers are now the four rooms of the app, and picking one turns the
- * whole house over rather than tinting the background of it: the ground, the
- * hairlines, the label ink and the body copy all move together, because the
- * ivory-to-ink ramp is read semantically everywhere — light end for surfaces,
- * dark end for type. Invert the ramp and every pairing in the app inverts with
- * it, still legible, with no per-component dark mode anywhere.
+ * The value is the ground the brand guidelines are printed on: #F8F4EC. Every
+ * other surface in the app is drawn against it, and nothing else in the system
+ * carries it.
  *
- * What does not move: the one blue, the phase colours, oxblood. A theme may
- * change what the house is printed on. It may not spend a colour that already
- * has a job.
+ * The variables stay. Every hairline, label ink, mood tint and legibility floor
+ * in the app now reads from this block rather than from a literal buried in a
+ * component, which is the part that was worth keeping: one place to change the
+ * ramp, and the marks, the clock face, the scrollbars and the charts all follow.
+ * Written as channels, because that is the only form that lets a utility carry
+ * an opacity; the few read straight by a CSS rule are mirrored as hexes.
  *
- * Each value is written as channels, which is the only form that lets a utility
- * carry an opacity, and the few that are read straight by a CSS rule are
- * mirrored as hexes. Values must match THEMES in src/components/Settings.jsx.
- * ── */
-
-/* TODAY — the morning paper. Ivory ground, ink type, cobalt. The house
-   default, and the one every other theme is a departure from. */
-:root,
-:root[data-mos-theme='today'] {
+ * What is fixed beside it: the one blue, the phase colours, oxblood. ── */
+:root {
   color-scheme: light;
-  --mos-cream: #F7F4ED;
-  --mos-cream-rgb: 247 244 237;
+  --mos-cream: #F8F4EC;
+  --mos-cream-rgb: 248 244 236;
   --mos-white: 255 255 255;
-  --mos-s50: 247 244 237;
+  --mos-s50: 248 244 236;
   --mos-s100: 239 234 224;
   --mos-s200: 226 218 203;
   --mos-s300: 206 195 175;
@@ -44,7 +38,7 @@
   --mos-s900: 22 19 15;
   --mos-accent: #1D2FC4;
   --mos-accent-rgb: 29 47 196;
-  --mos-accent-ink: #F7F4ED;
+  --mos-accent-ink: #F8F4EC;
   --mos-ink: #16130F;
   --mos-kicker: #6E4526;
   --mos-disabled-bg: #E2DACB;
@@ -58,137 +52,13 @@
   --mos-r300: #B4A68D;
   --mos-r400: #CEC3AF;
   --mos-rph: #96866C;
-  /* The mood scale. It is a data scale, so it cannot simply ride the ramp —
-     on the dark papers its ink end has to become the ivory end or the days
-     most worth seeing are the ones that cannot be seen. */
+  /* The mood scale. A data scale, so it is declared rather than derived. */
   --mos-band-up: 22 19 15;
-  --mos-band-up-ink: #F7F4ED;
+  --mos-band-up-ink: #F8F4EC;
   --mos-band-even: 180 166 141;
   --mos-band-even-ink: #16130F;
   --mos-band-down: 138 90 50;
-  --mos-band-down-ink: #FAF6ED;
-}
-
-/* BECOMING — night. The ramp turned end for end: a warm near-black ground and
-   ivory type, with walnut kept at the middle of the ramp so the page stays
-   warm rather than going to grey. The accent lifts to cobalt 300, because
-   cobalt 500 on this ground is a shape you can see and not read — and 300 is
-   not light enough to carry dark type at the floor either, so it goes to 200. */
-:root[data-mos-theme='becoming'] {
-  color-scheme: dark;
-  --mos-cream: #16130F;
-  --mos-cream-rgb: 22 19 15;
-  --mos-white: 28 25 22;
-  --mos-s50: 28 25 22;
-  --mos-s100: 35 32 25;
-  --mos-s200: 52 48 42;
-  --mos-s300: 74 68 60;
-  --mos-s400: 110 102 91;
-  --mos-s500: 156 146 132;
-  --mos-s600: 200 148 104;
-  --mos-s700: 216 195 168;
-  --mos-s800: 233 227 214;
-  --mos-s900: 244 240 230;
-  --mos-accent: #7D88F0;
-  --mos-accent-rgb: 125 136 240;
-  --mos-accent-ink: #0D0B09;
-  --mos-ink: #F4F0E6;
-  --mos-kicker: #C89468;
-  --mos-disabled-bg: #34302A;
-  --mos-disabled-ink: #9C9284;
-  --mos-t300: #9C9284;
-  --mos-t400: #B3A897;
-  --mos-t500: #C6BCAA;
-  --mos-tph: #8E8477;
-  --mos-r300: #4A443C;
-  --mos-r400: #34302A;
-  --mos-rph: #6E665B;
-  --mos-band-up: 244 240 230;
-  --mos-band-up-ink: #16130F;
-  --mos-band-even: 180 166 141;
-  --mos-band-even-ink: #16130F;
-  --mos-band-down: 200 148 104;
-  --mos-band-down-ink: #16130F;
-}
-
-/* THE PILLARS — walnut. The same inversion as Becoming, but printed on wood
-   instead of ink: a deep walnut ground, warm ivory type, the whole ramp held
-   in the brown family. */
-:root[data-mos-theme='pillars'] {
-  color-scheme: dark;
-  --mos-cream: #2C1B10;
-  --mos-cream-rgb: 44 27 16;
-  --mos-white: 53 35 18;
-  --mos-s50: 53 35 18;
-  --mos-s100: 62 42 22;
-  --mos-s200: 79 56 35;
-  --mos-s300: 106 78 51;
-  --mos-s400: 138 106 71;
-  --mos-s500: 173 140 99;
-  --mos-s600: 200 148 104;
-  --mos-s700: 220 194 155;
-  --mos-s800: 237 227 210;
-  --mos-s900: 247 241 228;
-  --mos-accent: #7D88F0;
-  --mos-accent-rgb: 125 136 240;
-  --mos-accent-ink: #16130F;
-  --mos-ink: #F7F1E4;
-  --mos-kicker: #DCC29B;
-  --mos-disabled-bg: #4F3823;
-  --mos-disabled-ink: #AD8C63;
-  --mos-t300: #AD8C63;
-  --mos-t400: #C2A47E;
-  --mos-t500: #D3BC9A;
-  --mos-tph: #9C7F5C;
-  --mos-r300: #6A4E33;
-  --mos-r400: #4F3823;
-  --mos-rph: #8A6A47;
-  --mos-band-up: 247 241 228;
-  --mos-band-up-ink: #2C1B10;
-  --mos-band-even: 200 148 104;
-  --mos-band-even-ink: #2C1B10;
-  --mos-band-down: 169 114 74;
-  --mos-band-down-ink: #F7F1E4;
-}
-
-/* WISHLIST — the gallery. Paper white rather than ivory, and the type walnut
-   rather than ink, so it reads warm and printed instead of screen-black. The
-   one theme that is lighter than the house, and it is still nothing like it. */
-:root[data-mos-theme='wishlist'] {
-  color-scheme: light;
-  --mos-cream: #FFFFFF;
-  --mos-cream-rgb: 255 255 255;
-  --mos-white: 253 252 249;
-  --mos-s50: 253 252 249;
-  --mos-s100: 246 242 234;
-  --mos-s200: 230 223 210;
-  --mos-s300: 210 199 180;
-  --mos-s400: 180 156 126;
-  --mos-s500: 138 113 84;
-  --mos-s600: 110 69 38;
-  --mos-s700: 85 52 27;
-  --mos-s800: 62 37 19;
-  --mos-s900: 42 26 16;
-  --mos-accent: #1D2FC4;
-  --mos-accent-rgb: 29 47 196;
-  --mos-accent-ink: #FFFFFF;
-  --mos-ink: #2A1A10;
-  --mos-kicker: #6E4526;
-  --mos-disabled-bg: #E6DFD2;
-  --mos-disabled-ink: #8A7154;
-  --mos-t300: #8A7053;
-  --mos-t400: #7A6247;
-  --mos-t500: #675340;
-  --mos-tph: #A08A6D;
-  --mos-r300: #B49C7E;
-  --mos-r400: #D2C7B4;
-  --mos-rph: #8A7154;
-  --mos-band-up: 42 26 16;
-  --mos-band-up-ink: #FFFFFF;
-  --mos-band-even: 180 156 126;
-  --mos-band-even-ink: #2A1A10;
-  --mos-band-down: 138 90 50;
-  --mos-band-down-ink: #FFFFFF;
+  --mos-band-down-ink: #F8F4EC;
 }
 
 html,
@@ -202,7 +72,7 @@ body {
   /* From the variable, not a literal. A second body rule down here hard-coded
      the ground and overrode the one above it, so the wardrobe has never once
      changed the paper the app is printed on. */
-  background-color: var(--mos-cream, #F7F4ED);
+  background-color: var(--mos-cream, #F8F4EC);
   color: var(--mos-ink, #16130F);
   font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
@@ -634,7 +504,7 @@ nav .bg-stone-900,
    a ruled outline. */
 button.rounded-full.bg-stone-900 {
   background-color: var(--mos-accent, #1D2FC4);
-  color: var(--mos-accent-ink, #F7F4ED);
+  color: var(--mos-accent-ink, #F8F4EC);
 }
 button.rounded-full.bg-stone-900:disabled {
   background-color: var(--mos-disabled-bg, #E2DACB);
@@ -645,7 +515,7 @@ button.rounded-full.bg-stone-900:disabled {
 [aria-current='page'],
 .mos-active {
   background-color: var(--mos-accent, #1D2FC4) !important;
-  color: var(--mos-accent-ink, #F7F4ED) !important;
+  color: var(--mos-accent-ink, #F8F4EC) !important;
 }
 
 /* Links take the accent; nothing else does. */

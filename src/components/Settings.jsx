@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Copy, LogOut, Upload, Trash2, Mail, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
+import { Copy, LogOut, Upload, Trash2, Mail, UserRound, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
 import { CloseIcon, LoggedIcon } from './shared/marks'
 import * as store from '../lib/dataStore'
 import { BTN, BTN_SM, GHOST_SM, QUIET, DANGER, DANGER_SOLID, TAG, TAG_QUIET } from './shared/buttons'
@@ -28,7 +28,6 @@ const SECTIONS = [
 // The portal's rooms — each one owns a coherent slice of the account.
 const ROOMS = [
   { id: 'profile', label: 'Profile', icon: UserRound, blurb: 'Who you are' },
-  { id: 'appearance', label: 'Appearance', icon: Palette, blurb: 'Your palette' },
   { id: 'body', label: 'My Body', icon: HeartPulse, blurb: 'Life stage & cycle' },
   { id: 'house', label: 'My House', icon: LayoutGrid, blurb: 'Sections & layout' },
   { id: 'connected', label: 'Connected', icon: Watch, blurb: 'Wearables & devices' },
@@ -37,52 +36,6 @@ const ROOMS = [
   { id: 'privacy', label: 'Data & Privacy', icon: ShieldCheck, blurb: 'Yours alone' },
   { id: 'contact', label: 'Contact', icon: MessageCircle, blurb: 'Reach us' },
 ]
-
-// The wardrobe — the paper the house is printed on. Values must match the
-// theme blocks at the head of src/index.css.
-//
-// Two goes at this were wrong in opposite directions. First four palettes that
-// were not the brand's at all — a pink ground, a green one, a grey-white
-// outside the ivory family — each carrying its own hairline and its own ink,
-// so picking a theme quietly replaced three brand values at once. Then the
-// correction overshot: three weights of the same ivory, which is a swatch book
-// rather than a choice. Nobody can tell chalk from parchment side by side, let
-// alone a week apart.
-//
-// So the papers are the four rooms of the app, and each one turns the whole
-// house over: ground, hairline, label ink and body copy move together, because
-// the ramp is read semantically everywhere. Two are dark, and they are dark all
-// the way down rather than a tinted background with black type still on it.
-//
-// What a theme may not touch: the one blue, the phase colours, oxblood.
-export const THEMES = [
-  {
-    id: 'today',
-    label: 'Today',
-    blurb: 'Ivory and ink. The house paper.',
-    ground: '#F7F4ED', mid: '#E2DACB', ink: '#16130F', accent: '#1D2FC4',
-  },
-  {
-    id: 'becoming',
-    label: 'Becoming',
-    blurb: 'Night. The whole house turned over.',
-    ground: '#16130F', mid: '#34302A', ink: '#F4F0E6', accent: '#7D88F0',
-  },
-  {
-    id: 'pillars',
-    label: 'The Pillars',
-    blurb: 'Walnut, and warm all the way down.',
-    ground: '#2C1B10', mid: '#4F3823', ink: '#F7F1E4', accent: '#7D88F0',
-  },
-  {
-    id: 'wishlist',
-    label: 'Wishlist',
-    blurb: 'Gallery white, printed in walnut.',
-    ground: '#FFFFFF', mid: '#E6DFD2', ink: '#2A1A10', accent: '#1D2FC4',
-  },
-]
-export const THEME_IDS = THEMES.map((t) => t.id)
-export const DEFAULT_THEME = 'today'
 
 // Life stages live in src/lib/lifeStage.js — one source of truth for the
 // whole arc, with per-stage feature manifests and behavior flags.
@@ -170,7 +123,6 @@ export default function Settings() {
   const [notifs, setNotifs] = useLocalStorage('mos:settings:notifs', { daily: true, cycle: true, horoscope: true, rituals: false })
   const nf = notifs && typeof notifs === 'object' ? notifs : {}
   const toggleNotif = (id) => setNotifs((prev) => { const cur = prev && typeof prev === 'object' ? prev : {}; return { ...cur, [id]: !cur[id] } })
-  const [theme, setTheme] = useLocalStorage('mos:settings:theme', DEFAULT_THEME)
   // Speaking instead of typing, everywhere. On by default — it is the way in.
   const [dictationRaw, setDictation] = useLocalStorage('mos:settings:dictation', true)
   const dictation = dictationRaw !== false
@@ -343,44 +295,6 @@ export default function Settings() {
             </Card>
           </>)}
 
-          {room === 'appearance' && (
-            <Card title="The wardrobe." blurb="Four papers, named for the four rooms. Picking one re-prints the whole planner — the ground, the rules, and the ink it is set in.">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {THEMES.map((t) => {
-                  const on = (THEME_IDS.includes(theme) ? theme : DEFAULT_THEME) === t.id
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => setTheme(t.id)}
-                      className={`overflow-hidden border text-left transition-all ${on ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'}`}
-                    >
-                      {/* The brand as it sits on that paper: a rule of ink, two
-                          hairlines and the one accent. Square, because nothing
-                          in this house is a pill — the old preview was three
-                          rounded blobs, which is the only shape the guidelines
-                          forbid outright.
-                          Taller than it was, because these papers are now
-                          different enough that a strip is worth reading. */}
-                      <div className="relative h-32" style={{ background: t.ground }}>
-                        <span className="absolute left-5 top-6 h-[3px] w-20" style={{ background: t.ink }} />
-                        <span className="absolute left-5 top-[52px] h-px w-24" style={{ background: t.mid }} />
-                        <span className="absolute left-5 top-[64px] h-px w-14" style={{ background: t.mid }} />
-                        <span className="absolute left-5 top-[86px] h-px w-20" style={{ background: t.mid }} />
-                        <span className="absolute right-5 top-6 h-6 w-6" style={{ background: t.accent }} />
-                      </div>
-                      <div className="flex items-center justify-between gap-3 border-t border-stone-200 px-4 py-3">
-                        <span>
-                          <span className="block font-serif text-lg leading-tight text-stone-900">{t.label}</span>
-                          <span className="text-xs text-stone-400">{t.blurb}</span>
-                        </span>
-                        {on && <LoggedIcon size={16} className="shrink-0 text-stone-900" />}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </Card>
-          )}
 
           {room === 'body' && (<>
             <Card title="Life stage." blurb="The whole arc — pick where your body is and the planner reshapes itself. Change it any time; nothing is ever lost when you move.">

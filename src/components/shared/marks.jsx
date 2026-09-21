@@ -42,20 +42,41 @@ function Mark({ size = 24, title, children, className = '', ...rest }) {
 }
 
 // ── The twelve ──────────────────────────────────────────────────────
-// Each is a circle, a line, a diagonal, or a disciplined combination.
+//
+// The set, as it is drawn in the brand guidelines. Numbered there 01–12, in
+// that order, and this file is the transcription — not an interpretation of it.
+// Where the old drawings and the guidelines disagreed, the guidelines won:
+// Fitness was a barbell and is a triangle; Nutrition was a halved circle and is
+// a bowl; Spirituality was a solid triangle and is an eight-pointed star;
+// Testing was a thermometer and is a vial; Skincare was a slashed circle and is
+// a bead on its stalk; Haircare leaned and now stands straight.
+//
+// Hormones keeps the Cycle mark, which is what the guidelines have for 09.
 
-export const MindsetMark = (p) => <Mark {...p}><path d="M12 4.5a7.5 7.5 0 1 0 7.5 7.5" /><path d="M12 9.5v5M9.5 12h5" /></Mark>
-export const BrainHealthMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="3" /></Mark>
-export const SkincareMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M6.5 17.5 17.5 6.5" /></Mark>
-export const HaircareMark = (p) => <Mark {...p}><path d="M5 19 12 5M10 19 17 5M15 19 19 11" /></Mark>
+// 01 — a circle, halved on the horizon.
+export const MindsetMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M4.5 12h15" /></Mark>
+// 02 — a circle within a circle, and a centre held.
+export const BrainHealthMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="3.25" /><circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" /></Mark>
+// 03 — a bead on its stalk.
+export const SkincareMark = (p) => <Mark {...p}><circle cx="12" cy="13" r="6.5" /><path d="M12 6.5v-3" /></Mark>
+// 04 — three strands, standing.
+export const HaircareMark = (p) => <Mark {...p}><path d="M7.5 5v14M12 5v14M16.5 5v14" /></Mark>
+// 05 — the square, turned.
 export const AestheticsMark = (p) => <Mark {...p}><path d="M12 4.5 19.5 12 12 19.5 4.5 12Z" /></Mark>
-export const BodycareMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M4.5 12h15M12 4.5v15" /></Mark>
-export const FitnessMark = (p) => <Mark {...p}><path d="M4.5 12h15M6.5 6.5v11M17.5 6.5v11" /></Mark>
-export const NutritionMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M12 4.5v15" /></Mark>
-export const CycleMark = (p) => <Mark {...p}><path d="M19.5 12a7.5 7.5 0 1 1-4-6.6" /><path d="M19.5 4.5v5.5H14" /></Mark>
-export const TestingMark = (p) => <Mark {...p}><path d="M9.5 4.5h5M12 4.5v9" /><circle cx="12" cy="16" r="3.5" /></Mark>
-export const RelationshipsMark = (p) => <Mark {...p}><circle cx="9" cy="12" r="5.5" /><circle cx="15" cy="12" r="5.5" /></Mark>
-export const SpiritualityMark = (p) => <Mark {...p}><path d="M12 4.5 19.5 19.5H4.5Z" /></Mark>
+// 06 — the axis through the body.
+export const BodycareMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="6" /><path d="M12 3.5v17" /></Mark>
+// 07 — the triangle, on its base.
+export const FitnessMark = (p) => <Mark {...p}><path d="M12 5 19.5 19H4.5Z" /></Mark>
+// 08 — the bowl.
+export const NutritionMark = (p) => <Mark {...p}><path d="M4.5 9.5h15" /><path d="M19.5 9.5a7.5 7.5 0 0 1-15 0" /></Mark>
+// 09 — the quarter taken out of the round.
+export const CycleMark = (p) => <Mark {...p}><circle cx="12" cy="12" r="7.5" /><path d="M12 4.5v7.5h7.5" /></Mark>
+// 10 — the vial.
+export const TestingMark = (p) => <Mark {...p}><path d="M9.5 4.5h5v12.5a2.5 2.5 0 0 1-5 0Z" /><path d="M9.5 8.5h5" /></Mark>
+// 11 — two rounds, overlapping.
+export const RelationshipsMark = (p) => <Mark {...p}><circle cx="9.5" cy="12" r="5.5" /><circle cx="14.5" cy="12" r="5.5" /></Mark>
+// 12 — eight rays from one point.
+export const SpiritualityMark = (p) => <Mark {...p}><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></Mark>
 
 export const PILLAR_MARKS = {
   mindset: MindsetMark,
@@ -75,6 +96,29 @@ export const PILLAR_MARKS = {
   spirituality: SpiritualityMark,
 }
 export const markFor = (id) => PILLAR_MARKS[id] || MindsetMark
+
+// ── The house mark ──────────────────────────────────────────────────
+//
+// A ruled square with one letter set inside it, straight off the brand
+// guidelines page: the O in Bodoni, at 0.32 of the square's height, optically
+// centred. It is not an SVG because the letter is the typeface — drawing it as
+// a path would be a copy of the mark rather than the mark.
+//
+// It stands where the index used to spell out PILLARS OF HEALTH. A title that
+// names the thing you are already looking at is a caption; a mark is a door.
+export function HouseMark({ size = 104, className = '', title }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center border border-stone-900 ${className}`}
+      style={{ width: size, height: size }}
+      role={title ? 'img' : undefined}
+      aria-label={title || undefined}
+      aria-hidden={title ? undefined : true}
+    >
+      <span className="font-serif leading-none text-stone-900" style={{ fontSize: Math.round(size * 0.46), letterSpacing: 0 }}>O</span>
+    </span>
+  )
+}
 
 // ── The utility set ─────────────────────────────────────────────────
 // Everything that is not a pillar mark, drawn to the same rules so a borrowed

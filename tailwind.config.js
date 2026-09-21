@@ -12,30 +12,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Page ground. Still a variable so a theme can retint the whole house —
-        // but held as channels, because a bare `var(--x)` makes Tailwind refuse
-        // to emit `text-cream/90` at all. That silence was the worst kind of
-        // bug: light type on a dark tile fell back to inherited ink and simply
-        // disappeared, in twenty places, with nothing in the console.
-        cream: 'rgb(var(--mos-cream-rgb, 247 244 237) / <alpha-value>)',
-        // A raised surface — a card lifted off the ground. On ivory it is
-        // literally white; on the dark papers it is the ground plus a little
-        // light, because a white box on a black page is a hole in the page.
+        // Page ground. Held as channels, not as a bare `var(--x)`, because a
+        // bare variable makes Tailwind refuse to emit `text-cream/90` at all.
+        // That silence was the worst kind of bug: light type on a dark tile
+        // fell back to inherited ink and simply disappeared, in twenty places,
+        // with nothing in the console.
+        cream: 'rgb(var(--mos-cream-rgb, 248 244 236) / <alpha-value>)',
+        // A raised surface — a card lifted off the ground.
         white: 'rgb(var(--mos-white, 255 255 255) / <alpha-value>)',
-        // Ivory into ink — and themed, which is new.
-        //
-        // The ramp is used semantically everywhere in the app: the light end is
-        // surfaces and hairlines, the dark end is type. So swapping the ends
-        // turns the whole house over at once, and every pairing the components
-        // already make (`bg-stone-900 text-cream`, `text-stone-500` on
-        // `bg-cream`) stays legible, because both halves move together. That is
-        // the only reason a theme can be dramatic without a thousand
-        // dark-mode variants.
-        //
-        // Defaults are the ivory ramp, so a page with no theme attribute set —
-        // the login screen, a stale bundle — still looks like the house.
+        // Ivory into ink. Every step reads from src/index.css, so the ramp has
+        // one home rather than ten literals scattered through components — the
+        // marks, the clock face, the scrollbars and the charts all follow it.
+        // The fallbacks are the ramp itself, so a page that somehow loads
+        // without the stylesheet still looks like the house.
         stone: {
-          50: 'rgb(var(--mos-s50, 247 244 237) / <alpha-value>)',   // lightest surface
+          50: 'rgb(var(--mos-s50, 248 244 236) / <alpha-value>)',   // lightest surface
           100: 'rgb(var(--mos-s100, 239 234 224) / <alpha-value>)', // surface
           200: 'rgb(var(--mos-s200, 226 218 203) / <alpha-value>)', // hairlines
           300: 'rgb(var(--mos-s300, 206 195 175) / <alpha-value>)',
@@ -47,9 +38,7 @@ export default {
           900: 'rgb(var(--mos-s900, 22 19 15) / <alpha-value>)',    // body copy
         },
         // The single accent. It marks what is due today and the active section,
-        // and it never marks a warning or a streak. It stays one blue in every
-        // theme; only its weight moves, because cobalt 500 on a near-black
-        // ground is a shape you can see but not read.
+        // and it never marks a warning or a streak.
         cobalt: {
           300: '#5A68E8',
           400: '#3A4BE0',
@@ -98,7 +87,7 @@ export default {
         oxblood: '#7A1220',
         tint: {
           bookend: '#EFEAE0',
-          snack: '#F7F4ED',
+          snack: '#F8F4EC',
           meal: '#E2DACB',
           supps: '#CEC3AF',
         },

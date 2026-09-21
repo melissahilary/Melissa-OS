@@ -37,11 +37,11 @@ import Aesthetics from './components/Aesthetics'
 import Spirituality from './components/Spirituality'
 import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
-import Settings, { THEME_IDS, DEFAULT_THEME } from './components/Settings'
+import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import AskConcierge from './components/AskConcierge'
 import Dictation from './components/shared/Dictation'
-import { markFor, AddIcon, CloseIcon, NextIcon, PrevIcon } from './components/shared/marks'
+import { markFor, AddIcon, CloseIcon, NextIcon, PrevIcon, HouseMark } from './components/shared/marks'
 import ConciergeMark from './components/shared/ConciergeMark'
 
 const PILLARS = [
@@ -251,22 +251,6 @@ export default function App() {
   const goToDay = (k) => { setPendingDay(k); setActive('today') }
   const [menuOpen, setMenuOpen] = useState(false)
   const [askOpen, setAskOpen] = useState(false)
-  // The chosen wardrobe palette re-skins the whole app via CSS variables.
-  const [themeRaw] = useLocalStorage('mos:settings:theme', DEFAULT_THEME)
-  useEffect(() => {
-    // Anyone still carrying porcelain, ecru, rosewater, sage, chalk or
-    // parchment lands on the house paper rather than on no paper at all.
-    const t = THEME_IDS.includes(themeRaw) ? themeRaw : DEFAULT_THEME
-    document.documentElement.setAttribute('data-mos-theme', t)
-    // The browser's own chrome — the phone's status bar, the tab strip — takes
-    // the ground too. Two of these papers are dark, and a black page under a
-    // bright ivory status bar reads as a page that failed to load.
-    const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) {
-      const ground = getComputedStyle(document.documentElement).getPropertyValue('--mos-cream').trim()
-      if (ground) meta.setAttribute('content', ground)
-    }
-  }, [themeRaw])
 
   const isToday = active === 'today'
   const isDream = active === 'dream'
@@ -298,7 +282,7 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} onAsk={() => setAskOpen(true)} onSettings={() => setActive('settings')} />
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} onAsk={() => setAskOpen(true)} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -348,7 +332,7 @@ export default function App() {
 // A slim, calm bar: the hairline "index" mark on the left opens the full index
 // (NavMenu); the centered cursive wordmark is a persistent masthead that taps
 // home to Today, so home is always one tap away from any pillar page.
-function TopNav({ onOpenMenu, onGoHome, onAsk, onSettings }) {
+function TopNav({ onOpenMenu, onGoHome, onAsk }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
       <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
@@ -363,24 +347,15 @@ function TopNav({ onOpenMenu, onGoHome, onAsk, onSettings }) {
             corner of a bar that already carries one; the drawing says the same
             thing without spelling it, and sits opposite the index as its peer
             rather than as a badge. */}
-        <span className="relative z-10 ml-auto flex items-center gap-4">
-          {onAsk && (
-            <button onClick={onAsk} aria-label="Ask" title="Ask" className="flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
-              <ConciergeMark size={26} />
-            </button>
-          )}
-          {/* Settings used to float over the page as a solid ink square in the
-              bottom-left — which is the corner every checkbox in the app lives
-              in, so on a long list it parked on top of a row and made that row
-              untickable. It belongs in the bar with the other two marks, and
-              that leaves exactly one thing floating over the page: the Add,
-              which is the one action a screen is allowed. */}
-          {onSettings && (
-            <button onClick={onSettings} aria-label="Settings" title="Settings" className="-mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
-              <SettingsIcon size={20} strokeWidth={1.5} />
-            </button>
-          )}
-        </span>
+        {/* The bar carries two marks and the masthead between them: the index
+            on the left, Ask on the right. Settings moved into the index, where
+            the pillars are — a gear floating over every page is chrome, and the
+            place you go to change the house is a destination like any other. */}
+        {onAsk && (
+          <button onClick={onAsk} aria-label="Ask" title="Ask" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
+            <ConciergeMark size={26} />
+          </button>
+        )}
         {/* The masthead, and it is permanent — every page, every width. It used
             to be hidden on Today, because the page carried a second copy of the
             name an inch below the bar, and hidden on phones, because a centred
@@ -422,9 +397,15 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
 
       <div className={`no-scrollbar relative flex h-full w-full flex-col overflow-y-auto px-8 transition-all duration-300 md:px-12 ${open ? 'translate-y-0' : '-translate-y-3'}`}>
         <div className="mx-auto w-full max-w-xl pb-16 pt-14 md:pt-20">
-          {/* The index hero — the cursive wordmark now reads "Pillars of Health";
-              tapping it still returns home to Today. */}
-          <button onClick={() => go(onGoToday)} title="Home — Today" style={{ fontFamily: "'Bodoni Moda', ui-serif, Georgia, serif", letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.62em' }} className="block w-full text-center text-4xl leading-tight text-stone-800 transition-opacity hover:opacity-70 md:text-6xl">Pillars of Health</button>
+          {/* The index hero. It used to spell out PILLARS OF HEALTH over a list
+              of the pillars of health — a caption on the thing you are already
+              looking at. The mark stands there instead, and tapping it still
+              returns home to Today. */}
+          <div className="flex justify-center">
+            <button onClick={() => go(onGoToday)} title="Home — Today" aria-label="Home — Today" className="transition-opacity hover:opacity-60">
+              <HouseMark size={92} className="md:!h-[112px] md:!w-[112px]" />
+            </button>
+          </div>
 
           <div className="mx-auto mt-12 grid w-fit grid-cols-1 gap-x-16 sm:grid-cols-2">
             {pillars.map((p) => {
@@ -432,7 +413,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
               const Icon = p.icon
               return (
                 <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 py-3.5 text-left">
-                  <Icon size={20} className="shrink-0 transition-colors" style={{ color: on ? '#1D2FC4' : 'rgba(22,19,15,0.6)' }} />
+                  <Icon size={24} className="shrink-0 transition-colors" style={{ color: on ? '#1D2FC4' : 'rgba(22,19,15,0.6)' }} />
                   <span className="relative inline-block font-serif text-2xl leading-tight">
                     <span className={`transition-colors ${on ? 'text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
                     <span className={`absolute -bottom-1 left-0 h-px bg-stone-900 transition-all duration-300 ${on ? 'w-full' : 'w-0 group-hover:w-full'}`} />
@@ -442,16 +423,29 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
             })}
           </div>
 
-          {/* Dream Planning lives apart from the pillars — a small indulgence you
-              step into. A soft inked capsule with a sparkle, centred below. */}
+          {/* Becoming lives apart from the pillars — a place you step into
+              rather than a section you maintain. The one filled action in the
+              index, which the stylesheet paints cobalt. */}
           <div className="mt-14 flex justify-center">
             <button
               onClick={() => go(onGoDream)}
-              className={`group inline-flex items-center gap-2.5 rounded-full px-7 py-3 font-serif text-lg tracking-wide transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${
-                active === 'dream' ? 'bg-stone-900 text-cream' : 'bg-stone-900 text-cream/95 shadow-md'
-              }`}
+              className="inline-flex items-center gap-2.5 rounded-full bg-stone-900 px-7 py-3 font-serif text-lg tracking-wide text-cream transition-opacity hover:opacity-90"
             >
               Becoming
+            </button>
+          </div>
+
+          {/* Settings sits with the pillars, because it is where you go from
+              here — not a gear hovering over every page. Quiet, under a rule,
+              so it reads as the end of the index rather than a thirteenth
+              pillar. */}
+          <div className="mt-12 border-t border-stone-200 pt-5">
+            <button
+              onClick={() => go(onGoSettings)}
+              className={`group mx-auto flex items-center gap-3 py-2 transition-colors ${active === 'settings' ? 'text-stone-900' : 'text-stone-500 hover:text-stone-900'}`}
+            >
+              <SettingsIcon size={16} strokeWidth={1.5} className="shrink-0" />
+              <span className="text-[11px] uppercase tracking-[0.18em]">Settings</span>
             </button>
           </div>
         </div>

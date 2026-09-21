@@ -205,15 +205,15 @@ export default function Dictation() {
         style={{
           top: box.y,
           left: box.x,
-          backgroundColor: listening ? (box.dark ? 'var(--mos-cream, #F7F4ED)' : 'rgb(var(--mos-s900, 22 19 15))') : 'transparent',
-          color: listening ? (box.dark ? 'rgb(var(--mos-s900, 22 19 15))' : 'var(--mos-cream, #F7F4ED)') : (box.dark ? 'var(--mos-r400, #CEC3AF)' : 'var(--mos-t500, #5F5442)'),
+          backgroundColor: listening ? (box.dark ? 'var(--mos-cream, #F8F4EC)' : 'rgb(var(--mos-s900, 22 19 15))') : 'transparent',
+          color: listening ? (box.dark ? 'rgb(var(--mos-s900, 22 19 15))' : 'var(--mos-cream, #F8F4EC)') : (box.dark ? 'var(--mos-r400, #CEC3AF)' : 'var(--mos-t500, #5F5442)'),
         }}
       >
         {listening && (
           <span
             aria-hidden
             className="absolute inset-0 rounded-full"
-            style={{ border: `1px solid ${box.dark ? 'var(--mos-cream, #F7F4ED)' : 'rgb(var(--mos-s900, 22 19 15))'}`, animation: 'mos-listen 1.6s ease-out infinite' }}
+            style={{ border: `1px solid ${box.dark ? 'var(--mos-cream, #F8F4EC)' : 'rgb(var(--mos-s900, 22 19 15))'}`, animation: 'mos-listen 1.6s ease-out infinite' }}
           />
         )}
         <MicIcon size={16} live={listening} />
@@ -225,8 +225,8 @@ export default function Dictation() {
           style={{
             top: box.pillY,
             right: Math.max(12, box.pillRight),
-            backgroundColor: box.dark ? 'var(--mos-cream, #F7F4ED)' : 'rgb(var(--mos-s900, 22 19 15))',
-            color: box.dark ? 'rgb(var(--mos-s900, 22 19 15))' : 'var(--mos-cream, #F7F4ED)',
+            backgroundColor: box.dark ? 'var(--mos-cream, #F8F4EC)' : 'rgb(var(--mos-s900, 22 19 15))',
+            color: box.dark ? 'rgb(var(--mos-s900, 22 19 15))' : 'var(--mos-cream, #F8F4EC)',
           }}
         >
           {!error && (

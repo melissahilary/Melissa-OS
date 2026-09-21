@@ -52,7 +52,7 @@ const DOMAIN_ORDER = ['mood', 'anxiety', 'irritability', 'energy', 'focus', 'dri
 // declares its own three, and its own ink for the numeral that sits on them —
 // which is why the luminance guess that used to pick that ink is gone.
 const BANDS = [
-  { id: 'up', label: 'Regulated', tint: 'rgb(var(--mos-band-up, 22 19 15))', soft: 'rgb(var(--mos-band-up, 22 19 15) / 0.15)', ink: 'var(--mos-band-up-ink, #F7F4ED)', dir: 1 },
+  { id: 'up', label: 'Regulated', tint: 'rgb(var(--mos-band-up, 22 19 15))', soft: 'rgb(var(--mos-band-up, 22 19 15) / 0.15)', ink: 'var(--mos-band-up-ink, #F8F4EC)', dir: 1 },
   { id: 'even', label: 'Even', tint: 'rgb(var(--mos-band-even, 180 166 141))', soft: 'rgb(var(--mos-band-even, 180 166 141) / 0.15)', ink: 'var(--mos-band-even-ink, #16130F)', dir: 0 },
   { id: 'down', label: 'Dysregulated', tint: 'rgb(var(--mos-band-down, 138 90 50))', soft: 'rgb(var(--mos-band-down, 138 90 50) / 0.15)', ink: 'var(--mos-band-down-ink, #FAF6ED)', dir: -1 },
 ]
