@@ -319,7 +319,7 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycle
   // lines on a phone need no dots at all; the gap already separates them.
   const Dot = () => <span aria-hidden className="hidden text-stone-300 sm:inline">·</span>
   return (
-    <div className="mb-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 border-y border-stone-200 py-3 text-sm text-stone-600 sm:gap-x-6">
+    <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 py-4 text-sm text-stone-600 sm:gap-x-6">
       <MoonField />
       <Dot />
       <button onClick={() => setDateOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{dateStr}</button>
@@ -1105,7 +1105,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
   const evening = uniq.filter((r) => effectiveBlock(r) === 'evening')
 
   return (
-    <header className="mb-8">
+    <header>
       {/* The two routines, filling the split the date and the cycle used to
           hold. Each row names the pillar it belongs to rather than whether it
           is kept — the tick marks below already say that, and a row that says
