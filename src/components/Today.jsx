@@ -968,13 +968,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       <DayLists />
 
       {/* The month grid that used to stand here is the ink calendar at the head
-          of the page now. */}
-
-      {/* Notes and the list are a pair — side by side once there's room for them */}
-      {/* The shopping list used to sit here beside the notes. It is one of the
-          three lists at the head of the page now, on the same store, so
-          nothing already written down moved. */}
-      <TodayNotes />
+          of the page now, and the day's notes have come off the page — the
+          notebook is its own place. */}
 
       {/* The way into Becoming. It used to sit in the index, under the twelve
           pillars, which put a place you visit once a week beside twelve you
@@ -1765,6 +1760,8 @@ const noteDateLabel = (d) => {
   return `${MONTHS[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`
 }
 
+// ORPHANED — the day's notes are off the home page. The notebook they wrote
+// into is its own place; this block is kept in case they want one again.
 function TodayNotes() {
   const [stored, setNotes] = useLocalStorage('mos:today:notes-v2', [])
   const notes = Array.isArray(stored) ? stored : []
