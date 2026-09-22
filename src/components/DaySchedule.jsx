@@ -36,8 +36,13 @@ const clockParts = (hhmm) => {
   return { face: `${H % 12 || 12}:${m[2]}`, mer: H < 12 ? 'am' : 'pm', mins: H * 60 + Number(m[2]) }
 }
 
-export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phase, onAdd, onStep }) {
+// Five hours at a time. A day read all at once is a wall; five is a page of
+// it, and the arrows only exist when there is a sixth.
+const PER_PAGE = 5
+
+export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phase, onAdd }) {
   const [adding, setAdding] = useState(false)
+  const [page, setPage] = useState(0)
   const [clockRaw] = useLocalStorage('mos:sittings', { standing: {}, days: {} })
   const standing = (clockRaw && clockRaw.standing) || {}
   const day = ((clockRaw && clockRaw.days) || {})[dateKeyStr] || {}
@@ -80,6 +85,10 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
   const mins = now.getHours() * 60 + now.getMinutes()
   const nextId = isToday ? (entries.find((e) => e.clock.mins >= mins) || {}).id : null
 
+  const pages = Math.max(1, Math.ceil(entries.length / PER_PAGE))
+  const pg = Math.min(page, pages - 1)
+  const shown = entries.slice(pg * PER_PAGE, pg * PER_PAGE + PER_PAGE)
+
   const rail = [MONTHS[date.getMonth()], phase && phase.cycleDay ? `Day ${phase.cycleDay}` : '', phase && phase.label]
     .filter(Boolean).join(' · ')
 
@@ -91,24 +100,14 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
           <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Today&rsquo;s schedule</p>
           <p className="mt-6 font-serif leading-[0.82] text-[130px] md:text-[170px]">{date.getDate()}</p>
           <p className="mt-2 font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</p>
-          <div className="mt-6 flex items-center gap-6">
-            <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
-            {/* A day either side, for reading forward and back without going
-                up to the month to do it. */}
-            {onStep && (
-              <span className="flex items-center gap-4">
-                <button onClick={() => onStep(-1)} aria-label="The day before" className="text-base leading-none transition-opacity hover:opacity-60">&larr;</button>
-                <button onClick={() => onStep(1)} aria-label="The day after" className="text-base leading-none transition-opacity hover:opacity-60">&rarr;</button>
-              </span>
-            )}
-          </div>
+          <p className="mt-6 text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
         </div>
 
         {/* The day itself, read down. */}
         <div className="px-6 pb-10 md:px-14 md:pb-16 md:pt-16 md:border-l" style={{ borderColor: W.faint }}>
           {entries.length === 0 ? (
             <p className="py-6 text-[15px] italic" style={{ color: W.muted }}>Nothing is set for today.</p>
-          ) : entries.map((e) => (
+          ) : shown.map((e) => (
             <div key={e.id} className="flex items-start gap-6 py-4 md:gap-8">
               <p className="w-[104px] shrink-0 text-right font-serif text-[30px] leading-none md:w-[124px] md:text-[34px]">
                 {e.clock.face}
@@ -124,6 +123,31 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
               </div>
             </div>
           ))}
+
+          {/* Both ways along the day, under what they move. The one that can
+              still be taken is lit; the one at the end of its travel is not. */}
+          {pages > 1 && (
+            <div className="mt-8 flex items-center justify-end gap-6">
+              <button
+                onClick={() => setPage(Math.max(0, pg - 1))}
+                disabled={pg === 0}
+                aria-label="Earlier"
+                className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default"
+                style={{ color: pg === 0 ? W.muted : W.ivory }}
+              >
+                &larr;
+              </button>
+              <button
+                onClick={() => setPage(Math.min(pages - 1, pg + 1))}
+                disabled={pg === pages - 1}
+                aria-label="Later"
+                className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default"
+                style={{ color: pg === pages - 1 ? W.muted : W.ivory }}
+              >
+                &rarr;
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

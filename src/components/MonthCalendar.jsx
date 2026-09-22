@@ -26,14 +26,17 @@ const COBALT_ON_INK = '#7C8BF0'
 // A cell is a preview, not a list. It fills two lines and stops: names are
 // taken until the line is full, so it ends on a whole name rather than a cut
 // one, and what is left over is counted. A long title is cut back to whole
-// words, and the strength work — upper body, lower body, weights — is simply
-// the gym.
+// words, the strength work — upper body, lower body, weights — is simply the
+// gym, and everything is set lower case.
 const LINE_BUDGET = 44
 const GYMISH = /(upper|lower)\s*body|strength|weights|weight\s*training|lifting|resistance/i
+// Everything in a cell is set lower case, however it was typed in. One item
+// arrives as Pilates and the next as pilates, and a month that prints both as
+// they came looks like two different registers on one page.
 const short = (raw) => {
-  const t = String(raw || '').trim()
+  const t = String(raw || '').trim().toLowerCase()
   if (!t) return ''
-  if (GYMISH.test(t)) return 'Gym'
+  if (GYMISH.test(t)) return 'gym'
   if (t.length <= 16) return t
   const words = t.split(/\s+/)
   let out = words[0]

@@ -915,7 +915,13 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   return (
     <div>
-      {/* The page opens on the two routines and the day's sittings — the part
+      {/* The reading opens the page now, so it takes the air the routines used
+          to sit flush against the bar without. */}
+      <div className="pt-8">
+        <Horoscope />
+      </div>
+
+      {/* Then the two routines and the day's sittings — the part
           of it that is actually worked, rather than a clock she already has on
           the wall and in her hand. */}
       <DayMasthead
@@ -958,7 +964,6 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         rituals={dayRituals(selectedKey)}
         meals={dayMeals(selectedKey)}
         phase={todayPhase}
-        onStep={(n) => { const d = parseKey(selectedKey); d.setDate(d.getDate() + n); pickDay(dateKey(d)) }}
         onAdd={(title, at) => addEvent(title, at)}
       />
 
@@ -966,8 +971,6 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
           running list. They sit directly under the strip, before the reading,
           because they are the part of the page she is most often here for. */}
       <DayLists />
-
-      <Horoscope />
 
       {/* The month grid that used to stand here is the ink calendar at the head
           of the page now. */}

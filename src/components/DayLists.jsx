@@ -26,7 +26,6 @@ const arr = (v) => (Array.isArray(v) ? v : [])
 // Ten rows and then a scroll. The height is the rows, not a guess at them.
 const PANE = 'mos-scroll max-h-[560px] overflow-y-auto'
 const ROW = 'flex items-center gap-4 border-b border-stone-200 py-3.5'
-const EMPTY = 'py-2 text-sm italic text-stone-400'
 
 // The one mark of state in all three lists: a square hairline that fills when
 // it is kept, got, or done with. Never a tick icon, and never a colour.
@@ -41,8 +40,10 @@ function Box({ on, onClick, label }) {
   )
 }
 
-// The way in, at the foot of every list: a rule, and one cobalt mark centred
-// under it. Never a filled button — the lists are ledgers, not forms.
+// The way in, at the foot of every list: one cobalt mark under the last rule.
+// Opened, it is not a form underneath the list — it is the next row of it,
+// wearing the same empty box, so what she types looks like what it is about
+// to become. Never a filled button; the lists are ledgers.
 function AddLine({ onAdd, placeholder }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
@@ -52,9 +53,10 @@ function AddLine({ onAdd, placeholder }) {
     onAdd(t)
     setDraft('')
   }
-  return (
-    <div className="border-t border-stone-200 pt-3">
-      {open ? (
+  if (open) {
+    return (
+      <div className={ROW}>
+        <span aria-hidden className="h-[15px] w-[15px] shrink-0 border border-stone-300" />
         <input
           autoFocus
           value={draft}
@@ -62,12 +64,13 @@ function AddLine({ onAdd, placeholder }) {
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(''); setOpen(false) } }}
           onBlur={commit}
           placeholder={placeholder}
-          className="w-full bg-transparent pb-1 text-[15px] outline-none placeholder:text-stone-400"
+          className="min-w-0 flex-1 bg-transparent text-[17px] leading-snug outline-none placeholder:text-stone-400"
         />
-      ) : (
-        <button onClick={() => setOpen(true)} aria-label={placeholder} className="mx-auto block px-4 py-1 text-lg leading-none text-cobalt transition-opacity hover:opacity-60">+</button>
-      )}
-    </div>
+      </div>
+    )
+  }
+  return (
+    <button onClick={() => setOpen(true)} aria-label={placeholder} className="mx-auto mt-3 block px-4 py-1 text-lg leading-none text-cobalt transition-opacity hover:opacity-60">+</button>
   )
 }
 
@@ -84,9 +87,7 @@ function Tasks() {
   return (
     <div>
       <div className={PANE}>
-        {items.length === 0 ? (
-          <p className={EMPTY}>Nothing owed.</p>
-        ) : items.map((t) => (
+        {items.map((t) => (
           <div key={t.id} className={ROW}>
             <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
             <span className={`min-w-0 flex-1 text-[17px] leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
@@ -129,9 +130,7 @@ function Reminders() {
         })}
       </div>
       <div className={PANE}>
-        {shown.length === 0 ? (
-          <p className={EMPTY}>Nothing here.</p>
-        ) : shown.map((r) => (
+        {shown.map((r) => (
           <div key={r.id} className={`group ${ROW}`}>
             <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
             <span className={`min-w-0 flex-1 text-[17px] leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
@@ -168,9 +167,7 @@ function Shopping() {
   return (
     <div>
       <div className={PANE}>
-        {ordered.length === 0 ? (
-          <p className={EMPTY}>Nothing on the list.</p>
-        ) : ordered.map((it) => (
+        {ordered.map((it) => (
           <div key={it.id} className={ROW}>
             <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
             <span className={`min-w-0 flex-1 text-[17px] leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>

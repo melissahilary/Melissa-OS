@@ -204,7 +204,6 @@ function HoroscopeCard({ data, onEdit }) {
     ? cleanMeaning(safe.summary)
     : safe.aspects.slice(0, 3).map((a) => cleanMeaning(a.meaning)).join(' ')
 
-  const [planetOpen, setPlanetOpen] = useState(false)
   const ruler = PLANETARY_DAYS[new Date().getDay()]
 
   const Heading = onEdit ? 'button' : 'h2'
@@ -218,16 +217,7 @@ function HoroscopeCard({ data, onEdit }) {
         >
           Your Horoscope
         </Heading>
-        <button
-          onClick={() => setPlanetOpen(true)}
-          title={`${ruler.day} · ${ruler.planet}`}
-          className="mt-1.5 text-2xl leading-none text-stone-500 transition-colors hover:text-stone-900"
-          style={{ fontFamily: "'Georgia', serif", fontVariantEmoji: 'text' }}
-        >
-          {ruler.glyph}
-        </button>
       </div>
-      {planetOpen && <PlanetPopup ruler={ruler} onClose={() => setPlanetOpen(false)} />}
 
       {safe.aspects.length > 0 ? (
         summary && (
@@ -243,6 +233,8 @@ function HoroscopeCard({ data, onEdit }) {
 }
 
 // Today's ruling planet + the day's energy, in the planner's pop-up style.
+// ORPHANED — the planet glyph that opened this is off the card. Kept in case
+// the day's ruler wants a place again.
 function PlanetPopup({ ruler, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
