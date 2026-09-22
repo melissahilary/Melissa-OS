@@ -61,20 +61,29 @@ MEMORY, UNANNOUNCED — Use what is written down without narrating that you are 
 
 NEVER ASK — No open questions, ever. Not "tell me which item you mean", not "would you like me to", not "let me know if". If the question is ambiguous, answer the most likely reading from the record and stop. The answer never ends with a question mark.
 
+OPTIONS, NOT QUESTIONS — Where the answer points somewhere she could go next, offer it as a choice rather than asking her a question. At most two, never three, and only where they are genuinely useful — most answers carry none. Each is a place in her planner, given as one of these exact ids:
+
+  today · dream · mindset · brainhealth · skincare · haircare · aesthetics · bodycare · fitness · menu · workout · diagnostics · relationship · spirituality
+
+  menu is Nutrition, workout is Hormones and the cycle, diagnostics is Testing, dream is Becoming — goals, the vision board and the wishlist.
+
+  Label each one as a short instruction in her own terms: "Open Testing", "Start it under Brain Health", "See the week in Becoming". Mark at most one as recommended — the one she is most likely to want — and only when one genuinely leads. Never offer a place the answer did not touch, and never offer one as a way of avoiding an answer.
+
 _CONTEXT IS FACT — The planner data carries a "_context" object. It is computed by the app itself, not by you: "cycle" is the phase and cycle day exactly as the app's own calendar prints them, and "resolved.today" / "resolved.tomorrow" are what actually occurs on those two days, with every repeat rule already worked out. Use them as given. Never recompute a phase or a cycle day from a start date, never work out a repeat yourself, and never say nothing places her in a phase when _context.cycle names one.
 
 OUTPUT — Return JSON and nothing else, in exactly this shape:
-{"answer":"...","lines":[{"label":"...","detail":"..."}],"sources":[{"source":"Section · what","detail":"count or date"}],"outOfRange":false}
+{"answer":"...","lines":[{"label":"...","detail":"..."}],"options":[{"label":"...","go":"...","recommended":false}],"sources":[{"source":"Section · what","detail":"count or date"}],"outOfRange":false}
 
   answer     The settled thing, in one or two sentences. Never a preamble, never a restatement of the question, never "Tomorrow is Tuesday, so…".
   lines      Optional, and only for a set. label is a short mono tag — a weekday, a time, a slot, a name — of at most 14 characters. detail is one short phrase. At most eight.
+  options    Zero, one or two. go must be one of the ids listed above and nothing else. Most answers have none.
   sources    Zero, one or two. Where the answer was found, not what it said: "Nutrition · breakfast" with "9 items". Never a restatement of the answer, never a list of the items themselves. detail is at most 24 characters. If one source covers it, send one. If the answer is about her whole day, send none.
   outOfRange true only when the answer reports a measured figure that falls outside a printed reference range. Never for anything else.
 
 The planner data is a JSON object of her stored planner (keys are prefixed "mos:"). Interpret it sensibly: activities carry a type (protocol=a practice, meal_item=food, supplement, event=appointment), a category (which pillar), a frequency, a time of day (details.slot), and completions (dates she checked it done). Diet foods carry a time-of-day slot and a 7-day pattern (Monday-first) where true = eaten that day. Goals carry milestones and a phase.`
 
 function parseAnswer(raw) {
-  if (!raw) return { answer: null, lines: [], sources: [], outOfRange: false }
+  if (!raw) return { answer: null, lines: [], options: [], sources: [], outOfRange: false }
   const start = raw.indexOf('{')
   const end = raw.lastIndexOf('}')
   if (start !== -1 && end > start) {
@@ -90,16 +99,31 @@ function parseAnswer(raw) {
           .slice(0, 2)
           .map((s) => ({ source: String(s.source).trim().slice(0, 40), detail: String(s.detail || '').trim().slice(0, 24) }))
         : []
+      // Only ids the app can actually navigate to. A label pointing nowhere is
+      // worse than no option at all.
+      const GO = new Set(['today', 'dream', 'mindset', 'brainhealth', 'skincare', 'haircare', 'aesthetics',
+        'bodycare', 'fitness', 'menu', 'workout', 'diagnostics', 'relationship', 'spirituality'])
+      let seenRecommended = false
+      const options = Array.isArray(o.options)
+        ? o.options
+          .filter((x) => x && typeof x.label === 'string' && x.label.trim() && GO.has(x.go))
+          .slice(0, 2)
+          .map((x) => {
+            const rec = x.recommended === true && !seenRecommended
+            if (rec) seenRecommended = true
+            return { label: String(x.label).trim().slice(0, 52), go: x.go, recommended: rec }
+          })
+        : []
       const lines = Array.isArray(o.lines)
         ? o.lines
           .filter((l) => l && (l.detail || l.label))
           .slice(0, 8)
           .map((l) => ({ label: String(l.label || '').trim().slice(0, 14), detail: String(l.detail || '').trim().slice(0, 90) }))
         : []
-      if (answer) return { answer, lines, sources, outOfRange: o.outOfRange === true }
+      if (answer) return { answer, lines, options, sources, outOfRange: o.outOfRange === true }
     } catch (_) { /* fall through to the plain text */ }
   }
-  return { answer: raw, lines: [], sources: [], outOfRange: false }
+  return { answer: raw, lines: [], options: [], sources: [], outOfRange: false }
 }
 
 export default async function handler(req, res) {

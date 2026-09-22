@@ -318,7 +318,7 @@ export default function App() {
         </div>
       </main>
 
-      <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} />
+      <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} onGo={(id) => setActive(id)} />
 
       {/* Speaking, anywhere there is somewhere to write. Mounted once rather
           than threaded through every field — including the ones not built yet. */}

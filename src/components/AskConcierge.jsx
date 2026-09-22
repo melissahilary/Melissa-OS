@@ -3,7 +3,7 @@ import { CloseIcon } from './shared/marks'
 import ConciergeMark from './shared/ConciergeMark'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { DOW, dateKey } from '../lib/date'
+import { MONTHS, dateKey } from '../lib/date'
 import { normActivity, activityOccursOn, isDoneOn } from '../lib/activities'
 import { normMeal, mealOccursOn } from '../lib/meals'
 
@@ -45,6 +45,12 @@ import { normMeal, mealOccursOn } from '../lib/meals'
 //   only gradient anywhere in the product. The mark and the name sit at the
 //   left of it and the stamp at the far right, and nothing else goes in that
 //   row. Four photographs, one per opening, in turn.
+//
+//   OPTIONS, NOT QUESTIONS. Where an answer points somewhere, it offers the
+//   way there as a ruled line rather than asking her what she would like —
+//   two at most, and the recommended one carries the single cobalt rule. Each
+//   goes to a real place in the planner; the panel refuses to draw one that
+//   does not.
 
 // The room's palette. These are the book's values, not the house ramp — this is
 // the one screen in the product that does not sit on écru, so it does not read
@@ -64,10 +70,19 @@ const W = {
   oxblood: '#C87A7A',  // out of range, on walnut
 }
 
-// The stamp, as the book writes it: MON 07:02. The day shortened, the time,
-// and nothing else — no date, no month.
-const clock = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-const stamp = (d) => `${DOW[d.getDay()]} ${clock(d)}`
+// The stamp.
+//
+// The book writes it MON 07:02, and this is the one place the room departs
+// from it on instruction: a screen that greets you states the day in full and
+// tells the time the way a person says it. It is the in-room screen at a good
+// hotel — the day, the date, and a twelve-hour clock — not a twenty-four hour
+// readout, which belongs on a departures board.
+const DAY_FULL = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+const clock = (d) => {
+  const h = d.getHours() % 12 || 12
+  return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`
+}
+const stamp = (d) => `${DAY_FULL[d.getDay()]} · ${d.getDate()} ${MONTHS[d.getMonth()].toUpperCase()} · ${clock(d)}`
 
 // The four photographs, in turn — one per opening, remembered across sessions
 // so the next one is genuinely next rather than random.
@@ -112,8 +127,17 @@ function opening(activities, meals, first) {
   return 'Nothing is written down for today.'
 }
 
-export default function AskConcierge({ open, onClose }) {
-  const [thread, setThread] = useState([]) // { q, a, lines, sources, outOfRange, error }
+export default function AskConcierge({ open, onClose, onGo }) {
+  // Kept through the day and cleared when the date turns over, so an afternoon
+  // question can follow a morning one — and tomorrow starts on a clean desk
+  // rather than on yesterday's.
+  const [stored, setStored] = useLocalStorage('mos:ask:thread', { date: '', rows: [] })
+  const thread = (stored && stored.date === dateKey(new Date()) && Array.isArray(stored.rows)) ? stored.rows : []
+  const setThread = (fn) => setStored((prev) => {
+    const today = dateKey(new Date())
+    const was = (prev && prev.date === today && Array.isArray(prev.rows)) ? prev.rows : []
+    return { date: today, rows: (typeof fn === 'function' ? fn(was) : fn).slice(-30) }
+  })
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -127,10 +151,16 @@ export default function AskConcierge({ open, onClose }) {
   // planner, so it carries on where it left off rather than starting again.
   const [plateTurn, setPlateTurn] = useLocalStorage('mos:ask:plate', 0)
   const [plate, setPlate] = useState(PLATES[0])
-  const now = new Date()
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    if (!open) return undefined
+    setNow(new Date())
+    const id = setInterval(() => setNow(new Date()), 20 * 1000)
+    return () => clearInterval(id)
+  }, [open])
 
   useEffect(() => {
-    if (!open) { setMounted(false); setThread([]); setQ(''); return }
+    if (!open) { setMounted(false); setQ(''); return }
     const n = Number.isFinite(plateTurn) ? plateTurn : 0
     setPlate(PLATES[((n % PLATES.length) + PLATES.length) % PLATES.length])
     setPlateTurn(n + 1)
@@ -150,7 +180,7 @@ export default function AskConcierge({ open, onClose }) {
     const text = (question || '').trim()
     if (!text || busy) return
     setQ('')
-    setThread((t) => [...t, { q: text, a: null, lines: [], sources: [] }])
+    setThread((t) => [...t, { q: text, a: null, lines: [], options: [], sources: [] }])
     setBusy(true)
     try {
       const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: text, planner: plannerSnapshot() }) })
@@ -158,7 +188,8 @@ export default function AskConcierge({ open, onClose }) {
       const a = d && d.answer ? d.answer : null
       const sources = Array.isArray(d && d.sources) ? d.sources.filter((s) => s && s.source) : []
       const lines = Array.isArray(d && d.lines) ? d.lines.filter((l) => l && (l.label || l.detail)) : []
-      setThread((t) => t.map((row, i) => (i === t.length - 1 ? { ...row, a, lines, sources, outOfRange: d && d.outOfRange === true, error: !a } : row)))
+      const options = Array.isArray(d && d.options) ? d.options.filter((o) => o && o.label && o.go) : []
+      setThread((t) => t.map((row, i) => (i === t.length - 1 ? { ...row, a, lines, options, sources, outOfRange: d && d.outOfRange === true, error: !a } : row)))
     } catch (e) {
       setThread((t) => t.map((row, i) => (i === t.length - 1 ? { ...row, a: null, error: true } : row)))
     } finally { setBusy(false) }
@@ -247,6 +278,32 @@ export default function AskConcierge({ open, onClose }) {
                                 <span className="pt-[3px] text-[10px] uppercase tracking-[0.14em]" style={{ color: W.label }}>{l.label}</span>
                                 <span className="text-[15px] leading-snug" style={{ color: W.ivory100 }}>{l.detail}</span>
                               </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Options, not questions. Two at most, set as ruled
+                            lines the full width of the answer, with the
+                            recommended one carrying the single cobalt rule —
+                            which on this ground is a rule and never a fill.
+                            Each one goes somewhere real in the planner; a
+                            label that leads nowhere is worse than none. */}
+                        {row.options && row.options.length > 0 && onGo && (
+                          <div className="mt-7">
+                            {row.options.map((o, n) => (
+                              <button
+                                key={n}
+                                onClick={() => { onGo(o.go); onClose() }}
+                                className="block w-full pb-2.5 pt-3 text-left transition-opacity hover:opacity-75"
+                                style={{ borderBottom: `1px solid ${o.recommended ? W.cobalt : W.rule}` }}
+                              >
+                                <span className="flex items-baseline justify-between gap-5">
+                                  <span className="min-w-0 font-serif text-[19px] leading-snug" style={{ color: W.ivory }}>{o.label}</span>
+                                  {o.recommended && (
+                                    <span className="shrink-0 text-[9px] tracking-[0.16em]" style={{ color: W.cobaltType }}>RECOMMENDED</span>
+                                  )}
+                                </span>
+                              </button>
                             ))}
                           </div>
                         )}
