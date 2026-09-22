@@ -805,26 +805,14 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     return out
   }
 
-  // THE MONTH — what is actually scheduled on a date: appointments, and the
-  // things that happen on their own day rather than every day. A daily habit
-  // is excluded on purpose: printed across thirty cells it says nothing and
-  // hides the one Tuesday that matters. A weekly draw or a Friday class is
-  // scheduled, so it stays.
-  const HABITUAL = ['daily', 'weekdays', 'weekends']
-  // A protocol set to four days a week or more is a habit however it is
-  // stored, so it is left off the month with the daily ones.
-  const isHabit = (a) => a.type === 'protocol' && (
-    HABITUAL.includes(a.frequency || 'daily') || (a.daysOfWeek || []).length >= 4
-  )
+  // THE MONTH — appointments, and nothing else. Not the protocols, however
+  // they are scheduled: elevating your legs for fifteen minutes is something
+  // you do, not somewhere you are expected. A month that carries both is a
+  // month you cannot read.
   const dayScheduled = (k) =>
     activities
-      .filter((a) => {
-        if (!active(a, k)) return false
-        if (a.type === 'meal_item' || a.type === 'supplement') return false
-        if (isHabit(a)) return false
-        return true
-      })
-      .map((a) => ({ id: a.id, title: a.title, kind: a.type, time: a.details?.time || '', done: isDoneOn(a, k) }))
+      .filter((a) => a.type === 'event' && active(a, k))
+      .map((a) => ({ id: a.id, title: a.title, time: a.details?.time || '', done: isDoneOn(a, k) }))
       .sort((x, y) => (x.time || '99').localeCompare(y.time || '99'))
 
   // The main month grid previews everything scheduled that day (to-dos), deduped.
@@ -958,6 +946,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         rituals={dayRituals(selectedKey)}
         meals={dayMeals(selectedKey)}
         phase={todayPhase}
+        onStep={(n) => { const d = parseKey(selectedKey); d.setDate(d.getDate() + n); pickDay(dateKey(d)) }}
         onAdd={(title, at) => addEvent(title, at)}
       />
 

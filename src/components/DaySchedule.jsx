@@ -36,7 +36,7 @@ const clockParts = (hhmm) => {
   return { face: `${H % 12 || 12}:${m[2]}`, mer: H < 12 ? 'am' : 'pm', mins: H * 60 + Number(m[2]) }
 }
 
-export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phase, onAdd }) {
+export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phase, onAdd, onStep }) {
   const [adding, setAdding] = useState(false)
   const [clockRaw] = useLocalStorage('mos:sittings', { standing: {}, days: {} })
   const standing = (clockRaw && clockRaw.standing) || {}
@@ -91,7 +91,17 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
           <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Today&rsquo;s schedule</p>
           <p className="mt-6 font-serif leading-[0.82] text-[130px] md:text-[170px]">{date.getDate()}</p>
           <p className="mt-2 font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</p>
-          <p className="mt-6 text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
+          <div className="mt-6 flex items-center gap-6">
+            <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
+            {/* A day either side, for reading forward and back without going
+                up to the month to do it. */}
+            {onStep && (
+              <span className="flex items-center gap-4">
+                <button onClick={() => onStep(-1)} aria-label="The day before" className="text-base leading-none transition-opacity hover:opacity-60">&larr;</button>
+                <button onClick={() => onStep(1)} aria-label="The day after" className="text-base leading-none transition-opacity hover:opacity-60">&rarr;</button>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* The day itself, read down. */}
