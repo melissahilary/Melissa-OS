@@ -1037,10 +1037,11 @@ const PHASE_AGENDA_HINT = {
 // evening — the only two places in the product where the accent fills
 // something this large, and they are a pair or they are nothing.
 //
-// A row is the step and a box to keep it by. No pillar named beside it: she
-// knows what her own routine is for, and the word was only ever furniture.
+// A row is the box and the step, in that order — the box stands where the
+// number used to, because a numbered list that shortens as she keeps it
+// renumbers itself, and no pillar is named beside it either.
 
-function Routine({ lead, italic, tail, items, ground, onOpen, onToggle }) {
+function Routine({ half, lead, italic, tail, items, ground, onOpen, onToggle }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
   // Only what is still owed. Ticking a step takes it off the panel and the
@@ -1049,31 +1050,34 @@ function Routine({ lead, italic, tail, items, ground, onOpen, onToggle }) {
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
-      <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
-        {lead}<br /><em className="italic">{italic}</em><br />{tail}
-      </h2>
+      {/* Which half of the day it is, said in two letters at the far edge. */}
+      <div className="flex items-start justify-between gap-6">
+        <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
+          {lead}<br /><em className="italic">{italic}</em><br />{tail}
+        </h2>
+        <span className="mt-2 shrink-0 text-[10px] uppercase tracking-[0.22em] text-cream">{half}</span>
+      </div>
       {/* However long the routine is, the panel stays the height of the page
           and the list scrolls inside it. */}
       <div className="mos-scroll mt-10 max-h-[320px] flex-1 overflow-y-auto pr-1">
-        {left.map((it, i) => (
+        {left.map((it) => (
           <div
             key={it.id}
             className="flex w-full items-center gap-5 py-3 text-left"
             style={{ borderBottom: `1px solid ${rule}` }}
           >
-            <span className="w-6 shrink-0 text-[10px] tracking-[0.1em]" style={{ color: dim }}>{String(i + 1).padStart(2, '0')}</span>
-            <button
-              onClick={() => onOpen && onOpen(it.id)}
-              className="min-w-0 flex-1 text-left text-[17px] leading-snug text-cream transition-opacity hover:opacity-75"
-            >
-              {it.title || 'Untitled'}
-            </button>
             <button
               onClick={() => onToggle && onToggle(it.id)}
               aria-label={`Done: ${it.title || 'Untitled'}`}
               className="h-[15px] w-[15px] shrink-0 border transition-colors"
               style={{ borderColor: 'rgba(247,244,237,0.55)' }}
             />
+            <button
+              onClick={() => onOpen && onOpen(it.id)}
+              className="min-w-0 flex-1 text-left text-[17px] leading-snug text-cream transition-opacity hover:opacity-75"
+            >
+              {it.title || 'Untitled'}
+            </button>
           </div>
         ))}
       </div>
@@ -1097,6 +1101,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }
           KEPT twice on one page is saying nothing the second time. */}
       <div className="mos-bleed grid gap-px md:grid-cols-2">
         <Routine
+          half="AM"
           lead="Before"
           italic="anyone"
           tail="asks."
@@ -1106,6 +1111,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }
           onToggle={onToggle}
         />
         <Routine
+          half="PM"
           lead="After"
           italic="everyone"
           tail="has gone."
