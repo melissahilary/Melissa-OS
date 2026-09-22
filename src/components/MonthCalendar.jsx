@@ -13,7 +13,17 @@ import { dateKey } from '../lib/date'
 // — the routines, the sittings, the schedule — follows it.
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+// One letter a column. The grid is read by its shape, not by its spelling,
+// and seven three-letter words across a phone is the widest thing on it.
+const DAYS = [
+  { k: 'mon', l: 'M', name: 'Monday' },
+  { k: 'tue', l: 'T', name: 'Tuesday' },
+  { k: 'wed', l: 'W', name: 'Wednesday' },
+  { k: 'thu', l: 'T', name: 'Thursday' },
+  { k: 'fri', l: 'F', name: 'Friday' },
+  { k: 'sat', l: 'S', name: 'Saturday' },
+  { k: 'sun', l: 'S', name: 'Sunday' },
+]
 
 const INK = '#16130F'
 const CREAM = '#F3EFE7'
@@ -117,7 +127,7 @@ export default function MonthCalendar({ month, setMonth, selectedKey, today, ent
 
       <div className="grid grid-cols-7 px-6 md:px-14">
         {DAYS.map((d) => (
-          <p key={d} className="pb-4 text-[10px] uppercase tracking-[0.18em]" style={{ color: DIM }}>{d}</p>
+          <p key={d.k} title={d.name} className="pb-4 text-[10px] uppercase tracking-[0.18em]" style={{ color: DIM }}>{d.l}</p>
         ))}
       </div>
 
