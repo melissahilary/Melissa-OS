@@ -21,6 +21,26 @@ const RULE = 'rgba(243,239,231,0.16)'
 const DIM = 'rgba(243,239,231,0.55)'
 const COBALT = '#7C8BF0'
 
+// A cell is a preview, not a list. Two lines at most, and each of them short
+// enough to be read at a glance: a long title is cut back to whole words
+// rather than truncated mid-syllable, and the strength work — upper body,
+// lower body, weights — is simply the gym.
+const PER_CELL = 2
+const GYMISH = /(upper|lower)\s*body|strength|weights|weight\s*training|lifting|resistance/i
+const short = (raw) => {
+  const t = String(raw || '').trim()
+  if (!t) return ''
+  if (GYMISH.test(t)) return 'Gym'
+  if (t.length <= 16) return t
+  const words = t.split(/\s+/)
+  let out = words[0]
+  for (let i = 1; i < words.length; i += 1) {
+    if ((`${out} ${words[i]}`).length > 16) break
+    out = `${out} ${words[i]}`
+  }
+  return out
+}
+
 // The hour said short, the way it is written beside a name: 9:15, 4:00.
 const shortHour = (hhmm) => {
   const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || ''))
@@ -70,23 +90,23 @@ export default function MonthCalendar({ month, setMonth, selectedKey, today, ent
               key={k}
               onClick={() => onPick(k)}
               aria-current={on ? 'date' : undefined}
-              className="min-h-[92px] border-t p-2.5 text-left align-top transition-colors md:min-h-[124px] md:p-4"
+              className="flex min-h-[112px] flex-col items-start border-t p-3 text-left transition-colors md:min-h-[152px] md:p-5"
               style={{ borderColor: RULE, background: on ? CREAM : 'transparent', color: on ? INK : CREAM }}
             >
               <span className="font-serif text-[22px] leading-none md:text-[26px]">{d.getDate()}</span>
               {k === todayKey && !on && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.16em]" style={{ color: DIM }}>Today</span>}
-              <span className="mt-2.5 block space-y-1">
-                {entries.slice(0, 3).map((e) => (
+              <span className="mt-4 block space-y-2">
+                {entries.slice(0, PER_CELL).map((e) => (
                   <span
                     key={e.id}
-                    className="block truncate text-[13px] leading-snug md:text-[14px]"
+                    className="block truncate text-[13px] leading-relaxed md:text-[14px]"
                     style={{ color: on ? INK : (e.kind === 'protocol' ? COBALT : CREAM) }}
                   >
-                    {e.title}{on && e.time ? `, ${shortHour(e.time)}` : ''}
+                    {short(e.title)}{on && e.time ? `, ${shortHour(e.time)}` : ''}
                   </span>
                 ))}
-                {entries.length > 3 && (
-                  <span className="block text-[11px]" style={{ color: on ? 'rgba(22,19,15,0.55)' : DIM }}>+{entries.length - 3}</span>
+                {entries.length > PER_CELL && (
+                  <span className="block text-[11px] leading-relaxed" style={{ color: on ? 'rgba(22,19,15,0.55)' : DIM }}>+{entries.length - PER_CELL} more</span>
                 )}
               </span>
             </button>

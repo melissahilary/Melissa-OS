@@ -811,12 +811,17 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // hides the one Tuesday that matters. A weekly draw or a Friday class is
   // scheduled, so it stays.
   const HABITUAL = ['daily', 'weekdays', 'weekends']
+  // A protocol set to four days a week or more is a habit however it is
+  // stored, so it is left off the month with the daily ones.
+  const isHabit = (a) => a.type === 'protocol' && (
+    HABITUAL.includes(a.frequency || 'daily') || (a.daysOfWeek || []).length >= 4
+  )
   const dayScheduled = (k) =>
     activities
       .filter((a) => {
         if (!active(a, k)) return false
         if (a.type === 'meal_item' || a.type === 'supplement') return false
-        if (a.type === 'protocol' && HABITUAL.includes(a.frequency || 'daily')) return false
+        if (isHabit(a)) return false
         return true
       })
       .map((a) => ({ id: a.id, title: a.title, kind: a.type, time: a.details?.time || '', done: isDoneOn(a, k) }))
