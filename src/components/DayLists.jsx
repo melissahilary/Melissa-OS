@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
-import { ACTIVITY_CATEGORIES } from '../lib/activities'
+import { PILLARS } from '../lib/pillars'
 
 // ── The three lists that are not the day.
 //
@@ -16,14 +16,9 @@ import { ACTIVITY_CATEGORIES } from '../lib/activities'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-// The topics a reminder can be filed under: General, and then the pillars —
-// the same twelve the index carries, so a reminder is filed where the rest of
-// its subject already lives.
-export const TOPICS = [
-  { id: 'general', label: 'General' },
-  ...ACTIVITY_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
-  { id: 'house', label: 'House' },
-]
+// The topics a reminder can be filed under: General, and then the twelve the
+// index carries, so a reminder is filed where the rest of its subject lives.
+export const TOPICS = [{ id: 'general', label: 'General' }, ...PILLARS]
 const topicLabel = (id) => (TOPICS.find((t) => t.id === id) || { label: 'General' }).label
 
 const arr = (v) => (Array.isArray(v) ? v : [])
@@ -32,6 +27,19 @@ const arr = (v) => (Array.isArray(v) ? v : [])
 const PANE = 'mos-scroll max-h-[560px] overflow-y-auto'
 const ROW = 'flex items-center gap-4 border-b border-stone-200 py-3.5'
 const EMPTY = 'py-2 text-sm italic text-stone-400'
+
+// The one mark of state in all three lists: a square hairline that fills when
+// it is kept, got, or done with. Never a tick icon, and never a colour.
+function Box({ on, onClick, label }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={!!on}
+      aria-label={label}
+      className={`h-[15px] w-[15px] shrink-0 border transition-colors ${on ? 'border-stone-700 bg-stone-700' : 'border-stone-400 hover:border-stone-900'}`}
+    />
+  )
+}
 
 // The way in, at the foot of every list: a rule, and one cobalt mark centred
 // under it. Never a filled button — the lists are ledgers, not forms.
@@ -80,12 +88,7 @@ function Tasks() {
           <p className={EMPTY}>Nothing owed.</p>
         ) : items.map((t) => (
           <div key={t.id} className={ROW}>
-            <button
-              onClick={() => toggle(t.id)}
-              aria-pressed={!!t.done}
-              aria-label={t.title}
-              className={`h-[15px] w-[15px] shrink-0 border transition-colors ${t.done ? 'border-stone-700 bg-stone-700' : 'border-stone-400 hover:border-stone-900'}`}
-            />
+            <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
             <span className={`min-w-0 flex-1 text-[17px] leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
           </div>
         ))}
@@ -105,15 +108,14 @@ function Reminders() {
   const items = arr(raw)
   const [filter, setFilter] = useState('all')
 
-  // Only the topics actually in use, plus General — a filter row of fourteen
-  // chips over a list of nine is a menu, not a filter.
-  const used = TOPICS.filter((t) => t.id === 'general' || items.some((r) => r.topic === t.id))
+  // General and then all twelve, always — the index does not shrink to fit
+  // what happens to be written down today.
   const shown = filter === 'all' ? items : items.filter((r) => (r.topic || 'general') === filter)
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap gap-2">
-        {[{ id: 'all', label: 'All' }, ...used].map((t) => {
+        {[{ id: 'all', label: 'All' }, ...TOPICS].map((t) => {
           const on = filter === t.id
           return (
             <button
@@ -131,7 +133,8 @@ function Reminders() {
           <p className={EMPTY}>Nothing here.</p>
         ) : shown.map((r) => (
           <div key={r.id} className={`group ${ROW}`}>
-            <span className="min-w-0 flex-1 text-[17px] leading-snug text-stone-900">{r.text}</span>
+            <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
+            <span className={`min-w-0 flex-1 text-[17px] leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
             {r.auto && (
               <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-cobalt">{topicLabel(r.topic)} · Auto</span>
             )}
@@ -169,13 +172,8 @@ function Shopping() {
           <p className={EMPTY}>Nothing on the list.</p>
         ) : ordered.map((it) => (
           <div key={it.id} className={ROW}>
-            <button
-              onClick={() => toggle(it.id)}
-              aria-pressed={!!it.bought}
-              className={`min-w-0 flex-1 text-left text-[17px] leading-snug transition-colors ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}
-            >
-              {it.text}
-            </button>
+            <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
+            <span className={`min-w-0 flex-1 text-[17px] leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
           </div>
         ))}
       </div>
@@ -208,7 +206,7 @@ export default function DayLists() {
 
   const counts = {
     tasks: arr(tasks).filter((t) => !t.done).length,
-    reminders: arr(reminders).length,
+    reminders: arr(reminders).filter((r) => !r.done).length,
     shopping: arr(shopping).filter((it) => !it.bought || it.boughtDate === todayKey).length,
   }
 

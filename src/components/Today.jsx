@@ -297,78 +297,6 @@ const byTime = (a, b) => {
   return ta.localeCompare(tb)
 }
 
-// A live, ticking clock (seconds) in the location's time zone, with a breathing
-// dot. Always shows the real current time — locked, even when a past/future day
-// is selected below.
-// Clock-face geometry (viewBox 0 0 200 200). A ring of minute dots with tapered
-// hour batons over it — the editorial City Hall look.
-const CK_C = 100
-const ckPt = (r, deg) => [CK_C + r * Math.sin((deg * Math.PI) / 180), CK_C - r * Math.cos((deg * Math.PI) / 180)]
-const CK_DOTS = Array.from({ length: 60 }, (_, i) => ckPt(63, i * 6))
-const CK_BATONS = Array.from({ length: 12 }, (_, i) => { const a = i * 30; const [x1, y1] = ckPt(90, a); const [x2, y2] = ckPt(76, a); return { x1, y1, x2, y2 } })
-
-// Read the wall-clock hour/minute/second in a given IANA time zone. Seconds are
-// whole numbers, so the second hand advances one real second per tick (one full
-// revolution every 60 seconds — the same speed as any accurate clock).
-function timePartsIn(date, tz) {
-  let h = date.getHours(); let m = date.getMinutes(); let s = date.getSeconds()
-  if (tz) {
-    try {
-      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(date)
-      const get = (t) => Number(parts.find((p) => p.type === t)?.value)
-      h = get('hour') % 24; m = get('minute'); s = get('second')
-    } catch { /* fall back to local */ }
-  }
-  return { h, m, s }
-}
-
-// A living analog clock, shown under the title. Ticks once per second (like a
-// quartz wall clock) and reads the chosen location's time zone.
-function Clock({ location }) {
-  const [now, setNow] = useState(new Date())
-  const [tz, setTz] = useState(null)
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    if (!location) { setTz(null); return undefined }
-    let alive = true
-    ;(async () => {
-      try { const loc = await resolveCoords(location); if (alive) setTz(loc && loc.timezone ? loc.timezone : null) }
-      catch { if (alive) setTz(null) }
-    })()
-    return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locKey(location)])
-
-  const { h, m, s } = timePartsIn(now, tz)
-  const secDeg = s * 6
-  const minDeg = m * 6 + s * 0.1
-  const hourDeg = (h % 12) * 30 + m * 0.5
-  const [hx, hy] = ckPt(46, hourDeg)
-  const [mx, my] = ckPt(68, minDeg)
-  const [sx, sy] = ckPt(72, secDeg)
-  const [stx, sty] = ckPt(-16, secDeg) // short tail on the second hand
-
-  return (
-    <div className="mt-4 flex flex-col items-center">
-      <svg viewBox="0 0 200 200" className="h-24 w-24 md:h-28 md:w-28" role="img" aria-label="Clock">
-        {/* Off the ramp, not four hard-coded greys: the wardrobe can turn the
-            page black, and a pale grey clock face on a black page is a rumour. */}
-        <circle cx="100" cy="100" r="96" fill="none" stroke="rgb(var(--mos-s300, 206 195 175))" strokeWidth="1.25" />
-        {CK_BATONS.map((b, i) => <line key={i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} stroke="rgb(var(--mos-s400, 180 166 141))" strokeWidth="1.75" strokeLinecap="round" />)}
-        <line x1="100" y1="100" x2={hx} y2={hy} stroke="rgb(var(--mos-s900, 22 19 15))" strokeWidth="2.75" strokeLinecap="round" />
-        <line x1="100" y1="100" x2={mx} y2={my} stroke="rgb(var(--mos-s900, 22 19 15))" strokeWidth="1.75" strokeLinecap="round" />
-        <line x1={stx} y1={sty} x2={sx} y2={sy} stroke="rgb(var(--mos-s600, 110 69 38))" strokeWidth="0.9" strokeLinecap="round" />
-        <circle cx="100" cy="100" r="2.5" fill="rgb(var(--mos-s900, 22 19 15))" />
-      </svg>
-    </div>
-  )
-}
-
 // ── Info strip — moon · date · forecast · UV · air · zone, one elegant row.
 //
 // The cycle used to open it: LUTEAL · DAY 23, printed twice on the same screen,
@@ -961,16 +889,39 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   useRegisterAdd(() => setBlockAdd(true), [])
 
   const pickDay = (k) => { setSelectedKey(k); setCalMonth(new Date(parseKey(k).getFullYear(), parseKey(k).getMonth(), 1)) }
+  const openActivity = (id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }
 
   return (
     <div>
-      {/* The name lives in the bar now, on every page, so the page itself opens
-          on the clock rather than on a second copy of its own title. */}
-      <div className="mb-6 text-center">
-        <Clock location={location} />
-      </div>
+      {/* The page opens on the two routines and the day's sittings — the part
+          of it that is actually worked, rather than a clock she already has on
+          the wall and in her hand. */}
+      <DayMasthead
+        selectedKey={selectedKey}
+        rituals={dayRituals(selectedKey)}
+        meals={dayMeals(selectedKey)}
+        onOpen={openActivity}
+      />
+      <DayColumns
+        rituals={dayRituals(selectedKey)}
+        dateKeyStr={selectedKey}
+        meals={dayMeals(selectedKey)}
+        onAddMeal={addMeal}
+        onRemoveMeal={removeMeal}
+        onMoveTaskBlock={moveTaskToBlock}
+        onAddTask={addTask}
+        onPause={pauseItem}
+        onToggle={toggleEvent}
+        onOpen={openActivity}
+        onBlockChange={setCurrentBlock}
+      />
 
       <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} />
+
+      {/* What is owed rather than scheduled: the tasks, the reminders and the
+          running list. They sit directly under the strip, before the reading,
+          because they are the part of the page she is most often here for. */}
+      <DayLists />
 
       <Horoscope />
 
@@ -998,7 +949,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onAddTask={addTask}
         onPause={pauseItem}
         onToggle={toggleEvent}
-        onOpen={(id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }}
+        onOpen={openActivity}
         onBlockChange={setCurrentBlock}
       />
       </div>
@@ -1061,31 +1012,6 @@ const PHASE_AGENDA_HINT = {
   ovulation: 'Lead, communicate, be seen.',
   luteal: 'Finish and organize.',
   menstrual: 'Keep it light today.',
-}
-
-// ── The day, as a masthead ──────────────────────────────────────────
-//
-// What stood here was the date, centred, in one size — a caption on an empty
-// page. Everything under it said "Nothing yet." three times over, so on any day
-// she had not yet filled in, the whole screen said nothing at all.
-//
-// A page has to be worth opening before it is worth writing on. This one now
-// answers three questions without her touching it: what day is it, where is she
-// in the cycle, and what shape is the day in. The first is set the way a date
-// is set in print — one enormous numeral against mono capitals, which is the
-// scale contrast the guidelines ask for and the app had nowhere else.
-//
-// The second is the part no other planner does. The app has known the phase
-// since the beginning and spent it on a tint; here it is spent on counsel —
-// what today's energy is, what to train, what to eat, and one line she can act
-// on before lunch.
-function Reading({ label, children }) {
-  return (
-    <div>
-      <p className="kicker mb-1 text-stone-500">{label}</p>
-      <p className="text-sm leading-snug text-stone-900">{children}</p>
-    </div>
-  )
 }
 
 // ── A routine, as a surface.
@@ -1159,21 +1085,15 @@ const pillarOf = (a) => {
 }
 
 function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
-  // Counted exactly the way the blocks below count, or the masthead says
-  // Morning 32 over a Morning block that lists fourteen — two numbers for one
-  // thing, disagreeing, on the same screen. Deduped, and keyed on the block a
-  // task actually sits in rather than its part of day.
+  // Deduped, and keyed on the block a task actually sits in rather than its
+  // part of day — a repeat that shows in two parts is still one task.
   const uniq = dedupeById(rituals)
-  const tickable = [...uniq, ...meals]
-  const total = tickable.length
-  const done = tickable.filter((x) => x.done).length
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   const morning = uniq.filter((r) => effectiveBlock(r) === 'morning')
   const evening = uniq.filter((r) => effectiveBlock(r) === 'evening')
 
   return (
-    <header className="mb-8 border-t border-stone-900 pt-6">
+    <header className="mb-8">
       {/* The two routines, filling the split the date and the cycle used to
           hold. Each row names the pillar it belongs to rather than whether it
           is kept — the tick marks below already say that, and a row that says
@@ -1198,24 +1118,6 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
           onOpen={onOpen}
         />
       </div>
-
-      {/* What is on the day, and then the day itself as one measure: a rule
-          that fills to what has been kept. It is the same object every block
-          below repeats at its own scale. */}
-      <dl className="mt-10 border-t border-stone-200 pt-4">
-        <Reading label="Schedule tasks">{total || '—'}</Reading>
-      </dl>
-      <div className="mt-5 flex items-center gap-4">
-        <span className="kicker shrink-0 text-stone-900">Kept</span>
-        <span className="relative h-px flex-1 bg-stone-200">
-          <span className="absolute inset-y-0 left-0 bg-stone-900 transition-[width] duration-500" style={{ width: `${pct}%` }} />
-        </span>
-        <span className="shrink-0 text-[10px] tracking-[0.16em] text-stone-900">{total ? <>{done}&thinsp;/&thinsp;{total}</> : '—'}</span>
-      </div>
-
-      {/* What is owed rather than scheduled: the tasks, the reminders and the
-          running list. One at a time, across the page. */}
-      <DayLists />
     </header>
   )
 }
@@ -1246,28 +1148,8 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, goTo
         }}
       />
 
-      {/* Selected day — expands into everything planned that day */}
-      <div className="mt-10">
-        <DayMasthead
-          selectedKey={selectedKey}
-          rituals={ritualsFor(selectedKey)}
-          meals={mealsFor(selectedKey)}
-          onOpen={onOpen}
-        />
-        <DayColumns
-          rituals={ritualsFor(selectedKey)}
-          dateKeyStr={selectedKey}
-          meals={mealsFor(selectedKey)}
-          onAddMeal={onAddMeal}
-          onRemoveMeal={onRemoveMeal}
-          onMoveTaskBlock={onMoveTaskBlock}
-          onAddTask={onAddTask}
-          onPause={onPause}
-          onToggle={onToggle}
-          onOpen={onOpen}
-          onBlockChange={onBlockChange}
-        />
-      </div>
+      {/* The routines and the sittings for the selected day head the page now,
+          above the reading, so the calendar ends with the grid itself. */}
     </section>
   )
 }

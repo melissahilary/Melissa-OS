@@ -43,21 +43,10 @@ import AskConcierge from './components/AskConcierge'
 import Dictation from './components/shared/Dictation'
 import { markFor, AddIcon, CloseIcon, NextIcon, PrevIcon, HouseMark } from './components/shared/marks'
 import ConciergeMark from './components/shared/ConciergeMark'
+import { PILLARS as PILLAR_INDEX } from './lib/pillars'
 
-const PILLARS = [
-  { id: 'mindset', label: 'Mindset', icon: markFor('mindset') },
-  { id: 'brainhealth', label: 'Brain Health', icon: markFor('brainhealth') },
-  { id: 'skincare', label: 'Skincare', icon: markFor('skincare') },
-  { id: 'haircare', label: 'Haircare', icon: markFor('haircare') },
-  { id: 'aesthetics', label: 'Aesthetics', icon: markFor('aesthetics') },
-  { id: 'bodycare', label: 'Bodycare', icon: markFor('bodycare') },
-  { id: 'fitness', label: 'Fitness', icon: markFor('fitness') },
-  { id: 'menu', label: 'Nutrition', icon: markFor('menu') },
-  { id: 'workout', label: 'Hormones', icon: markFor('workout') },
-  { id: 'diagnostics', label: 'Testing', icon: markFor('diagnostics') },
-  { id: 'relationship', label: 'Relationships', icon: markFor('relationship') },
-  { id: 'spirituality', label: 'Spirituality', icon: markFor('spirituality') },
-]
+// The twelve, in the order the index sets them, each wearing its mark.
+const PILLARS = PILLAR_INDEX.map((p) => ({ ...p, icon: markFor(p.id) }))
 
 const PILLAR_COMPONENTS = {
   mindset: Mindset,
