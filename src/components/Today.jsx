@@ -927,7 +927,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         rituals={dayRituals(selectedKey)}
         meals={dayMeals(selectedKey)}
         phase={todayPhase}
-        onAdd={() => setBlockAdd(true)}
+        onAdd={(title, at) => addEvent(title, at)}
       />
 
       {/* What is owed rather than scheduled: the tasks, the reminders and the

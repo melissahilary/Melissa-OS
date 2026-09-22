@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { SITTINGS } from '../lib/meals'
 import { parseKey } from '../lib/date'
-import { pillarLabel } from '../lib/pillars'
+
 
 // ── Today's schedule.
 //
@@ -22,6 +22,12 @@ const W = {
   cobalt: '#1D2FC4',
 }
 
+const COUNT_WORD = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
+// How many things a line actually contains. A sitting with electrolytes, clove
+// water, colostrum and the plate reads "four steps"; drinks with a friend has
+// no steps and so says nothing at all, rather than carrying a description.
+const steps = (n) => (n > 1 ? `${COUNT_WORD[n] || n} steps` : n === 1 ? 'one step' : '')
+
 // An hour, split so the meridiem can be set small beside the numerals.
 const clockParts = (hhmm) => {
   const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || ''))
@@ -31,6 +37,7 @@ const clockParts = (hhmm) => {
 }
 
 export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phase, onAdd }) {
+  const [adding, setAdding] = useState(false)
   const [clockRaw] = useLocalStorage('mos:sittings', { standing: {}, days: {} })
   const standing = (clockRaw && clockRaw.standing) || {}
   const day = ((clockRaw && clockRaw.days) || {})[dateKeyStr] || {}
@@ -46,7 +53,7 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
       const held = meals.filter((m) => m.slot === s.food || m.slot === s.drink)
       if (!held.length) return
       const at = day[s.id] || standing[s.id] || s.at
-      out.push({ id: `sitting:${s.id}`, at, title: s.label, note: held.map((m) => m.name).join(' · ') })
+      out.push({ id: `sitting:${s.id}`, at, title: s.label, note: steps(held.length) })
     })
 
     // Anything else on the day that carries a clock time. Deduped, because a
@@ -55,7 +62,9 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
     rituals.forEach((r) => {
       if (!r.time || seen.has(r.id)) return
       seen.add(r.id)
-      out.push({ id: r.id, at: r.time, title: r.title, note: pillarLabel(r.category), done: r.done })
+      // A task is one thing unless it carries sub-steps of its own, and one
+      // thing needs no count under it.
+      out.push({ id: r.id, at: r.time, title: r.title, note: steps((r.steps || []).length), done: r.done })
     })
 
     return out
@@ -110,10 +119,64 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
 
       {/* One way in, at the foot, on the right. */}
       <div className="flex justify-end border-t px-6 py-4 md:px-14" style={{ borderColor: W.faint }}>
-        <button onClick={onAdd} className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">
+        <button onClick={() => setAdding(true)} className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">
           <span className="text-base leading-none">+</span> Add to day
         </button>
       </div>
+
+      {adding && <AddToDay onClose={() => setAdding(false)} onSave={(title, at) => { onAdd(title, at); setAdding(false) }} />}
     </section>
+  )
+}
+
+// ── Add to day.
+//
+// An hour and the thing itself, and nothing else to fill in. Anything that
+// wants a pillar, a repeat or a note is edited afterwards; this is the line
+// she writes while standing up.
+function AddToDay({ onClose, onSave }) {
+  const [at, setAt] = useState('')
+  const [title, setTitle] = useState('')
+  const save = () => { const t = title.trim(); if (!t) return; onSave(t, at) }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(22,19,15,0.55)' }} onClick={onClose}>
+      <div
+        className="w-full max-w-md p-8"
+        style={{ background: W.ground, color: W.ivory }}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
+      >
+        <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Add to day</p>
+
+        <label className="mt-8 block">
+          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: W.muted }}>Time</span>
+          <input
+            type="time"
+            value={at}
+            onChange={(e) => setAt(e.target.value)}
+            className="mt-2 w-full border-b bg-transparent pb-2 font-serif text-[28px] leading-none outline-none"
+            style={{ borderColor: W.faint, color: W.ivory, colorScheme: 'dark' }}
+          />
+        </label>
+
+        <label className="mt-7 block">
+          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: W.muted }}>What</span>
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Drinks with Cheryl"
+            className="mt-2 w-full border-b bg-transparent pb-2 text-[19px] outline-none placeholder:opacity-40"
+            style={{ borderColor: W.faint, color: W.ivory }}
+          />
+        </label>
+
+        <div className="mt-9 flex items-center justify-end gap-7">
+          <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: W.muted }}>Cancel</button>
+          <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Add</button>
+        </div>
+      </div>
+    </div>
   )
 }
