@@ -3,7 +3,9 @@ import { CloseIcon } from './shared/marks'
 import ConciergeMark from './shared/ConciergeMark'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { MONTHS, DOW } from '../lib/date'
+import { DOW, dateKey } from '../lib/date'
+import { normActivity, activityOccursOn, isDoneOn } from '../lib/activities'
+import { normMeal, mealOccursOn } from '../lib/meals'
 
 // ── Ask — the concierge surface, drawn to its own book.
 //
@@ -39,10 +41,10 @@ import { MONTHS, DOW } from '../lib/date'
 //   dashed rule while it reads, and the answer settles in whole at 700ms, the
 //   same movement as a logged entry.
 //
-// What the book describes and this screen does not do: booking, rescheduling,
-// confirmations and the two-option choices that carry the cobalt rule. Ask
-// reads her record; it does not hold appointments. The ruled-option component
-// is built below and waits for the day it has something to offer.
+//   THE HEAD is a photograph under one downward scrim into Walnut 900 — the
+//   only gradient anywhere in the product. The mark and the name sit at the
+//   left of it and the stamp at the far right, and nothing else goes in that
+//   row. Four photographs, one per opening, in turn.
 
 // The room's palette. These are the book's values, not the house ramp — this is
 // the one screen in the product that does not sit on écru, so it does not read
@@ -62,30 +64,52 @@ const W = {
   oxblood: '#C87A7A',  // out of range, on walnut
 }
 
-const stamp = (d) => `${DOW[d.getDay()].toUpperCase()} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3).toUpperCase()}`
+// The stamp, as the book writes it: MON 07:02. The day shortened, the time,
+// and nothing else — no date, no month.
 const clock = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+const stamp = (d) => `${DOW[d.getDay()]} ${clock(d)}`
 
-// An option, as the book draws one: a ruled line the full width of the answer,
-// with the recommended one carrying the cobalt rule. Two, never more than
-// three, and never an open question. Nothing to offer yet — Ask reads the
-// record rather than holding a diary — so this waits for the surface that does.
-export function Option({ label, note, recommended = false, onPick }) {
-  return (
-    <button
-      onClick={onPick}
-      className="group block w-full pb-2.5 pt-3 text-left transition-opacity hover:opacity-80"
-      style={{ borderBottom: `1px solid ${recommended ? W.cobalt : W.rule}` }}
-    >
-      <span className="flex items-baseline justify-between gap-4">
-        <span className="font-serif text-[19px] leading-snug" style={{ color: W.ivory }}>{label}</span>
-        {(recommended || note) && (
-          <span className="shrink-0 text-[10px] tracking-[0.16em]" style={{ color: recommended ? W.cobaltType : W.label }}>
-            {recommended ? 'RECOMMENDED' : note}
-          </span>
-        )}
-      </span>
-    </button>
-  )
+// The four photographs, in turn — one per opening, remembered across sessions
+// so the next one is genuinely next rather than random.
+const PLATES = ['/concierge/velvet.webp', '/concierge/fringe.webp', '/concierge/travertine.webp', '/concierge/arc.webp']
+
+// The scrim, exactly as the book specifies it: one downward wash from the
+// photograph into Walnut 900, and the only gradient in the product.
+const SCRIM = 'linear-gradient(180deg, rgba(20,11,5,0.3) 0%, rgba(20,11,5,0.64) 58%, #1E1209 100%)'
+
+// A 12-hour clock the way the book writes one: "eight", "nine fifteen".
+const hhmm = (t) => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t || ''))
+  if (!m) return ''
+  const h = Number(m[1]) % 12 || 12
+  return m[2] === '00' ? `${h}` : `${h}:${m[2]}`
+}
+
+// ── What it opens with.
+//
+// Every conversation starts on what the record actually holds for today, so
+// two mornings never open the same way. It opens on the outcome — the thing
+// that is settled — and stops; it never asks her what she would like to do.
+function opening(activities, meals, first) {
+  const key = dateKey(new Date())
+  const acts = (Array.isArray(activities) ? activities : []).map(normActivity)
+    .filter((a) => activityOccursOn(a, key))
+  const appt = acts
+    .filter((a) => a.type === 'event' && a.details && a.details.time && !isDoneOn(a, key))
+    .sort((a, b) => String(a.details.time).localeCompare(String(b.details.time)))[0]
+  if (appt) {
+    const at = hhmm(appt.details.time)
+    return `${appt.title}${at ? ` at ${at}` : ''}.`
+  }
+  const openTasks = acts.filter((a) => a.type !== 'event' && !isDoneOn(a, key)).length
+  const openMeals = (Array.isArray(meals) ? meals : []).map(normMeal)
+    .filter((m) => mealOccursOn(m, key) && !(m.completions && m.completions[key])).length
+  const left = openTasks + openMeals
+  const name = first ? `, ${first}` : ''
+  if (left > 1) return `${left} things today${name}.`
+  if (left === 1) return `One thing today${name}.`
+  if (acts.length || (Array.isArray(meals) && meals.length)) return `Nothing left today${name}.`
+  return 'Nothing is written down for today.'
 }
 
 export default function AskConcierge({ open, onClose }) {
@@ -97,12 +121,19 @@ export default function AskConcierge({ open, onClose }) {
   const inputRef = useRef(null)
   const [profileRaw] = useLocalStorage('mos:profile', {})
   const first = (((profileRaw && profileRaw.name) || '').trim().split(/\s+/)[0] || '')
+  const [activities] = useLocalStorage('mos:activities', [])
+  const [meals] = useLocalStorage('mos:meals', [])
+  // Which photograph this opening gets. The turn is kept with the rest of her
+  // planner, so it carries on where it left off rather than starting again.
+  const [plateTurn, setPlateTurn] = useLocalStorage('mos:ask:plate', 0)
+  const [plate, setPlate] = useState(PLATES[0])
   const now = new Date()
-  const hour = now.getHours()
-  const partOfDay = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   useEffect(() => {
     if (!open) { setMounted(false); return }
+    const n = Number.isFinite(plateTurn) ? plateTurn : 0
+    setPlate(PLATES[((n % PLATES.length) + PLATES.length) % PLATES.length])
+    setPlateTurn(n + 1)
     const t0 = setTimeout(() => setMounted(true), 10)
     const onEsc = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onEsc)
@@ -110,6 +141,7 @@ export default function AskConcierge({ open, onClose }) {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.removeEventListener('keydown', onEsc); clearTimeout(t); clearTimeout(t0); document.body.style.overflow = prev }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, onClose])
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }) }, [thread, busy])
@@ -142,16 +174,24 @@ export default function AskConcierge({ open, onClose }) {
         style={{ backgroundColor: W.ground, borderLeft: `1px solid ${W.rule}` }}
       >
 
-        {/* The letterhead. The mark, the name of the room, and — the one line
-            the book puts here — the date beside what this reads. It says it
-            once; the same sentence used to appear again at the foot. */}
-        <div className="flex items-center gap-3 px-6 py-4 sm:px-9" style={{ borderBottom: `1px solid ${W.rule}` }}>
-          <ConciergeMark size={22} state={busy ? 'reading' : 'resting'} className="shrink-0" style={{ color: busy ? W.ivory100 : W.label }} />
-          <span className="text-[10px] tracking-[0.18em]" style={{ color: W.ivory100 }}>ASK</span>
-          <span className="hidden text-[10px] tracking-[0.14em] sm:inline" style={{ color: W.label }}>
-            {stamp(now)} · reads only your record
-          </span>
-          <button onClick={onClose} aria-label="Close" className="ml-auto shrink-0 transition-opacity hover:opacity-60" style={{ color: W.chrome }}><CloseIcon size={20} /></button>
+        {/* The head: 152px of photograph under one downward scrim into Walnut
+            900. Over it, the two things the book puts in that row and nothing
+            else — the mark and the name at the left, the stamp at the far
+            right. The close is the one addition, because a panel a pointer
+            cannot shut is broken; it sits outside the pair, at the edge. */}
+        <div className="relative flex-none overflow-hidden" style={{ height: 152 }}>
+          <img src={plate} alt="" className="absolute inset-0 block h-full w-full object-cover" />
+          <div className="absolute inset-0" style={{ background: SCRIM }} />
+          <div className="absolute left-0 right-0 top-0 flex items-center justify-between" style={{ padding: '18px 24px' }}>
+            <span className="flex items-center" style={{ gap: 11 }}>
+              <ConciergeMark size={17} state={busy ? 'reading' : 'resting'} className="shrink-0" style={{ color: W.ivory }} />
+              <span className="text-[9px] tracking-[0.2em]" style={{ color: W.ivory }}>ASK</span>
+            </span>
+            <span className="flex items-center gap-5">
+              <span className="text-[9px] tracking-[0.14em]" style={{ color: W.ivory100 }}>{stamp(now)}</span>
+              <button onClick={onClose} aria-label="Close" className="shrink-0 transition-opacity hover:opacity-60" style={{ color: W.ivory100 }}><CloseIcon size={18} /></button>
+            </span>
+          </div>
         </div>
 
         {/* The desk. It fills from the top like a page, rather than floating a
@@ -163,16 +203,11 @@ export default function AskConcierge({ open, onClose }) {
                that was never positioned, so it anchored to the scroll pane and
                came to rest through the middle of the greeting. Both go the
                moment she asks anything; a record is not a place for a name. */
-            <div className="flex h-full flex-col items-start justify-center">
-              {/* Resting: the full mark in walnut 200. The book's word for it
-                  is "present, waiting for nothing" — so it is not dimmed down
-                  into the panel colour to be tasteful about it. */}
-              <ConciergeMark size={56} className="shrink-0" style={{ color: W.label }} />
-              <p className="mt-8 font-serif text-[30px] leading-[1.2]" style={{ color: W.ivory }}>
-                {partOfDay}{first ? `, ${first}` : ''}.
-              </p>
-              <p className="mt-3 max-w-[26em] text-[15px] leading-relaxed" style={{ color: W.warm }}>
-                Answers come only from what you have written down.
+            /* Starts under the head, not floating in the middle of the pane —
+               the book's screens align their content to the top. */
+            <div className="flex flex-col items-start">
+              <p className="max-w-[24em] font-serif text-[29px] leading-[1.22]" style={{ color: W.ivory }}>
+                {opening(activities, meals, first)}
               </p>
             </div>
           ) : (
@@ -184,7 +219,7 @@ export default function AskConcierge({ open, onClose }) {
                       not right-aligned, not beside an avatar. */}
                   <div className="pb-2" style={{ borderBottom: `1px solid ${W.rule}` }}>
                     <span className="mr-3 text-[10px] tracking-[0.16em]" style={{ color: W.label }}>
-                      {row.at ? `${stamp(row.at)} ${clock(row.at)}` : ''}
+                      {row.at ? stamp(row.at) : ''}
                     </span>
                     <span className="text-[11px] uppercase tracking-[0.12em]" style={{ color: W.chrome }}>{row.q}</span>
                   </div>
