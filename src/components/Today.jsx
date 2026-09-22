@@ -808,16 +808,18 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // THE MONTH — the appointments: the things she has to be somewhere for.
   //
   // An appointment added here is one outright. Anything kept in a pillar counts
-  // as one when it is at an hour and does not happen most days — Pilates at
-  // eight on a Tuesday is somewhere to be; elevating your legs for fifteen
-  // minutes, whenever it suits, is not, and ten thousand steps every day is
-  // not either. Meals and supplements never appear.
+  // as one when it does not happen most days — Pilates on a Tuesday and a
+  // Friday is somewhere to be; ten thousand steps, every day of the week, is
+  // not. Meals and supplements never appear. Where a cell holds more than it
+  // can print, the ones at an hour are printed first.
   const HABITUAL = ['daily', 'weekdays', 'weekends']
   const isHabit = (a) => HABITUAL.includes(a.frequency || 'daily') || (a.daysOfWeek || []).length >= 4
   const isAppointment = (a) => {
     if (a.type === 'event') return true
     if (a.type !== 'protocol') return false
-    return !!(a.details && a.details.time) && !isHabit(a)
+    // No hour required. Her classes are kept in their pillars and most of them
+    // carry no time at all, and asking for one emptied the month.
+    return !isHabit(a)
   }
   const dayScheduled = (k) =>
     activities
