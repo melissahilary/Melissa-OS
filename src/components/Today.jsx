@@ -314,12 +314,12 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycle
   const todayKey = dateKey(today)
   const selected = parseKey(selectedKey)
   const dateStr = `${MONTHS[selected.getMonth()]} ${selected.getDate()}, ${selected.getFullYear()}`
-  // The separators are flex children, so a wrap strands one at the end of a
-  // line — a full stop where the line simply ran out. Six readings across three
-  // lines on a phone need no dots at all; the gap already separates them.
-  const Dot = () => <span aria-hidden className="hidden text-stone-300 sm:inline">·</span>
+  // On a phone the strip is one line that slides rather than a block of
+  // readings stacked three deep, so the separators stay: nothing wraps, and
+  // nothing is stranded at the end of a line.
+  const Dot = () => <span aria-hidden className="text-stone-300">·</span>
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 py-4 text-sm text-stone-600 sm:gap-x-6">
+    <div className="no-scrollbar flex items-center gap-x-5 overflow-x-auto py-4 text-sm text-stone-600 [&>*]:shrink-0 sm:flex-wrap sm:justify-center sm:gap-x-6 sm:overflow-x-visible">
       <MoonField />
       <Dot />
       <button onClick={() => setDateOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{dateStr}</button>
@@ -1490,16 +1490,18 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
           are places to go — the arrows are gone because the marks do the same
           job and the rail takes a swipe on its own. */}
       {stops > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-2">
+        <div className="px-6 md:px-10 lg:px-12">
+        <div className="mx-auto mt-6 flex max-w-5xl items-center gap-2">
           {Array.from({ length: stops }, (_, idx) => (
             <button
               key={idx}
               onClick={() => setI(idx)}
               aria-label={`${SITTINGS[idx].label} ${spoken(hourOf(SITTINGS[idx].id))}`}
               aria-current={idx === i ? 'true' : undefined}
-              className={`h-[3px] transition-all ${idx === i ? 'w-8 bg-stone-900' : 'w-4 bg-stone-300 hover:bg-stone-500'}`}
+              className={`h-[3px] flex-1 transition-colors ${idx === i ? 'bg-stone-900' : 'bg-stone-300 hover:bg-stone-500'}`}
             />
           ))}
+        </div>
         </div>
       )}
 
