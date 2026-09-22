@@ -1414,109 +1414,13 @@ const fmtApptTime = (t) => {
 // A swipeable carousel of the day's slides. Meals are their own slides
 // (nourishment only); to-dos live in their own time slides (Empty Stomach →
 // Before Bed). The dots move between them.
-function DayColumns({ rituals, dateKeyStr, meals, onAddMeal, onRemoveMeal, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
-  return (
-    <div className="mx-auto w-full max-w-2xl xl:max-w-none">
-      <DayFlow
-        rituals={rituals || []}
-        meals={meals}
-        dateKeyStr={dateKeyStr}
-        onAdd={onAddMeal}
-        onRemove={onRemoveMeal}
-        onMoveTaskBlock={onMoveTaskBlock}
-        onAddTask={onAddTask}
-        onPause={onPause}
-        onToggle={onToggle}
-        onOpen={onOpen}
-        onBlockChange={onBlockChange}
-      />
-    </div>
-  )
-}
-
-// A movement of the day. It used to be a framed white box, and eight of them
-// down a phone is eight identical rectangles — the most generic object software
-// makes. It is a column under a rule now: one ink hairline across the top, the
-// heading sitting on it, and the rows below in the ground. Nothing is drawn that
-// isn't carrying information.
-const DAY_CARD = 'border-t border-stone-900 pt-4'
-
-// ── The head of a movement ──────────────────────────────────────────
-//
-// Number, name, hours, and a measure: a hairline that fills to the share of the
-// block that has been kept. That last part is the only thing on this page that
-// answers "how is today going" without making her count, and it is the reason
-// the page is worth a screenshot.
-function BlockHead({ block, done, total, left, right }) {
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0
-  return (
-    <div className="mb-4">
-      <div className="flex items-baseline gap-3">
-        {left}
-        <span className="shrink-0 font-serif text-sm leading-none text-stone-400">{block.no}</span>
-        <h3 className="min-w-0 flex-1 truncate font-serif text-xl leading-none text-stone-900 md:text-[26px]">{block.sub}</h3>
-        <span className="shrink-0 text-[10px] leading-none tracking-[0.16em] text-stone-500">{block.hours}</span>
-        {right}
-      </div>
-      <div className="relative mt-3 h-px w-full bg-stone-200">
-        <span className="absolute inset-y-0 left-0 bg-stone-900 transition-[width] duration-300" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="mt-2 text-[10px] leading-none tracking-[0.16em] text-stone-400">
-        {total > 0 ? `${done} OF ${total} KEPT` : 'NOTHING SET'}
-      </p>
-    </div>
-  )
-}
-
-// ── A line in the ledger ────────────────────────────────────────────
-//
-// A row is a mark, a word and a rule — the same three things a menu or an order
-// of service is made of. The rule is what was missing: fourteen rows floating in
-// a box is a wall, fourteen ruled lines is a list you can read down.
-function LedgerRow({ done, onToggle, onOpen, children }) {
-  return (
-    <div className="group flex items-center gap-3.5 border-b border-stone-200 py-2.5 last:border-b-0">
-      <Checkbox checked={done} onClick={onToggle} size={13} />
-      <button onClick={onOpen} className={`min-w-0 flex-1 text-left text-[15px] leading-snug transition-colors ${done ? 'text-stone-400 line-through' : 'text-stone-800 group-hover:text-stone-900'}`}>
-        {children}
-      </button>
-    </div>
-  )
-}
-
-// Nourishment rides a carousel (Empty Stomach · Breakfast · Lunch · Dinner ·
-// Before Bed); the three to-do time blocks stack beneath it as a quiet vertical
-// rhythm of the day.
-const MEAL_BLOCKS = DAY_BLOCKS.filter((b) => b.mealRows.length > 0)
-const TODO_BLOCKS = DAY_BLOCKS.filter((b) => b.type === 'todo' && !b.noTasks)
-
-// TODAY body. A carousel of the day's nourishment (Empty Stomach → Before Bed)
-// sits up top; below it the day's to-do blocks (Morning · Daytime · Evening)
-// stack in order.
-function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
-
-  return (
-    <div>
-      <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} />
-
-      {/* ── The hours she works through. Stacked on a phone; side by side on a
-          desk, where three ruled columns read as one page of a programme. ── */}
-      <div className="mt-12 space-y-9 xl:grid xl:grid-cols-3 xl:items-start xl:gap-8 xl:space-y-0">
-        {TODO_BLOCKS.map((b) => (
-          <TodoBlock
-            key={b.id}
-            block={b}
-            rituals={rituals}
-            meals={meals}
-            dateKeyStr={dateKeyStr}
-            onAdd={onAdd}
-            onToggle={onToggle}
-            onOpen={onOpen}
-          />
-        ))}
-      </div>
-    </div>
-  )
+// The day's body. It was three ruled columns — III Morning, V Daytime, VII
+// Evening — under the food. The morning and the evening are the two surfaces
+// at the head of the page now, and the food is the strip, so the columns were
+// the same day written a second time. DayFlow went with them; this is what is
+// left of it.
+function DayColumns({ dateKeyStr, meals, onAddMeal, onOpen }) {
+  return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onOpen={onOpen} />
 }
 
 // ── The day's nourishment, as seven sittings.
@@ -1533,26 +1437,65 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
 // one-off or something that repeats, so a dinner tonight does not become a
 // dinner every night.
 function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
+  // When she set an hour, and for how long. `standing` is the hour from here
+  // on; `days` holds the one-off changes, so moving dinner tonight does not
+  // move it for good.
+  const [clockRaw, setClock] = useLocalStorage('mos:sittings', { standing: {}, days: {} })
+  const clock = clockRaw && typeof clockRaw === 'object' ? clockRaw : {}
+  const hourOf = (id) => {
+    const day = (clock.days && clock.days[dateKeyStr]) || {}
+    if (day[id]) return day[id]
+    const st = (clock.standing || {})[id]
+    if (st) return st
+    return (SITTINGS.find((x) => x.id === id) || {}).at
+  }
+
   const nearest = () => {
     const now = new Date()
     const mins = now.getHours() * 60 + now.getMinutes()
     let best = 0
-    SITTINGS.forEach((x, i) => {
-      const [h, m] = x.at.split(':').map(Number)
-      if (h * 60 + m <= mins) best = i
+    SITTINGS.forEach((x, k) => {
+      const [h, m] = hourOf(x.id).split(':').map(Number)
+      if (h * 60 + m <= mins) best = k
     })
     return best
   }
   const [i, setI] = useState(nearest)
   const [adding, setAdding] = useState(null) // { slot, kind }
+  const [editing, setEditing] = useState(null) // { id, value }
+  const [asking, setAsking] = useState(null)   // { id, value } — today, or from now on
   const rail = useRef(null)
   const n = SITTINGS.length
-  const at = SITTINGS[i]
 
-  // Keep the open card in view when the arrows move it.
+  // How many scroll positions the rail actually has. With seven cards three
+  // across there are five: asking for the sixth and the seventh lands exactly
+  // where the fifth did, so those two marks were dead — they lit up and moved
+  // nothing. The count is measured rather than assumed, so it is right at
+  // every width, and on a phone where one card fills the rail all seven stay.
+  const [stops, setStops] = useState(n)
+  useEffect(() => {
+    const el = rail.current
+    if (!el) return undefined
+    const measure = () => {
+      const card = el.children[0]
+      const w = card ? card.getBoundingClientRect().width : 0
+      if (!w) return
+      const perView = Math.max(1, Math.round(el.clientWidth / w))
+      setStops(Math.max(1, n - perView + 1))
+    }
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ro) ro.observe(el)
+    window.addEventListener('resize', measure)
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [n])
+
+  useEffect(() => { if (i > stops - 1) setI(stops - 1) }, [stops])
+
+  // Keep the chosen card in view.
   useEffect(() => {
     const el = rail.current && rail.current.children[i]
-    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
   }, [i])
 
   const itemsIn = (slot, kind) => (meals || []).filter((m) => m.slot === slot && m.kind === kind)
@@ -1597,12 +1540,38 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
           return (
             <section
               key={x.id}
-              className="flex min-h-[420px] w-[86vw] shrink-0 snap-center flex-col px-7 py-9 sm:w-[46vw] sm:px-9 lg:w-[33.333vw]"
+              className="mos-sitting flex min-h-[420px] shrink-0 snap-start flex-col px-7 py-9 sm:px-9"
               style={{ backgroundColor: x.ground, color: ink }}
               aria-current={idx === i ? 'true' : undefined}
             >
               <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: dim }}>{x.label}</p>
-              <p className="mt-2 font-serif text-[44px] leading-none sm:text-[52px]" style={{ color: ink }}>{spoken(x.at)}</p>
+              {/* The hour, and a way to change it. Enter asks whether this is
+                  tonight or from now on — the app has no other way to say the
+                  difference, and guessing it is how a one-off becomes a rule. */}
+              {editing && editing.id === x.id ? (
+                <input
+                  autoFocus
+                  type="time"
+                  value={editing.value}
+                  onChange={(e) => setEditing({ id: x.id, value: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editing.value) { setAsking({ id: x.id, value: editing.value }); setEditing(null) }
+                    if (e.key === 'Escape') setEditing(null)
+                  }}
+                  onBlur={() => { if (editing.value && editing.value !== hourOf(x.id)) setAsking({ id: x.id, value: editing.value }); setEditing(null) }}
+                  className="mt-2 w-full bg-transparent font-serif text-[40px] leading-none outline-none sm:text-[48px]"
+                  style={{ color: ink, borderBottom: `1px solid ${rule}` }}
+                />
+              ) : (
+                <button
+                  onClick={() => setEditing({ id: x.id, value: hourOf(x.id) })}
+                  aria-label={`Change the time for ${x.label}`}
+                  className="mt-2 text-left font-serif text-[44px] leading-none transition-opacity hover:opacity-70 sm:text-[52px]"
+                  style={{ color: ink }}
+                >
+                  {spoken(hourOf(x.id))}
+                </button>
+              )}
               <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
               <div className="mt-6 flex-1 space-y-6">
                 <Group label="Meal" list={food} slot={x.food} kind="food" />
@@ -1614,24 +1583,68 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
         })}
       </div>
 
-      {/* Which sitting is open, and the way along the day. */}
-      <div className="mx-auto mt-6 flex max-w-5xl items-center justify-between gap-4 px-6 md:px-10">
-        <span className="flex items-center gap-2">
-          {SITTINGS.map((x, idx) => (
+      {/* Where along the day she is. Centred, and only as many marks as there
+          are places to go — the arrows are gone because the marks do the same
+          job and the rail takes a swipe on its own. */}
+      {stops > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          {Array.from({ length: stops }, (_, idx) => (
             <button
-              key={x.id}
+              key={idx}
               onClick={() => setI(idx)}
-              aria-label={`${x.label} ${spoken(x.at)}`}
+              aria-label={`${SITTINGS[idx].label} ${spoken(hourOf(SITTINGS[idx].id))}`}
               aria-current={idx === i ? 'true' : undefined}
               className={`h-[3px] transition-all ${idx === i ? 'w-8 bg-stone-900' : 'w-4 bg-stone-300 hover:bg-stone-500'}`}
             />
           ))}
-        </span>
-        <span className="flex items-center gap-3">
-          <button onClick={() => setI((k) => Math.max(0, k - 1))} disabled={i === 0} aria-label="Earlier" className={`text-lg leading-none ${i === 0 ? 'text-stone-300' : 'text-stone-500 hover:text-stone-900'}`}>←</button>
-          <button onClick={() => setI((k) => Math.min(n - 1, k + 1))} disabled={i === n - 1} aria-label="Later" className={`text-lg leading-none ${i === n - 1 ? 'text-stone-300' : 'text-stone-500 hover:text-stone-900'}`}>→</button>
-        </span>
-      </div>
+        </div>
+      )}
+
+      {/* Tonight, or from now on. The app cannot tell the difference between
+          moving dinner once and moving it for good, and guessing is how a
+          one-off quietly becomes a rule — so it asks, once, in two lines. */}
+      {asking && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setAsking(null) }}>
+          <div className="w-full max-w-sm border border-stone-200 bg-cream p-6">
+            <p className="kicker text-stone-500">{(SITTINGS.find((x) => x.id === asking.id) || {}).label}</p>
+            <p className="mt-2 font-serif text-3xl leading-tight text-stone-900">{spoken(asking.value)}</p>
+            <div className="mt-7">
+              <button
+                onClick={() => {
+                  setClock((prev) => {
+                    const c = prev && typeof prev === 'object' ? prev : {}
+                    const days = { ...(c.days || {}) }
+                    days[dateKeyStr] = { ...(days[dateKeyStr] || {}), [asking.id]: asking.value }
+                    return { ...c, days }
+                  })
+                  setAsking(null)
+                }}
+                className="block w-full border-b border-stone-200 pb-3 pt-3 text-left transition-opacity hover:opacity-70"
+              >
+                <span className="block font-serif text-[19px] leading-snug text-stone-900">Just today</span>
+                <span className="mt-1 block text-sm text-stone-500">Tomorrow goes back to {spoken(((SITTINGS.find((x) => x.id === asking.id) || {}).at))}.</span>
+              </button>
+              <button
+                onClick={() => {
+                  setClock((prev) => {
+                    const c = prev && typeof prev === 'object' ? prev : {}
+                    return { ...c, standing: { ...(c.standing || {}), [asking.id]: asking.value } }
+                  })
+                  setAsking(null)
+                }}
+                className="block w-full border-b border-cobalt pb-3 pt-4 text-left transition-opacity hover:opacity-70"
+              >
+                <span className="flex items-baseline justify-between gap-4">
+                  <span className="font-serif text-[19px] leading-snug text-stone-900">Start a series</span>
+                  <span className="shrink-0 text-[9px] tracking-[0.16em] text-cobalt">RECOMMENDED</span>
+                </span>
+                <span className="mt-1 block text-sm text-stone-500">Every day from today, until you change it again.</span>
+              </button>
+            </div>
+            <button onClick={() => setAsking(null)} className={`mt-6 ${QUIET}`}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {adding && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdding(null) }}>
@@ -1647,100 +1660,6 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// One stacked time block — its serif title and its to-dos. Adding is handled by
-// the floating + (scoped to a time of day), so there's no inline add line here.
-function TodoBlock({ block, rituals, meals, dateKeyStr, onAdd, onToggle, onOpen }) {
-  const tasks = block.noTasks ? [] : dedupeById(rituals.filter((r) => effectiveBlock(r) === block.id)).sort(sortEvents)
-
-  const blockMeals = (meals || []).filter((m) => block.mealRows.some((r) => r.kind === m.kind && r.slot === m.slot))
-  const all = [...tasks, ...blockMeals]
-
-  return (
-    <div className={DAY_CARD}>
-      <BlockHead block={block} done={all.filter((x) => x.done).length} total={all.length} />
-
-      <div className="space-y-6">
-        {!block.noTasks && (
-          tasks.length > 0 ? (
-            <div>
-              {tasks.map((t) => (
-                <TaskRow key={t.id} task={t} onToggle={onToggle} onOpen={onOpen} />
-              ))}
-            </div>
-          ) : (
-            <p className="py-2 text-sm italic text-stone-400">Nothing here yet.</p>
-          )
-        )}
-
-        {/* Nourishment on the blocks that carry it (Empty Stomach / Before Bed). */}
-        {block.mealRows.length > 0 && (
-          <div className="space-y-6">
-            {block.mealRows.map((row) => (
-              <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// A task within a day-flow block: check it off, tap to edit, pause it off Today,
-// or remove it — the pause / remove marks sit on the right (always shown on touch,
-// revealed on hover for pointer devices). The leading checkbox sits in a fixed
-// gutter so its label aligns with every other row in the block, tasks and nutrition
-// alike.
-function TaskRow({ task, onToggle, onOpen }) {
-  return (
-    <LedgerRow done={task.done} onToggle={() => onToggle(task.id)} onOpen={() => onOpen(task.id)}>
-      {fmtApptTime(task.time) && <span className="mr-2.5 text-[11px] tracking-[0.12em] text-stone-500">{fmtSpan(task.time, task.endTime)}</span>}
-      {task.title || 'Untitled'}
-    </LedgerRow>
-  )
-}
-
-// Nutrition rows — same list language as the tasks: one text column, a quiet
-// remove mark on hover, no checkbox (nutrition is never "achieved").
-function MealSection({ section, meals, dateKeyStr, onAdd, onOpen, onToggle }) {
-  const [adding, setAdding] = useState(false)
-  const items = (meals || []).filter((m) => m.kind === section.kind && m.slot === section.slot)
-  const addLabel = section.label === 'Drink' ? 'add drink' : section.kind === 'supp' ? 'add supplement' : 'add food'
-  return (
-    <div>
-      {/* The label runs out into a rule rather than sitting alone over a gap —
-          the same break the page uses between its sections, one size down. */}
-      <div className="mb-1.5 flex items-center gap-3">
-        <span className="kicker shrink-0 text-stone-500">{section.label}</span>
-        <span className="h-px flex-1 bg-stone-200" />
-      </div>
-      {items.length > 0 && (
-        <div>
-          {items.map((m) => (
-            <LedgerRow key={m.id} done={m.done} onToggle={() => onToggle(m.id)} onOpen={() => onOpen(m.id)}>{m.name}</LedgerRow>
-          ))}
-        </div>
-      )}
-      {/* When a section is blank, a quiet add line keeps the structure actionable
-          without cluttering populated sections. */}
-      {adding ? (
-        <div className="flex items-start gap-3 pt-2">
-          <div className="flex-1">
-            <AddMealForm
-              slot={slotMeta(section.slot)}
-              kind={section.kind}
-              dateKeyStr={dateKeyStr}
-              onCancel={() => setAdding(false)}
-              onSave={(item) => { onAdd({ ...item, slot: section.slot, kind: section.kind }); setAdding(false) }}
-            />
-          </div>
-        </div>
-      ) : items.length === 0 ? (
-        <button onClick={() => setAdding(true)} className="py-2 text-sm italic text-stone-400 transition-colors hover:text-stone-900">{addLabel}</button>
-      ) : null}
     </div>
   )
 }

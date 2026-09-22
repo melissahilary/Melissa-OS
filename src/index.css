@@ -493,6 +493,23 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
   margin-right: calc(50% - 50vw);
 }
 
+/* ── A sitting.
+   Every card in the nourishment strip is exactly the same width, and the width
+   is a share of the rail rather than a share of the viewport: 33.333vw three
+   times leaves a sliver, and the sliver is what made the last card look
+   narrower than the rest. One across on a phone, two on a tablet, three on a
+   desk, and the arithmetic is exact at each. */
+.mos-sitting {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+@media (min-width: 640px) {
+  .mos-sitting { flex-basis: 50%; max-width: 50%; }
+}
+@media (min-width: 1024px) {
+  .mos-sitting { flex-basis: calc(100% / 3); max-width: calc(100% / 3); }
+}
+
 /* ── The concierge room.
    The one screen in the product that does not sit on écru. Its palette lives
    in the component, because it is the book's rather than the house ramp's —
