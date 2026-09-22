@@ -69,7 +69,7 @@ OPTIONS, NOT QUESTIONS — Where the answer points somewhere she could go next, 
 
   Label each one as a short instruction in her own terms: "Open Testing", "Start it under Brain Health", "See the week in Becoming". Mark at most one as recommended — the one she is most likely to want — and only when one genuinely leads. Never offer a place the answer did not touch, and never offer one as a way of avoiding an answer.
 
-_CONTEXT IS FACT — The planner data carries a "_context" object. It is computed by the app itself, not by you: "cycle" is the phase and cycle day exactly as the app's own calendar prints them, and "resolved.today" / "resolved.tomorrow" are what actually occurs on those two days, with every repeat rule already worked out. Use them as given. Never recompute a phase or a cycle day from a start date, never work out a repeat yourself, and never say nothing places her in a phase when _context.cycle names one.
+_CONTEXT IS FACT — The request opens with a block headed TODAY, COMPUTED BY THE APP. It is computed by the app itself, not by you: "cycle" is the phase and cycle day exactly as the app's own calendar prints them, and "resolved.today" / "resolved.tomorrow" are what actually occurs on those two days, with every repeat rule already worked out. Use them as given. Never recompute a phase or a cycle day from a start date, never work out a repeat yourself, and never say nothing places her in a phase when that block names one. It is sent whole on every request and is never trimmed, so if "cycle" is null there it is genuinely unset in her settings — say that plainly, and never say the reading failed to reach you.
 
 OUTPUT — Return JSON and nothing else, in exactly this shape:
 {"answer":"...","lines":[{"label":"...","detail":"..."}],"options":[{"label":"...","go":"...","recommended":false}],"sources":[{"source":"Section · what","detail":"count or date"}],"outOfRange":false}
@@ -126,6 +126,53 @@ function parseAnswer(raw) {
   return { answer: raw, lines: [], options: [], sources: [], outOfRange: false }
 }
 
+// ── Getting the record into the request without losing the part that matters.
+//
+// This used to be one JSON.stringify of the whole planner, sliced at 90,000
+// characters. Two things were wrong with that, and both of them were silent.
+//
+// _context — the cycle phase the app itself computes, and today and tomorrow
+// with every repeat rule already resolved — is written last by the snapshot,
+// so stringify puts it at the END of the string. Any planner past the limit
+// therefore had exactly that part cut off, every time. Ask answered "nothing
+// places you in a phase" while the calendar two taps away printed LUTEAL DAY
+// 23, and it was right to: it had never been sent.
+//
+// And a JSON string cut in half is not JSON. Everything past the cut arrived
+// as a broken object for the model to guess at.
+//
+// So: the context is sent first, whole, and is never subject to the budget.
+// The bulk is trimmed by dropping whole stores — largest first — so what
+// arrives is always valid, and the answer is told which sections it is
+// missing rather than being left to wonder.
+const BUDGET = 160000
+
+const size = (v) => { try { return JSON.stringify(v).length } catch (_) { return 0 } }
+
+function splitPlanner(raw) {
+  const planner = raw && typeof raw === 'object' ? raw : {}
+  const context = planner._context || {}
+  const rest = {}
+  Object.keys(planner).forEach((k) => { if (k !== '_context') rest[k] = planner[k] })
+
+  let json = ''
+  try { json = JSON.stringify(rest) } catch (_) { return { context: '{}', stores: '{}', dropped: [] } }
+  const dropped = []
+  if (json.length > BUDGET) {
+    const bySize = Object.keys(rest).map((k) => [k, size(rest[k])]).sort((a, b) => b[1] - a[1])
+    const kept = { ...rest }
+    for (const [k] of bySize) {
+      delete kept[k]
+      dropped.push(k)
+      json = JSON.stringify(kept)
+      if (json.length <= BUDGET) break
+    }
+  }
+  let ctx = '{}'
+  try { ctx = JSON.stringify(context) } catch (_) { ctx = '{}' }
+  return { context: ctx, stores: json, dropped }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -134,12 +181,19 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
     const question = (body.question || '').toString().slice(0, 800)
     if (!question.trim()) { res.status(200).json({ answer: null, source: 'empty-input' }); return }
-    let planner = ''
-    try { planner = JSON.stringify(body.planner || {}) } catch (_) { planner = '{}' }
-    if (planner.length > 90000) planner = planner.slice(0, 90000) + '…(truncated)'
+    const { context, stores, dropped } = splitPlanner(body.planner)
 
     const client = new Anthropic({ apiKey })
-    const user = `PLANNER DATA (JSON):\n${planner}\n\nMelissa asks: ${question}`
+    const user = [
+      'TODAY, COMPUTED BY THE APP. This is authoritative — it is the same code that draws her calendar. Never recompute any of it.',
+      context,
+      '',
+      'PLANNER DATA (JSON):',
+      stores,
+      dropped.length ? `\nNot sent, for length: ${dropped.join(', ')}. If the question needs one of these, say that section was not loaded.` : '',
+      '',
+      `Melissa asks: ${question}`,
+    ].join('\n')
 
     const message = await client.messages.create({
       model: 'claude-opus-4-8',

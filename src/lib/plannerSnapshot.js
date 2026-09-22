@@ -53,11 +53,15 @@ function dayOf(raw, key) {
 
 export function plannerSnapshot() {
   const raw = all() || {}
-  const out = {}
+  const now = new Date()
+  // _context goes in FIRST. It used to be written last, which put it at the
+  // end of the stringified payload — and the end is the part that gets cut
+  // when a record is long. The request no longer truncates at all, but the
+  // ordering stays: the facts lead.
+  const out = { _context: null }
   Object.entries(raw).forEach(([k, v]) => {
     if (k.startsWith('mos:') && !SKIP.has(k)) out[k] = trim(v)
   })
-  const now = new Date()
   const todayKey = dateKey(now)
   const tomorrow = new Date(now.getTime() + 86400000)
 
