@@ -481,6 +481,55 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
   }
 }
 
+/* ── The concierge room.
+   The one screen in the product that does not sit on écru. Its palette lives
+   in the component, because it is the book's rather than the house ramp's —
+   but three things the stylesheet owns globally have to be told about it: the
+   focus ring, which on near-black needs cobalt's light weight to be seen at
+   all; the scrollbar, which would otherwise draw an ivory track down a brown
+   wall; and the placeholder, which the legibility floor sets for a page that
+   is the opposite colour. ── */
+.mos-concierge {
+  color-scheme: dark;
+}
+.mos-concierge :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 1px solid #9FAAF5;
+  outline-offset: 3px;
+}
+.mos-concierge *,
+.mos-concierge .mos-scroll {
+  scrollbar-color: #55341B transparent;
+}
+.mos-concierge *::-webkit-scrollbar-thumb {
+  background-color: #55341B;
+}
+.mos-concierge *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mos-concierge input::placeholder,
+.mos-concierge textarea::placeholder {
+  color: #94989C;
+}
+/* The line she writes on carries focus itself: it goes to ivory and doubles in
+   weight, with the padding giving back the pixel so nothing shifts. That is
+   both a colour change and a shape change, which is what the house asks of a
+   focus state — and it leaves the field unenclosed, which is what this room
+   asks. The input's own ring stands down inside the line, because a rectangle
+   drawn round it is the one thing the book forbids on this ground; every other
+   control in the panel keeps its ring. */
+.mos-ask-line {
+  padding-bottom: 8px;
+}
+.mos-ask-line:focus-within {
+  border-bottom-color: #EFEAE0 !important;
+  border-bottom-width: 2px;
+  padding-bottom: 7px;
+}
+.mos-ask-line input:focus-visible,
+.mos-ask-line input:focus {
+  outline: none;
+}
+
 /* Focus: a 1px cobalt ring with a 2px offset. Never removed, never colour-only. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 1px solid var(--mos-accent, #1D2FC4);
