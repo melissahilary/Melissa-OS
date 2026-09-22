@@ -11,6 +11,7 @@ import { fmtSpan } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
 import DayLists from './DayLists'
+import DaySchedule from './DaySchedule'
 import MonthGrid from './shared/MonthGrid'
 import { AddMealForm } from './shared/MealSlots'
 import { slotMeta, SITTINGS, spoken } from '../lib/meals'
@@ -902,6 +903,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         meals={dayMeals(selectedKey)}
         onOpen={openActivity}
       />
+
+      {/* The world outside the window, read as one line under the routines. */}
+      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} />
+
       <DayColumns
         rituals={dayRituals(selectedKey)}
         dateKeyStr={selectedKey}
@@ -916,7 +921,14 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onBlockChange={setCurrentBlock}
       />
 
-      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} />
+      {/* The day as a spine: only the hours that hold something, in order. */}
+      <DaySchedule
+        dateKeyStr={selectedKey}
+        rituals={dayRituals(selectedKey)}
+        meals={dayMeals(selectedKey)}
+        phase={todayPhase}
+        onAdd={() => setBlockAdd(true)}
+      />
 
       {/* What is owed rather than scheduled: the tasks, the reminders and the
           running list. They sit directly under the strip, before the reading,
@@ -1379,10 +1391,14 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
 
   useEffect(() => { if (i > stops - 1) setI(stops - 1) }, [stops])
 
-  // Keep the chosen card in view.
+  // Keep the chosen card in view — by scrolling the rail itself, never the
+  // page. scrollIntoView would drag the whole document down to reach a card
+  // that is below the fold, which on load reads as the page jumping.
   useEffect(() => {
-    const el = rail.current && rail.current.children[i]
-    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+    const strip = rail.current
+    const el = strip && strip.children[i]
+    if (!strip || !el) return
+    strip.scrollTo({ left: el.offsetLeft - strip.offsetLeft, behavior: 'smooth' })
   }, [i])
 
   const itemsIn = (slot, kind) => (meals || []).filter((m) => m.slot === slot && m.kind === kind)
