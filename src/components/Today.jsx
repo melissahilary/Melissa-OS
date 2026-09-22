@@ -3,10 +3,9 @@ import { Trash2, ChevronDown, Pause, BookOpen, ShoppingBag } from 'lucide-react'
 import { CloseIcon, NextIcon } from './shared/marks'
 import { BTN, BTN_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/buttons'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { phaseForConfig, PHASES, guideFor } from '../lib/cycle'
-import { useLifeStage } from '../lib/lifeStage'
+import { phaseForConfig } from '../lib/cycle'
 import {
-  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW, DOW_LONG,
+  dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
 } from '../lib/date'
 import { fmtSpan } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
@@ -18,7 +17,7 @@ import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { useActivities } from '../hooks/useActivities'
-import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf } from '../lib/activities'
+import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf, ACTIVITY_CATEGORIES } from '../lib/activities'
 import { moonInfo } from '../lib/moon'
 import LocationField, { resolveCoords, locKey } from './shared/LocationField'
 
@@ -107,6 +106,12 @@ const AQI_ADVICE = {
 }
 
 // ── Cycle statistics — staged so a baseline only appears once enough data exists.
+//
+// ORPHANED. These, and CyclePopup below, were reached from the phase line in
+// the day masthead. That masthead is now the two routines, so nothing opens
+// them. The code is kept rather than deleted because the read itself is worth
+// having — regularity, average length, the ovulation estimate — and it has
+// never lived anywhere else. It needs a home; it does not need rewriting.
 const daysBetweenKeys = (a, b) => Math.round((parseKey(b).getTime() - parseKey(a).getTime()) / 86400000)
 const addDaysKey = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return dateKey(d) }
 const mean = (arr) => arr.reduce((s, x) => s + x, 0) / arr.length
@@ -855,7 +860,11 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       if (a.type === 'meal_item' || a.type === 'supplement') return
       const moved = a.details?.block
       const time = a.details?.time || ''
-      const add = (part, blk) => out.push({ id: a.id, title: a.title, part, block: moved || blk || PART_TO_BLOCK[part] || 'morning', time, endTime: a.details?.endTime || '', done: isDoneOn(a, k), order: a.order })
+      // `category` rides along because the routines print the pillar an item
+      // belongs to. This object is a reduction of the activity, and anything
+      // left out of it is simply not on the page — which is how the calendar's
+      // rhythm dots went missing once already.
+      const add = (part, blk) => out.push({ id: a.id, title: a.title, category: a.category || '', part, block: moved || blk || PART_TO_BLOCK[part] || 'morning', time, endTime: a.details?.endTime || '', done: isDoneOn(a, k), order: a.order })
       if (a.type === 'event') { [...new Set(eventPartsOf(a))].forEach((part) => add(part)); return }
       const secs = daySectionsOf(a)
       if (secs.length) {
@@ -1078,75 +1087,100 @@ function Reading({ label, children }) {
   )
 }
 
-function DayMasthead({ selected, selectedKey, cycleConfig, goToCycle, rituals = [], meals = [] }) {
-  const [cycleOpen, setCycleOpen] = useState(false)
-  // The same flag the rest of the page reads. A life stage with no cycle in it
-  // must not be handed cycle counsel.
-  const { flags } = useLifeStage()
-  const phase = flags.phases ? phaseForConfig(cycleConfig, selected) : null
-  const guide = guideFor(phase)
-  const tint = phase ? (PHASES[phase.id] || {}).color : null
+// ── A routine, as a surface.
+//
+// One of the two panels that head the day: a kicker, the phrase, and the
+// routine itself as a numbered ledger. Cobalt for the morning, ink for the
+// evening — the only two places in the product where the accent fills
+// something this large, and they are a pair or they are nothing.
+//
+// The right-hand column is the pillar the item belongs to, not its state. Ten
+// thousand steps reads FITNESS. Whether it is kept is said by the tick marks
+// further down the page, and saying it twice says it once.
+function Routine({ kicker, lead, italic, tail, items, ground, onOpen }) {
+  const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
+  const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
+  return (
+    <section className="flex flex-col px-7 py-9 sm:px-9 sm:py-11" style={{ backgroundColor: ground }}>
+      <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{kicker}</p>
+      <h2 className="mt-7 font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
+        {lead}<br /><em className="italic">{italic}</em><br />{tail}
+      </h2>
+      <div className="mt-10">
+        {items.length === 0 ? (
+          <p className="text-[15px]" style={{ color: dim }}>Nothing set.</p>
+        ) : items.map((it, i) => (
+          <button
+            key={it.id}
+            onClick={() => onOpen && onOpen(it.id)}
+            className="flex w-full items-baseline gap-5 py-3 text-left transition-opacity hover:opacity-75"
+            style={{ borderBottom: `1px solid ${rule}` }}
+          >
+            <span className="w-6 shrink-0 text-[10px] tracking-[0.1em]" style={{ color: dim }}>{String(i + 1).padStart(2, '0')}</span>
+            <span className="min-w-0 flex-1 text-[17px] leading-snug text-cream">{it.title || 'Untitled'}</span>
+            {pillarOf(it) && (
+              <span className="shrink-0 text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>{pillarOf(it)}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
 
+// Which pillar an item belongs to, in her own words — the category it was
+// filed under. Ten thousand steps is filed fitness, so it reads FITNESS.
+const pillarOf = (a) => {
+  const c = ACTIVITY_CATEGORIES.find((x) => x.id === (a.category || ''))
+  return c ? c.label : ''
+}
+
+function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
   // Counted exactly the way the blocks below count, or the masthead says
   // Morning 32 over a Morning block that lists fourteen — two numbers for one
   // thing, disagreeing, on the same screen. Deduped, and keyed on the block a
   // task actually sits in rather than its part of day.
   const uniq = dedupeById(rituals)
-  const counts = { morning: 0, daytime: 0, evening: 0 }
-  uniq.forEach((r) => { const b = effectiveBlock(r); if (counts[b] != null) counts[b] += 1 })
   const tickable = [...uniq, ...meals]
   const total = tickable.length
   const done = tickable.filter((x) => x.done).length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
+  const morning = uniq.filter((r) => effectiveBlock(r) === 'morning')
+  const evening = uniq.filter((r) => effectiveBlock(r) === 'evening')
+
   return (
     <header className="mb-8 border-t border-stone-900 pt-6">
-      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        {/* The date, set the way print sets a date. */}
-        <div>
-          <p className="kicker text-stone-500">{DOW_LONG[selected.getDay()]}</p>
-          <div className="mt-1 flex items-end gap-5">
-            <span className="font-serif tabular-nums text-[5rem] leading-[0.78] text-stone-900 sm:text-[6rem]">
-              {selected.getDate()}
-            </span>
-            <span className="pb-2 font-serif text-2xl leading-none text-stone-900">
-              {MONTHS[selected.getMonth()]}
-              <span className="block text-sm tracking-[0.1em] text-stone-500">{selected.getFullYear()}</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Where she is in the cycle, and what that is for. */}
-        {phase && guide && (
-          <div className="border-t border-stone-200 pt-4 md:border-l md:border-t-0 md:pl-8 md:pt-0">
-            {/* The way into the cycle's statistics. It used to hang off the
-                info strip above, which printed the phase a second time to do
-                it; the phase is stated once now, and it is the thing you
-                press. */}
-            <button onClick={() => setCycleOpen(true)} className="flex items-baseline gap-2.5 text-left transition-opacity hover:opacity-60">
-              {tint && <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: tint }} />}
-              <span className="kicker text-stone-900">{phase.name}</span>
-              {phase.cycleDay != null && <span className="kicker text-stone-500">Day {phase.cycleDay}</span>}
-            </button>
-            {cycleOpen && <CyclePopup cycleConfig={cycleConfig || {}} today={selected} onEdit={goToCycle || (() => {})} onClose={() => setCycleOpen(false)} />}
-            <p className="mt-2 max-w-sm text-sm leading-snug text-stone-700">{guide.note}</p>
-            <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-2">
-              <Reading label="Energy">{guide.energy}</Reading>
-              <Reading label="Train">{guide.train}</Reading>
-              <Reading label="Eat">{guide.eat}</Reading>
-            </dl>
-          </div>
-        )}
+      {/* The two routines, filling the split the date and the cycle used to
+          hold. Each row names the pillar it belongs to rather than whether it
+          is kept — the tick marks below already say that, and a row that says
+          KEPT twice on one page is saying nothing the second time. */}
+      <div className="grid gap-px md:grid-cols-2">
+        <Routine
+          kicker="Morning routine"
+          lead="Before"
+          italic="anyone"
+          tail="asks."
+          items={morning}
+          ground="#1D2FC4"
+          onOpen={onOpen}
+        />
+        <Routine
+          kicker="Evening routine"
+          lead="After"
+          italic="everyone"
+          tail="has gone."
+          items={evening}
+          ground="#16130F"
+          onOpen={onOpen}
+        />
       </div>
 
-      {/* The shape of the day, before she scrolls into it — and then the day
-          itself as one measure: a rule that fills to what has been kept. It is
-          the same object every block below repeats at its own scale, which is
-          what makes eight lists read as one day. */}
-      <dl className="mt-6 grid grid-cols-3 gap-x-6 border-t border-stone-200 pt-4">
-        <Reading label="Morning">{counts.morning || '—'}</Reading>
-        <Reading label="Daytime">{counts.daytime || '—'}</Reading>
-        <Reading label="Evening">{counts.evening || '—'}</Reading>
+      {/* What is on the day, and then the day itself as one measure: a rule
+          that fills to what has been kept. It is the same object every block
+          below repeats at its own scale. */}
+      <dl className="mt-8 border-t border-stone-200 pt-4">
+        <Reading label="Schedule tasks">{total || '—'}</Reading>
       </dl>
       <div className="mt-5 flex items-center gap-4">
         <span className="kicker shrink-0 text-stone-900">Kept</span>
@@ -1188,12 +1222,10 @@ function Calendar({ calMonth, setCalMonth, selectedKey, today, cycleConfig, goTo
       {/* Selected day — expands into everything planned that day */}
       <div className="mt-10">
         <DayMasthead
-          selected={selected}
           selectedKey={selectedKey}
-          cycleConfig={cycleConfig}
-          goToCycle={goToCycle}
           rituals={ritualsFor(selectedKey)}
           meals={mealsFor(selectedKey)}
+          onOpen={onOpen}
         />
         <DayColumns
           rituals={ritualsFor(selectedKey)}
