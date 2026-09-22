@@ -805,13 +805,23 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     return out
   }
 
-  // THE MONTH — appointments, and nothing else. Not the protocols, however
-  // they are scheduled: elevating your legs for fifteen minutes is something
-  // you do, not somewhere you are expected. A month that carries both is a
-  // month you cannot read.
+  // THE MONTH — the appointments: the things she has to be somewhere for.
+  //
+  // An appointment added here is one outright. Anything kept in a pillar counts
+  // as one when it is at an hour and does not happen most days — Pilates at
+  // eight on a Tuesday is somewhere to be; elevating your legs for fifteen
+  // minutes, whenever it suits, is not, and ten thousand steps every day is
+  // not either. Meals and supplements never appear.
+  const HABITUAL = ['daily', 'weekdays', 'weekends']
+  const isHabit = (a) => HABITUAL.includes(a.frequency || 'daily') || (a.daysOfWeek || []).length >= 4
+  const isAppointment = (a) => {
+    if (a.type === 'event') return true
+    if (a.type !== 'protocol') return false
+    return !!(a.details && a.details.time) && !isHabit(a)
+  }
   const dayScheduled = (k) =>
     activities
-      .filter((a) => a.type === 'event' && active(a, k))
+      .filter((a) => isAppointment(a) && active(a, k))
       .map((a) => ({ id: a.id, title: a.title, time: a.details?.time || '', done: isDoneOn(a, k) }))
       .sort((x, y) => (x.time || '99').localeCompare(y.time || '99'))
 
