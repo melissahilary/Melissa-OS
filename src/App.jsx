@@ -402,7 +402,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
               looking at. The mark stands there instead, and tapping it still
               returns home to Today. */}
           <div className="flex justify-center">
-            <button onClick={() => go(onGoToday)} title="Home — Today" aria-label="Home — Today" className="transition-opacity hover:opacity-60">
+            <button onClick={() => go(onGoToday)} title="Home — Today" aria-label="Home — Today" className="group">
               <HouseMark size={92} className="md:!h-[112px] md:!w-[112px]" />
             </button>
           </div>
@@ -413,10 +413,14 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
               const Icon = p.icon
               return (
                 <button key={p.id} onClick={() => go(() => onGoPillar(p.id))} className="group flex w-full items-center gap-4 py-3.5 text-left">
-                  <Icon size={24} className="shrink-0 transition-colors" style={{ color: on ? '#1D2FC4' : 'rgba(22,19,15,0.6)' }} />
+                  <Icon size={24} className={`shrink-0 transition-colors ${on ? 'text-cobalt' : 'text-stone-900/60 group-hover:text-stone-900'}`} />
                   <span className="relative inline-block font-serif text-2xl leading-tight">
                     <span className={`transition-colors ${on ? 'text-stone-900' : 'text-stone-700 group-hover:text-stone-900'}`}>{p.label}</span>
-                    <span className={`absolute -bottom-1 left-0 h-px bg-stone-900 transition-all duration-300 ${on ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+                    {/* The rule under a name is the accent, not ink. Cobalt is
+                        what marks the section you are in; drawing it in black
+                        on hover made the index's one moment of colour the only
+                        place the accent did not appear. */}
+                    <span className={`absolute -bottom-1 left-0 h-px bg-cobalt transition-all duration-300 ${on ? 'w-full' : 'w-0 group-hover:w-full'}`} />
                   </span>
                 </button>
               )

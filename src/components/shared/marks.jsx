@@ -106,16 +106,26 @@ export const markFor = (id) => PILLAR_MARKS[id] || MindsetMark
 //
 // It stands where the index used to spell out PILLARS OF HEALTH. A title that
 // names the thing you are already looking at is a caption; a mark is a door.
+// Under the pointer the whole mark goes to the accent and the letter reverses
+// out of it — the square fills, the O takes the ground. Fading the mark to 60%
+// was the generic hover every element in every interface has; a mark that
+// inverts is the mark doing something only it can do. Put `group` on whatever
+// wraps it.
 export function HouseMark({ size = 104, className = '', title }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center border border-stone-900 ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center border border-stone-900 transition-colors duration-200 group-hover:border-cobalt group-hover:bg-cobalt ${className}`}
       style={{ width: size, height: size }}
       role={title ? 'img' : undefined}
       aria-label={title || undefined}
       aria-hidden={title ? undefined : true}
     >
-      <span className="font-serif leading-none text-stone-900" style={{ fontSize: Math.round(size * 0.46), letterSpacing: 0 }}>O</span>
+      <span
+        className="font-serif leading-none text-stone-900 transition-colors duration-200 group-hover:text-cream"
+        style={{ fontSize: Math.round(size * 0.46), letterSpacing: 0 }}
+      >
+        O
+      </span>
     </span>
   )
 }
