@@ -113,7 +113,7 @@ function opening(activities, meals, first) {
 }
 
 export default function AskConcierge({ open, onClose }) {
-  const [thread, setThread] = useState([]) // { q, at, a, sources, error }
+  const [thread, setThread] = useState([]) // { q, a, lines, sources, outOfRange, error }
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -130,7 +130,7 @@ export default function AskConcierge({ open, onClose }) {
   const now = new Date()
 
   useEffect(() => {
-    if (!open) { setMounted(false); return }
+    if (!open) { setMounted(false); setThread([]); setQ(''); return }
     const n = Number.isFinite(plateTurn) ? plateTurn : 0
     setPlate(PLATES[((n % PLATES.length) + PLATES.length) % PLATES.length])
     setPlateTurn(n + 1)
@@ -150,14 +150,15 @@ export default function AskConcierge({ open, onClose }) {
     const text = (question || '').trim()
     if (!text || busy) return
     setQ('')
-    setThread((t) => [...t, { q: text, at: new Date(), a: null, sources: [] }])
+    setThread((t) => [...t, { q: text, a: null, lines: [], sources: [] }])
     setBusy(true)
     try {
       const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: text, planner: plannerSnapshot() }) })
       const d = await r.json()
       const a = d && d.answer ? d.answer : null
       const sources = Array.isArray(d && d.sources) ? d.sources.filter((s) => s && s.source) : []
-      setThread((t) => t.map((row, i) => (i === t.length - 1 ? { ...row, a, sources, error: !a } : row)))
+      const lines = Array.isArray(d && d.lines) ? d.lines.filter((l) => l && (l.label || l.detail)) : []
+      setThread((t) => t.map((row, i) => (i === t.length - 1 ? { ...row, a, lines, sources, outOfRange: d && d.outOfRange === true, error: !a } : row)))
     } catch (e) {
       setThread((t) => t.map((row, i) => (i === t.length - 1 ? { ...row, a: null, error: true } : row)))
     } finally { setBusy(false) }
@@ -218,9 +219,6 @@ export default function AskConcierge({ open, onClose }) {
                       is labelled everywhere else in the record. Not a bubble,
                       not right-aligned, not beside an avatar. */}
                   <div className="pb-2" style={{ borderBottom: `1px solid ${W.rule}` }}>
-                    <span className="mr-3 text-[10px] tracking-[0.16em]" style={{ color: W.label }}>
-                      {row.at ? stamp(row.at) : ''}
-                    </span>
                     <span className="text-[11px] uppercase tracking-[0.12em]" style={{ color: W.chrome }}>{row.q}</span>
                   </div>
 
@@ -233,18 +231,36 @@ export default function AskConcierge({ open, onClose }) {
                       <p className="font-serif text-[26px] leading-[1.25]" style={{ color: W.oxblood }}>Your planner could not be reached.</p>
                     ) : (
                       <div className="mos-settle">
-                        {/* The answer: Bodoni, large, unenclosed. The first
-                            line is the thing that is settled; anything further
-                            sits beneath it, never before. */}
-                        <p className="whitespace-pre-line font-serif text-[26px] leading-[1.28] sm:text-[29px]" style={{ color: W.ivory }}>{row.a}</p>
+                        {/* The answer: Bodoni, large, unenclosed — and only the
+                            thing that is settled. Detail follows beneath it,
+                            never before, and never as a sentence with nine
+                            commas in it. */}
+                        <p className="whitespace-pre-line font-serif text-[26px] leading-[1.28] sm:text-[29px]" style={{ color: row.outOfRange ? W.oxblood : W.ivory }}>{row.a}</p>
+
+                        {/* Bundled: a set arrives as one clean list, a mono tag
+                            against a line of ivory. It used to arrive as prose
+                            with the whole list inside one sentence. */}
+                        {row.lines && row.lines.length > 0 && (
+                          <div className="mt-6 grid gap-3">
+                            {row.lines.map((l, n) => (
+                              <div key={n} className="grid grid-cols-[76px_minmax(0,1fr)] gap-4 pb-3" style={{ borderBottom: `1px solid ${W.ruleFaint}` }}>
+                                <span className="pt-[3px] text-[10px] uppercase tracking-[0.14em]" style={{ color: W.label }}>{l.label}</span>
+                                <span className="text-[15px] leading-snug" style={{ color: W.ivory100 }}>{l.detail}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         {/* Where it came from. Silent when the answer named
-                            nothing, which is itself worth seeing. */}
+                            nothing, which is itself worth seeing. The detail
+                            may shrink and wrap — it was pinned with shrink-0
+                            and ran off the edge of the panel. */}
                         {row.sources.length > 0 && (
                           <div className="mt-6 grid gap-2 pt-4" style={{ borderTop: `1px solid ${W.rule}` }}>
                             {row.sources.map((s, n) => (
-                              <div key={n} className="flex justify-between gap-6 text-[10px] uppercase tracking-[0.14em]">
-                                <span style={{ color: W.label }}>{s.source}</span>
-                                {s.detail && <span className="shrink-0 text-right" style={{ color: W.chrome }}>{s.detail}</span>}
+                              <div key={n} className="flex items-baseline justify-between gap-6 text-[10px] uppercase tracking-[0.14em]">
+                                <span className="min-w-0 break-words" style={{ color: W.label }}>{s.source}</span>
+                                {s.detail && <span className="min-w-0 break-words text-right" style={{ color: W.chrome }}>{s.detail}</span>}
                               </div>
                             ))}
                           </div>
