@@ -9,7 +9,6 @@ import {
 } from '../lib/date'
 import { fmtSpan } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
-import Horoscope from './Horoscope'
 import DayLists from './DayLists'
 import DaySchedule from './DaySchedule'
 import MonthCalendar from './MonthCalendar'
@@ -915,13 +914,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   return (
     <div>
-      {/* The reading opens the page now, so it takes the air the routines used
-          to sit flush against the bar without. */}
-      <div className="pt-8">
-        <Horoscope />
-      </div>
-
-      {/* Then the two routines and the day's sittings — the part
+      {/* The page opens on the two routines and the day's sittings — the part
           of it that is actually worked, rather than a clock she already has on
           the wall and in her hand. */}
       <DayMasthead
