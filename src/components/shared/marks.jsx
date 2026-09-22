@@ -141,6 +141,11 @@ export const LoggedIcon = (p) => <Mark {...p}><path d="M5 12.5 10 17.5 19 6.5" /
 export const DueIcon = (p) => <Mark {...p}><circle cx="12" cy="12" r="3.5" /></Mark>
 export const NextIcon = (p) => <Mark {...p}><path d="M9 5.5 16 12l-7 6.5" /></Mark>
 export const PrevIcon = (p) => <Mark {...p}><path d="M15 5.5 8 12l7 6.5" /></Mark>
+// The two halves of the day, drawn rather than named: a sun coming up over the
+// line, and the moon after everyone has gone.
+export const SunriseMark = (p) => <Mark {...p}><path d="M3 18h18" /><path d="M7 18a5 5 0 0 1 10 0" /><path d="M12 5.5V3" /><path d="M5.7 8.2 4.2 6.7" /><path d="M18.3 8.2 19.8 6.7" /></Mark>
+export const MoonMark = (p) => <Mark {...p}><path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1Z" /></Mark>
+
 export const ExportIcon = (p) => <Mark {...p}><path d="M12 15.5V4.5M7.5 9 12 4.5 16.5 9" /><path d="M4.5 14.5v5h15v-5" /></Mark>
 // The signifier on a picture that can be replaced. Small enough to sit in the
 // corner of a thumbnail without covering what it is pointing at.

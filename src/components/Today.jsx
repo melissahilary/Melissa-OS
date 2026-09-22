@@ -16,6 +16,7 @@ import MonthCalendar from './MonthCalendar'
 import MonthGrid from './shared/MonthGrid'
 import { AddMealForm } from './shared/MealSlots'
 import { slotMeta, SITTINGS, spoken } from '../lib/meals'
+import { SunriseMark, MoonMark } from './shared/marks'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
@@ -310,11 +311,8 @@ const byTime = (a, b) => {
 // The town is gone from the end of it. A planner that prints the city you live
 // in has put that in every screenshot you will ever send; the time zone is what
 // the page actually runs on and gives away nothing narrower than a coast.
-function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycleConfig }) {
-  const [dateOpen, setDateOpen] = useState(false)
+function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
   const todayKey = dateKey(today)
-  const selected = parseKey(selectedKey)
-  const dateStr = `${MONTHS[selected.getMonth()]} ${selected.getDate()}, ${selected.getFullYear()}`
   // On a phone the strip is one line that slides rather than a block of
   // readings stacked three deep, so the separators stay: nothing wraps, and
   // nothing is stranded at the end of a line.
@@ -322,12 +320,9 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation, cycle
   return (
     <div className="no-scrollbar flex items-center gap-x-5 overflow-x-auto py-4 text-sm text-stone-600 [&>*]:shrink-0 sm:flex-wrap sm:justify-center sm:gap-x-6 sm:overflow-x-visible">
       <MoonField />
-      <Dot />
-      <button onClick={() => setDateOpen(true)} className="text-stone-600 hover:text-stone-900 transition-colors">{dateStr}</button>
       {selectedKey !== todayKey && (
         <button onClick={() => onPickDay(todayKey)} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">Reset to today</button>
       )}
-      {dateOpen && <DatePopup value={selectedKey} today={today} cycleConfig={cycleConfig} onPick={(k) => { onPickDay(k); setDateOpen(false) }} onClose={() => setDateOpen(false)} />}
       <Dot />
       <WeatherField location={location} />
       <Dot />
@@ -455,6 +450,9 @@ function AirPopup({ air, onClose }) {
 }
 
 // Calendar pop-up (planner popup style) to jump the viewed day to any date.
+// ORPHANED — nothing opens this any more. The strip no longer carries a date
+// to click and the month calendar at the head of the page picks the day. Kept
+// in case a date field wants it again.
 function DatePopup({ value, today, cycleConfig, onPick, onClose }) {
   const [month, setMonth] = useState(new Date(parseKey(value).getFullYear(), parseKey(value).getMonth(), 1))
   const cells = monthGrid(month)
@@ -923,7 +921,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       />
 
       {/* The world outside the window, read as one line under the routines. */}
-      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} />
+      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} />
 
       <DayColumns
         rituals={dayRituals(selectedKey)}
@@ -1040,7 +1038,7 @@ const PHASE_AGENDA_HINT = {
 // further down the page, and saying it twice says it once.
 const PER_PAGE = 6
 
-function Routine({ kicker, lead, italic, tail, items, ground, onOpen }) {
+function Routine({ Mark, lead, italic, tail, items, ground, onOpen }) {
   const [page, setPage] = useState(0)
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
@@ -1052,10 +1050,14 @@ function Routine({ kicker, lead, italic, tail, items, ground, onOpen }) {
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
-      <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{kicker}</p>
-      <h2 className="mt-7 font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
-        {lead}<br /><em className="italic">{italic}</em><br />{tail}
-      </h2>
+      {/* The half of the day is drawn, not labelled — a sun coming up or the
+          moon, set against the phrase at the far edge of the block. */}
+      <div className="flex items-start justify-between gap-6">
+        <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
+          {lead}<br /><em className="italic">{italic}</em><br />{tail}
+        </h2>
+        <Mark size={30} className="mt-1.5 shrink-0 text-cream" />
+      </div>
       <div className="mt-10 flex-1">
         {shown.length === 0 ? (
           <p className="text-[15px]" style={{ color: dim }}>Nothing set.</p>
@@ -1075,13 +1077,25 @@ function Routine({ kicker, lead, italic, tail, items, ground, onOpen }) {
         ))}
       </div>
       {pages > 1 && (
-        <div className="mt-7 flex items-center justify-end gap-5">
-          <span className="text-[10px] tracking-[0.14em]" style={{ color: dim }}>{p + 1}&thinsp;/&thinsp;{pages}</span>
+        <div className="mt-7 flex items-center justify-end gap-6">
+          {/* Both ways along the routine. The one that can still be taken is
+              lit; the one at the end of its travel is not, so the page she is
+              on is legible without a count printed beside it. */}
           <button
-            onClick={() => setPage((n) => (n + 1) % pages)}
+            onClick={() => setPage(Math.max(0, p - 1))}
+            disabled={p === 0}
+            aria-label="Back"
+            className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default disabled:hover:opacity-100"
+            style={{ color: p === 0 ? dim : 'rgb(247,244,237)' }}
+          >
+            ←
+          </button>
+          <button
+            onClick={() => setPage(Math.min(pages - 1, p + 1))}
+            disabled={p === pages - 1}
             aria-label="More"
-            className="text-xl leading-none transition-opacity hover:opacity-60"
-            style={{ color: 'rgb(247,244,237)' }}
+            className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default disabled:hover:opacity-100"
+            style={{ color: p === pages - 1 ? dim : 'rgb(247,244,237)' }}
           >
             →
           </button>
@@ -1114,7 +1128,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
           KEPT twice on one page is saying nothing the second time. */}
       <div className="mos-bleed grid gap-px md:grid-cols-2">
         <Routine
-          kicker="Morning routine"
+          Mark={SunriseMark}
           lead="Before"
           italic="anyone"
           tail="asks."
@@ -1123,7 +1137,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
           onOpen={onOpen}
         />
         <Routine
-          kicker="Evening routine"
+          Mark={MoonMark}
           lead="After"
           italic="everyone"
           tail="has gone."
@@ -1486,20 +1500,23 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
         })}
       </div>
 
-      {/* Where along the day she is: one mark per turn of the rail, running the
-          full width of the cards above them. The arrows are gone because the
-          marks do the same job and the rail takes a swipe on its own. */}
+      {/* Where along the day she is: one fine mark per turn of the rail, held
+          inside the same measure as the strip above rather than bleeding to
+          the edge. The arrows are gone because the marks do the same job and
+          the rail takes a swipe on its own. */}
       {stops > 1 && (
-        <div className="mt-6 flex items-center gap-2">
+        <div className="px-6 md:px-10 lg:px-12">
+        <div className="mx-auto mt-6 flex max-w-5xl items-center gap-4">
           {Array.from({ length: stops }, (_, idx) => (
             <button
               key={idx}
               onClick={() => setI(idx)}
               aria-label={`${SITTINGS[Math.min(idx * per, n - 1)].label} ${spoken(hourOf(SITTINGS[Math.min(idx * per, n - 1)].id))}`}
               aria-current={idx === i ? 'true' : undefined}
-              className={`h-[3px] flex-1 transition-colors ${idx === i ? 'bg-stone-900' : 'bg-stone-300 hover:bg-stone-500'}`}
+              className={`h-[2px] flex-1 transition-colors ${idx === i ? 'bg-stone-900' : 'bg-stone-300 hover:bg-stone-500'}`}
             />
           ))}
+        </div>
         </div>
       )}
 
