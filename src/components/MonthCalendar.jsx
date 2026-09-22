@@ -30,10 +30,10 @@ const COBALT_ON_INK = '#7C8BF0'
 // gym, and everything is set lower case.
 const LINE_BUDGET = 44
 
-// A phone gives a cell about fifty pixels. Names cannot be read in that, and
-// wrapping them five deep turns the month into a wall of blue — so on a narrow
-// screen a day is its numeral and a mark for each thing on it, and the names
-// are read below, in the day she taps open.
+// A phone gives a cell about fifty pixels. Nothing can be previewed in that —
+// names cannot be read and a row of marks is only clutter — so on a narrow
+// screen a day is its numeral, and what is on it is read below, in the day she
+// taps open.
 function useNarrow() {
   const [narrow, setNarrow] = useState(false)
   useEffect(() => {
@@ -93,16 +93,27 @@ export default function MonthCalendar({ month, setMonth, selectedKey, today, ent
 
   return (
     <section className="mos-bleed" style={{ background: INK, color: CREAM }}>
-      <div className="flex items-end justify-between gap-6 px-6 pb-8 pt-12 md:px-14 md:pb-10 md:pt-14">
-        <h2 className="flex items-baseline gap-5">
-          <span className="font-serif text-[58px] leading-none md:text-[86px]">{MONTHS[month.getMonth()]}</span>
-          <span className="text-[11px] tracking-[0.22em]" style={{ color: DIM }}>{month.getFullYear()}</span>
-        </h2>
-        <div className="flex shrink-0 items-center gap-6 pb-2">
-          <button onClick={() => step(-1)} aria-label="Previous month" className="text-lg leading-none transition-opacity hover:opacity-60">&lsaquo;</button>
-          <button onClick={() => step(1)} aria-label="Next month" className="text-lg leading-none transition-opacity hover:opacity-60">&rsaquo;</button>
+      {/* On a phone the month is a masthead with a way either side of it and no
+          year: the year is never the question, and the arrows belong where the
+          thumb already is. On a wide screen they stay at the far edge. */}
+      {narrow ? (
+        <div className="flex items-center justify-center gap-6 px-6 pb-8 pt-12">
+          <button onClick={() => step(-1)} aria-label="Previous month" className="text-2xl leading-none transition-opacity hover:opacity-60">&lsaquo;</button>
+          <h2 className="font-serif text-[52px] leading-none">{MONTHS[month.getMonth()]}</h2>
+          <button onClick={() => step(1)} aria-label="Next month" className="text-2xl leading-none transition-opacity hover:opacity-60">&rsaquo;</button>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-end justify-between gap-6 px-6 pb-8 pt-12 md:px-14 md:pb-10 md:pt-14">
+          <h2 className="flex items-baseline gap-5">
+            <span className="font-serif text-[58px] leading-none md:text-[86px]">{MONTHS[month.getMonth()]}</span>
+            <span className="text-[11px] tracking-[0.22em]" style={{ color: DIM }}>{month.getFullYear()}</span>
+          </h2>
+          <div className="flex shrink-0 items-center gap-6 pb-2">
+            <button onClick={() => step(-1)} aria-label="Previous month" className="text-lg leading-none transition-opacity hover:opacity-60">&lsaquo;</button>
+            <button onClick={() => step(1)} aria-label="Next month" className="text-lg leading-none transition-opacity hover:opacity-60">&rsaquo;</button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 px-6 md:px-14">
         {DAYS.map((d) => (
@@ -121,20 +132,13 @@ export default function MonthCalendar({ month, setMonth, selectedKey, today, ent
               key={k}
               onClick={() => onPick(k)}
               aria-current={on ? 'date' : undefined}
-              className="flex min-h-[112px] flex-col items-start border-t p-3 text-left transition-colors md:min-h-[152px] md:p-5"
+              className="flex min-h-[64px] flex-col items-start border-t p-3 text-left transition-colors sm:min-h-[112px] md:min-h-[152px] md:p-5"
               style={{ borderColor: RULE, background: on ? CREAM : 'transparent', color: on ? INK : CREAM }}
             >
               <span className="font-serif text-[22px] leading-none md:text-[26px]">{d.getDate()}</span>
               {k === todayKey && !on && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.16em]" style={{ color: DIM }}>Today</span>}
               {/* One line, as a line is written: gym, pilates. Not a column of
                   one-word rows. What will not fit is counted at the end. */}
-              {entries.length > 0 && narrow && (
-                <span className="mt-2.5 flex flex-wrap gap-1">
-                  {entries.slice(0, 4).map((e) => (
-                    <span key={e.id} className="block h-[5px] w-[5px]" style={{ backgroundColor: on ? INK : COBALT_ON_INK }} />
-                  ))}
-                </span>
-              )}
               {entries.length > 0 && !narrow && (() => {
                 const shown = fit(entries.map((e) => short(e.title)))
                 const rest = entries.length - shown.length
