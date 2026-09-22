@@ -12,7 +12,7 @@ import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
 import MonthGrid from './shared/MonthGrid'
 import { AddMealForm } from './shared/MealSlots'
-import { slotMeta } from '../lib/meals'
+import { slotMeta, SITTINGS, spoken } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
@@ -1097,26 +1097,35 @@ function Reading({ label, children }) {
 // The right-hand column is the pillar the item belongs to, not its state. Ten
 // thousand steps reads FITNESS. Whether it is kept is said by the tick marks
 // further down the page, and saying it twice says it once.
+const PER_PAGE = 6
+
 function Routine({ kicker, lead, italic, tail, items, ground, onOpen }) {
+  const [page, setPage] = useState(0)
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
+  // Six at a time. A routine of twenty is a wall; six is a page of one, and
+  // the arrow only exists when there is a seventh.
+  const pages = Math.max(1, Math.ceil(items.length / PER_PAGE))
+  const p = Math.min(page, pages - 1)
+  const shown = items.slice(p * PER_PAGE, p * PER_PAGE + PER_PAGE)
+
   return (
-    <section className="flex flex-col px-7 py-9 sm:px-9 sm:py-11" style={{ backgroundColor: ground }}>
+    <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
       <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{kicker}</p>
       <h2 className="mt-7 font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
         {lead}<br /><em className="italic">{italic}</em><br />{tail}
       </h2>
-      <div className="mt-10">
-        {items.length === 0 ? (
+      <div className="mt-10 flex-1">
+        {shown.length === 0 ? (
           <p className="text-[15px]" style={{ color: dim }}>Nothing set.</p>
-        ) : items.map((it, i) => (
+        ) : shown.map((it, i) => (
           <button
             key={it.id}
             onClick={() => onOpen && onOpen(it.id)}
             className="flex w-full items-baseline gap-5 py-3 text-left transition-opacity hover:opacity-75"
             style={{ borderBottom: `1px solid ${rule}` }}
           >
-            <span className="w-6 shrink-0 text-[10px] tracking-[0.1em]" style={{ color: dim }}>{String(i + 1).padStart(2, '0')}</span>
+            <span className="w-6 shrink-0 text-[10px] tracking-[0.1em]" style={{ color: dim }}>{String(p * PER_PAGE + i + 1).padStart(2, '0')}</span>
             <span className="min-w-0 flex-1 text-[17px] leading-snug text-cream">{it.title || 'Untitled'}</span>
             {pillarOf(it) && (
               <span className="shrink-0 text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>{pillarOf(it)}</span>
@@ -1124,6 +1133,19 @@ function Routine({ kicker, lead, italic, tail, items, ground, onOpen }) {
           </button>
         ))}
       </div>
+      {pages > 1 && (
+        <div className="mt-7 flex items-center justify-end gap-5">
+          <span className="text-[10px] tracking-[0.14em]" style={{ color: dim }}>{p + 1}&thinsp;/&thinsp;{pages}</span>
+          <button
+            onClick={() => setPage((n) => (n + 1) % pages)}
+            aria-label="More"
+            className="text-xl leading-none transition-opacity hover:opacity-60"
+            style={{ color: 'rgb(247,244,237)' }}
+          >
+            →
+          </button>
+        </div>
+      )}
     </section>
   )
 }
@@ -1155,7 +1177,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
           hold. Each row names the pillar it belongs to rather than whether it
           is kept — the tick marks below already say that, and a row that says
           KEPT twice on one page is saying nothing the second time. */}
-      <div className="grid gap-px md:grid-cols-2">
+      <div className="mos-bleed grid gap-px md:grid-cols-2">
         <Routine
           kicker="Morning routine"
           lead="Before"
@@ -1179,7 +1201,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
       {/* What is on the day, and then the day itself as one measure: a rule
           that fills to what has been kept. It is the same object every block
           below repeats at its own scale. */}
-      <dl className="mt-8 border-t border-stone-200 pt-4">
+      <dl className="mt-10 border-t border-stone-200 pt-4">
         <Reading label="Schedule tasks">{total || '—'}</Reading>
       </dl>
       <div className="mt-5 flex items-center gap-4">
@@ -1269,32 +1291,34 @@ const sortEvents = (a, b) => {
 //
 // `no` and `hours` are what turn eight lists into one day. A planner that shows
 // you five identical white boxes has told you nothing about when any of it
-// happens; a running order — VII · Evening · 18—22 — is a shape you can hold in
-// your head, and it is the difference between a checklist and a day.
+// happens; a running order — VII · Evening · 6—10 PM — is a shape you can hold
+// in your head, and it is the difference between a checklist and a day.
+//
+// Said, not clocked. A twenty-four hour readout belongs on a departures board.
 const DAY_BLOCKS = [
-  { id: 'waking', type: 'todo', noTasks: true, no: 'I', hours: '06—07', top: 'Nourish', sub: 'Empty Stomach', mealRows: [
+  { id: 'waking', type: 'todo', noTasks: true, no: 'I', hours: '6—7 AM', top: 'Nourish', sub: 'Empty Stomach', mealRows: [
     { kind: 'food', slot: 'emptydrink', label: 'Drink' },
     { kind: 'supp', slot: 'empty', label: 'Supplements' },
   ] },
-  { id: 'breakfast', type: 'meal', no: 'II', hours: '07—09', top: 'Meal', sub: 'Breakfast', mealRows: [
+  { id: 'breakfast', type: 'meal', no: 'II', hours: '7—9 AM', top: 'Meal', sub: 'Breakfast', mealRows: [
     { kind: 'food', slot: 'breakfast', label: 'Breakfast' },
     { kind: 'food', slot: 'drink', label: 'Drink' },
     { kind: 'supp', slot: 'breakfast', label: 'Supplements' },
   ] },
-  { id: 'morning', type: 'todo', no: 'III', hours: '07—12', top: 'To Do', sub: 'Morning', mealRows: [] },
-  { id: 'lunch', type: 'meal', no: 'IV', hours: '12—14', top: 'Meal', sub: 'Lunch', mealRows: [
+  { id: 'morning', type: 'todo', no: 'III', hours: '7 AM—12 PM', top: 'To Do', sub: 'Morning', mealRows: [] },
+  { id: 'lunch', type: 'meal', no: 'IV', hours: '12—2 PM', top: 'Meal', sub: 'Lunch', mealRows: [
     { kind: 'food', slot: 'lunch', label: 'Lunch' },
     { kind: 'food', slot: 'lunchdrink', label: 'Drink' },
     { kind: 'supp', slot: 'lunch', label: 'Supplements' },
   ] },
-  { id: 'daytime', type: 'todo', no: 'V', hours: '12—18', top: 'To Do', sub: 'Daytime', mealRows: [] },
-  { id: 'dinner', type: 'meal', no: 'VI', hours: '18—20', top: 'Meal', sub: 'Dinner', mealRows: [
+  { id: 'daytime', type: 'todo', no: 'V', hours: '12—6 PM', top: 'To Do', sub: 'Daytime', mealRows: [] },
+  { id: 'dinner', type: 'meal', no: 'VI', hours: '6—8 PM', top: 'Meal', sub: 'Dinner', mealRows: [
     { kind: 'food', slot: 'dinner', label: 'Dinner' },
     { kind: 'food', slot: 'dinnerdrink', label: 'Drink' },
     { kind: 'supp', slot: 'dinner', label: 'Supplements' },
   ] },
-  { id: 'evening', type: 'todo', no: 'VII', hours: '18—22', top: 'To Do', sub: 'Evening', mealRows: [] },
-  { id: 'bed', type: 'todo', noTasks: true, no: 'VIII', hours: '22—23', top: 'Nourish', sub: 'Before Bed', mealRows: [
+  { id: 'evening', type: 'todo', no: 'VII', hours: '6—10 PM', top: 'To Do', sub: 'Evening', mealRows: [] },
+  { id: 'bed', type: 'todo', noTasks: true, no: 'VIII', hours: '10—11 PM', top: 'Nourish', sub: 'Before Bed', mealRows: [
     { kind: 'food', slot: 'beddrink', label: 'Drink' },
     { kind: 'supp', slot: 'bed', label: 'Supplements' },
   ] },
@@ -1469,54 +1493,11 @@ const TODO_BLOCKS = DAY_BLOCKS.filter((b) => b.type === 'todo' && !b.noTasks)
 // TODAY body. A carousel of the day's nourishment (Empty Stomach → Before Bed)
 // sits up top; below it the day's to-do blocks (Morning · Daytime · Evening)
 // stack in order.
-function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen, onBlockChange }) {
-  const [i, setI] = useState(0)
-  const n = MEAL_BLOCKS.length
-  const block = MEAL_BLOCKS[i]
-  // Tell the page which meal is showing, so the floating Add is scoped to it.
-  useEffect(() => { if (onBlockChange) onBlockChange(block) }, [i])
-  const jump = (idx) => setI(Math.max(0, Math.min(n - 1, idx)))
-
-  const blockMeals = (meals || []).filter((m) => block.mealRows.some((r) => r.kind === m.kind && r.slot === m.slot))
+function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock, onAddTask, onPause, onToggle, onOpen }) {
 
   return (
     <div>
-      {/* ── Nourishment — one movement at a time. The arrows ride in the heading
-          rather than flanking a centred caption, so the name of the meal starts
-          at the margin like every other heading on the page. ── */}
-      <div className={`${DAY_CARD} xl:mx-auto xl:max-w-3xl`}>
-        <BlockHead
-          block={block}
-          done={blockMeals.filter((m) => m.done).length}
-          total={blockMeals.length}
-          right={(
-            <span className="ml-1 flex shrink-0 items-center gap-1">
-              <button onClick={() => jump(i - 1)} disabled={i === 0} aria-label="Previous" className={`px-1 text-lg leading-none ${i === 0 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>‹</button>
-              <button onClick={() => jump(i + 1)} disabled={i === n - 1} aria-label="Next" className={`px-1 text-lg leading-none ${i === n - 1 ? 'text-stone-200' : 'text-stone-400 hover:text-stone-900'}`}>›</button>
-            </span>
-          )}
-        />
-
-        <div className="min-h-[150px] space-y-6">
-          {block.mealRows.map((row) => (
-            <MealSection key={`${row.kind}:${row.slot}:${row.label}`} section={row} meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} onToggle={onToggle} />
-          ))}
-        </div>
-      </div>
-
-      {/* Which movement is showing, as five marks on a rule rather than five
-          pills — the same language as the measures above them. */}
-      <div className="mt-6 flex items-center justify-center gap-2">
-        {MEAL_BLOCKS.map((b, idx) => (
-          <button
-            key={b.id}
-            onClick={() => jump(idx)}
-            aria-label={b.sub}
-            aria-current={idx === i ? 'true' : undefined}
-            className={`h-[3px] transition-all ${idx === i ? 'w-8 bg-stone-900' : 'w-4 bg-stone-300 hover:bg-stone-500'}`}
-          />
-        ))}
-      </div>
+      <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAdd} onOpen={onOpen} />
 
       {/* ── The hours she works through. Stacked on a phone; side by side on a
           desk, where three ruled columns read as one page of a programme. ── */}
@@ -1534,6 +1515,138 @@ function DayFlow({ rituals, meals, dateKeyStr, onAdd, onRemove, onMoveTaskBlock,
           />
         ))}
       </div>
+    </div>
+  )
+}
+
+// ── The day's nourishment, as seven sittings.
+//
+// The strip runs the width of the page and the ground darkens across it —
+// paper at twenty to seven in the morning, near-black at ten at night — so
+// where you are in the day is a colour before it is a word. It opens on the
+// sitting nearest the hour rather than at dawn.
+//
+// Each card states the hour the way a person says it, then what is eaten, what
+// is taken and what is drunk. No measurements: a drink is what it is, not how
+// many millilitres of it. Beside each of the three is a plus, and it opens the
+// same form the rest of the app adds meals with — which asks whether this is a
+// one-off or something that repeats, so a dinner tonight does not become a
+// dinner every night.
+function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
+  const nearest = () => {
+    const now = new Date()
+    const mins = now.getHours() * 60 + now.getMinutes()
+    let best = 0
+    SITTINGS.forEach((x, i) => {
+      const [h, m] = x.at.split(':').map(Number)
+      if (h * 60 + m <= mins) best = i
+    })
+    return best
+  }
+  const [i, setI] = useState(nearest)
+  const [adding, setAdding] = useState(null) // { slot, kind }
+  const rail = useRef(null)
+  const n = SITTINGS.length
+  const at = SITTINGS[i]
+
+  // Keep the open card in view when the arrows move it.
+  useEffect(() => {
+    const el = rail.current && rail.current.children[i]
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [i])
+
+  const itemsIn = (slot, kind) => (meals || []).filter((m) => m.slot === slot && m.kind === kind)
+
+  return (
+    <div className="mos-bleed mb-12">
+      <div ref={rail} className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto">
+        {SITTINGS.map((x, idx) => {
+          const ink = x.dark ? '#F7F4ED' : '#16130F'
+          const dim = x.dark ? 'rgba(247,244,237,0.58)' : 'rgba(22,19,15,0.52)'
+          const rule = x.dark ? 'rgba(247,244,237,0.20)' : 'rgba(22,19,15,0.16)'
+          const food = itemsIn(x.food, 'food')
+          const supps = itemsIn(x.food, 'supp')
+          const drink = itemsIn(x.drink, 'food')
+          const Group = ({ label, list, slot, kind }) => (
+            <div>
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-[10px] uppercase tracking-[0.16em]" style={{ color: dim }}>{label}</span>
+                <button
+                  onClick={() => setAdding({ slot, kind })}
+                  aria-label={`Add to ${label.toLowerCase()}`}
+                  className="text-[13px] leading-none transition-opacity hover:opacity-60"
+                  style={{ color: dim }}
+                >
+                  +
+                </button>
+              </div>
+              {list.length === 0 ? (
+                <p className="mt-1.5 text-[15px]" style={{ color: dim }}>None</p>
+              ) : (
+                <p className="mt-1.5 text-[15px] leading-snug" style={{ color: ink }}>
+                  {list.map((m, k) => (
+                    <span key={m.id}>
+                      {k > 0 && <span style={{ color: dim }}> · </span>}
+                      <button onClick={() => onOpen && onOpen(m.id)} className="text-left transition-opacity hover:opacity-70">{m.name}</button>
+                    </span>
+                  ))}
+                </p>
+              )}
+            </div>
+          )
+          return (
+            <section
+              key={x.id}
+              className="flex min-h-[420px] w-[86vw] shrink-0 snap-center flex-col px-7 py-9 sm:w-[46vw] sm:px-9 lg:w-[33.333vw]"
+              style={{ backgroundColor: x.ground, color: ink }}
+              aria-current={idx === i ? 'true' : undefined}
+            >
+              <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: dim }}>{x.label}</p>
+              <p className="mt-2 font-serif text-[44px] leading-none sm:text-[52px]" style={{ color: ink }}>{spoken(x.at)}</p>
+              <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
+              <div className="mt-6 flex-1 space-y-6">
+                <Group label="Meal" list={food} slot={x.food} kind="food" />
+                <Group label="Supplements" list={supps} slot={x.food} kind="supp" />
+                <Group label="Drink" list={drink} slot={x.drink} kind="food" />
+              </div>
+            </section>
+          )
+        })}
+      </div>
+
+      {/* Which sitting is open, and the way along the day. */}
+      <div className="mx-auto mt-6 flex max-w-5xl items-center justify-between gap-4 px-6 md:px-10">
+        <span className="flex items-center gap-2">
+          {SITTINGS.map((x, idx) => (
+            <button
+              key={x.id}
+              onClick={() => setI(idx)}
+              aria-label={`${x.label} ${spoken(x.at)}`}
+              aria-current={idx === i ? 'true' : undefined}
+              className={`h-[3px] transition-all ${idx === i ? 'w-8 bg-stone-900' : 'w-4 bg-stone-300 hover:bg-stone-500'}`}
+            />
+          ))}
+        </span>
+        <span className="flex items-center gap-3">
+          <button onClick={() => setI((k) => Math.max(0, k - 1))} disabled={i === 0} aria-label="Earlier" className={`text-lg leading-none ${i === 0 ? 'text-stone-300' : 'text-stone-500 hover:text-stone-900'}`}>←</button>
+          <button onClick={() => setI((k) => Math.min(n - 1, k + 1))} disabled={i === n - 1} aria-label="Later" className={`text-lg leading-none ${i === n - 1 ? 'text-stone-300' : 'text-stone-500 hover:text-stone-900'}`}>→</button>
+        </span>
+      </div>
+
+      {adding && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdding(null) }}>
+          <div className="w-full max-w-sm border border-stone-200 bg-cream p-6">
+            <p className="kicker mb-4 text-stone-500">{slotMeta(adding.slot).label} · {adding.kind === 'supp' ? 'Supplement' : 'Food'}</p>
+            <AddMealForm
+              slot={slotMeta(adding.slot)}
+              kind={adding.kind}
+              dateKeyStr={dateKeyStr}
+              onCancel={() => setAdding(null)}
+              onSave={(item) => { onAdd({ ...item, slot: adding.slot, kind: adding.kind }); setAdding(null) }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

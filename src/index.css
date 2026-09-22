@@ -481,6 +481,18 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
   }
 }
 
+/* ── Out to the page edge.
+   The whole app sits in a centred 1024px column, which is right for reading
+   and wrong for a surface: a cobalt panel that stops short of the margin
+   looks squeezed rather than placed. This breaks a child out of that column
+   and runs it the full width, so the ground bleeds. `main` clips the
+   horizontal overflow, so the scrollbar's width cannot push the page sideways. */
+.mos-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
 /* ── The concierge room.
    The one screen in the product that does not sit on écru. Its palette lives
    in the component, because it is the book's rather than the house ramp's —
