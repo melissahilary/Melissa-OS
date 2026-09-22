@@ -1,0 +1,98 @@
+import React from 'react'
+import { dateKey } from '../lib/date'
+
+// ── The month, as a record.
+//
+// Ink ground, the month set at the scale a masthead is set at, and seven
+// columns of hairline. What is printed in a cell is what is actually scheduled
+// — an appointment, a draw, a thing that happens on a date. The daily habits
+// are not here: they happen every day, so printing them thirty times says
+// nothing and buries the one Tuesday that matters.
+//
+// Clicking a day turns that cell over to cream and the whole head of the page
+// — the routines, the sittings, the schedule — follows it.
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+const INK = '#16130F'
+const CREAM = '#F3EFE7'
+const RULE = 'rgba(243,239,231,0.16)'
+const DIM = 'rgba(243,239,231,0.55)'
+const COBALT = '#7C8BF0'
+
+// The hour said short, the way it is written beside a name: 9:15, 4:00.
+const shortHour = (hhmm) => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || ''))
+  return m ? `${Number(m[1]) % 12 || 12}:${m[2]}` : ''
+}
+
+export default function MonthCalendar({ month, setMonth, selectedKey, today, entriesFor, onPick }) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1)
+  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0)
+  // Monday first, as the week is read here.
+  const lead = (first.getDay() + 6) % 7
+  const cells = []
+  for (let i = 0; i < lead; i += 1) cells.push(null)
+  for (let d = 1; d <= last.getDate(); d += 1) cells.push(new Date(month.getFullYear(), month.getMonth(), d))
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  const todayKey = dateKey(today)
+  const step = (n) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1))
+
+  return (
+    <section className="mos-bleed" style={{ background: INK, color: CREAM }}>
+      <div className="flex items-end justify-between gap-6 px-6 pb-8 pt-12 md:px-14 md:pb-10 md:pt-14">
+        <h2 className="flex items-baseline gap-5">
+          <span className="font-serif text-[58px] leading-none md:text-[86px]">{MONTHS[month.getMonth()]}</span>
+          <span className="text-[11px] tracking-[0.22em]" style={{ color: DIM }}>{month.getFullYear()}</span>
+        </h2>
+        <div className="flex shrink-0 items-center gap-6 pb-2">
+          <button onClick={() => step(-1)} aria-label="Previous month" className="text-lg leading-none transition-opacity hover:opacity-60">&lsaquo;</button>
+          <button onClick={() => step(1)} aria-label="Next month" className="text-lg leading-none transition-opacity hover:opacity-60">&rsaquo;</button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 px-6 md:px-14">
+        {DAYS.map((d) => (
+          <p key={d} className="pb-4 text-[10px] uppercase tracking-[0.18em]" style={{ color: DIM }}>{d}</p>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 px-6 pb-12 md:px-14 md:pb-16" style={{ borderColor: RULE }}>
+        {cells.map((d, idx) => {
+          if (!d) return <div key={`x${idx}`} className="min-h-[92px] border-t md:min-h-[124px]" style={{ borderColor: RULE }} />
+          const k = dateKey(d)
+          const on = k === selectedKey
+          const entries = entriesFor(k) || []
+          return (
+            <button
+              key={k}
+              onClick={() => onPick(k)}
+              aria-current={on ? 'date' : undefined}
+              className="min-h-[92px] border-t p-2.5 text-left align-top transition-colors md:min-h-[124px] md:p-4"
+              style={{ borderColor: RULE, background: on ? CREAM : 'transparent', color: on ? INK : CREAM }}
+            >
+              <span className="font-serif text-[22px] leading-none md:text-[26px]">{d.getDate()}</span>
+              {k === todayKey && !on && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.16em]" style={{ color: DIM }}>Today</span>}
+              <span className="mt-2.5 block space-y-1">
+                {entries.slice(0, 3).map((e) => (
+                  <span
+                    key={e.id}
+                    className="block truncate text-[13px] leading-snug md:text-[14px]"
+                    style={{ color: on ? INK : (e.kind === 'protocol' ? COBALT : CREAM) }}
+                  >
+                    {e.title}{on && e.time ? `, ${shortHour(e.time)}` : ''}
+                  </span>
+                ))}
+                {entries.length > 3 && (
+                  <span className="block text-[11px]" style={{ color: on ? 'rgba(22,19,15,0.55)' : DIM }}>+{entries.length - 3}</span>
+                )}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}

@@ -12,6 +12,7 @@ import { holidayFor } from '../lib/holidays'
 import Horoscope from './Horoscope'
 import DayLists from './DayLists'
 import DaySchedule from './DaySchedule'
+import MonthCalendar from './MonthCalendar'
 import MonthGrid from './shared/MonthGrid'
 import { AddMealForm } from './shared/MealSlots'
 import { slotMeta, SITTINGS, spoken } from '../lib/meals'
@@ -806,6 +807,23 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     return out
   }
 
+  // THE MONTH — what is actually scheduled on a date: appointments, and the
+  // things that happen on their own day rather than every day. A daily habit
+  // is excluded on purpose: printed across thirty cells it says nothing and
+  // hides the one Tuesday that matters. A weekly draw or a Friday class is
+  // scheduled, so it stays.
+  const HABITUAL = ['daily', 'weekdays', 'weekends']
+  const dayScheduled = (k) =>
+    activities
+      .filter((a) => {
+        if (!active(a, k)) return false
+        if (a.type === 'meal_item' || a.type === 'supplement') return false
+        if (a.type === 'protocol' && HABITUAL.includes(a.frequency || 'daily')) return false
+        return true
+      })
+      .map((a) => ({ id: a.id, title: a.title, kind: a.type, time: a.details?.time || '', done: isDoneOn(a, k) }))
+      .sort((x, y) => (x.time || '99').localeCompare(y.time || '99'))
+
   // The main month grid previews everything scheduled that day (to-dos), deduped.
   const dayGridItems = (k) => {
     const seen = new Set()
@@ -921,6 +939,16 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onBlockChange={setCurrentBlock}
       />
 
+      {/* The month as a record, and the day it is opened on. */}
+      <MonthCalendar
+        month={calMonth}
+        setMonth={setCalMonth}
+        selectedKey={selectedKey}
+        today={today}
+        entriesFor={dayScheduled}
+        onPick={pickDay}
+      />
+
       {/* The day as a spine: only the hours that hold something, in order. */}
       <DaySchedule
         dateKeyStr={selectedKey}
@@ -937,34 +965,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
       <Horoscope />
 
-      <div className="pt-6">
-      <Calendar
-        calMonth={calMonth}
-        setCalMonth={setCalMonth}
-        selectedKey={selectedKey}
-        setSelectedKey={setSelectedKey}
-        today={today}
-        cycleConfig={cycleConfig}
-        goToCycle={goToCycle}
-        eventsFor={dayGridItems}
-        ritualsFor={dayRituals}
-        mealsFor={dayMeals}
-        carry={carryForward}
-        onCompleteCarry={completeCarry}
-        agendaHint={agendaHint}
-        onPickDay={pickDay}
-        onAddMeal={addMeal}
-        onRemoveMeal={removeMeal}
-        onReorder={setOrder}
-        onMovePart={moveEventToPart}
-        onMoveTaskBlock={moveTaskToBlock}
-        onAddTask={addTask}
-        onPause={pauseItem}
-        onToggle={toggleEvent}
-        onOpen={openActivity}
-        onBlockChange={setCurrentBlock}
-      />
-      </div>
+      {/* The month grid that used to stand here is the ink calendar at the head
+          of the page now. */}
 
       {/* Notes and the list are a pair — side by side once there's room for them */}
       {/* The shopping list used to sit here beside the notes. It is one of the
@@ -1366,12 +1368,11 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
   const rail = useRef(null)
   const n = SITTINGS.length
 
-  // How many scroll positions the rail actually has. With seven cards three
-  // across there are five: asking for the sixth and the seventh lands exactly
-  // where the fifth did, so those two marks were dead — they lit up and moved
-  // nothing. The count is measured rather than assumed, so it is right at
-  // every width, and on a phone where one card fills the rail all seven stay.
-  const [stops, setStops] = useState(n)
+  // The rail turns by the page rather than by the card: seven sittings three
+  // across is three turns, so three marks. Measured rather than assumed, so a
+  // phone showing one card at a time gets its own count.
+  const [per, setPer] = useState(1)
+  const stops = Math.max(1, Math.ceil(n / per))
   useEffect(() => {
     const el = rail.current
     if (!el) return undefined
@@ -1379,8 +1380,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
       const card = el.children[0]
       const w = card ? card.getBoundingClientRect().width : 0
       if (!w) return
-      const perView = Math.max(1, Math.round(el.clientWidth / w))
-      setStops(Math.max(1, n - perView + 1))
+      setPer(Math.max(1, Math.round(el.clientWidth / w)))
     }
     measure()
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
@@ -1396,10 +1396,10 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
   // that is below the fold, which on load reads as the page jumping.
   useEffect(() => {
     const strip = rail.current
-    const el = strip && strip.children[i]
+    const el = strip && strip.children[i * per]
     if (!strip || !el) return
     strip.scrollTo({ left: el.offsetLeft - strip.offsetLeft, behavior: 'smooth' })
-  }, [i])
+  }, [i, per])
 
   const itemsIn = (slot, kind) => (meals || []).filter((m) => m.slot === slot && m.kind === kind)
 
@@ -1486,22 +1486,20 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
         })}
       </div>
 
-      {/* Where along the day she is. Centred, and only as many marks as there
-          are places to go — the arrows are gone because the marks do the same
-          job and the rail takes a swipe on its own. */}
+      {/* Where along the day she is: one mark per turn of the rail, running the
+          full width of the cards above them. The arrows are gone because the
+          marks do the same job and the rail takes a swipe on its own. */}
       {stops > 1 && (
-        <div className="px-6 md:px-10 lg:px-12">
-        <div className="mx-auto mt-6 flex max-w-5xl items-center gap-2">
+        <div className="mt-6 flex items-center gap-2">
           {Array.from({ length: stops }, (_, idx) => (
             <button
               key={idx}
               onClick={() => setI(idx)}
-              aria-label={`${SITTINGS[idx].label} ${spoken(hourOf(SITTINGS[idx].id))}`}
+              aria-label={`${SITTINGS[Math.min(idx * per, n - 1)].label} ${spoken(hourOf(SITTINGS[Math.min(idx * per, n - 1)].id))}`}
               aria-current={idx === i ? 'true' : undefined}
               className={`h-[3px] flex-1 transition-colors ${idx === i ? 'bg-stone-900' : 'bg-stone-300 hover:bg-stone-500'}`}
             />
           ))}
-        </div>
         </div>
       )}
 
