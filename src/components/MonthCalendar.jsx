@@ -19,12 +19,16 @@ const INK = '#16130F'
 const CREAM = '#F3EFE7'
 const RULE = 'rgba(243,239,231,0.16)'
 const DIM = 'rgba(243,239,231,0.55)'
+// The accent, lifted for the ink ground. On the day she has opened, the cell
+// turns to cream and what it holds is set in ink instead.
+const COBALT_ON_INK = '#7C8BF0'
 
-// A cell is a preview, not a list. Two lines at most, and each of them short
-// enough to be read at a glance: a long title is cut back to whole words
-// rather than truncated mid-syllable, and the strength work — upper body,
-// lower body, weights — is simply the gym.
-const PER_CELL = 2
+// A cell is a preview, not a list. It fills two lines and stops: names are
+// taken until the line is full, so it ends on a whole name rather than a cut
+// one, and what is left over is counted. A long title is cut back to whole
+// words, and the strength work — upper body, lower body, weights — is simply
+// the gym.
+const LINE_BUDGET = 44
 const GYMISH = /(upper|lower)\s*body|strength|weights|weight\s*training|lifting|resistance/i
 const short = (raw) => {
   const t = String(raw || '').trim()
@@ -38,6 +42,19 @@ const short = (raw) => {
     out = `${out} ${words[i]}`
   }
   return out
+}
+
+// As many names as two lines will hold, in the order they were given.
+const fit = (names) => {
+  const taken = []
+  let len = 0
+  for (const n of names) {
+    const next = len ? len + 2 + n.length : n.length
+    if (taken.length && next > LINE_BUDGET) break
+    taken.push(n)
+    len = next
+  }
+  return taken
 }
 
 export default function MonthCalendar({ month, setMonth, selectedKey, today, entriesFor, onPick }) {
@@ -90,14 +107,18 @@ export default function MonthCalendar({ month, setMonth, selectedKey, today, ent
               {k === todayKey && !on && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.16em]" style={{ color: DIM }}>Today</span>}
               {/* One line, as a line is written: gym, pilates. Not a column of
                   one-word rows. What will not fit is counted at the end. */}
-              {entries.length > 0 && (
-                <span className="mt-4 block text-[13px] leading-relaxed md:text-[14px]" style={{ color: on ? INK : CREAM }}>
-                  <span className="line-clamp-2">{entries.slice(0, PER_CELL).map((e) => short(e.title)).join(', ')}</span>
-                  {entries.length > PER_CELL && (
-                    <span className="mt-1 block text-[11px]" style={{ color: on ? 'rgba(22,19,15,0.55)' : DIM }}>+{entries.length - PER_CELL} more</span>
-                  )}
-                </span>
-              )}
+              {entries.length > 0 && (() => {
+                const shown = fit(entries.map((e) => short(e.title)))
+                const rest = entries.length - shown.length
+                return (
+                  <span className="mt-4 block text-[13px] leading-relaxed md:text-[14px]" style={{ color: on ? INK : COBALT_ON_INK }}>
+                    <span className="block">{shown.join(', ')}</span>
+                    {rest > 0 && (
+                      <span className="mt-1 block text-[11px]" style={{ color: on ? 'rgba(22,19,15,0.55)' : DIM }}>+{rest} more</span>
+                    )}
+                  </span>
+                )
+              })()}
             </button>
           )
         })}
