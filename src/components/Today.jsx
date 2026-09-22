@@ -1053,8 +1053,10 @@ function Routine({ half, lead, italic, tail, items, ground, onOpen, onToggle }) 
         <span className="mt-2 shrink-0 text-[10px] uppercase tracking-[0.22em] text-cream">{half}</span>
       </div>
       {/* However long the routine is, the panel stays the height of the page
-          and the list scrolls inside it. */}
-      <div className="mos-scroll mt-10 max-h-[320px] flex-1 overflow-y-auto pr-1">
+          and the list scrolls inside it — with no bar drawn, because the bar
+          fell straight down the column the boxes are in and sat on top of
+          them. The rail takes a swipe and a wheel without being drawn. */}
+      <div className="no-scrollbar mt-10 max-h-[320px] flex-1 overflow-y-auto">
         {left.map((it) => (
           <div
             key={it.id}
