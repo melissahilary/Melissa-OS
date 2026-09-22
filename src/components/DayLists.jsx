@@ -228,7 +228,10 @@ export default function DayLists() {
           )
         })}
       </div>
-      <div className="pt-8">
+      {/* Each list sits on its own panel — a step down from the page ground,
+          the way the three specimens are drawn. The strip stays on the page
+          above it; the box holds the list itself. */}
+      <div className="mt-8 px-6 py-8 md:px-10 md:py-10" style={{ backgroundColor: '#EEEAE1' }}>
         <Panel />
       </div>
     </section>
