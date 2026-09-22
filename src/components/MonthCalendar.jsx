@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { dateKey } from '../lib/date'
 
 // ── The month, as a record.
@@ -29,6 +29,23 @@ const COBALT_ON_INK = '#7C8BF0'
 // words, the strength work — upper body, lower body, weights — is simply the
 // gym, and everything is set lower case.
 const LINE_BUDGET = 44
+
+// A phone gives a cell about fifty pixels. Names cannot be read in that, and
+// wrapping them five deep turns the month into a wall of blue — so on a narrow
+// screen a day is its numeral and a mark for each thing on it, and the names
+// are read below, in the day she taps open.
+function useNarrow() {
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+    const mq = window.matchMedia('(max-width: 639px)')
+    const read = () => setNarrow(mq.matches)
+    read()
+    if (mq.addEventListener) { mq.addEventListener('change', read); return () => mq.removeEventListener('change', read) }
+    mq.addListener(read); return () => mq.removeListener(read)
+  }, [])
+  return narrow
+}
 const GYMISH = /(upper|lower)\s*body|strength|weights|weight\s*training|lifting|resistance/i
 // Everything in a cell is set lower case, however it was typed in. One item
 // arrives as Pilates and the next as pilates, and a month that prints both as
@@ -61,6 +78,7 @@ const fit = (names) => {
 }
 
 export default function MonthCalendar({ month, setMonth, selectedKey, today, entriesFor, onPick }) {
+  const narrow = useNarrow()
   const first = new Date(month.getFullYear(), month.getMonth(), 1)
   const last = new Date(month.getFullYear(), month.getMonth() + 1, 0)
   // Monday first, as the week is read here.
@@ -110,7 +128,14 @@ export default function MonthCalendar({ month, setMonth, selectedKey, today, ent
               {k === todayKey && !on && <span className="ml-2 align-middle text-[9px] uppercase tracking-[0.16em]" style={{ color: DIM }}>Today</span>}
               {/* One line, as a line is written: gym, pilates. Not a column of
                   one-word rows. What will not fit is counted at the end. */}
-              {entries.length > 0 && (() => {
+              {entries.length > 0 && narrow && (
+                <span className="mt-2.5 flex flex-wrap gap-1">
+                  {entries.slice(0, 4).map((e) => (
+                    <span key={e.id} className="block h-[5px] w-[5px]" style={{ backgroundColor: on ? INK : COBALT_ON_INK }} />
+                  ))}
+                </span>
+              )}
+              {entries.length > 0 && !narrow && (() => {
                 const shown = fit(entries.map((e) => short(e.title)))
                 const rest = entries.length - shown.length
                 return (

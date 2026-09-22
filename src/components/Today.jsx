@@ -812,10 +812,12 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // not. Meals and supplements never appear. Where a cell holds more than it
   // can print, the ones at an hour are printed first.
   const HABITUAL = ['daily', 'weekdays', 'weekends']
+  // What happens most days is a habit whatever it was filed as. Ten thousand
+  // steps entered as an appointment is still ten thousand steps, and a month
+  // that prints it thirty times is a month of one word.
   const isHabit = (a) => HABITUAL.includes(a.frequency || 'daily') || (a.daysOfWeek || []).length >= 4
   const isAppointment = (a) => {
-    if (a.type === 'event') return true
-    if (a.type !== 'protocol') return false
+    if (a.type === 'meal_item' || a.type === 'supplement') return false
     // No hour required. Her classes are kept in their pillars and most of them
     // carry no time at all, and asking for one emptied the month.
     return !isHabit(a)
