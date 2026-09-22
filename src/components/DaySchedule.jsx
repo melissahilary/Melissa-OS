@@ -40,50 +40,51 @@ const clockParts = (hhmm) => {
 // it, and the arrows only exist when there is a sixth.
 const PER_PAGE = 5
 
-export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phase, onAdd }) {
+export default function DaySchedule({ dateKeyStr, appointments = [], meals = [], phase, onAdd }) {
   const [adding, setAdding] = useState(false)
   const [page, setPage] = useState(0)
   const [clockRaw] = useLocalStorage('mos:sittings', { standing: {}, days: {} })
   const standing = (clockRaw && clockRaw.standing) || {}
   const day = ((clockRaw && clockRaw.days) || {})[dateKeyStr] || {}
+  const hidden = (clockRaw && clockRaw.hidden) || {}
 
   const date = parseKey(dateKeyStr)
 
   const entries = useMemo(() => {
     const out = []
 
-    // The sittings, at whatever hour they are set to, and only the ones that
-    // actually hold something — an empty lunch is not an appointment.
+    // The sittings, at whatever hour they are set to — the ones that hold
+    // something, and never one she has put away.
     SITTINGS.forEach((s) => {
+      if (hidden[s.id]) return
       const held = meals.filter((m) => m.slot === s.food || m.slot === s.drink)
       if (!held.length) return
       const at = day[s.id] || standing[s.id] || s.at
       out.push({ id: `sitting:${s.id}`, at, title: s.label, note: steps(held.length) })
     })
 
-    // Anything else on the day that carries a clock time. Deduped, because a
-    // thing that spans two parts of the day is still one thing at one hour.
+    // And the day's appointments — the same ones the month carries. One with
+    // an hour takes its place in the order; one without is still somewhere she
+    // has to be, so it waits at the end rather than not being said at all.
     const seen = new Set()
-    rituals.forEach((r) => {
-      if (!r.time || seen.has(r.id)) return
-      seen.add(r.id)
-      // A task is one thing unless it carries sub-steps of its own, and one
-      // thing needs no count under it.
-      out.push({ id: r.id, at: r.time, title: r.title, note: steps((r.steps || []).length), done: r.done })
+    appointments.forEach((a) => {
+      if (seen.has(a.id)) return
+      seen.add(a.id)
+      out.push({ id: a.id, at: a.time || '', title: a.title, note: '', done: a.done })
     })
 
-    return out
-      .map((e) => ({ ...e, clock: clockParts(e.at) }))
-      .filter((e) => e.clock)
-      .sort((a, b) => a.clock.mins - b.clock.mins)
-  }, [meals, rituals, day, standing])
+    const timed = out.filter((e) => clockParts(e.at)).map((e) => ({ ...e, clock: clockParts(e.at) }))
+    const untimed = out.filter((e) => !clockParts(e.at)).map((e) => ({ ...e, clock: null }))
+    timed.sort((a, b) => a.clock.mins - b.clock.mins)
+    return [...timed, ...untimed]
+  }, [meals, appointments, day, standing, hidden])
 
   // The cobalt mark goes on what is next, and only on the day itself — on any
   // other date nothing is "next".
   const now = new Date()
   const isToday = dateKeyStr === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const mins = now.getHours() * 60 + now.getMinutes()
-  const nextId = isToday ? (entries.find((e) => e.clock.mins >= mins) || {}).id : null
+  const nextId = isToday ? (entries.find((e) => e.clock && e.clock.mins >= mins) || {}).id : null
 
   const pages = Math.max(1, Math.ceil(entries.length / PER_PAGE))
   const pg = Math.min(page, pages - 1)
@@ -110,8 +111,14 @@ export default function DaySchedule({ dateKeyStr, rituals = [], meals = [], phas
           ) : shown.map((e) => (
             <div key={e.id} className="flex items-start gap-6 py-4 md:gap-8">
               <p className="w-[104px] shrink-0 text-right font-serif text-[30px] leading-none md:w-[124px] md:text-[34px]">
-                {e.clock.face}
-                <span className="ml-1.5 align-baseline text-[11px] tracking-[0.1em]" style={{ color: W.muted }}>{e.clock.mer}</span>
+                {e.clock ? (
+                  <>
+                    {e.clock.face}
+                    <span className="ml-1.5 align-baseline text-[11px] tracking-[0.1em]" style={{ color: W.muted }}>{e.clock.mer}</span>
+                  </>
+                ) : (
+                  <span style={{ color: W.muted }}>&mdash;</span>
+                )}
               </p>
               <span
                 className="mt-0.5 w-px shrink-0 self-stretch"

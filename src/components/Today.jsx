@@ -956,7 +956,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       {/* The day as a spine: only the hours that hold something, in order. */}
       <DaySchedule
         dateKeyStr={selectedKey}
-        rituals={dayRituals(selectedKey)}
+        appointments={dayScheduled(selectedKey)}
         meals={dayMeals(selectedKey)}
         phase={todayPhase}
         onAdd={(title, at) => addEvent(title, at)}
