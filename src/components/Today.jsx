@@ -15,12 +15,11 @@ import MonthCalendar from './MonthCalendar'
 import MonthGrid from './shared/MonthGrid'
 import { AddMealForm } from './shared/MealSlots'
 import { slotMeta, SITTINGS, spoken } from '../lib/meals'
-import { SunriseMark, MoonMark } from './shared/marks'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { useActivities } from '../hooks/useActivities'
-import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf, ACTIVITY_CATEGORIES } from '../lib/activities'
+import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf } from '../lib/activities'
 import { moonInfo } from '../lib/moon'
 import LocationField, { resolveCoords, locKey } from './shared/LocationField'
 
@@ -924,6 +923,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         rituals={dayRituals(selectedKey)}
         meals={dayMeals(selectedKey)}
         onOpen={openActivity}
+        onToggle={toggleEvent}
       />
 
       {/* The world outside the window, read as one line under the routines. */}
@@ -1037,86 +1037,51 @@ const PHASE_AGENDA_HINT = {
 // evening — the only two places in the product where the accent fills
 // something this large, and they are a pair or they are nothing.
 //
-// The right-hand column is the pillar the item belongs to, not its state. Ten
-// thousand steps reads FITNESS. Whether it is kept is said by the tick marks
-// further down the page, and saying it twice says it once.
-const PER_PAGE = 6
+// A row is the step and a box to keep it by. No pillar named beside it: she
+// knows what her own routine is for, and the word was only ever furniture.
 
-function Routine({ Mark, lead, italic, tail, items, ground, onOpen }) {
-  const [page, setPage] = useState(0)
+function Routine({ lead, italic, tail, items, ground, onOpen, onToggle }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
-  // Six at a time. A routine of twenty is a wall; six is a page of one, and
-  // the arrow only exists when there is a seventh.
-  const pages = Math.max(1, Math.ceil(items.length / PER_PAGE))
-  const p = Math.min(page, pages - 1)
-  const shown = items.slice(p * PER_PAGE, p * PER_PAGE + PER_PAGE)
+  // Only what is still owed. Ticking a step takes it off the panel and the
+  // rest move up, so the routine is always the part of it that is left.
+  const left = items.filter((it) => !it.done)
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
-      {/* The half of the day is drawn, not labelled — a sun coming up or the
-          moon, set against the phrase at the far edge of the block. */}
-      <div className="flex items-start justify-between gap-6">
-        <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
-          {lead}<br /><em className="italic">{italic}</em><br />{tail}
-        </h2>
-        <Mark size={30} className="mt-1.5 shrink-0 text-cream" />
-      </div>
-      <div className="mt-10 flex-1">
-        {shown.length === 0 ? (
-          <p className="text-[15px]" style={{ color: dim }}>Nothing set.</p>
-        ) : shown.map((it, i) => (
-          <button
+      <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">
+        {lead}<br /><em className="italic">{italic}</em><br />{tail}
+      </h2>
+      {/* However long the routine is, the panel stays the height of the page
+          and the list scrolls inside it. */}
+      <div className="mos-scroll mt-10 max-h-[320px] flex-1 overflow-y-auto pr-1">
+        {left.map((it, i) => (
+          <div
             key={it.id}
-            onClick={() => onOpen && onOpen(it.id)}
-            className="flex w-full items-baseline gap-5 py-3 text-left transition-opacity hover:opacity-75"
+            className="flex w-full items-center gap-5 py-3 text-left"
             style={{ borderBottom: `1px solid ${rule}` }}
           >
-            <span className="w-6 shrink-0 text-[10px] tracking-[0.1em]" style={{ color: dim }}>{String(p * PER_PAGE + i + 1).padStart(2, '0')}</span>
-            <span className="min-w-0 flex-1 text-[17px] leading-snug text-cream">{it.title || 'Untitled'}</span>
-            {pillarOf(it) && (
-              <span className="shrink-0 text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>{pillarOf(it)}</span>
-            )}
-          </button>
+            <span className="w-6 shrink-0 text-[10px] tracking-[0.1em]" style={{ color: dim }}>{String(i + 1).padStart(2, '0')}</span>
+            <button
+              onClick={() => onOpen && onOpen(it.id)}
+              className="min-w-0 flex-1 text-left text-[17px] leading-snug text-cream transition-opacity hover:opacity-75"
+            >
+              {it.title || 'Untitled'}
+            </button>
+            <button
+              onClick={() => onToggle && onToggle(it.id)}
+              aria-label={`Done: ${it.title || 'Untitled'}`}
+              className="h-[15px] w-[15px] shrink-0 border transition-colors"
+              style={{ borderColor: 'rgba(247,244,237,0.55)' }}
+            />
+          </div>
         ))}
       </div>
-      {pages > 1 && (
-        <div className="mt-7 flex items-center justify-end gap-6">
-          {/* Both ways along the routine. The one that can still be taken is
-              lit; the one at the end of its travel is not, so the page she is
-              on is legible without a count printed beside it. */}
-          <button
-            onClick={() => setPage(Math.max(0, p - 1))}
-            disabled={p === 0}
-            aria-label="Back"
-            className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default disabled:hover:opacity-100"
-            style={{ color: p === 0 ? dim : 'rgb(247,244,237)' }}
-          >
-            ←
-          </button>
-          <button
-            onClick={() => setPage(Math.min(pages - 1, p + 1))}
-            disabled={p === pages - 1}
-            aria-label="More"
-            className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default disabled:hover:opacity-100"
-            style={{ color: p === pages - 1 ? dim : 'rgb(247,244,237)' }}
-          >
-            →
-          </button>
-        </div>
-      )}
     </section>
   )
 }
 
-// Which pillar an item belongs to, in her own words — the category it was
-// filed under. Ten thousand steps is filed fitness, so it reads FITNESS.
-const pillarOf = (a) => {
-  const c = ACTIVITY_CATEGORIES.find((x) => x.id === (a.category || ''))
-  return c ? c.label : ''
-}
-
-function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
+function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }) {
   // Deduped, and keyed on the block a task actually sits in rather than its
   // part of day — a repeat that shows in two parts is still one task.
   const uniq = dedupeById(rituals)
@@ -1132,22 +1097,22 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen }) {
           KEPT twice on one page is saying nothing the second time. */}
       <div className="mos-bleed grid gap-px md:grid-cols-2">
         <Routine
-          Mark={SunriseMark}
           lead="Before"
           italic="anyone"
           tail="asks."
           items={morning}
           ground="#1D2FC4"
           onOpen={onOpen}
+          onToggle={onToggle}
         />
         <Routine
-          Mark={MoonMark}
           lead="After"
           italic="everyone"
           tail="has gone."
           items={evening}
           ground="#16130F"
           onOpen={onOpen}
+          onToggle={onToggle}
         />
       </div>
     </header>
@@ -1369,6 +1334,22 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
     return (SITTINGS.find((x) => x.id === id) || {}).at
   }
 
+  // Sittings she has put away. A hiding, kept with the hours, never a deletion
+  // — what was written in one is still there when it comes back.
+  const hidden = (clock.hidden && typeof clock.hidden === 'object') ? clock.hidden : {}
+  const hide = (id) => setClock((prev) => {
+    const base = prev && typeof prev === 'object' ? prev : {}
+    return { ...base, hidden: { ...(base.hidden || {}), [id]: true } }
+  })
+  const unhide = (id) => setClock((prev) => {
+    const base = prev && typeof prev === 'object' ? prev : {}
+    const next = { ...(base.hidden || {}) }
+    delete next[id]
+    return { ...base, hidden: next }
+  })
+  const rows = SITTINGS.filter((x) => !hidden[x.id])
+  const away = SITTINGS.filter((x) => hidden[x.id])
+
   const nearest = () => {
     const now = new Date()
     const mins = now.getHours() * 60 + now.getMinutes()
@@ -1384,7 +1365,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
   const [editing, setEditing] = useState(null) // { id, value }
   const [asking, setAsking] = useState(null)   // { id, value } — today, or from now on
   const rail = useRef(null)
-  const n = SITTINGS.length
+  const n = rows.length
 
   // The rail turns by the page rather than by the card: seven sittings three
   // across is three turns, so three marks. Measured rather than assumed, so a
@@ -1424,40 +1405,18 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
   return (
     <div className="mos-bleed mb-12">
       <div ref={rail} className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto">
-        {SITTINGS.map((x, idx) => {
+        {rows.map((x, idx) => {
           const ink = x.dark ? '#F7F4ED' : '#16130F'
           const dim = x.dark ? 'rgba(247,244,237,0.58)' : 'rgba(22,19,15,0.52)'
           const rule = x.dark ? 'rgba(247,244,237,0.20)' : 'rgba(22,19,15,0.16)'
           const food = itemsIn(x.food, 'food')
           const supps = itemsIn(x.food, 'supp')
           const drink = itemsIn(x.drink, 'food')
-          const Group = ({ label, list, slot, kind }) => (
-            <div>
-              <div className="flex items-baseline gap-2.5">
-                <span className="text-[10px] uppercase tracking-[0.16em]" style={{ color: dim }}>{label}</span>
-                <button
-                  onClick={() => setAdding({ slot, kind })}
-                  aria-label={`Add to ${label.toLowerCase()}`}
-                  className="text-[13px] leading-none transition-opacity hover:opacity-60"
-                  style={{ color: dim }}
-                >
-                  +
-                </button>
-              </div>
-              {list.length === 0 ? (
-                <p className="mt-1.5 text-[15px]" style={{ color: dim }}>None</p>
-              ) : (
-                <p className="mt-1.5 text-[15px] leading-snug" style={{ color: ink }}>
-                  {list.map((m, k) => (
-                    <span key={m.id}>
-                      {k > 0 && <span style={{ color: dim }}> · </span>}
-                      <button onClick={() => onOpen && onOpen(m.id)} className="text-left transition-opacity hover:opacity-70">{m.name}</button>
-                    </span>
-                  ))}
-                </p>
-              )}
-            </div>
-          )
+          // One meal per strip. The three headings are gone: a sitting is
+          // what she has at that hour, listed, whether it is a dish, a
+          // supplement or what she drinks with it. Nothing is said when there
+          // is nothing in it.
+          const held = [...food, ...supps, ...drink]
           return (
             <section
               key={x.id}
@@ -1465,7 +1424,21 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
               style={{ backgroundColor: x.ground, color: ink }}
               aria-current={idx === i ? 'true' : undefined}
             >
-              <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: dim }}>{x.label}</p>
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: dim }}>{x.label}</p>
+                {/* Put the sitting away. Not everyone eats breakfast, and a
+                    card that says nothing every day is worse than no card —
+                    but it is a hiding, never a deletion, and the line under
+                    the rail brings it back. */}
+                <button
+                  onClick={() => hide(x.id)}
+                  aria-label={`Hide ${x.label.toLowerCase()}`}
+                  className="text-[13px] leading-none transition-opacity hover:opacity-60"
+                  style={{ color: dim }}
+                >
+                  ×
+                </button>
+              </div>
               {/* The hour, and a way to change it. Enter asks whether this is
                   tonight or from now on — the app has no other way to say the
                   difference, and guessing it is how a one-off becomes a rule. */}
@@ -1494,10 +1467,25 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
                 </button>
               )}
               <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
-              <div className="mt-6 flex-1 space-y-6">
-                <Group label="Meal" list={food} slot={x.food} kind="food" />
-                <Group label="Supplements" list={supps} slot={x.food} kind="supp" />
-                <Group label="Drink" list={drink} slot={x.drink} kind="food" />
+              <div className="mt-6 flex-1">
+                {held.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => onOpen && onOpen(m.id)}
+                    className="block w-full py-1.5 text-left text-[16px] leading-snug transition-opacity hover:opacity-70"
+                    style={{ color: ink }}
+                  >
+                    {m.name}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setAdding({ slot: x.food, kind: 'food' })}
+                  aria-label={`Add to ${x.label.toLowerCase()}`}
+                  className="mt-3 text-[15px] leading-none transition-opacity hover:opacity-60"
+                  style={{ color: dim }}
+                >
+                  +
+                </button>
               </div>
             </section>
           )
@@ -1515,12 +1503,31 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
             <button
               key={idx}
               onClick={() => setI(idx)}
-              aria-label={`${SITTINGS[Math.min(idx * per, n - 1)].label} ${spoken(hourOf(SITTINGS[Math.min(idx * per, n - 1)].id))}`}
+              aria-label={`${rows[Math.min(idx * per, n - 1)].label} ${spoken(hourOf(rows[Math.min(idx * per, n - 1)].id))}`}
               aria-current={idx === i ? 'true' : undefined}
               className={`h-[2px] flex-1 transition-colors ${idx === i ? 'bg-stone-900' : 'bg-stone-300 hover:bg-stone-500'}`}
             />
           ))}
         </div>
+        </div>
+      )}
+
+      {/* What she has put away, and the way back. Only here when there is
+          something to bring back. */}
+      {away.length > 0 && (
+        <div className="px-6 md:px-10 lg:px-12">
+          <div className="mx-auto mt-5 flex max-w-5xl flex-wrap items-baseline gap-x-5 gap-y-1">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-stone-400">Put away</span>
+            {away.map((x) => (
+              <button
+                key={x.id}
+                onClick={() => unhide(x.id)}
+                className="text-[10px] uppercase tracking-[0.16em] text-stone-500 underline underline-offset-4 transition-colors hover:text-stone-900"
+              >
+                {x.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

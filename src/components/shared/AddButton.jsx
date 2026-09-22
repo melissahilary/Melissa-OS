@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { CircleCheck, CalendarClock, Utensils, GlassWater, Pill, Target, ShoppingBag, StickyNote } from 'lucide-react'
-import { AddIcon, CloseIcon, LoggedIcon } from './marks'
+import { CloseIcon, LoggedIcon } from './marks'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { useActivities } from '../../hooks/useActivities'
 import { blankActivity } from '../../lib/activities'
@@ -89,11 +89,7 @@ export function AddProvider({ children }) {
     setHasHandler(!!fn)
   }, [])
 
-  const [activeRaw, setActivePage] = useLocalStorage('mos:active', 'today')
-  // The floating + belongs to the home page, where you're adding to the day at
-  // large. Inside a pillar you're adding to that section, so the way in lives
-  // in the section itself (see AddInline).
-  const onHome = (typeof activeRaw === 'string' ? activeRaw : 'today') === 'today'
+  const [, setActivePage] = useLocalStorage('mos:active', 'today')
   const [, setSubs] = useLocalStorage('mos:subpages', {})
   const showToast = (text, dest) => {
     setToast({ text, dest })
@@ -110,17 +106,9 @@ export function AddProvider({ children }) {
     <AddCtx.Provider value={register}>
       {children}
 
-      {onHome && (
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Add something"
-          title="Add"
-          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'rgb(var(--mos-s900, 22 19 15))', color: 'var(--mos-cream, #F8F4EC)' }}
-        >
-          <AddIcon size={22} strokeWidth={1.75} />
-        </button>
-      )}
+      {/* The square that used to float at the foot of the home page is gone.
+          Every surface carries its own way in now — the day has Add to day,
+          each list has its mark, each sitting has its own. */}
 
       {open && <QuickAdd onClose={() => setOpen(false)} onDone={showToast} fullEditor={hasHandler ? () => { setOpen(false); ref.current && ref.current() } : null} />}
 
