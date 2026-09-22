@@ -94,7 +94,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], meals = [],
     .filter(Boolean).join(' · ')
 
   return (
-    <section className="mos-bleed mt-10" style={{ background: W.ground, color: W.ivory }}>
+    <section className="mos-bleed" style={{ background: W.ground, color: W.ivory }}>
       <div className="grid md:grid-cols-[1fr_1fr]">
         {/* The date, set the way a date is set in print. */}
         <div className="px-6 pb-10 pt-12 md:px-14 md:pb-16 md:pt-16">
