@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { Mail, Check } from 'lucide-react'
 import * as store from '../lib/dataStore'
+import { runNutritionSeed } from '../lib/nutritionSeed'
+import { dateKey } from '../lib/date'
 
 const Cursive = ({ children, className = '' }) => (
   <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>
@@ -18,6 +20,12 @@ export default function AuthGate({ children }) {
     store.init()
     return unsub
   }, [])
+
+  // The week of nourishment written on the calendar is written into the
+  // planner once, the first time the store is loaded and ready.
+  useEffect(() => {
+    if (st.phase === 'ready') runNutritionSeed(dateKey(new Date()))
+  }, [st.phase])
 
   if (st.phase === 'loading') return <Splash />
   if (st.phase === 'signed-out') return <Login />

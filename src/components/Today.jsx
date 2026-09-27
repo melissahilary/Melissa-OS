@@ -1415,11 +1415,36 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
           const food = itemsIn(x.food, 'food')
           const supps = itemsIn(x.food, 'supp')
           const drink = itemsIn(x.drink, 'food')
-          // One meal per strip. The three headings are gone: a sitting is
-          // what she has at that hour, listed, whether it is a dish, a
-          // supplement or what she drinks with it. Nothing is said when there
-          // is nothing in it.
-          const held = [...food, ...supps, ...drink]
+          // Three sections to a sitting, in the order they are taken: the
+          // food, then what she drinks with it, then what she takes with it.
+          // A section with nothing in it is not drawn at all — an empty
+          // heading is a heading about nothing.
+          const Section = ({ label, list, slot, kind }) => (
+            <div className="mt-6 first:mt-0">
+              <div className="flex items-baseline gap-3">
+                <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{label}</span>
+                <span className="h-px flex-1" style={{ backgroundColor: rule }} />
+                <button
+                  onClick={() => setAdding({ slot, kind })}
+                  aria-label={`Add to ${label.toLowerCase()} at ${x.label.toLowerCase()}`}
+                  className="text-[14px] leading-none transition-opacity hover:opacity-60"
+                  style={{ color: dim }}
+                >
+                  +
+                </button>
+              </div>
+              {list.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => onOpen && onOpen(m.id)}
+                  className="mt-2.5 block w-full text-left text-[16px] leading-snug transition-opacity hover:opacity-70"
+                  style={{ color: ink }}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          )
           return (
             <section
               key={x.id}
@@ -1470,25 +1495,10 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
                 </button>
               )}
               <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
-              <div className="mt-6 flex-1">
-                {held.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => onOpen && onOpen(m.id)}
-                    className="block w-full py-1.5 text-left text-[16px] leading-snug transition-opacity hover:opacity-70"
-                    style={{ color: ink }}
-                  >
-                    {m.name}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setAdding({ slot: x.food, kind: 'food' })}
-                  aria-label={`Add to ${x.label.toLowerCase()}`}
-                  className="mt-3 text-[15px] leading-none transition-opacity hover:opacity-60"
-                  style={{ color: dim }}
-                >
-                  +
-                </button>
+              <div className="mos-scroll mt-6 flex-1 overflow-y-auto">
+                <Section label="Food" list={food} slot={x.food} kind="food" />
+                <Section label="Drink" list={drink} slot={x.drink} kind="food" />
+                <Section label="Supplements" list={supps} slot={x.food} kind="supp" />
               </div>
             </section>
           )
