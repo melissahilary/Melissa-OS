@@ -1046,37 +1046,63 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
 
   // ── Dragging a step to where it belongs.
   //
-  // The order is hers, not the order things happened to be written in. A row
-  // is taken by the grip at its right and nothing else, so a thumb dragging
-  // the row itself still scrolls the panel and a tap still opens the step.
+  // The way it is done on a phone: the row is lifted out of the list and
+  // carried under the finger, and the others close behind it. Reordering the
+  // array alone is not that — the row stays flat in its slot and jumps between
+  // places, which reads as nothing being held at all.
+  //
+  // So the row itself is translated, once a frame, by however far its middle
+  // has fallen behind the finger. That correction also absorbs the jump when
+  // the list reorders underneath it, so the row never leaves the fingertip.
   const [held, setHeld] = useState(null) // { id, ids }
+  const [lift, setLift] = useState(0) // how far the held row is carried, in px
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
 
-  const grab = (id) => {
-    drag.current = { id, ids: rows.map((r) => r.id) }
+  const grab = (id, clientY) => {
+    drag.current = { id, ids: rows.map((r) => r.id), y: clientY, dy: 0, raf: 0, settling: false }
+    setLift(0)
     setHeld({ id, ids: drag.current.ids })
   }
 
-  // Where the finger is, against the middle of every row on screen — not a
-  // count of row-heights travelled. Rows are not all one height, and a guess
-  // at the height is what made it jump two places and then none.
-  const slide = (clientY) => {
+  // Where the finger is, against the middle of the rows it is not holding.
+  const place = (clientY) => {
     const d = drag.current
     if (!d || !rail.current) return
-    const kids = [...rail.current.children]
-    let to = kids.length - 1
-    for (let i = 0; i < kids.length; i += 1) {
-      const r = kids[i].getBoundingClientRect()
+    const others = [...rail.current.children].filter((el) => el.dataset.id !== d.id)
+    let to = others.length
+    for (let i = 0; i < others.length; i += 1) {
+      const r = others[i].getBoundingClientRect()
       if (clientY < r.top + r.height / 2) { to = i; break }
     }
     const rest = d.ids.filter((x) => x !== d.id)
-    rest.splice(Math.max(0, Math.min(rest.length, to)), 0, d.id)
+    rest.splice(to, 0, d.id)
     if (rest.join() !== d.ids.join()) {
       d.ids = rest
       setHeld({ id: d.id, ids: rest })
     }
+  }
+
+  // One frame at a time: carry the row, close the list behind it, and walk the
+  // rail when the finger reaches either end of it.
+  const frame = () => {
+    const d = drag.current
+    if (!d) return
+    const el = rail.current && rail.current.querySelector(`[data-id="${d.id}"]`)
+    if (el) {
+      const r = el.getBoundingClientRect()
+      const off = d.y - (r.top + r.height / 2)
+      if (Math.abs(off) > 0.4) { d.dy += off; setLift(d.dy) }
+    }
+    const box = rail.current && rail.current.getBoundingClientRect()
+    if (box) {
+      const edge = 44
+      if (d.y < box.top + edge) rail.current.scrollTop -= 10
+      else if (d.y > box.bottom - edge) rail.current.scrollTop += 10
+    }
+    place(d.y)
+    d.raf = requestAnimationFrame(frame)
   }
 
   // The listeners live on the window, not on the grip. Reordering moves the
@@ -1088,14 +1114,19 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
     const at = (e) => (e.touches && e.touches.length ? e.touches[0].clientY : e.clientY)
     const onMove = (e) => {
       if (e.cancelable) e.preventDefault()
-      slide(at(e))
+      if (drag.current) drag.current.y = at(e)
     }
     const onUp = () => {
       const d = drag.current
-      if (d && onReorder) onReorder(d.ids)
-      drag.current = null
-      setHeld(null)
+      if (!d) return
+      cancelAnimationFrame(d.raf)
+      if (onReorder) onReorder(d.ids)
+      // Let it settle into its slot rather than snapping there.
+      d.settling = true
+      setLift(0)
+      setTimeout(() => { drag.current = null; setHeld(null) }, 180)
     }
+    drag.current.raf = requestAnimationFrame(frame)
     window.addEventListener('pointermove', onMove, { passive: false })
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
@@ -1103,6 +1134,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
     window.addEventListener('touchend', onUp)
     window.addEventListener('touchcancel', onUp)
     return () => {
+      if (drag.current) cancelAnimationFrame(drag.current.raf)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
@@ -1134,8 +1166,23 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
         {rows.map((it) => (
           <div
             key={it.id}
-            className="flex w-full items-center gap-5 py-3 text-left transition-opacity"
-            style={{ borderBottom: `1px solid ${rule}`, opacity: held && held.id === it.id ? 0.55 : 1 }}
+            data-id={it.id}
+            className="flex w-full items-center gap-5 py-3 text-left"
+            style={{
+              borderBottom: `1px solid ${rule}`,
+              ...(held && held.id === it.id
+                ? {
+                    transform: `translateY(${lift}px)`,
+                    transition: drag.current && drag.current.settling ? 'transform 180ms ease-out' : 'none',
+                    position: 'relative',
+                    zIndex: 20,
+                    // The house forbids shadows, so the lift is said with an
+                    // opaque ground and a hairline all the way round.
+                    backgroundColor: ground,
+                    outline: `1px solid ${rule}`,
+                  }
+                : null),
+            }}
           >
             <button
               onClick={() => onToggle && onToggle(it.id)}
@@ -1154,8 +1201,8 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
               role="button"
               tabIndex={-1}
               aria-label={`Move ${it.title || 'Untitled'}`}
-              onPointerDown={(e) => { e.preventDefault(); grab(it.id) }}
-              onTouchStart={(e) => { if (e.cancelable) e.preventDefault(); grab(it.id) }}
+              onPointerDown={(e) => { e.preventDefault(); grab(it.id, e.clientY) }}
+              onTouchStart={(e) => { if (e.cancelable) e.preventDefault(); grab(it.id, e.touches[0].clientY) }}
               onContextMenu={(e) => e.preventDefault()}
               className="-my-2 flex h-10 w-10 shrink-0 cursor-grab select-none flex-col items-end justify-center gap-[3px] active:cursor-grabbing"
               style={{ touchAction: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
