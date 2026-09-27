@@ -1036,7 +1036,7 @@ const PHASE_AGENDA_HINT = {
 // number used to, because a numbered list that shortens as she keeps it
 // renumbers itself, and no pillar is named beside it either.
 
-function Routine({ half, title, items, ground, onOpen, onToggle }) {
+function Routine({ title, items, ground, onOpen, onToggle }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
   // Only what is still owed. Ticking a step takes it off the panel and the
@@ -1045,11 +1045,7 @@ function Routine({ half, title, items, ground, onOpen, onToggle }) {
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
-      {/* Which half of the day it is, said in two letters at the far edge. */}
-      <div className="flex items-start justify-between gap-6">
-        <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
-        <span className="mt-2 shrink-0 text-[10px] uppercase tracking-[0.22em] text-cream">{half}</span>
-      </div>
+      <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
       {/* However long the routine is, the panel stays the height of the page
           and the list scrolls inside it — with no bar drawn, because the bar
           fell straight down the column the boxes are in and sat on top of
@@ -1096,7 +1092,6 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }
           KEPT twice on one page is saying nothing the second time. */}
       <div className="mos-bleed grid gap-px md:grid-cols-2">
         <Routine
-          half="AM"
           title="Morning routine"
           items={morning}
           ground="#1D2FC4"
@@ -1104,7 +1099,6 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }
           onToggle={onToggle}
         />
         <Routine
-          half="PM"
           title="Evening routine"
           items={evening}
           ground="#16130F"
