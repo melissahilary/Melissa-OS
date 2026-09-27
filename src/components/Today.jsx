@@ -1555,33 +1555,24 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
           // food, then what she drinks with it, then what she takes with it.
           // A section with nothing in it is not drawn at all — an empty
           // heading is a heading about nothing.
-          const Section = ({ label, list, slot, kind, tick }) => (
+          const Section = ({ label, list }) => (
             <div className="mt-6 first:mt-0">
               <div className="flex items-baseline gap-3">
                 <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{label}</span>
                 <span className="h-px flex-1" style={{ backgroundColor: rule }} />
-                <button
-                  onClick={() => setAdding({ slot, kind })}
-                  aria-label={`Add to ${label.toLowerCase()} at ${x.label.toLowerCase()}`}
-                  className="text-[14px] leading-none transition-opacity hover:opacity-60"
-                  style={{ color: dim }}
-                >
-                  +
-                </button>
               </div>
               {list.map((m) => (
                 <div key={m.id} className="mt-2.5 flex items-start gap-3.5">
-                  {/* Food is taken, so it is ticked. A square hairline that
-                      fills when it is eaten, in the ink of the card. */}
-                  {tick && (
-                    <button
-                      onClick={() => onToggle && onToggle(m.id)}
-                      aria-pressed={!!m.done}
-                      aria-label={`Eaten: ${m.name}`}
-                      className="mt-[3px] h-[14px] w-[14px] shrink-0 border transition-colors"
-                      style={{ borderColor: dim, backgroundColor: m.done ? ink : 'transparent' }}
-                    />
-                  )}
+                  {/* Everything in a sitting is taken, so everything is
+                      ticked. A square hairline that fills in the ink of the
+                      card, with the line struck through. */}
+                  <button
+                    onClick={() => onToggle && onToggle(m.id)}
+                    aria-pressed={!!m.done}
+                    aria-label={`Had: ${m.name}`}
+                    className="mt-[3px] h-[14px] w-[14px] shrink-0 border transition-colors"
+                    style={{ borderColor: dim, backgroundColor: m.done ? ink : 'transparent' }}
+                  />
                   <button
                     onClick={() => onOpen && onOpen(m.id)}
                     className="min-w-0 flex-1 text-left text-[16px] leading-snug transition-opacity hover:opacity-70"
@@ -1644,9 +1635,19 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
               )}
               <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
               <div className="mos-scroll mt-6 flex-1 overflow-y-auto">
-                <Section label="Food" list={food} slot={x.food} kind="food" tick />
-                <Section label="Drink" list={drink} slot={x.drink} kind="food" />
-                <Section label="Supplements" list={supps} slot={x.food} kind="supp" />
+                <Section label="Food" list={food} />
+                <Section label="Drink" list={drink} />
+                <Section label="Supplements" list={supps} />
+                {/* One mark to the sitting, not one to each part of it. What
+                    it is — food, drink or supplement — is chosen inside. */}
+                <button
+                  onClick={() => setAdding({ id: x.id, label: x.label, food: x.food, drink: x.drink })}
+                  aria-label={`Add to ${x.label.toLowerCase()}`}
+                  className="mt-7 text-[17px] leading-none transition-opacity hover:opacity-60"
+                  style={{ color: dim }}
+                >
+                  +
+                </button>
               </div>
             </section>
           )
@@ -1739,19 +1740,67 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
       )}
 
       {adding && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdding(null) }}>
-          <div className="w-full max-w-sm border border-stone-200 bg-cream p-6">
-            <p className="kicker mb-4 text-stone-500">{slotMeta(adding.slot).label} · {adding.kind === 'supp' ? 'Supplement' : 'Food'}</p>
-            <AddMealForm
-              slot={slotMeta(adding.slot)}
-              kind={adding.kind}
-              dateKeyStr={dateKeyStr}
-              onCancel={() => setAdding(null)}
-              onSave={(item) => { onAdd({ ...item, slot: adding.slot, kind: adding.kind }); setAdding(null) }}
-            />
-          </div>
-        </div>
+        <AddToSitting
+          sitting={adding}
+          dateKeyStr={dateKeyStr}
+          onClose={() => setAdding(null)}
+          onSave={(item, slot, kind) => { onAdd({ ...item, slot, kind }); setAdding(null) }}
+        />
       )}
+    </div>
+  )
+}
+
+// ── Adding to a sitting.
+//
+// One way in to a sitting, and the first thing it asks is what this is: food,
+// what she drinks with it, or what she takes with it. Everything after that —
+// the name, how often, which days — is the form the rest of the app uses, so a
+// thing added here repeats exactly as a thing added anywhere else does.
+const WHATS = [
+  { id: 'food', label: 'Food' },
+  { id: 'drink', label: 'Drink' },
+  { id: 'supp', label: 'Supplement' },
+]
+
+function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
+  const [what, setWhat] = useState('food')
+  const slot = what === 'drink' ? sitting.drink : sitting.food
+  const kind = what === 'supp' ? 'supp' : 'food'
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full max-w-sm border border-stone-200 bg-cream p-6">
+        <p className="kicker text-stone-500">{sitting.label}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {WHATS.map((w) => {
+            const on = w.id === what
+            return (
+              <button
+                key={w.id}
+                onClick={() => setWhat(w.id)}
+                className={`border px-3.5 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${on ? 'border-cobalt bg-cobalt text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-900'}`}
+              >
+                {w.label}
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-5">
+          {/* Keyed on what it is, so the blank it starts from is the right one. */}
+          <AddMealForm
+            key={what}
+            slot={slotMeta(slot)}
+            kind={kind}
+            dateKeyStr={dateKeyStr}
+            onCancel={onClose}
+            onSave={(item) => onSave(item, slot, kind)}
+          />
+        </div>
+      </div>
     </div>
   )
 }
