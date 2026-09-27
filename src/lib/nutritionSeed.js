@@ -63,6 +63,18 @@ const ROWS = [
   ['dinnerdrink', 'food', 'water 1 cup', EVERY],
 ]
 
+// ── Added since.
+//
+// The week above was written in once and is not written again, so anything
+// added to it afterwards comes with a flag of its own and is appended. Each
+// one runs once, whatever else has already run.
+const PATCHES = [
+  {
+    flag: 'mos:seed:carrot-juice',
+    rows: [['drink', 'food', 'carrot juice ½ cup', [0, 2, 4]]],
+  },
+]
+
 const uid = () => Math.random().toString(36).slice(2, 10)
 const arr = (v) => (Array.isArray(v) ? v : [])
 
@@ -72,8 +84,8 @@ const recurrence = (days) =>
     ? { frequency: 'daily', daysOfWeek: [] }
     : { frequency: 'weekly', daysOfWeek: days }
 
-export function buildNutrition(startKey) {
-  return ROWS.map(([slot, kind, title, days], i) =>
+const build = (rows, startKey) =>
+  rows.map(([slot, kind, title, days], i) =>
     normActivity({
       id: `seed-${uid()}`,
       type: kind === 'supp' ? 'supplement' : 'meal_item',
@@ -88,31 +100,44 @@ export function buildNutrition(startKey) {
         : { slot, beverage: /drink/.test(slot) },
     }),
   )
-}
+
+export const buildNutrition = (startKey) => build(ROWS, startKey)
 
 // Runs once, and only with the store loaded — seeding an empty cache would
 // write the week in twice the moment the real rows arrived.
 export function runNutritionSeed(todayKey) {
   if (store.getStatus().phase !== 'ready') return false
-  if (store.get(SEED_FLAG, false)) return false
+  let did = false
 
-  const current = arr(store.get('mos:activities', []))
-  const kept = current.map((a) => (
-    a && (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived'
-      ? { ...a, status: 'archived' }
-      : a
-  ))
-  store.set('mos:activities', [...kept, ...buildNutrition(todayKey)])
+  if (!store.get(SEED_FLAG, false)) {
+    const current = arr(store.get('mos:activities', []))
+    const kept = current.map((a) => (
+      a && (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived'
+        ? { ...a, status: 'archived' }
+        : a
+    ))
+    store.set('mos:activities', [...kept, ...buildNutrition(todayKey)])
 
-  // The sittings keep the calendar's hours from now on.
-  const clock = store.get('mos:sittings', { standing: {}, days: {} })
-  const base = clock && typeof clock === 'object' ? clock : {}
-  const standing = { ...(base.standing || {}) }
-  SITTINGS.forEach((s) => { if (SEED_HOURS[s.id]) standing[s.id] = SEED_HOURS[s.id] })
-  store.set('mos:sittings', { ...base, standing })
+    // The sittings keep the calendar's hours from now on.
+    const clock = store.get('mos:sittings', { standing: {}, days: {} })
+    const base = clock && typeof clock === 'object' ? clock : {}
+    const standing = { ...(base.standing || {}) }
+    SITTINGS.forEach((s) => { if (SEED_HOURS[s.id]) standing[s.id] = SEED_HOURS[s.id] })
+    store.set('mos:sittings', { ...base, standing })
 
-  store.set(SEED_FLAG, true)
-  return true
+    store.set(SEED_FLAG, true)
+    did = true
+  }
+
+  // Anything added to the week since. Appended, never replacing.
+  PATCHES.forEach((patch) => {
+    if (store.get(patch.flag, false)) return
+    store.set('mos:activities', [...arr(store.get('mos:activities', [])), ...build(patch.rows, todayKey)])
+    store.set(patch.flag, true)
+    did = true
+  })
+
+  return did
 }
 
 export default runNutritionSeed
