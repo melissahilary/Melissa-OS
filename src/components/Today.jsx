@@ -1054,23 +1054,22 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
 
-  const grab = (e, id) => {
+  const grab = (id) => {
     drag.current = { id, ids: rows.map((r) => r.id) }
     setHeld({ id, ids: drag.current.ids })
-    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   // Where the finger is, against the middle of every row on screen — not a
   // count of row-heights travelled. Rows are not all one height, and a guess
   // at the height is what made it jump two places and then none.
-  const slide = (e) => {
+  const slide = (clientY) => {
     const d = drag.current
     if (!d || !rail.current) return
     const kids = [...rail.current.children]
     let to = kids.length - 1
     for (let i = 0; i < kids.length; i += 1) {
       const r = kids[i].getBoundingClientRect()
-      if (e.clientY < r.top + r.height / 2) { to = i; break }
+      if (clientY < r.top + r.height / 2) { to = i; break }
     }
     const rest = d.ids.filter((x) => x !== d.id)
     rest.splice(Math.max(0, Math.min(rest.length, to)), 0, d.id)
@@ -1079,12 +1078,40 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
       setHeld({ id: d.id, ids: rest })
     }
   }
-  const drop = () => {
-    const d = drag.current
-    if (d && onReorder) onReorder(d.ids)
-    drag.current = null
-    setHeld(null)
-  }
+
+  // The listeners live on the window, not on the grip. Reordering moves the
+  // grip's own row through the DOM, and a capture held on a node that has just
+  // been moved is dropped — which is why it followed for one place and then
+  // stopped. The window is still there wherever the row goes.
+  useEffect(() => {
+    if (!held) return undefined
+    const at = (e) => (e.touches && e.touches.length ? e.touches[0].clientY : e.clientY)
+    const onMove = (e) => {
+      if (e.cancelable) e.preventDefault()
+      slide(at(e))
+    }
+    const onUp = () => {
+      const d = drag.current
+      if (d && onReorder) onReorder(d.ids)
+      drag.current = null
+      setHeld(null)
+    }
+    window.addEventListener('pointermove', onMove, { passive: false })
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+    window.addEventListener('touchcancel', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+      window.removeEventListener('touchcancel', onUp)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [held && held.id])
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
@@ -1096,7 +1123,13 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
       <div
         ref={rail}
         className="no-scrollbar mt-10 max-h-[320px] flex-1 select-none overflow-y-auto"
-        style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+        style={{
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none',
+          // While a step is in hand the list itself does not scroll under it.
+          touchAction: held ? 'none' : undefined,
+          overscrollBehavior: 'contain',
+        }}
       >
         {rows.map((it) => (
           <div
@@ -1121,10 +1154,8 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
               role="button"
               tabIndex={-1}
               aria-label={`Move ${it.title || 'Untitled'}`}
-              onPointerDown={(e) => { e.preventDefault(); grab(e, it.id) }}
-              onPointerMove={slide}
-              onPointerUp={drop}
-              onPointerCancel={drop}
+              onPointerDown={(e) => { e.preventDefault(); grab(it.id) }}
+              onTouchStart={(e) => { if (e.cancelable) e.preventDefault(); grab(it.id) }}
               onContextMenu={(e) => e.preventDefault()}
               className="-my-2 flex h-10 w-10 shrink-0 cursor-grab select-none flex-col items-end justify-center gap-[3px] active:cursor-grabbing"
               style={{ touchAction: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
