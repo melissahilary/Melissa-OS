@@ -1092,14 +1092,14 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }
           KEPT twice on one page is saying nothing the second time. */}
       <div className="mos-bleed grid gap-px md:grid-cols-2">
         <Routine
-          title="Morning routine"
+          title="AM"
           items={morning}
           ground="#1D2FC4"
           onOpen={onOpen}
           onToggle={onToggle}
         />
         <Routine
-          title="Evening routine"
+          title="PM"
           items={evening}
           ground="#16130F"
           onOpen={onOpen}
