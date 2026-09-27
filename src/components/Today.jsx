@@ -1055,23 +1055,33 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
 
   const grab = (e, id) => {
-    const ids = rows.map((r) => r.id)
-    const first = rail.current && rail.current.firstElementChild
-    drag.current = { id, from: ids.indexOf(id), y: e.clientY, h: first ? first.getBoundingClientRect().height : 52 }
-    setHeld({ id, ids })
+    drag.current = { id, ids: rows.map((r) => r.id) }
+    setHeld({ id, ids: drag.current.ids })
     if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId)
   }
+
+  // Where the finger is, against the middle of every row on screen — not a
+  // count of row-heights travelled. Rows are not all one height, and a guess
+  // at the height is what made it jump two places and then none.
   const slide = (e) => {
     const d = drag.current
-    if (!d || !held) return
-    const step = Math.round((e.clientY - d.y) / (d.h || 52))
-    const to = Math.max(0, Math.min(held.ids.length - 1, d.from + step))
-    const rest = held.ids.filter((x) => x !== d.id)
-    rest.splice(to, 0, d.id)
-    if (rest.join() !== held.ids.join()) setHeld({ id: d.id, ids: rest })
+    if (!d || !rail.current) return
+    const kids = [...rail.current.children]
+    let to = kids.length - 1
+    for (let i = 0; i < kids.length; i += 1) {
+      const r = kids[i].getBoundingClientRect()
+      if (e.clientY < r.top + r.height / 2) { to = i; break }
+    }
+    const rest = d.ids.filter((x) => x !== d.id)
+    rest.splice(Math.max(0, Math.min(rest.length, to)), 0, d.id)
+    if (rest.join() !== d.ids.join()) {
+      d.ids = rest
+      setHeld({ id: d.id, ids: rest })
+    }
   }
   const drop = () => {
-    if (drag.current && held && onReorder) onReorder(held.ids)
+    const d = drag.current
+    if (d && onReorder) onReorder(d.ids)
     drag.current = null
     setHeld(null)
   }
@@ -1083,7 +1093,11 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
           and the list scrolls inside it — with no bar drawn, because the bar
           fell straight down the column the boxes are in and sat on top of
           them. The rail takes a swipe and a wheel without being drawn. */}
-      <div ref={rail} className="no-scrollbar mt-10 max-h-[320px] flex-1 overflow-y-auto">
+      <div
+        ref={rail}
+        className="no-scrollbar mt-10 max-h-[320px] flex-1 select-none overflow-y-auto"
+        style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+      >
         {rows.map((it) => (
           <div
             key={it.id}
@@ -1111,8 +1125,9 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
               onPointerMove={slide}
               onPointerUp={drop}
               onPointerCancel={drop}
-              className="flex h-6 w-6 shrink-0 cursor-grab flex-col items-end justify-center gap-[3px] active:cursor-grabbing"
-              style={{ touchAction: 'none' }}
+              onContextMenu={(e) => e.preventDefault()}
+              className="-my-2 flex h-10 w-10 shrink-0 cursor-grab select-none flex-col items-end justify-center gap-[3px] active:cursor-grabbing"
+              style={{ touchAction: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             >
               <span className="block h-px w-4" style={{ backgroundColor: dim }} />
               <span className="block h-px w-4" style={{ backgroundColor: dim }} />
