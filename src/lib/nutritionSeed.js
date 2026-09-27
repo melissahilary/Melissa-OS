@@ -73,6 +73,10 @@ const PATCHES = [
     flag: 'mos:seed:carrot-juice',
     rows: [['drink', 'food', 'carrot juice ½ cup', [0, 2, 4]]],
   },
+  {
+    flag: 'mos:seed:brazil-nuts',
+    rows: [['snackam', 'food', '2 brazil nuts', EVERY]],
+  },
 ]
 
 const uid = () => Math.random().toString(36).slice(2, 10)
