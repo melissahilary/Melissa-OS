@@ -1442,8 +1442,8 @@ const fmtApptTime = (t) => {
 // at the head of the page now, and the food is the strip, so the columns were
 // the same day written a second time. DayFlow went with them; this is what is
 // left of it.
-function DayColumns({ dateKeyStr, meals, onAddMeal, onOpen }) {
-  return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onOpen={onOpen} />
+function DayColumns({ dateKeyStr, meals, onAddMeal, onOpen, onToggle }) {
+  return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onOpen={onOpen} onToggle={onToggle} />
 }
 
 // ── The day's nourishment, as seven sittings.
@@ -1459,7 +1459,7 @@ function DayColumns({ dateKeyStr, meals, onAddMeal, onOpen }) {
 // same form the rest of the app adds meals with — which asks whether this is a
 // one-off or something that repeats, so a dinner tonight does not become a
 // dinner every night.
-function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
+function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
   // When she set an hour, and for how long. `standing` is the hour from here
   // on; `days` holds the one-off changes, so moving dinner tonight does not
   // move it for good.
@@ -1555,7 +1555,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
           // food, then what she drinks with it, then what she takes with it.
           // A section with nothing in it is not drawn at all — an empty
           // heading is a heading about nothing.
-          const Section = ({ label, list, slot, kind }) => (
+          const Section = ({ label, list, slot, kind, tick }) => (
             <div className="mt-6 first:mt-0">
               <div className="flex items-baseline gap-3">
                 <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{label}</span>
@@ -1570,14 +1570,26 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
                 </button>
               </div>
               {list.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => onOpen && onOpen(m.id)}
-                  className="mt-2.5 block w-full text-left text-[16px] leading-snug transition-opacity hover:opacity-70"
-                  style={{ color: ink }}
-                >
-                  {m.name}
-                </button>
+                <div key={m.id} className="mt-2.5 flex items-start gap-3.5">
+                  {/* Food is taken, so it is ticked. A square hairline that
+                      fills when it is eaten, in the ink of the card. */}
+                  {tick && (
+                    <button
+                      onClick={() => onToggle && onToggle(m.id)}
+                      aria-pressed={!!m.done}
+                      aria-label={`Eaten: ${m.name}`}
+                      className="mt-[3px] h-[14px] w-[14px] shrink-0 border transition-colors"
+                      style={{ borderColor: dim, backgroundColor: m.done ? ink : 'transparent' }}
+                    />
+                  )}
+                  <button
+                    onClick={() => onOpen && onOpen(m.id)}
+                    className="min-w-0 flex-1 text-left text-[16px] leading-snug transition-opacity hover:opacity-70"
+                    style={{ color: ink, opacity: m.done ? 0.5 : 1, textDecoration: m.done ? 'line-through' : 'none' }}
+                  >
+                    {m.name}
+                  </button>
+                </div>
               ))}
             </div>
           )
@@ -1632,7 +1644,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen }) {
               )}
               <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
               <div className="mos-scroll mt-6 flex-1 overflow-y-auto">
-                <Section label="Food" list={food} slot={x.food} kind="food" />
+                <Section label="Food" list={food} slot={x.food} kind="food" tick />
                 <Section label="Drink" list={drink} slot={x.drink} kind="food" />
                 <Section label="Supplements" list={supps} slot={x.food} kind="supp" />
               </div>
