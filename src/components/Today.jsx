@@ -924,6 +924,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         meals={dayMeals(selectedKey)}
         onOpen={openActivity}
         onToggle={toggleEvent}
+        onReorder={setOrder}
       />
 
       {/* The world outside the window, read as one line under the routines. */}
@@ -1036,12 +1037,44 @@ const PHASE_AGENDA_HINT = {
 // number used to, because a numbered list that shortens as she keeps it
 // renumbers itself, and no pillar is named beside it either.
 
-function Routine({ title, items, ground, onOpen, onToggle }) {
+function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
   // Only what is still owed. Ticking a step takes it off the panel and the
   // rest move up, so the routine is always the part of it that is left.
   const left = items.filter((it) => !it.done)
+
+  // ── Dragging a step to where it belongs.
+  //
+  // The order is hers, not the order things happened to be written in. A row
+  // is taken by the grip at its right and nothing else, so a thumb dragging
+  // the row itself still scrolls the panel and a tap still opens the step.
+  const [held, setHeld] = useState(null) // { id, ids }
+  const drag = useRef(null)
+  const rail = useRef(null)
+  const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
+
+  const grab = (e, id) => {
+    const ids = rows.map((r) => r.id)
+    const first = rail.current && rail.current.firstElementChild
+    drag.current = { id, from: ids.indexOf(id), y: e.clientY, h: first ? first.getBoundingClientRect().height : 52 }
+    setHeld({ id, ids })
+    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const slide = (e) => {
+    const d = drag.current
+    if (!d || !held) return
+    const step = Math.round((e.clientY - d.y) / (d.h || 52))
+    const to = Math.max(0, Math.min(held.ids.length - 1, d.from + step))
+    const rest = held.ids.filter((x) => x !== d.id)
+    rest.splice(to, 0, d.id)
+    if (rest.join() !== held.ids.join()) setHeld({ id: d.id, ids: rest })
+  }
+  const drop = () => {
+    if (drag.current && held && onReorder) onReorder(held.ids)
+    drag.current = null
+    setHeld(null)
+  }
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
@@ -1050,12 +1083,12 @@ function Routine({ title, items, ground, onOpen, onToggle }) {
           and the list scrolls inside it — with no bar drawn, because the bar
           fell straight down the column the boxes are in and sat on top of
           them. The rail takes a swipe and a wheel without being drawn. */}
-      <div className="no-scrollbar mt-10 max-h-[320px] flex-1 overflow-y-auto">
-        {left.map((it) => (
+      <div ref={rail} className="no-scrollbar mt-10 max-h-[320px] flex-1 overflow-y-auto">
+        {rows.map((it) => (
           <div
             key={it.id}
-            className="flex w-full items-center gap-5 py-3 text-left"
-            style={{ borderBottom: `1px solid ${rule}` }}
+            className="flex w-full items-center gap-5 py-3 text-left transition-opacity"
+            style={{ borderBottom: `1px solid ${rule}`, opacity: held && held.id === it.id ? 0.55 : 1 }}
           >
             <button
               onClick={() => onToggle && onToggle(it.id)}
@@ -1069,6 +1102,22 @@ function Routine({ title, items, ground, onOpen, onToggle }) {
             >
               {it.title || 'Untitled'}
             </button>
+            {/* The grip. Three fine rules, in the dim of the block. */}
+            <span
+              role="button"
+              tabIndex={-1}
+              aria-label={`Move ${it.title || 'Untitled'}`}
+              onPointerDown={(e) => { e.preventDefault(); grab(e, it.id) }}
+              onPointerMove={slide}
+              onPointerUp={drop}
+              onPointerCancel={drop}
+              className="flex h-6 w-6 shrink-0 cursor-grab flex-col items-end justify-center gap-[3px] active:cursor-grabbing"
+              style={{ touchAction: 'none' }}
+            >
+              <span className="block h-px w-4" style={{ backgroundColor: dim }} />
+              <span className="block h-px w-4" style={{ backgroundColor: dim }} />
+              <span className="block h-px w-4" style={{ backgroundColor: dim }} />
+            </span>
           </div>
         ))}
       </div>
@@ -1076,13 +1125,17 @@ function Routine({ title, items, ground, onOpen, onToggle }) {
   )
 }
 
-function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }) {
+function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, onReorder }) {
   // Deduped, and keyed on the block a task actually sits in rather than its
   // part of day — a repeat that shows in two parts is still one task.
   const uniq = dedupeById(rituals)
 
-  const morning = uniq.filter((r) => effectiveBlock(r) === 'morning')
-  const evening = uniq.filter((r) => effectiveBlock(r) === 'evening')
+  // Her order, when she has set one; otherwise the order they were written.
+  const inOrder = (list) => [...list].sort((a, b) => (
+    (a.order == null ? 1e6 : a.order) - (b.order == null ? 1e6 : b.order)
+  ))
+  const morning = inOrder(uniq.filter((r) => effectiveBlock(r) === 'morning'))
+  const evening = inOrder(uniq.filter((r) => effectiveBlock(r) === 'evening'))
 
   return (
     <header>
@@ -1097,6 +1150,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }
           ground="#1D2FC4"
           onOpen={onOpen}
           onToggle={onToggle}
+          onReorder={onReorder}
         />
         <Routine
           title="PM"
@@ -1104,6 +1158,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle }
           ground="#16130F"
           onOpen={onOpen}
           onToggle={onToggle}
+          onReorder={onReorder}
         />
       </div>
     </header>
