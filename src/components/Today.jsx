@@ -1067,7 +1067,24 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         />
       )}
 
-      {editing && (
+      {/* Everything opened from this page opens in the house's own sheet. The
+          old activity form is still what the pillar pages use; nothing on the
+          day reaches it any more. */}
+      {editing && (editing.type === 'meal_item' || editing.type === 'supplement') ? (
+        <EditMeal
+          activity={editing}
+          onSave={(a) => { saveActivity(a); setFormAllowed(null) }}
+          onDrop={() => { remove(editing.id); setEditing(null); setFormAllowed(null) }}
+          onClose={() => { setEditing(null); setFormAllowed(null) }}
+        />
+      ) : editing && !isNew(editing) ? (
+        <EditStep
+          activity={editing}
+          onSave={(a) => { saveActivity(a); setFormAllowed(null) }}
+          onDrop={() => { remove(editing.id); setEditing(null); setFormAllowed(null) }}
+          onClose={() => { setEditing(null); setFormAllowed(null) }}
+        />
+      ) : editing && (
         <ActivityForm
           activity={editing}
           isNew={isNew(editing)}
@@ -1344,6 +1361,267 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         />
       )}
     </section>
+  )
+}
+
+// ── A step on the AM or the PM, opened.
+//
+// The same room as the meal sheet, for the things that are not eaten: what it
+// is called, which half of the day it belongs to, an hour if it has one, and
+// how often. Everything else the old form carried — the category, the phase,
+// the status, the series start — is left exactly as it was found.
+function EditStep({ activity, onSave, onDrop, onClose }) {
+  const det = activity.details || {}
+  const [name, setName] = useState(activity.title || '')
+  const [block, setBlock] = useState(det.block === 'evening' ? 'evening' : 'morning')
+  const [time, setTime] = useState(det.time || '')
+  const [repeat, setRepeat] = useState(() => {
+    const r = { frequency: activity.frequency || 'daily' }
+    if (Array.isArray(activity.daysOfWeek) && activity.daysOfWeek.length) r.daysOfWeek = activity.daysOfWeek
+    if (activity.interval) r.interval = activity.interval
+    if (activity.intervalUnit) r.intervalUnit = activity.intervalUnit
+    if (activity.seriesEnd) r.seriesEnd = activity.seriesEnd
+    return r
+  })
+
+  const save = () => {
+    const t = name.trim().toLowerCase()
+    if (!t) return
+    const r = repeat || {}
+    onSave({
+      ...activity,
+      title: t,
+      frequency: r.frequency || 'daily',
+      daysOfWeek: r.daysOfWeek || [],
+      interval: r.interval || 0,
+      intervalUnit: r.intervalUnit || '',
+      seriesEnd: r.seriesEnd || '',
+      details: { ...det, block, time, partOfDay: block === 'evening' ? 'evening' : 'morning' },
+    })
+  }
+
+  const chip = (on) => `border px-3.5 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+    on ? 'border-cream bg-cream text-stone-900' : 'border-cream/30 text-cream/70 hover:border-cream'
+  }`
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+      >
+        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{block === 'evening' ? 'PM' : 'AM'}</p>
+
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          data-no-dictation
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+          className="mt-4 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[30px] lowercase text-cream outline-none"
+        />
+
+        <p className="mt-8 text-[10px] uppercase tracking-[0.18em] text-cream/60">Which half of the day</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={() => setBlock('morning')} className={chip(block === 'morning')}>AM</button>
+          <button onClick={() => setBlock('evening')} className={chip(block === 'evening')}>PM</button>
+        </div>
+
+        <label className="mt-7 block">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">At an hour, if it has one</span>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+            className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[24px] leading-none text-cream outline-none"
+            style={{ colorScheme: 'dark' }}
+          />
+        </label>
+
+        <div className="mt-8">
+          <RepeatField value={repeat} startKey={activity.seriesStart || dateKey(new Date())} onChange={setRepeat} />
+        </div>
+
+        <div className="mt-9 flex items-center justify-between gap-6">
+          <button
+            onClick={onDrop}
+            className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70"
+            style={{ color: OXBLOOD }}
+          >
+            Let it go
+          </button>
+          <div className="flex items-center gap-7">
+            <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+            <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── A meal, a drink or a supplement, opened.
+//
+// Tapping a line on a sitting card used to open the whole activity form — a
+// cream box with a blue pill on it, tags, cycle phases, stack notes and a
+// series end, almost none of which the planner ever shows. It was the last
+// room in the house that had not been moved into.
+//
+// This is the sheet she already knows, in the same brown: what it is, where
+// it sits, how often, and a dose when a dose means something. Everything the
+// old form carried and this one does not is left exactly as it was.
+function EditMeal({ activity, onSave, onDrop, onClose }) {
+  const det = activity.details || {}
+  const where0 = SITTINGS.find((x) => x.food === det.slot || x.drink === det.slot) || SITTINGS[1]
+  const what0 = activity.type === 'supplement' ? 'supp' : (where0.drink === det.slot ? 'drink' : 'food')
+
+  const [name, setName] = useState(activity.title || '')
+  const [what, setWhat] = useState(what0)
+  const [where, setWhere] = useState(where0.id)
+  const [dose, setDose] = useState(det.dose || '')
+  const [unit, setUnit] = useState(det.unit || 'mg')
+  const [repeat, setRepeat] = useState(() => {
+    const r = { frequency: activity.frequency || 'daily' }
+    if (Array.isArray(activity.daysOfWeek) && activity.daysOfWeek.length) r.daysOfWeek = activity.daysOfWeek
+    if (activity.interval) r.interval = activity.interval
+    if (activity.intervalUnit) r.intervalUnit = activity.intervalUnit
+    if (activity.seriesEnd) r.seriesEnd = activity.seriesEnd
+    return r
+  })
+
+  const sitting = SITTINGS.find((x) => x.id === where) || SITTINGS[1]
+  const whats = sitting.eats ? WHATS : WHATS.filter((x) => x.id !== 'food')
+  const kind = whats.some((x) => x.id === what) ? what : 'drink'
+  const slot = kind === 'drink' ? sitting.drink : sitting.food
+
+  const save = () => {
+    const t = name.trim().toLowerCase()
+    if (!t) return
+    const r = repeat || {}
+    onSave({
+      ...activity,
+      type: kind === 'supp' ? 'supplement' : 'meal_item',
+      title: t,
+      frequency: r.frequency || 'daily',
+      daysOfWeek: r.daysOfWeek || [],
+      interval: r.interval || 0,
+      intervalUnit: r.intervalUnit || '',
+      seriesEnd: r.seriesEnd || '',
+      details: {
+        ...det,
+        slot,
+        beverage: kind === 'drink',
+        ...(kind === 'supp' ? { dose, unit } : {}),
+      },
+    })
+  }
+
+  const chip = (on) => `border px-3.5 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+    on ? 'border-cream bg-cream text-stone-900' : 'border-cream/30 text-cream/70 hover:border-cream'
+  }`
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+      >
+        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">
+          {(WHATS.find((x) => x.id === kind) || {}).label}
+        </p>
+
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          data-no-dictation
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+          className="mt-4 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[30px] lowercase text-cream outline-none"
+        />
+
+        <p className="mt-8 text-[10px] uppercase tracking-[0.18em] text-cream/60">What it is</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {whats.map((x) => (
+            <button key={x.id} onClick={() => setWhat(x.id)} className={chip(x.id === kind)}>{x.label}</button>
+          ))}
+        </div>
+
+        <p className="mt-7 text-[10px] uppercase tracking-[0.18em] text-cream/60">When she takes it</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {SITTINGS.map((x) => {
+            // Two of them are called Snack. Beside each other and unmarked,
+            // that is a coin toss — so the one that repeats says which half of
+            // the day it is.
+            const twice = SITTINGS.filter((y) => y.label === x.label).length > 1
+            const half = Number(String(x.at).slice(0, 2)) < 12 ? 'AM' : 'PM'
+            return (
+              <button key={x.id} onClick={() => setWhere(x.id)} className={chip(x.id === sitting.id)}>
+                {twice ? `${x.label} ${half}` : x.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {kind === 'supp' && (
+          <div className="mt-7 flex items-end gap-5">
+            <label className="min-w-0 flex-1 block">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">How much</span>
+              <input
+                value={dose}
+                onChange={(e) => setDose(e.target.value)}
+                placeholder="500"
+                autoComplete="off"
+                data-no-dictation
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+                className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[24px] leading-none text-cream outline-none placeholder:text-cream/30"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {['mg', 'g', 'ml', 'iu', 'caps'].map((u) => (
+                <button key={u} onClick={() => setUnit(u)} className={chip(u === unit)}>{u}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8">
+          <RepeatField value={repeat} startKey={activity.seriesStart || dateKey(new Date())} onChange={setRepeat} />
+        </div>
+
+        <div className="mt-9 flex items-center justify-between gap-6">
+          <button
+            onClick={onDrop}
+            className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70"
+            style={{ color: OXBLOOD }}
+          >
+            Let it go
+          </button>
+          <div className="flex items-center gap-7">
+            <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+            <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
