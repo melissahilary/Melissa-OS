@@ -48,6 +48,12 @@ the shapes below as fixed; propose, never apply, a change to them.
   move the page under it; `src/lib/holdScroll.js` pins the body while any
   full-screen sheet (fixed, inset-0, z ≥ 50) is up and puts her back after.
   It is global — a new sheet gets this for free and must not fight it.
+- Room for the keyboard. A fixed sheet is pinned to the window and the window
+  does not shrink when the keyboard opens, so the keys cover the field. The
+  same module publishes `--mos-kb` (how much the visual viewport is covered)
+  and `index.css` keeps that clear at the foot of every `.fixed.inset-0`. A
+  sheet that can run tall also caps itself: `max-h-[calc(88vh_-_var(--mos-kb))]`
+  with `overflow-y-auto`. Also global; don't hand-roll per sheet.
 
 ## Branches & deploy
 - Develop on `claude/friendly-albattani-4dzpko`; `main` is production.

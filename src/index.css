@@ -283,6 +283,16 @@ input[type='number'] {
   .mos-rail-track { animation: none; }
 }
 
+/* ── Room for the keyboard.
+   Every sheet in the house is fixed to the window and the window does not
+   shrink when the keyboard arrives, so the keys stand in front of whatever
+   she was about to type into. `--mos-kb` is how much of the window is
+   covered, read off the visual viewport in holdScroll.js; keeping that much
+   clear at the foot of a sheet lifts its field above the keys. One rule, so
+   a sheet written tomorrow gets it without being asked. */
+:root { --mos-kb: 0px; }
+.fixed.inset-0 { padding-bottom: var(--mos-kb); }
+
 /* ── The strip at the head of the page, read the way a billboard is read.
    It carries more than a phone is wide — the moon, the forecast, the sun
    times, the air, the zone — and asking her to swipe a line of readings is

@@ -69,10 +69,43 @@ function release() {
   requestAnimationFrame(back)
 }
 
+// ── Room for the keyboard.
+//
+// A sheet is fixed to the window, and the window does not get any shorter
+// when the keyboard comes up — on a phone it simply stands in front of the
+// bottom third of it, over the field she opened the sheet to type into. The
+// page cannot be scrolled out of the way either, because the page is pinned.
+//
+// The visual viewport knows exactly how much is covered. It is published as
+// a length on the root, and every sheet keeps that much clear at its foot,
+// so the field rises above the keys rather than hiding behind them. One
+// reading, every sheet, both phones.
+function watchKeyboard() {
+  const vv = window.visualViewport
+  if (!vv) return
+  const set = () => {
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+    // Under a dozen pixels is a toolbar settling, not a keyboard.
+    document.documentElement.style.setProperty('--mos-kb', `${kb > 12 ? kb : 0}px`)
+    // A sheet that is taller than what is left of the window scrolls inside
+    // itself, and the field she is in can end up above its own fold once the
+    // keys have taken a third of the screen. Bring it back — within the
+    // sheet, never by moving the page, which is pinned.
+    const el = document.activeElement
+    if (kb > 12 && el && el.scrollIntoView && /^(INPUT|TEXTAREA)$/.test(el.tagName)) {
+      requestAnimationFrame(() => { try { el.scrollIntoView({ block: 'nearest' }) } catch { /* older engine */ } })
+    }
+  }
+  set()
+  vv.addEventListener('resize', set)
+  vv.addEventListener('scroll', set)
+}
+
 export default function holdScroll() {
   if (typeof document === 'undefined' || !document.body) return
   if (document.body.dataset.mosHolding) return
   document.body.dataset.mosHolding = '1'
+  watchKeyboard()
 
   let raf = 0
   const look = () => {

@@ -202,7 +202,7 @@ function CustomRepeat({ value, startKey, onClose, onDone }) {
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="mos-scroll max-h-[88vh] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
+        className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
         style={{ background: WALNUT, color: IVORY }}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >

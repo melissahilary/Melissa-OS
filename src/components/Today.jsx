@@ -1973,7 +1973,7 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
       {/* The same sheet the day planner opens, on the same walnut: one sheet
           for adding anything, rather than a form inside a box inside a card. */}
       <div
-        className="mos-scroll max-h-[88vh] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
+        className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
         style={{ background: '#68472C', color: '#F7F4ED' }}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >
