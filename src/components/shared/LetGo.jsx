@@ -10,7 +10,10 @@ import { OXBLOOD } from './SwipeAway'
 // It used to name the place the row came from above the row itself — AM
 // ROUTINE, then dry brush. She has just slid dry brush; she knows where it
 // was. The name alone is the whole question.
-export default function LetGo({ name, onSkip, onDrop, onClose }) {
+// The word on the red is Delete, everywhere. "Let it go" was the house being
+// gentle about it, and gentle is not what she wants to read when she has
+// already slid the thing aside and means it.
+export default function LetGo({ name, onSkip, onDrop, onClose, drop = 'Delete' }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
@@ -32,7 +35,7 @@ export default function LetGo({ name, onSkip, onDrop, onClose }) {
           className="mt-3 block w-full px-5 py-4 text-[11px] uppercase tracking-[0.18em] transition-opacity hover:opacity-90"
           style={{ backgroundColor: OXBLOOD, color: '#F7F4ED' }}
         >
-          Let it go
+          {drop}
         </button>
 
         <div className="mt-7 flex justify-end">

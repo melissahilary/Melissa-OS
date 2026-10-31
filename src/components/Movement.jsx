@@ -376,7 +376,7 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
 
         <div className="mt-9 flex items-center justify-between gap-6">
           {onDrop ? (
-            <button onMouseDown={hold} onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Let it go</button>
+            <button onMouseDown={hold} onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Delete</button>
           ) : <span />}
           <div className="flex items-center gap-7">
             <button onMouseDown={hold} onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>

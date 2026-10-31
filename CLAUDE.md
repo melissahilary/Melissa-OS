@@ -37,7 +37,7 @@ the shapes below as fixed; propose, never apply, a change to them.
   means "due" or "the section you are in", never a warning or a success.
 - Walnut `#68472C` — the day schedule, every sheet (Let go, Add to day,
   Add to a sitting), the month picker. Tan `#C0966F` for labels on it.
-- Oxblood `#C87A7A` — the ONLY red. Slide-to-delete and "Let it go", nothing
+- Oxblood `#C87A7A` — the ONLY red. Slide-to-delete and "Delete", nothing
   else.
 - Sitting grounds run light to dark through the day (`src/lib/meals.js`).
 - No radii, no shadows (both are forced off in `src/index.css`). A lift is

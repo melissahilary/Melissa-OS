@@ -272,7 +272,7 @@ function OpenLine({ line, field, onSave, onDrop, onClose }) {
         </label>
 
         <div className="mt-9 flex items-center justify-between gap-6">
-          <button onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Let it go</button>
+          <button onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Delete</button>
           <div className="flex items-center gap-7">
             <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
             <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">Save</button>

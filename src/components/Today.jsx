@@ -1469,7 +1469,7 @@ function EditEvent({ activity, onSave, onDrop, onClose }) {
         <Notes value={notes} onChange={setNotes} />
 
         <div className="mt-9 flex items-center justify-between gap-6">
-          <button onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Let it go</button>
+          <button onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Delete</button>
           <div className="flex items-center gap-7">
             <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
             <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">Save</button>
@@ -1587,7 +1587,7 @@ function EditStep({ activity, onSave, onDrop, onClose }) {
             className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70"
             style={{ color: OXBLOOD }}
           >
-            Let it go
+            Delete
           </button>
           <div className="flex items-center gap-7">
             <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
@@ -1746,7 +1746,7 @@ function EditMeal({ activity, onSave, onDrop, onClose }) {
             className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70"
             style={{ color: OXBLOOD }}
           >
-            Let it go
+            Delete
           </button>
           <div className="flex items-center gap-7">
             <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
