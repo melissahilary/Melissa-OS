@@ -14,7 +14,7 @@ export const OXBLOOD = '#C87A7A'
 const REVEAL = 96 // as far as the red panel is wide, and no further
 const PULL = 64 // how far it has to come before it means it
 
-export default function SwipeAway({ onAway, disabled, ground, rule, label = 'Delete', className = '', style, children }) {
+export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', className = '', style, children }) {
   const grab = useRef(null)
   const [dx, setDx] = useState(0)
 
@@ -65,7 +65,6 @@ export default function SwipeAway({ onAway, disabled, ground, rule, label = 'Del
         className="relative"
         style={{
           backgroundColor: ground,
-          borderBottom: rule ? `1px solid ${rule}` : undefined,
           transform: dx ? `translateX(${dx}px)` : undefined,
           transition: dx ? 'none' : 'transform 160ms ease-out',
           touchAction: 'pan-y',

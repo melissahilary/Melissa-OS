@@ -27,11 +27,11 @@ const arr = (v) => (Array.isArray(v) ? v : [])
 
 // Ten rows and then a scroll. The height is the rows, not a guess at them.
 const PANE = 'mos-scroll max-h-[560px] overflow-y-auto'
-const ROW = 'flex items-center gap-4 py-3.5'
-// The row slides on its own ground and carries its own rule, so the red comes
-// up from under it rather than through it.
+const ROW = 'flex items-center gap-4 py-4'
+// The row slides on its own ground, so the red comes up from under it rather
+// than through it. Nothing is ruled off from the row above — the space does
+// that, and a list of hairlines reads as a form.
 const GROUND = '#EEEAE1'
-const RULE = '#E2DED4'
 
 // The one mark of state in all three lists: a square hairline that fills when
 // it is kept, got, or done with. Never a tick icon, and never a colour.
@@ -101,7 +101,6 @@ function Tasks() {
           <SwipeAway
             key={t.id}
             ground={GROUND}
-            rule={RULE}
             onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== t.id))}
           >
             <div className={ROW}>
@@ -151,7 +150,6 @@ function Reminders() {
           <SwipeAway
             key={r.id}
             ground={GROUND}
-            rule={RULE}
             onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== r.id))}
           >
             <div className={ROW}>
@@ -194,7 +192,6 @@ function Shopping() {
           <SwipeAway
             key={it.id}
             ground={GROUND}
-            rule={RULE}
             onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== it.id))}
           >
             <div className={ROW}>

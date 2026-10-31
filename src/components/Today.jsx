@@ -1323,14 +1323,14 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             data-id={it.id}
             className="relative"
             style={{
-              borderBottom: `1px solid ${rule}`,
               ...(held && held.id === it.id
                 ? {
                     transform: `translateY(${lift}px)`,
                     transition: drag.current && drag.current.settling ? 'transform 180ms ease-out' : 'none',
                     zIndex: 20,
-                    // The house forbids shadows, so the lift is said with an
-                    // opaque ground and a hairline all the way round.
+                    // Nothing else on the block is ruled, so the hairline all
+                    // the way round is only ever a step in hand — and the
+                    // house forbids shadows.
                     backgroundColor: ground,
                     outline: `1px solid ${rule}`,
                   }
@@ -1348,7 +1348,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             </div>
 
           <div
-            className="relative flex w-full items-center gap-5 py-3 text-left"
+            className="relative flex w-full items-center gap-5 py-3.5 text-left"
             onPointerDown={(e) => swipeStart(e, it.id)}
             onPointerMove={swipeMove}
             onPointerUp={swipeEnd}
@@ -1404,7 +1404,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             empty box — above the mark that opened it. It lands at the foot and
             anywhere else is a drag away. */}
         {writing && (
-          <div className="flex w-full items-center gap-5 py-3" style={{ borderBottom: `1px solid ${rule}` }}>
+          <div className="flex w-full items-center gap-5 py-3.5">
             <span aria-hidden className="h-[15px] w-[15px] shrink-0 border" style={{ borderColor: 'rgba(247,244,237,0.35)' }} />
             <input
               ref={writeLine}
@@ -1440,7 +1440,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
       {/* The way in, held at the foot of the block. The list scrolls past it
           and it stays where it is, so adding a step is never somewhere she has
           to scroll to find. */}
-      <div className="mt-1 border-t pt-4" style={{ borderColor: rule }}>
+      <div className="mt-3 pt-4">
         <button
           onClick={() => setWriting(true)}
           aria-label="Add a step"
@@ -1846,12 +1846,9 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
           // food, then what she drinks with it, then what she takes with it.
           // A section with nothing in it is not drawn at all — an empty
           // heading is a heading about nothing.
-          const Section = ({ name, list }) => (
+          const Section = ({ name, list }) => (list.length ? (
             <div className="mt-6 first:mt-0">
-              <div className="flex items-baseline gap-3">
-                <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: labelInk }}>{name}</span>
-                <span className="h-px flex-1" style={{ backgroundColor: rule }} />
-              </div>
+              <span className="block text-[10px] uppercase tracking-[0.18em]" style={{ color: labelInk }}>{name}</span>
               {list.map((m) => (
                 <SwipeAway
                   key={m.id}
@@ -1882,7 +1879,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
                 </SwipeAway>
               ))}
             </div>
-          )
+          ) : null)
           return (
             <section
               key={x.id}
