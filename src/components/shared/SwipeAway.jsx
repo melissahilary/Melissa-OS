@@ -32,6 +32,12 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
   const grab = useRef(null)
   const rest = useRef(0)
   const [open, setOpen] = useState(false)
+  // The handlers are read through a ref so the listeners below can be
+  // attached once and never again: an effect that re-runs on a new `onAway`
+  // takes its listeners off the node, and if that lands mid-gesture the
+  // finger is left holding nothing.
+  const live = useRef({ onAway, disabled })
+  live.current = { onAway, disabled }
 
   // The row, put where it is being held or where it has come to rest.
   const place = (dx, glide) => {
@@ -71,7 +77,7 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
     if (!el) return undefined
 
     const start = (e) => {
-      if (disabled) return
+      if (live.current.disabled) return
       // Anything that has its own job under the finger — a grip, a field —
       // keeps it.
       if (e.target && e.target.closest && e.target.closest('[data-no-swipe]')) return
@@ -87,13 +93,25 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
       const x = pt.clientX - d.x0
       const y = pt.clientY - d.y0
       if (!d.axis) {
-        if (Math.abs(x) < 8 && Math.abs(y) < 8) return
-        // The page gets the benefit of the doubt: it has to be clearly
-        // sideways before the row takes it.
-        if (Math.abs(x) <= Math.abs(y) * 1.1) { grab.current = null; return }
+        const ax = Math.abs(x)
+        const ay = Math.abs(y)
+        // A thumb does not travel along a ruler. It lands, settles a few
+        // millimetres down the page, and only then goes across — and the
+        // first version of this called that a scroll on the strength of the
+        // first eight pixels and then threw the rest of the gesture away.
+        // Nothing she did after that could bring it back, which is what
+        // "it won't slide any more" was.
+        //
+        // So the question is left open until one of the two answers is
+        // actually clear: decisively down the page, or ten pixels across.
+        if (ay >= 14 && ay > ax * 1.6) { grab.current = null; return }
+        if (ax < 10) return
         d.axis = 'x'
       }
       if (e.cancelable) e.preventDefault()
+      // Committed. Nothing above this row — a pager, a rail — gets a say in
+      // a gesture that is already being answered here.
+      e.stopPropagation()
       const raw = d.from + x
       d.raw = raw
       // Past the rest there is resistance rather than a wall, and on the other
@@ -110,7 +128,7 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
       if (!d || d.axis !== 'x') return
       // A sweep all the way across asks straight away; anything shorter just
       // rests open with the red beside it.
-      if (d.raw <= -FULL) { settle(false); if (onAway) onAway(); return }
+      if (d.raw <= -FULL) { settle(false); if (live.current.onAway) live.current.onAway(); return }
       settle(d.raw <= -CATCH)
     }
 
@@ -135,7 +153,9 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
       window.removeEventListener('pointerup', onPointerUp)
       if (openRow === shut.current) openRow = null
     }
-  }, [disabled, onAway])
+    // Once. See `live` above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Pressing anywhere else puts it back, which is how an open row closes
   // without being told to.
