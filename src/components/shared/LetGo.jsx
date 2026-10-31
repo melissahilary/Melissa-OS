@@ -6,16 +6,19 @@ import { OXBLOOD } from './SwipeAway'
 // The same two answers wherever a row is pulled aside: today only, or for
 // good. The app cannot tell them apart and guessing is how a bad morning
 // quietly becomes a lost habit, so it asks — once, in two buttons.
-export default function LetGo({ kicker, name, onSkip, onDrop, onClose }) {
+//
+// It used to name the place the row came from above the row itself — AM
+// ROUTINE, then dry brush. She has just slid dry brush; she knows where it
+// was. The name alone is the whole question.
+export default function LetGo({ name, onSkip, onDrop, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
       style={{ background: 'rgba(22,19,15,0.55)' }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9" style={{ background: '#68472C', color: '#F7F4ED' }}>
-        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{kicker}</p>
-        <p className="mt-3 font-serif text-[30px] lowercase leading-tight">{name || 'Untitled'}</p>
+      <div className="w-full max-w-md px-7 pb-9 pt-10 sm:px-9" style={{ background: '#68472C', color: '#F7F4ED' }}>
+        <p className="font-serif text-[30px] lowercase leading-tight">{name || 'Untitled'}</p>
 
         <button
           onClick={onSkip}

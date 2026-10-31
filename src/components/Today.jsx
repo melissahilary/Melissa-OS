@@ -1415,7 +1415,6 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
       {/* Today, or for good. */}
       {asking && (
         <LetGo
-          kicker={`${title} routine`}
           name={asking.title}
           onSkip={() => { if (onSkip) onSkip(asking.id); setAsking(null) }}
           onDrop={() => { if (onDrop) onDrop(asking.id); setAsking(null) }}
@@ -2011,7 +2010,6 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
 
       {letting && (
         <LetGo
-          kicker={(SITTINGS.find((x) => x.food === letting.slot || x.drink === letting.slot) || {}).label || 'Sitting'}
           name={letting.name}
           onSkip={() => { if (onSkip) onSkip(letting.id); setLetting(null) }}
           onDrop={() => { if (onRemove) onRemove(letting.id); setLetting(null) }}

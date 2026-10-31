@@ -383,7 +383,6 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
 
       {letting && (
         <LetGo
-          kicker="Today's schedule"
           name={letting.title}
           onSkip={() => { if (onSkip) onSkip(letting.id); setLetting(null) }}
           onDrop={() => { if (onDrop) onDrop(letting.id); setLetting(null) }}

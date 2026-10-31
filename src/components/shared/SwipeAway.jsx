@@ -16,7 +16,8 @@ import React, { useEffect, useRef, useState } from 'react'
 // movement is written straight to the node — no render runs while she drags.
 
 export const OXBLOOD = '#C87A7A'
-const REVEAL = 104 // how wide the red stands when the row is resting open
+const REVEAL = 104 // how far the row comes aside when it rests open
+const GAP = 14 // and the air left between the row and the red, so they never touch
 const CATCH = 46 // past this on release, the row stays open
 const FULL = 190 // and past this it is a sweep: the question is asked at once
 const EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)'
@@ -42,7 +43,10 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
     }
     if (p) {
       p.style.transition = glide ? `width 280ms ${EASE}` : 'none'
-      p.style.width = `${Math.max(0, -dx)}px`
+      // The red is narrower than the distance travelled, which is what leaves
+      // the air between it and the row — they were touching before, and two
+      // things touching read as one thing.
+      p.style.width = `${Math.max(0, -dx - GAP)}px`
     }
   }
 
