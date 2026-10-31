@@ -40,6 +40,8 @@ import Relationship from './components/Relationship'
 import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import AskConcierge from './components/AskConcierge'
+// PARKED with the mount below — kept so turning it back on is one line.
+// eslint-disable-next-line no-unused-vars
 import Dictation from './components/shared/Dictation'
 import { markFor, AddIcon, CloseIcon, NextIcon, PrevIcon, HouseMark } from './components/shared/marks'
 import ConciergeMark from './components/shared/ConciergeMark'
@@ -310,8 +312,12 @@ export default function App() {
       <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} onGo={(id) => setActive(id)} />
 
       {/* Speaking, anywhere there is somewhere to write. Mounted once rather
-          than threaded through every field — including the ones not built yet. */}
-      <Dictation />
+          than threaded through every field — including the ones not built yet.
+          PARKED: the mic stood in the line she was typing on and could not be
+          used cleanly, so it is off everywhere until it is worth having. The
+          component and the speech layer are untouched; this is the only line
+          that holds it back. */}
+      {/* <Dictation /> */}
     </div>
     </AddProvider>
   )
