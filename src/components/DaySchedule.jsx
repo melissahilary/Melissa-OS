@@ -178,7 +178,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
 function AddToDay({ at: opensAt, onClose, onSave }) {
   const [at, setAt] = useState(opensAt || '')
   const [title, setTitle] = useState('')
-  const save = () => { const t = title.trim(); if (!t) return; onSave(t, at) }
+  const save = () => { const t = title.trim().toLowerCase(); if (!t) return; onSave(t, at) }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(22,19,15,0.55)' }} onClick={onClose}>
@@ -208,6 +208,11 @@ function AddToDay({ at: opensAt, onClose, onSave }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Drinks with Cheryl"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            data-no-dictation
             className="mt-2 w-full border-b bg-transparent pb-2 text-[19px] lowercase outline-none placeholder:opacity-40"
             style={{ borderColor: W.faint, color: W.ivory }}
           />

@@ -1368,12 +1368,15 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim()); setDraft('') }
+                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim().toLowerCase()); setDraft('') }
                 if (e.key === 'Escape') { setDraft(''); setWriting(false) }
               }}
-              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim()); setDraft(''); setWriting(false) }}
+              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim().toLowerCase()); setDraft(''); setWriting(false) }}
               placeholder="A step"
               data-no-dictation
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className="min-w-0 flex-1 bg-transparent text-[17px] lowercase leading-snug text-cream outline-none placeholder:text-cream/45"
             />
           </div>
@@ -2063,7 +2066,7 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
   const save = () => {
     const t = name.trim()
     if (!t) return
-    onSave({ ...blankMeal(slot, kind), name: t, frequency: freq, days, startDate: dateKeyStr || '' }, slot, kind)
+    onSave({ ...blankMeal(slot, kind), name: t.toLowerCase(), frequency: freq, days, startDate: dateKeyStr || '' }, slot, kind)
   }
 
   const chip = (on) => `border px-3.5 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
@@ -2100,6 +2103,8 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
             placeholder={what === 'supp' ? 'Magnesium' : what === 'drink' ? 'Green tea' : 'Green goddess salad'}
             autoComplete="off"
             autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
             data-no-dictation
             className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 text-[19px] lowercase text-cream outline-none placeholder:text-cream/35"
           />

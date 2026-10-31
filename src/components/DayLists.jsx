@@ -48,7 +48,7 @@ function AddLine({ onAdd, placeholder }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const commit = () => {
-    const t = draft.trim()
+    const t = draft.trim().toLowerCase()
     if (!t) { setOpen(false); return }
     onAdd(t)
     setDraft('')
@@ -64,6 +64,10 @@ function AddLine({ onAdd, placeholder }) {
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(''); setOpen(false) } }}
           onBlur={commit}
           placeholder={placeholder}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          data-no-dictation
           className="min-w-0 flex-1 bg-transparent text-[17px] lowercase leading-snug outline-none placeholder:text-stone-400"
         />
       </div>
