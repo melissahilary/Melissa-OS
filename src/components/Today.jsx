@@ -1652,6 +1652,26 @@ const fmtApptTime = (t) => {
 // at the head of the page now, and the food is the strip, so the columns were
 // the same day written a second time. DayFlow went with them; this is what is
 // left of it.
+// A way to turn the rail: a hairline square with a chevron drawn in it, the
+// same square the chips and the boxes are, at the same weight. Off at the
+// ends — still there, so the row does not reflow, and plainly not pressable.
+function RailArrow({ back, off, onClick, label }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={off}
+      aria-label={label}
+      className={`flex h-10 w-10 items-center justify-center border transition-colors ${
+        off ? 'border-stone-200 text-stone-300' : 'border-stone-300 text-stone-900 hover:border-stone-900'
+      }`}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden className={back ? '' : 'rotate-180'}>
+        <path d="M15 4 L7 12 L15 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+      </svg>
+    </button>
+  )
+}
+
 function DayColumns({ dateKeyStr, meals, onAddMeal, onRemoveMeal, onOpen, onToggle, onSkip }) {
   return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} onOpen={onOpen} onToggle={onToggle} onSkip={onSkip} />
 }
@@ -1855,28 +1875,19 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
           the edge. The arrows are gone because the marks do the same job and
           the rail takes a swipe on its own. */}
       {/* The rail is turned rather than reported on. A row of marks said where
-          along the day she was, which is something the cards themselves say by
-          being Breakfast and Lunch; what it did not do was move. An arrow at
-          each end does, and it is the same pair the month is turned with. */}
+          along the day she was, which the cards already say by being Breakfast
+          and Lunch; what the marks could not do was move.
+
+          Two glyphs floating a thousand pixels apart in a pale grey was not a
+          control, it was two orphaned characters. A mark in this house is
+          drawn, and a thing you press is a hairline square — so these are the
+          chips and the boxes, at the size everything else on this page is
+          pressed at, in ink rather than in grey. */}
       {stops > 1 && (
         <div className="px-6 md:px-10 lg:px-12">
-          <div className="mx-auto mt-6 flex max-w-5xl items-center justify-between">
-            <button
-              onClick={() => setI(Math.max(0, i - 1))}
-              disabled={i === 0}
-              aria-label="Earlier in the day"
-              className={`px-3 py-1 text-[22px] leading-none transition-opacity ${i === 0 ? 'opacity-20' : 'text-stone-900 hover:opacity-60'}`}
-            >
-              &lsaquo;
-            </button>
-            <button
-              onClick={() => setI(Math.min(stops - 1, i + 1))}
-              disabled={i >= stops - 1}
-              aria-label="Later in the day"
-              className={`px-3 py-1 text-[22px] leading-none transition-opacity ${i >= stops - 1 ? 'opacity-20' : 'text-stone-900 hover:opacity-60'}`}
-            >
-              <span className="block rotate-180">&lsaquo;</span>
-            </button>
+          <div className="mx-auto mt-7 flex max-w-5xl items-center justify-between">
+            <RailArrow back onClick={() => setI(Math.max(0, i - 1))} off={i === 0} label="Earlier in the day" />
+            <RailArrow onClick={() => setI(Math.min(stops - 1, i + 1))} off={i >= stops - 1} label="Later in the day" />
           </div>
         </div>
       )}

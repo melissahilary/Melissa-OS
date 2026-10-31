@@ -30,6 +30,7 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
   const inner = useRef(null)
   const panel = useRef(null)
   const grab = useRef(null)
+  const spin = useRef(null) // a trackpad, which arrives as wheels rather than a drag
   const rest = useRef(0)
   const [open, setOpen] = useState(false)
   // The handlers are read through a ref so the listeners below can be
@@ -132,6 +133,36 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
       settle(d.raw <= -CATCH)
     }
 
+    // ── A trackpad.
+    //
+    // On a desk the gesture arrives two ways. A mouse drags, which is the
+    // same movement a finger makes and goes through the handlers above. Two
+    // fingers on a trackpad do not: they arrive as a horizontal wheel, with
+    // no beginning and no end, so the row follows the deltas as they come
+    // and settles when they stop. Without this the gesture that every other
+    // list on her laptop answers to did nothing here at all.
+    const onWheel = (e) => {
+      if (live.current.disabled) return
+      // Up and down the page is the page's; only a clearly sideways roll is
+      // this row's business.
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) * 1.2) return
+      if (e.cancelable) e.preventDefault()
+      if (!spin.current) spin.current = { raw: rest.current, idle: 0 }
+      const d = spin.current
+      d.raw = Math.min(0, Math.max(-REVEAL * 1.8, d.raw - e.deltaX))
+      const dx = d.raw < -REVEAL ? -REVEAL - (-d.raw - REVEAL) * 0.42 : d.raw
+      place(dx, false)
+      clearTimeout(d.idle)
+      // A trackpad never says it has finished, so a short quiet is the end
+      // of the gesture.
+      d.idle = setTimeout(() => {
+        const raw = d.raw
+        spin.current = null
+        if (raw <= -FULL) { settle(false); if (live.current.onAway) live.current.onAway() }
+        else settle(raw <= -CATCH)
+      }, 110)
+    }
+
     const onPointerDown = (e) => { if (e.pointerType !== 'touch') start(e) }
     const onPointerMove = (e) => { if (grab.current && e.pointerType !== 'touch') move(e) }
     const onPointerUp = (e) => { if (e.pointerType !== 'touch') end() }
@@ -140,6 +171,7 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
     el.addEventListener('touchmove', move, { passive: false })
     el.addEventListener('touchend', end)
     el.addEventListener('touchcancel', end)
+    el.addEventListener('wheel', onWheel, { passive: false })
     el.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
@@ -148,6 +180,8 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
       el.removeEventListener('touchmove', move)
       el.removeEventListener('touchend', end)
       el.removeEventListener('touchcancel', end)
+      el.removeEventListener('wheel', onWheel)
+      if (spin.current) clearTimeout(spin.current.idle)
       el.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)

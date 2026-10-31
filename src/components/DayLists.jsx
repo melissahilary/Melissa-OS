@@ -18,10 +18,11 @@ import SwipeAway from './shared/SwipeAway'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-// The topics a reminder can be filed under: General, and then the twelve the
-// index carries, so a reminder is filed where the rest of its subject lives.
+// The topics a reminder is filed under: General, and then the twelve the index
+// carries. Nothing on this page prints them any more — the lists read the same
+// as one another — but a reminder the app raises itself is still filed where
+// the rest of its subject lives.
 export const TOPICS = [{ id: 'general', label: 'General' }, ...PILLARS]
-const topicLabel = (id) => (TOPICS.find((t) => t.id === id) || { label: 'General' }).label
 
 const arr = (v) => (Array.isArray(v) ? v : [])
 
@@ -99,7 +100,7 @@ function Done({ n, open, onToggle, children }) {
         aria-expanded={open}
         className="mx-auto block kicker text-stone-400 underline underline-offset-[6px] transition-colors hover:text-stone-700"
       >
-        {open ? 'Hide completed' : `Show completed · ${n}`}
+        {open ? 'Hide completed' : `Show completed (${n})`}
       </button>
       {open && <div className="mt-5">{children}</div>}
     </div>
@@ -144,20 +145,17 @@ function Tasks() {
 
 // ── Reminders.
 //
-// Filed by pillar and filtered by it. The only mark a row carries is the one
-// the app raised itself — PILLAR · AUTO in the accent. A reminder she wrote
-// needs no mark, because the unmarked case is the common one.
+// The same list as the one above it, for the things that are owed to someone
+// else rather than to the day. It used to carry the twelve pillars across its
+// head as filters and the pillar again on every row it had raised itself —
+// two kinds of filing on a list that is usually four lines long. A reminder
+// is still filed where it was written; the page simply no longer says so.
 function Reminders() {
   const [raw, setRaw] = useLocalStorage('mos:reminders', [])
-  const items = arr(raw)
-  const [filter, setFilter] = useState('all')
   const [showing, setShowing] = useState(false)
-
-  // General and then all twelve, always — the index does not shrink to fit
-  // what happens to be written down today.
-  const shown = filter === 'all' ? items : items.filter((r) => (r.topic || 'general') === filter)
-  const live = shown.filter((r) => !r.done)
-  const done = shown.filter((r) => r.done)
+  const items = arr(raw)
+  const live = items.filter((r) => !r.done)
+  const done = items.filter((r) => r.done)
   const row = (r) => (
     <SwipeAway
       key={r.id}
@@ -167,32 +165,15 @@ function Reminders() {
       <div className={ROW}>
         <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
         <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
-        {r.auto && (
-          <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-cobalt">{topicLabel(r.topic)} · Auto</span>
-        )}
       </div>
     </SwipeAway>
   )
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap gap-2">
-        {[{ id: 'all', label: 'All' }, ...TOPICS].map((t) => {
-          const on = filter === t.id
-          return (
-            <button
-              key={t.id}
-              onClick={() => setFilter(t.id)}
-              className={`border px-3.5 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${on ? 'border-cobalt bg-cobalt text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-900'}`}
-            >
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
       <div className={PANE}>{live.map(row)}</div>
       <AddLine
-        onAdd={(text) => setRaw((prev) => [...arr(prev), { id: uid(), text, topic: filter === 'all' ? 'general' : filter, auto: false }])}
+        onAdd={(text) => setRaw((prev) => [...arr(prev), { id: uid(), text, topic: 'general', auto: false }])}
         placeholder="A reminder"
       />
       <Done n={done.length} open={showing} onToggle={() => setShowing((v) => !v)}>
