@@ -84,33 +84,60 @@ function AddLine({ onAdd, placeholder }) {
   )
 }
 
+// ── What is already done.
+//
+// A kept line leaves the list: the point of a list is what is left on it, and
+// a day's worth of struck-through rows is a day's worth of nothing to do. It
+// is not gone, though — the line at the foot says how many there are and
+// brings them back for as long as she wants to look at them.
+function Done({ n, open, onToggle, children }) {
+  if (!n) return null
+  return (
+    <div className="mt-7">
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className="mx-auto block kicker text-stone-400 underline underline-offset-[6px] transition-colors hover:text-stone-700"
+      >
+        {open ? 'Hide completed' : `Show completed · ${n}`}
+      </button>
+      {open && <div className="mt-5">{children}</div>}
+    </div>
+  )
+}
+
 // ── Task list.
 //
 // Things owed, with no due date on any of them. The box is a square hairline
 // that fills when it is kept — never a tick icon, and never a colour.
 function Tasks() {
   const [raw, setRaw] = useLocalStorage('mos:tasks', [])
+  const [showing, setShowing] = useState(false)
   const items = arr(raw)
+  const live = items.filter((t) => !t.done)
+  const done = items.filter((t) => t.done)
 
   const toggle = (id) => setRaw((prev) => arr(prev).map((t) => (t.id === id ? { ...t, done: !t.done } : t)))
+  const row = (t) => (
+    <SwipeAway
+      key={t.id}
+      ground={GROUND}
+      onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== t.id))}
+    >
+      <div className={ROW}>
+        <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
+        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
+      </div>
+    </SwipeAway>
+  )
 
   return (
     <div>
-      <div className={PANE}>
-        {items.map((t) => (
-          <SwipeAway
-            key={t.id}
-            ground={GROUND}
-            onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== t.id))}
-          >
-            <div className={ROW}>
-              <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
-              <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
-            </div>
-          </SwipeAway>
-        ))}
-      </div>
+      <div className={PANE}>{live.map(row)}</div>
       <AddLine onAdd={(title) => setRaw((prev) => [...arr(prev), { id: uid(), title, topic: 'general', done: false }])} placeholder="Something owed" />
+      <Done n={done.length} open={showing} onToggle={() => setShowing((v) => !v)}>
+        {done.map(row)}
+      </Done>
     </div>
   )
 }
@@ -124,10 +151,28 @@ function Reminders() {
   const [raw, setRaw] = useLocalStorage('mos:reminders', [])
   const items = arr(raw)
   const [filter, setFilter] = useState('all')
+  const [showing, setShowing] = useState(false)
 
   // General and then all twelve, always — the index does not shrink to fit
   // what happens to be written down today.
   const shown = filter === 'all' ? items : items.filter((r) => (r.topic || 'general') === filter)
+  const live = shown.filter((r) => !r.done)
+  const done = shown.filter((r) => r.done)
+  const row = (r) => (
+    <SwipeAway
+      key={r.id}
+      ground={GROUND}
+      onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== r.id))}
+    >
+      <div className={ROW}>
+        <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
+        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
+        {r.auto && (
+          <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-cobalt">{topicLabel(r.topic)} · Auto</span>
+        )}
+      </div>
+    </SwipeAway>
+  )
 
   return (
     <div>
@@ -145,27 +190,14 @@ function Reminders() {
           )
         })}
       </div>
-      <div className={PANE}>
-        {shown.map((r) => (
-          <SwipeAway
-            key={r.id}
-            ground={GROUND}
-            onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== r.id))}
-          >
-            <div className={ROW}>
-              <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
-              <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
-              {r.auto && (
-                <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-cobalt">{topicLabel(r.topic)} · Auto</span>
-              )}
-            </div>
-          </SwipeAway>
-        ))}
-      </div>
+      <div className={PANE}>{live.map(row)}</div>
       <AddLine
         onAdd={(text) => setRaw((prev) => [...arr(prev), { id: uid(), text, topic: filter === 'all' ? 'general' : filter, auto: false }])}
         placeholder="A reminder"
       />
+      <Done n={done.length} open={showing} onToggle={() => setShowing((v) => !v)}>
+        {done.map(row)}
+      </Done>
     </div>
   )
 }
@@ -177,34 +209,38 @@ function Reminders() {
 // at the foot of the page used, so nothing already written down is lost.
 function Shopping() {
   const [raw, setRaw] = useLocalStorage('mos:shopping', [])
+  const [showing, setShowing] = useState(false)
   const items = arr(raw)
   const todayKey = dateKey(new Date())
-  const live = items.filter((it) => !it.bought || it.boughtDate === todayKey)
-  const ordered = [...live.filter((it) => !it.bought), ...live.filter((it) => it.bought)]
+  const here = items.filter((it) => !it.bought || it.boughtDate === todayKey)
+  const live = here.filter((it) => !it.bought)
+  const done = here.filter((it) => it.bought)
 
   const toggle = (id) => setRaw((prev) => arr(prev).map((it) => (
     it.id === id ? { ...it, bought: !it.bought, boughtDate: !it.bought ? todayKey : '' } : it)))
+  const row = (it) => (
+    <SwipeAway
+      key={it.id}
+      ground={GROUND}
+      onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== it.id))}
+    >
+      <div className={ROW}>
+        <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
+        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
+      </div>
+    </SwipeAway>
+  )
 
   return (
     <div>
-      <div className={PANE}>
-        {ordered.map((it) => (
-          <SwipeAway
-            key={it.id}
-            ground={GROUND}
-            onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== it.id))}
-          >
-            <div className={ROW}>
-              <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
-              <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
-            </div>
-          </SwipeAway>
-        ))}
-      </div>
+      <div className={PANE}>{live.map(row)}</div>
       <AddLine
         onAdd={(text) => setRaw((prev) => [{ id: uid(), text, bought: false, addedDate: todayKey, boughtDate: '' }, ...arr(prev)])}
         placeholder="Anything at all"
       />
+      <Done n={done.length} open={showing} onToggle={() => setShowing((v) => !v)}>
+        {done.map(row)}
+      </Done>
     </div>
   )
 }
@@ -226,12 +262,13 @@ export default function DayLists() {
   const [tasks] = useLocalStorage('mos:tasks', [])
   const [reminders] = useLocalStorage('mos:reminders', [])
   const [shopping] = useLocalStorage('mos:shopping', [])
-  const todayKey = dateKey(new Date())
 
+  // Each count is what is still owed, which is the same thing the list now
+  // shows: a kept line is off both.
   const counts = {
     tasks: arr(tasks).filter((t) => !t.done).length,
     reminders: arr(reminders).filter((r) => !r.done).length,
-    shopping: arr(shopping).filter((it) => !it.bought || it.boughtDate === todayKey).length,
+    shopping: arr(shopping).filter((it) => !it.bought).length,
   }
 
   const active = TABS.find((t) => t.id === tab) || TABS[0]
