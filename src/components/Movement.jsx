@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { activityOccursOn } from '../lib/activities'
-import { qualityOf, readKinds, signatureOf, tidyKinds } from '../lib/movement'
 import SwipeAway, { OXBLOOD } from './shared/SwipeAway'
 import RepeatField from './shared/Repeat'
 
@@ -46,65 +45,6 @@ const spoken = (total) => {
   return m ? `${h} h ${two(m)}` : `${h} h`
 }
 
-// ── Who reads the lines.
-//
-// The keyword table answers the instant she presses Add; Claude answers a
-// moment later and overwrites it. Each distinct line is asked about once, ever,
-// and the answer is kept with her planner.
-function useKinds(items) {
-  const [cacheRaw, setCache] = useLocalStorage('mos:movement:kinds', {})
-  const cache = obj(cacheRaw)
-  const asked = useRef(new Set())
-  const held = useRef(cache)
-  held.current = cache
-
-  const want = useMemo(() => {
-    const seen = new Map()
-    for (const x of items) {
-      const sig = signatureOf(x)
-      if (sig && sig !== '|' && !seen.has(sig)) seen.set(sig, { id: sig, name: x.name || '', detail: x.detail || '' })
-    }
-    return [...seen.values()]
-  }, [items])
-
-  useEffect(() => {
-    const missing = want.filter((w) => !held.current[w.id] && !asked.current.has(w.id))
-    if (!missing.length) return
-    missing.forEach((w) => asked.current.add(w.id))
-    let live = true
-    ;(async () => {
-      try {
-        const r = await fetch('/api/movement', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: missing }),
-        })
-        const j = await r.json()
-        const got = obj(j && j.kinds)
-        if (!live || !Object.keys(got).length) return
-        setCache((prev) => {
-          const next = { ...obj(prev) }
-          for (const [sig, list] of Object.entries(got)) {
-            const tidy = tidyKinds(list)
-            if (tidy.length) next[sig] = tidy
-          }
-          return next
-        })
-      } catch {
-        /* the keyword reading already stands; nothing to say */
-      }
-    })()
-    return () => { live = false }
-  }, [want, setCache])
-
-  // Claude's answer when it has come back, the keyword one until it does.
-  return useMemo(() => (x) => {
-    const sig = signatureOf(x)
-    const got = held.current[sig]
-    return Array.isArray(got) && got.length ? got : readKinds(x)
-  }, [cacheRaw])
-}
-
 export default function Movement({ dateKeyStr }) {
   const [raw, setRaw] = useLocalStorage('mos:movement', [])
   const [tallyRaw, setTally] = useLocalStorage('mos:movement:tally', {})
@@ -114,7 +54,6 @@ export default function Movement({ dateKeyStr }) {
   const key = dateKeyStr || dateKey(new Date())
   const all = arr(raw)
   const tally = obj(tallyRaw)[key] || {}
-  const kindsOf = useKinds(all)
 
   // What lands on this day, in the order she put it in.
   const today = all
@@ -149,10 +88,7 @@ export default function Movement({ dateKeyStr }) {
             word for what this is, then the name of it set large. The phrase
             that stood here was a poster, not a heading — it told her what the
             section was for, which is not a thing she needs told every day. */}
-        <div>
-          <p className="kicker text-stone-500">Movement</p>
-          <h2 className="mt-5 font-serif text-[46px] leading-[0.95] text-stone-900 sm:text-[62px]">Workouts</h2>
-        </div>
+        <h2 className="font-serif text-[46px] leading-[0.95] text-stone-900 sm:text-[62px]">Workouts</h2>
 
         {/* The record. */}
         <div className="mt-14">
@@ -160,7 +96,6 @@ export default function Movement({ dateKeyStr }) {
             const kept = done(x)
             const long = mins(x.minutes)
             const meta = [whenLabel(x.when), long ? `${long} min` : '', x.detail].filter(Boolean).join(' · ')
-            const kinds = kindsOf(x)
             return (
               <SwipeAway
                 key={x.id}
@@ -191,21 +126,6 @@ export default function Movement({ dateKeyStr }) {
                       {x.name}
                     </span>
                     {meta && <span className="mt-1.5 block text-[10px] uppercase tracking-[0.16em] text-stone-500">{meta}</span>}
-                    {/* What it asked of her. Read for her, never typed. */}
-                    {!!kinds.length && (
-                      <span className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-                        {kinds.map((id) => {
-                          const q = qualityOf(id)
-                          if (!q) return null
-                          return (
-                            <span key={id} className="flex items-center gap-2">
-                              <span className="block h-[3px] w-[18px]" style={{ background: q.tone }} />
-                              <span className="text-[10px] uppercase tracking-[0.16em]" style={{ color: q.tone }}>{q.label}</span>
-                            </span>
-                          )
-                        })}
-                      </span>
-                    )}
                   </button>
                 </div>
               </SwipeAway>

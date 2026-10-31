@@ -2105,6 +2105,35 @@ function DayColumns({ dateKeyStr, meals, onAddMeal, onRemoveMeal, onOpen, onTogg
 // same form the rest of the app adds meals with — which asks whether this is a
 // one-off or something that repeats, so a dinner tonight does not become a
 // dinner every night.
+// A sitting she does not take. Not a deletion — the day keeps its seven, and
+// the Put away line under the rail brings this one back — so the sheet says
+// what it does and nothing more, in the two words the house uses for it.
+function PutAway({ name, onAway, onClose }) {
+  const hold = (e) => e.preventDefault()
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+      >
+        <p className="font-serif text-[34px] leading-tight">{name}</p>
+        <p className="mt-4 text-[14px] leading-relaxed text-cream/70">
+          It comes off the day until she puts it back.
+        </p>
+        <div className="mt-9 flex items-center justify-end gap-7">
+          <button onMouseDown={hold} onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+          <button onMouseDown={hold} onClick={onAway} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Put it away</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip }) {
   // When she set an hour, and for how long. `standing` is the hour from here
   // on; `days` holds the one-off changes, so moving dinner tonight does not
@@ -2130,6 +2159,10 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
     delete next[id]
     return { ...base, hidden: next }
   })
+  const hide = (id) => setClock((prev) => {
+    const base = prev && typeof prev === 'object' ? prev : {}
+    return { ...base, hidden: { ...(base.hidden || {}), [id]: true } }
+  })
   const rows = SITTINGS.filter((x) => !hidden[x.id])
   const away = SITTINGS.filter((x) => hidden[x.id])
 
@@ -2146,6 +2179,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
   const [i, setI] = useState(nearest)
   const [adding, setAdding] = useState(null) // { slot, kind }
   const [letting, setLetting] = useState(null) // the line being let go
+  const [putting, setPutting] = useState(null) // the sitting being put away
   const rail = useRef(null)
   const n = rows.length
 
@@ -2273,7 +2307,19 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
                   and of the two it is the name that tells her where she is.
                   The hour is gone with the fine print: she knows when she
                   eats, and the rail is already in the order of the day. */}
-              <p className="font-serif leading-[0.95] text-[42px] sm:text-[46px]" style={{ color: ink }}>{x.label}</p>
+              {/* The name is also the way out of it. She does not take a
+                  snack at four, and there was no longer anywhere to say so —
+                  the mark that put a sitting away came off the card and left
+                  the Put away line underneath with nothing to fill it. */}
+              <button
+                type="button"
+                onClick={() => setPutting(x)}
+                aria-label={`Put ${x.label.toLowerCase()} away`}
+                className="block w-full text-left font-serif leading-[0.95] text-[42px] transition-opacity hover:opacity-75 sm:text-[46px]"
+                style={{ color: ink }}
+              >
+                {x.label}
+              </button>
               <div className="mos-scroll mt-8 flex-1 overflow-y-auto">
                 {x.eats && <Section name="Meal" list={food} />}
                 <Section name="Drink" list={drink} />
@@ -2338,6 +2384,14 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
             ))}
           </div>
         </div>
+      )}
+
+      {putting && (
+        <PutAway
+          name={putting.label}
+          onAway={() => { hide(putting.id); setPutting(null) }}
+          onClose={() => setPutting(null)}
+        />
       )}
 
       {letting && (

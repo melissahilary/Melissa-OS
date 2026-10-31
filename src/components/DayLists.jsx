@@ -36,6 +36,11 @@ const arr = (v) => (Array.isArray(v) ? v : [])
 // these files for class names, and a name assembled at run time is a name it
 // never sees. Ten rows of 55 is 550.
 const PANE = 'no-scrollbar max-h-[550px] overflow-y-auto'
+// The lists sit inside a rail that snaps sideways, and a drag that begins on
+// a row has two readings: turn the page, or scroll the list. Saying pan-y on
+// the pane settles it in the list's favour, which is the one she means when
+// her finger is on a line of it.
+const PANE_STYLE = { touchAction: 'pan-y' }
 const ROW = 'flex h-[55px] items-center gap-4'
 // The row slides on its own ground, so the red comes up from under it rather
 // than through it. Nothing is ruled off from the row above — the space does
@@ -153,7 +158,7 @@ function Plain({ storeKey, field, placeholder }) {
 
   return (
     <div>
-      <div className={PANE}>{live.map(row)}</div>
+      <div className={PANE} style={PANE_STYLE}>{live.map(row)}</div>
       <AddLine
         onAdd={(t) => setRaw((prev) => [...arr(prev), { id: uid(), [field]: t, topic: 'general', done: false }])}
         placeholder={placeholder}
@@ -314,7 +319,7 @@ function Shopping() {
 
   return (
     <div>
-      <div className={PANE}>{live.map(row)}</div>
+      <div className={PANE} style={PANE_STYLE}>{live.map(row)}</div>
       <AddLine
         onAdd={(text) => setRaw((prev) => [{ id: uid(), text, bought: false, addedDate: todayKey, boughtDate: '' }, ...arr(prev)])}
         placeholder="Anything at all"
