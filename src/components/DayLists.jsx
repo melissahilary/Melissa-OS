@@ -217,17 +217,24 @@ const TABS = [
 const PER = 3
 const PAGES = Math.ceil(TABS.length / PER)
 
-// The same chevron the sittings are turned with, at the scale of a strip head.
-function Turn({ back, onClick, label }) {
+// The way to the rest of them, built as a fourth name on the strip rather than
+// as a control hung off its end. A bordered square beside three columns of
+// type was a form field standing next to a masthead; this is the same two
+// lines the other three are — a name, and under it where their counts sit, the
+// chevron drawn at the weight of a numeral.
+function Turn({ back, onClick }) {
   return (
     <button
       onClick={onClick}
-      aria-label={label}
-      className="flex h-9 w-9 items-center justify-center border border-stone-300 text-stone-900 transition-colors hover:border-stone-900"
+      aria-label={back ? 'The first three lists' : 'The other lists'}
+      className="group -mb-px border-b-2 border-transparent pb-4 pl-4 text-right transition-colors hover:border-stone-400"
     >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className={back ? '' : 'rotate-180'}>
-        <path d="M15 4 L7 12 L15 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-      </svg>
+      <span className="kicker block text-stone-500 transition-colors group-hover:text-stone-900">{back ? 'Back' : 'More'}</span>
+      <span className="mt-2 flex h-[30px] items-center justify-end text-stone-400 transition-colors group-hover:text-stone-900">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className={back ? '' : 'rotate-180'}>
+          <path d="M15 4 L7 12 L15 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+        </svg>
+      </span>
     </button>
   )
 }
@@ -261,32 +268,22 @@ export default function DayLists() {
 
   return (
     <section className="mt-10">
-      <div className="flex items-stretch gap-5 border-b border-stone-300">
-        <div className="grid flex-1 grid-cols-3">
-          {shown.map((t) => {
-            const on = t.id === active.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                aria-current={on ? 'true' : undefined}
-                className={`-mb-px border-b-2 pb-4 pr-4 text-left transition-colors ${on ? 'border-cobalt' : 'border-transparent hover:border-stone-400'}`}
-              >
-                <span className={`kicker block ${on ? 'text-stone-900' : 'text-stone-500'}`}>{t.label}</span>
-                <span className={`mt-2 block font-serif text-[30px] leading-none ${on ? 'text-stone-900' : 'text-stone-400'}`}>{counts[t.id]}</span>
-              </button>
-            )
-          })}
-        </div>
-        {PAGES > 1 && (
-          <div className="flex shrink-0 items-end pb-3">
-            <Turn
-              back={page > 0}
-              onClick={() => setPage((p) => (p + 1) % PAGES)}
-              label={page > 0 ? 'The first three lists' : 'The other lists'}
-            />
-          </div>
-        )}
+      <div className={`grid border-b border-stone-300 ${PAGES > 1 ? 'grid-cols-[1fr_1fr_1fr_auto]' : 'grid-cols-3'}`}>
+        {shown.map((t) => {
+          const on = t.id === active.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              aria-current={on ? 'true' : undefined}
+              className={`-mb-px border-b-2 pb-4 pr-4 text-left transition-colors ${on ? 'border-cobalt' : 'border-transparent hover:border-stone-400'}`}
+            >
+              <span className={`kicker block ${on ? 'text-stone-900' : 'text-stone-500'}`}>{t.label}</span>
+              <span className={`mt-2 block font-serif text-[30px] leading-none ${on ? 'text-stone-900' : 'text-stone-400'}`}>{counts[t.id]}</span>
+            </button>
+          )
+        })}
+        {PAGES > 1 && <Turn back={page > 0} onClick={() => setPage((p) => (p + 1) % PAGES)} />}
       </div>
       {/* Each list sits on its own panel — a step down from the page ground,
           the way the three specimens are drawn. The strip stays on the page
