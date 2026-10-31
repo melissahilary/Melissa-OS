@@ -1,34 +1,90 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { activityOccursOn } from '../lib/activities'
+import { QUALITIES, qualityOf, readKinds, signatureOf, tidyKinds } from '../lib/movement'
 import SwipeAway, { OXBLOOD } from './shared/SwipeAway'
 import RepeatField from './shared/Repeat'
 
 // ── Moved, not measured.
 //
 // What she did with her body today, kept the way the rest of the day is kept:
-// a line, a time, and whatever unit that particular thing is counted in —
-// fifty minutes, three miles, four sets of eight. The app does not care which,
-// because a body does not keep one unit.
+// a line, how long it took, and whatever unit that particular thing is counted
+// in — three miles, four sets of eight. The app does not care which, because a
+// body does not keep one unit.
 //
-// The three numbers at the foot are the only measuring on the page, and they
-// are hers to write rather than a device's to report: steps, time on her feet,
-// distance. Everything above them is the record; they are the footnote.
+// What it was FOR is never hers to type. Each line is read for her — strength,
+// core, glutes, and the rest — and the eight bars at the foot are the week in
+// those terms. The three numerals below them are the only measuring on the
+// page, and they are hers to write rather than a device's to report.
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const arr = (v) => (Array.isArray(v) ? v : [])
+const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
 const two = (n) => String(n).padStart(2, '0')
 
-const spoken = (hhmm) => {
-  const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || ''))
-  if (!m) return ''
-  const h = Number(m[1])
-  return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`
+const mins = (v) => {
+  const n = parseInt(String(v || '').replace(/[^\d]/g, ''), 10)
+  return Number.isFinite(n) && n > 0 ? n : 0
 }
-const minutesOf = (hhmm) => {
-  const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || ''))
-  return m ? Number(m[1]) * 60 + Number(m[2]) : null
+
+// ── Who reads the lines.
+//
+// The keyword table answers the instant she presses Add; Claude answers a
+// moment later and overwrites it. Each distinct line is asked about once, ever,
+// and the answer is kept with her planner.
+function useKinds(items) {
+  const [cacheRaw, setCache] = useLocalStorage('mos:movement:kinds', {})
+  const cache = obj(cacheRaw)
+  const asked = useRef(new Set())
+  const held = useRef(cache)
+  held.current = cache
+
+  const want = useMemo(() => {
+    const seen = new Map()
+    for (const x of items) {
+      const sig = signatureOf(x)
+      if (sig && sig !== '|' && !seen.has(sig)) seen.set(sig, { id: sig, name: x.name || '', detail: x.detail || '' })
+    }
+    return [...seen.values()]
+  }, [items])
+
+  useEffect(() => {
+    const missing = want.filter((w) => !held.current[w.id] && !asked.current.has(w.id))
+    if (!missing.length) return
+    missing.forEach((w) => asked.current.add(w.id))
+    let live = true
+    ;(async () => {
+      try {
+        const r = await fetch('/api/movement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: missing }),
+        })
+        const j = await r.json()
+        const got = obj(j && j.kinds)
+        if (!live || !Object.keys(got).length) return
+        setCache((prev) => {
+          const next = { ...obj(prev) }
+          for (const [sig, list] of Object.entries(got)) {
+            const tidy = tidyKinds(list)
+            if (tidy.length) next[sig] = tidy
+          }
+          return next
+        })
+      } catch {
+        /* the keyword reading already stands; nothing to say */
+      }
+    })()
+    return () => { live = false }
+  }, [want, setCache])
+
+  // Claude's answer when it has come back, the keyword one until it does.
+  return useMemo(() => (x) => {
+    const sig = signatureOf(x)
+    const got = held.current[sig]
+    return Array.isArray(got) && got.length ? got : readKinds(x)
+  }, [cacheRaw])
 }
 
 export default function Movement({ dateKeyStr }) {
@@ -39,20 +95,13 @@ export default function Movement({ dateKeyStr }) {
 
   const key = dateKeyStr || dateKey(new Date())
   const all = arr(raw)
-  const tally = (tallyRaw && typeof tallyRaw === 'object' ? tallyRaw : {})[key] || {}
+  const tally = obj(tallyRaw)[key] || {}
+  const kindsOf = useKinds(all)
 
-  // What lands on this day, in the order of the day: the ones with an hour
-  // first, in order; the ones without at the end, where "before bed" lives.
+  // What lands on this day, in the order she put it in.
   const today = all
     .filter((x) => activityOccursOn({ ...x, seriesStart: x.seriesStart || '', type: 'protocol' }, key))
-    .sort((a, b) => {
-      const x = minutesOf(a.at)
-      const y = minutesOf(b.at)
-      if (x == null && y == null) return (a.order || 0) - (b.order || 0)
-      if (x == null) return 1
-      if (y == null) return -1
-      return x - y
-    })
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
 
   const done = (x) => !!(x.completions && x.completions[key])
   const setDone = (id, on) => setRaw((prev) => arr(prev).map((x) => {
@@ -63,26 +112,33 @@ export default function Movement({ dateKeyStr }) {
     return { ...x, completions: c }
   }))
 
-  // Which one she is in the middle of: the last hour that has come round and
-  // has not been kept yet. Only on the day itself — "now" on a Thursday in
-  // November is not a word that means anything.
-  const now = new Date()
-  const isToday = key === dateKey(now)
-  const mins = now.getHours() * 60 + now.getMinutes()
-  let nowId = null
-  if (isToday) {
-    today.forEach((x) => {
-      const at = minutesOf(x.at)
-      if (at != null && at <= mins && !done(x)) nowId = x.id
-    })
-  }
+  // ── The week, in what it asked of her.
+  //
+  // Seven days back from the day she is standing on, and only what she actually
+  // kept. A session counts once towards each quality it carries.
+  const week = useMemo(() => {
+    const count = Object.fromEntries(QUALITIES.map((q) => [q.id, 0]))
+    const end = new Date(`${key}T12:00:00`)
+    if (Number.isNaN(end.getTime())) return count
+    for (let back = 0; back < 7; back += 1) {
+      const d = new Date(end)
+      d.setDate(d.getDate() - back)
+      const k = dateKey(d)
+      for (const x of all) {
+        if (!(x.completions && x.completions[k])) continue
+        if (!activityOccursOn({ ...x, seriesStart: x.seriesStart || '', type: 'protocol' }, k)) continue
+        for (const q of kindsOf(x)) count[q] += 1
+      }
+    }
+    return count
+  }, [all, key, kindsOf])
+
+  const most = Math.max(1, ...Object.values(week))
+  const movedAtAll = Object.values(week).some((n) => n > 0)
 
   const write = (field) => (e) => {
     const v = e.target.value
-    setTally((prev) => {
-      const base = prev && typeof prev === 'object' ? prev : {}
-      return { ...base, [key]: { ...(base[key] || {}), [field]: v } }
-    })
+    setTally((prev) => ({ ...obj(prev), [key]: { ...obj(obj(prev)[key]), [field]: v } }))
   }
 
   const TALLY = [
@@ -113,7 +169,9 @@ export default function Movement({ dateKeyStr }) {
         <div className="mt-14">
           {today.map((x, idx) => {
             const kept = done(x)
-            const meta = [spoken(x.at), x.detail].filter(Boolean).join(' · ')
+            const long = mins(x.minutes)
+            const meta = [long ? `${long} min` : '', x.detail].filter(Boolean).join(' · ')
+            const kinds = kindsOf(x)
             return (
               <SwipeAway
                 key={x.id}
@@ -130,15 +188,30 @@ export default function Movement({ dateKeyStr }) {
                       {x.name}
                     </span>
                     {meta && <span className="mt-1.5 block text-[10px] uppercase tracking-[0.16em] text-stone-500">{meta}</span>}
+                    {/* What it asked of her. Read for her, never typed. */}
+                    {!!kinds.length && (
+                      <span className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                        {kinds.map((id) => {
+                          const q = qualityOf(id)
+                          if (!q) return null
+                          return (
+                            <span key={id} className="flex items-center gap-2">
+                              <span className="block h-[3px] w-[18px]" style={{ background: q.tone }} />
+                              <span className="text-[10px] uppercase tracking-[0.16em]" style={{ color: q.tone }}>{q.label}</span>
+                            </span>
+                          )
+                        })}
+                      </span>
+                    )}
                   </button>
-                  {/* Kept, or the one she is in. Pressing it keeps it. */}
+                  {/* Kept. Pressing it keeps it. */}
                   <button
                     onClick={() => setDone(x.id, !kept)}
                     aria-pressed={kept}
                     className="mt-[9px] shrink-0 text-[10px] uppercase tracking-[0.18em] transition-opacity hover:opacity-60"
-                    style={{ color: kept ? '#A8A29E' : x.id === nowId ? '#1D2FC4' : '#C0966F' }}
+                    style={{ color: kept ? '#A8A29E' : '#C0966F' }}
                   >
-                    {kept ? 'Kept' : x.id === nowId ? 'Now' : 'Keep'}
+                    {kept ? 'Kept' : 'Keep'}
                   </button>
                 </div>
               </SwipeAway>
@@ -154,6 +227,33 @@ export default function Movement({ dateKeyStr }) {
               +
             </button>
           </div>
+        </div>
+
+        {/* The eight, over the seven days behind her. */}
+        <div className="mt-14 border-t border-stone-200 pt-9">
+          <p className="kicker text-stone-500">Seven days, in what they asked</p>
+          <div className="mt-7 grid gap-x-16 gap-y-5 sm:grid-cols-2">
+            {QUALITIES.map((q) => {
+              const n = week[q.id] || 0
+              return (
+                <div key={q.id} className="flex items-center gap-5">
+                  <span className="w-[86px] shrink-0 text-[13px] text-stone-600 sm:w-[104px] sm:text-[15px]">{q.label}</span>
+                  <span className="relative block h-[9px] min-w-0 flex-1" style={{ background: '#EEEAE1' }}>
+                    <span
+                      className="absolute inset-y-0 left-0 block transition-[width] duration-500"
+                      style={{ width: `${n ? Math.max(9, (n / most) * 100) : 0}%`, background: q.tone }}
+                    />
+                  </span>
+                  <span className="w-5 shrink-0 text-right text-[13px] text-stone-500 sm:text-[15px]">{n || ''}</span>
+                </div>
+              )
+            })}
+          </div>
+          {!movedAtAll && (
+            <p className="mt-7 text-[13px] italic text-stone-400">
+              The week fills itself as she keeps what she did.
+            </p>
+          )}
         </div>
 
         {/* The footnote: the only measuring on the page, and hers to write. */}
@@ -203,13 +303,13 @@ export default function Movement({ dateKeyStr }) {
 
 // ── Adding, or opening, a form of movement.
 //
-// Any kind at all: the name, the hour it happens at if it happens at one, and
-// one line of however it is counted — fifty minutes, three miles, four by
-// eight. One field for the unit rather than three, because the thing being
-// counted changes with the thing being done.
+// Any kind at all: the name, how long it takes, and one line of however it is
+// counted — three miles, four by eight. One field for the unit rather than
+// three, because the thing being counted changes with the thing being done.
+// Nothing here asks what it was for; that is read from the name.
 function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
   const [name, setName] = useState(item ? item.name : '')
-  const [at, setAt] = useState(item ? item.at || '' : '')
+  const [length, setLength] = useState(item ? String(item.minutes || '') : '')
   const [detail, setDetail] = useState(item ? item.detail || '' : '')
   const [notes, setNotes] = useState(item ? item.notes || '' : '')
   const [repeat, setRepeat] = useState(() => {
@@ -228,7 +328,7 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
     const r = repeat || {}
     onSave({
       name: t,
-      at,
+      minutes: mins(length) || '',
       detail: detail.trim().toLowerCase(),
       notes,
       frequency: r.frequency || 'once',
@@ -238,6 +338,11 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
       seriesEnd: r.seriesEnd || '',
     })
   }
+
+  // Pressing an action must not first blur the field: on a phone that dismisses
+  // the keyboard, the sheet grows back under her thumb, and the press lands on
+  // nothing. Holding focus through the press keeps the button where she aimed.
+  const hold = (e) => e.preventDefault()
 
   return (
     <div
@@ -268,23 +373,28 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
         />
 
         <div className="mt-8 flex items-end gap-6">
-          <label className="w-[46%] block">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">At</span>
-            <input
-              type="time"
-              value={at}
-              onChange={(e) => setAt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
-              className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[21px] leading-none text-cream outline-none md:text-[26px]"
-              style={{ colorScheme: 'dark' }}
-            />
+          <label className="w-[40%] block">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">How long</span>
+            <span className="mt-2 flex items-baseline gap-2 border-b border-cream/30 pb-2">
+              <input
+                value={length}
+                onChange={(e) => setLength(e.target.value.replace(/[^\d]/g, ''))}
+                inputMode="numeric"
+                placeholder="50"
+                autoComplete="off"
+                data-no-dictation
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+                className="min-w-0 w-full bg-transparent font-serif text-[26px] leading-none text-cream outline-none placeholder:text-cream/30"
+              />
+              <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-cream/60">min</span>
+            </span>
           </label>
           <label className="min-w-0 flex-1 block">
             <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">However it is counted</span>
             <input
               value={detail}
               onChange={(e) => setDetail(e.target.value)}
-              placeholder="50 min · 3.1 mi · 4 × 8"
+              placeholder="3.1 mi · 4 × 8"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="none"
@@ -317,11 +427,11 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
 
         <div className="mt-9 flex items-center justify-between gap-6">
           {onDrop ? (
-            <button onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Let it go</button>
+            <button onMouseDown={hold} onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Let it go</button>
           ) : <span />}
           <div className="flex items-center gap-7">
-            <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
-            <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">{item ? 'Save' : 'Add'}</button>
+            <button onMouseDown={hold} onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+            <button onMouseDown={hold} onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">{item ? 'Save' : 'Add'}</button>
           </div>
         </div>
       </div>
