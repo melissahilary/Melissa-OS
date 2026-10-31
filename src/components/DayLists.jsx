@@ -64,7 +64,7 @@ function AddLine({ onAdd, placeholder }) {
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(''); setOpen(false) } }}
           onBlur={commit}
           placeholder={placeholder}
-          className="min-w-0 flex-1 bg-transparent text-[17px] leading-snug outline-none placeholder:text-stone-400"
+          className="min-w-0 flex-1 bg-transparent text-[17px] lowercase leading-snug outline-none placeholder:text-stone-400"
         />
       </div>
     )
@@ -90,7 +90,7 @@ function Tasks() {
         {items.map((t) => (
           <div key={t.id} className={ROW}>
             <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
-            <span className={`min-w-0 flex-1 text-[17px] leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
+            <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
           </div>
         ))}
       </div>
@@ -133,7 +133,7 @@ function Reminders() {
         {shown.map((r) => (
           <div key={r.id} className={`group ${ROW}`}>
             <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
-            <span className={`min-w-0 flex-1 text-[17px] leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
+            <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
             {r.auto && (
               <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-cobalt">{topicLabel(r.topic)} · Auto</span>
             )}
@@ -170,7 +170,7 @@ function Shopping() {
         {ordered.map((it) => (
           <div key={it.id} className={ROW}>
             <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
-            <span className={`min-w-0 flex-1 text-[17px] leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
+            <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
           </div>
         ))}
       </div>

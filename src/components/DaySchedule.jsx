@@ -137,7 +137,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
                 >
                   {/* The hour and the thing on one line, so a half-hour block
                       says as much as a two-hour one. */}
-                  <p className={`truncate text-[15px] leading-snug ${e.done ? 'line-through' : ''}`} style={e.done ? { color: W.muted } : undefined}>
+                  <p className={`truncate text-[15px] lowercase leading-snug ${e.done ? 'line-through' : ''}`} style={e.done ? { color: W.muted } : undefined}>
                     <span className="mr-2.5 text-[10px] uppercase tracking-[0.14em]" style={{ color: W.muted }}>{spokenTime(e.start)}</span>
                     {e.title}
                   </p>
@@ -208,7 +208,7 @@ function AddToDay({ at: opensAt, onClose, onSave }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Drinks with Cheryl"
-            className="mt-2 w-full border-b bg-transparent pb-2 text-[19px] outline-none placeholder:opacity-40"
+            className="mt-2 w-full border-b bg-transparent pb-2 text-[19px] lowercase outline-none placeholder:opacity-40"
             style={{ borderColor: W.faint, color: W.ivory }}
           />
         </label>

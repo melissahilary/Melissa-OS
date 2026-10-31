@@ -1289,7 +1289,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             />
             <button
               onClick={() => onOpen && onOpen(it.id)}
-              className="min-w-0 flex-1 text-left text-[17px] leading-snug text-cream transition-opacity hover:opacity-75"
+              className="min-w-0 flex-1 text-left text-[17px] lowercase leading-snug text-cream transition-opacity hover:opacity-75"
               style={it.done ? { color: dim, textDecoration: 'line-through' } : null}
             >
               {it.title || 'Untitled'}
@@ -1339,7 +1339,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
               onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim()); setDraft(''); setWriting(false) }}
               placeholder="A step"
               data-no-dictation
-              className="min-w-0 flex-1 bg-transparent text-[17px] leading-snug text-cream outline-none placeholder:text-cream/45"
+              className="min-w-0 flex-1 bg-transparent text-[17px] lowercase leading-snug text-cream outline-none placeholder:text-cream/45"
             />
           </div>
         )}
@@ -1356,7 +1356,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         >
           <div className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9" style={{ background: '#68472C', color: '#F7F4ED' }}>
             <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{title} routine</p>
-            <p className="mt-3 font-serif text-[30px] leading-tight">{asking.title || 'Untitled'}</p>
+            <p className="mt-3 font-serif text-[30px] lowercase leading-tight">{asking.title || 'Untitled'}</p>
 
             <button
               onClick={() => { if (onSkip) onSkip(asking.id); setAsking(null) }}
@@ -1809,7 +1809,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
                   />
                   <button
                     onClick={() => onOpen && onOpen(m.id)}
-                    className="min-w-0 flex-1 text-left text-[16px] leading-snug transition-opacity hover:opacity-70"
+                    className="min-w-0 flex-1 text-left text-[16px] lowercase leading-snug transition-opacity hover:opacity-70"
                     style={{ color: ink, opacity: m.done ? 0.5 : 1, textDecoration: m.done ? 'line-through' : 'none' }}
                   >
                     {m.name}
@@ -2066,7 +2066,7 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
             autoComplete="off"
             autoCorrect="off"
             data-no-dictation
-            className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 text-[19px] text-cream outline-none placeholder:text-cream/35"
+            className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 text-[19px] lowercase text-cream outline-none placeholder:text-cream/35"
           />
         </label>
 
