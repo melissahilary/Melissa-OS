@@ -418,9 +418,9 @@ function MonthPick({ from, holds, onPick, onClose }) {
 
   return (
     <div className="px-6 pb-12 pt-12 md:px-14 md:pb-16 md:pt-16">
-      <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Choose a day</p>
-
-      <div className="mt-7 flex items-center justify-between">
+      {/* No line saying what this is. It is a month, opened by pressing the
+          date, and the only thing on the screen. */}
+      <div className="flex items-center justify-between">
         <button
           onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
           aria-label="The month before"
@@ -478,7 +478,7 @@ function MonthPick({ from, holds, onPick, onClose }) {
           className="text-[10px] uppercase tracking-[0.22em] underline underline-offset-[6px] transition-opacity hover:opacity-70"
           style={{ color: W.muted }}
         >
-          Back to the day
+          Back
         </button>
       </div>
     </div>
