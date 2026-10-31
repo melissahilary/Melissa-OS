@@ -615,6 +615,14 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
   outline-offset: 2px;
 }
 
+/* On the dark grounds the ring is ivory instead. Cobalt on walnut reads as a
+   square of blue around whatever she just pressed — the ring is still there,
+   still never removed, it is simply drawn in the one colour that can be seen
+   on a brown card without meaning something else. */
+.mos-dark :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: var(--mos-cream, #F7F4ED);
+}
+
 /* Mono labels never sit in chrome grey on ivory — the warm mid is the floor. */
 .kicker { color: var(--mos-kicker, #6E4526); }
 

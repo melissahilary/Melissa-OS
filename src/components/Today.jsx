@@ -14,7 +14,6 @@ import { fmtSpan } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import DayLists from './DayLists'
 import DaySchedule from './DaySchedule'
-import MonthCalendar from './MonthCalendar'
 import MonthGrid from './shared/MonthGrid'
 import { slotMeta, SITTINGS, spoken, blankMeal } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
@@ -364,22 +363,29 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
   }
   useEffect(() => () => { if (letGo.current) clearTimeout(letGo.current) }, [])
 
-  const Dot = () => <span aria-hidden className="text-stone-300">·</span>
-  const line = (
-    <div ref={copy} className="flex items-center gap-x-5 pr-5 text-sm text-stone-600 [&>*]:shrink-0 sm:gap-x-6 sm:pr-6">
-      <MoonField />
-      {selectedKey !== todayKey && (
-        <button onClick={() => onPickDay(todayKey)} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">Reset to today</button>
-      )}
-      <Dot />
-      <WeatherField w={w} />
-      <Dot />
-      <SunField w={w} />
-      <Dot />
-      <UvField location={location} />
-      <Dot />
-      <AirField location={location} />
-      <Dot />
+  // Each reading takes a quarter of the measure, so four of them stand on the
+  // screen at a time and the fifth is on its way in. Sunrise and sunset are
+  // one reading of the sky and share a slot; left to size themselves they ran
+  // half again as long as everything else and made five.
+  const SLOT = 'relative flex shrink-0 items-center justify-center px-6 sm:w-[25vw]'
+  const Line = ({ ghost }) => (
+    <div
+      ref={ghost ? undefined : copy}
+      aria-hidden={ghost || undefined}
+      className="flex items-center text-sm text-stone-600"
+    >
+      {[
+        <MoonField key="moon" />,
+        <WeatherField key="weather" w={w} />,
+        <SunField key="sun" w={w} />,
+        <UvField key="uv" location={location} />,
+        <AirField key="air" location={location} />,
+      ].map((f, idx) => (
+        <span key={idx} className={SLOT}>
+          {f}
+          <span aria-hidden className="absolute right-0 text-stone-300">·</span>
+        </span>
+      ))}
     </div>
   )
 
@@ -392,24 +398,14 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
       onPointerCancel={release}
     >
       <div className="mos-billboard-track">
-        {line}
+        <Line />
         {/* The same set again, so the loop has no seam. */}
-        <div aria-hidden className="flex items-center gap-x-5 pr-5 text-sm text-stone-600 [&>*]:shrink-0 sm:gap-x-6 sm:pr-6">
-          <MoonField />
-          <Dot />
-          <WeatherField w={w} />
-          <Dot />
-          <SunField w={w} />
-          <Dot />
-          <UvField location={location} />
-          <Dot />
-          <AirField location={location} />
-          <Dot />
-        </div>
+        <Line ghost />
       </div>
     </div>
   )
 }
+
 
 // The two hours the day is actually bounded by. They come back with the
 // forecast, so they cost nothing more to print — and they are the one pair of
@@ -751,7 +747,6 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
-  const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
 
   // Arriving from another page with a specific day → select it and show its month.
   useEffect(() => {
@@ -983,7 +978,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // straight into that block.
   useRegisterAdd(() => setBlockAdd(true), [])
 
-  const pickDay = (k) => { setSelectedKey(k); setCalMonth(new Date(parseKey(k).getFullYear(), parseKey(k).getMonth(), 1)) }
+  const pickDay = (k) => setSelectedKey(k)
   const openActivity = (id) => { setFormAllowed(null); setEditing(activities.find((a) => a.id === id) || null) }
 
   return (
@@ -1022,15 +1017,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onBlockChange={setCurrentBlock}
       />
 
-      {/* The month as a record, and the day it is opened on. */}
-      <MonthCalendar
-        month={calMonth}
-        setMonth={setCalMonth}
-        selectedKey={selectedKey}
-        today={today}
-        entriesFor={dayScheduled}
-        onPick={pickDay}
-      />
+      {/* The month used to stand here as a record of its own. It is inside
+          the day now — pressing the date opens it on the same brown — so a
+          second grid above it was a second copy of the same month, drawn and
+          laid out on every pass for a page that already had one. */}
 
       {/* The day as a spine: only the hours that hold something, in order. */}
       <DaySchedule
@@ -1039,7 +1029,6 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         phase={todayPhase}
         onAdd={(title, at, until, repeat) => addEvent(title, at, until, repeat)}
         onPickDate={pickDay}
-        holds={(k) => dayScheduled(k).length > 0}
         onSkip={skipToday}
         onDrop={remove}
       />
@@ -1865,19 +1854,30 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
           inside the same measure as the strip above rather than bleeding to
           the edge. The arrows are gone because the marks do the same job and
           the rail takes a swipe on its own. */}
+      {/* The rail is turned rather than reported on. A row of marks said where
+          along the day she was, which is something the cards themselves say by
+          being Breakfast and Lunch; what it did not do was move. An arrow at
+          each end does, and it is the same pair the month is turned with. */}
       {stops > 1 && (
         <div className="px-6 md:px-10 lg:px-12">
-        <div className="mx-auto mt-6 flex max-w-5xl items-center gap-4">
-          {Array.from({ length: stops }, (_, idx) => (
+          <div className="mx-auto mt-6 flex max-w-5xl items-center justify-between">
             <button
-              key={idx}
-              onClick={() => setI(idx)}
-              aria-label={`${rows[Math.min(idx * per, n - 1)].label} ${spoken(hourOf(rows[Math.min(idx * per, n - 1)].id))}`}
-              aria-current={idx === i ? 'true' : undefined}
-              className={`h-[2px] flex-1 transition-colors ${idx === i ? 'bg-stone-900' : 'bg-stone-300 hover:bg-stone-500'}`}
-            />
-          ))}
-        </div>
+              onClick={() => setI(Math.max(0, i - 1))}
+              disabled={i === 0}
+              aria-label="Earlier in the day"
+              className={`px-3 py-1 text-[22px] leading-none transition-opacity ${i === 0 ? 'opacity-20' : 'text-stone-900 hover:opacity-60'}`}
+            >
+              &lsaquo;
+            </button>
+            <button
+              onClick={() => setI(Math.min(stops - 1, i + 1))}
+              disabled={i >= stops - 1}
+              aria-label="Later in the day"
+              className={`px-3 py-1 text-[22px] leading-none transition-opacity ${i >= stops - 1 ? 'opacity-20' : 'text-stone-900 hover:opacity-60'}`}
+            >
+              <span className="block rotate-180">&lsaquo;</span>
+            </button>
+          </div>
         </div>
       )}
 

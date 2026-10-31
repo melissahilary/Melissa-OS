@@ -4,7 +4,7 @@ import SwipeAway from './shared/SwipeAway'
 import LetGo from './shared/LetGo'
 import RepeatField from './shared/Repeat'
 
-// ── Today's schedule, as a day planner.
+// ── The schedule, as a day planner.
 //
 // Hours down the left and the day beside them, empty until she fills it. It
 // was a spine before — only the hours that held something, printed in order —
@@ -60,7 +60,7 @@ const clockOf = (mins) => {
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
 }
 
-export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAdd, onPickDate, onSkip, onDrop, holds }) {
+export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAdd, onPickDate, onSkip, onDrop }) {
   const [adding, setAdding] = useState(null) // null | { at, until }
   const [draft, setDraft] = useState(null) // null | { start, end } — the thing being drawn
   const [hover, setHover] = useState(null) // the hour under a cursor, on a desktop
@@ -71,6 +71,8 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
   const drag = useRef(null)
   const take = useRef(() => {})
   const date = parseKey(dateKeyStr)
+  const nowDate = new Date()
+  const todayKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`
 
   // What is on the day, placed at its hour.
   const placed = useMemo(() => {
@@ -275,18 +277,16 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
 
   // Where now is, and only on the day itself.
   const now = new Date()
-  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const nowAt = dateKeyStr === todayKey ? now.getHours() * 60 + now.getMinutes() : null
 
   const rail = [MONTHS[date.getMonth()], phase && phase.cycleDay ? `Day ${phase.cycleDay}` : '', phase && phase.label]
     .filter(Boolean).join(' · ')
 
   return (
-    <section className="mos-bleed" style={{ background: W.ground, color: W.ivory }}>
+    <section className="mos-bleed mos-dark" style={{ background: W.ground, color: W.ivory }}>
       {picking ? (
         <MonthPick
           from={dateKeyStr}
-          holds={holds}
           onPick={(k) => { if (onPickDate) onPickDate(k); setPicking(false) }}
           onClose={() => setPicking(false)}
         />
@@ -295,7 +295,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
         {/* The date, set the way a date is set in print — and the way to
             another one: pressing it stands the month in front of the day. */}
         <div className="px-6 pb-8 pt-12 md:px-14 md:pb-16 md:pt-16">
-          <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Today&rsquo;s schedule</p>
+          <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Schedule</p>
           <button
             type="button"
             onClick={() => setPicking(true)}
@@ -306,6 +306,18 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
             <span className="mt-2 block font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</span>
           </button>
           <p className="mt-6 text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
+          {/* Once she is standing on another day, the way back to this one.
+              It is only here when she is somewhere else, because a button
+              that says Today on today is a button that does nothing. */}
+          {dateKeyStr !== todayKey && onPickDate && (
+            <button
+              onClick={() => onPickDate(todayKey)}
+              className="mt-5 block text-[10px] uppercase tracking-[0.22em] underline underline-offset-[6px] transition-opacity hover:opacity-70"
+              style={{ color: W.ivory }}
+            >
+              Back to today
+            </button>
+          )}
         </div>
 
         {/* The day itself. Hours down the left, the day beside them. */}
@@ -501,9 +513,10 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
 //
 // The ink calendar at the head of the page is the record; this is the thing
 // she reaches for when she is already looking at a Friday and wants a
-// Tuesday. Same brown, same hand — numerals and nothing else, with a mark
-// under the days that hold something, and a line back to the day she left.
-function MonthPick({ from, holds, onPick, onClose }) {
+// Tuesday. Same brown, same hand — numerals and nothing else. A mark under
+// every day that held something marked very nearly every day, which says
+// nothing at all; the month is for choosing one, not for reading the year.
+function MonthPick({ from, onPick, onClose }) {
   const start = parseKey(from)
   const [month, setMonth] = useState(new Date(start.getFullYear(), start.getMonth(), 1))
   const today = new Date()
@@ -542,7 +555,6 @@ function MonthPick({ from, holds, onPick, onClose }) {
           const here = cell.getMonth() === month.getMonth()
           const chosen = key === from
           const now = isSameDay(cell, today)
-          const held = here && holds ? holds(key) : false
           return (
             <button
               key={key}
@@ -557,9 +569,6 @@ function MonthPick({ from, holds, onPick, onClose }) {
               }}
             >
               {cell.getDate()}
-              {held && !chosen && (
-                <span aria-hidden className="absolute bottom-[7px] block h-[3px] w-[3px] rounded-full" style={{ background: W.ivory }} />
-              )}
             </button>
           )
         })}

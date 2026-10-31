@@ -44,7 +44,6 @@ import AskConcierge from './components/AskConcierge'
 // eslint-disable-next-line no-unused-vars
 import Dictation from './components/shared/Dictation'
 import { markFor, AddIcon, CloseIcon, NextIcon, PrevIcon, HouseMark } from './components/shared/marks'
-import ConciergeMark from './components/shared/ConciergeMark'
 import { PILLARS as PILLAR_INDEX } from './lib/pillars'
 
 // The twelve, in the order the index sets them, each wearing its mark.
@@ -273,12 +272,13 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} onAsk={() => setAskOpen(true)} />
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         active={active}
         pillars={visiblePillars}
+        onAsk={() => setAskOpen(true)}
         onGoToday={goToday}
         onGoPillar={(id) => setActive(id)}
         onGoDream={() => { setActive('dream'); setDreamPage('goals') }}
@@ -327,7 +327,7 @@ export default function App() {
 // A slim, calm bar: the hairline "index" mark on the left opens the full index
 // (NavMenu); the centered cursive wordmark is a persistent masthead that taps
 // home to Today, so home is always one tap away from any pillar page.
-function TopNav({ onOpenMenu, onGoHome, onAsk }) {
+function TopNav({ onOpenMenu, onGoHome }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
       <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
@@ -342,29 +342,17 @@ function TopNav({ onOpenMenu, onGoHome, onAsk }) {
             corner of a bar that already carries one; the drawing says the same
             thing without spelling it, and sits opposite the index as its peer
             rather than as a badge. */}
-        {/* The bar carries two marks and the masthead between them: the index
-            on the left, Ask on the right. Settings moved into the index, where
-            the pillars are — a gear floating over every page is chrome, and the
-            place you go to change the house is a destination like any other. */}
-        {/* The masthead, and it is permanent — every page, every width. Ask
-            stands immediately beside it rather than off in the far corner: it
-            is the one thing on this bar she might want at any moment, on any
-            page, and a mark alone in a corner reads as a setting. Beside the
-            name it reads as part of the paper. */}
-        <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3">
-          <button
-            onClick={onGoHome}
-            title="Home — Today"
-            className="whitespace-nowrap font-serif text-[11px] uppercase leading-none tracking-[0.2em] text-stone-900 transition-opacity hover:opacity-60 sm:text-sm sm:tracking-[0.24em]"
-          >
-            On the Record
-          </button>
-          {onAsk && (
-            <button onClick={onAsk} aria-label="Ask" title="Ask" className="flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
-              <ConciergeMark size={21} />
-            </button>
-          )}
-        </div>
+        {/* The masthead, and it is permanent — every page, every width. It
+            stands alone: a mark beside it was a second thing to read in the
+            place a paper puts only its name. Ask is in the index, where
+            everything else that is not a page lives. */}
+        <button
+          onClick={onGoHome}
+          title="Home — Today"
+          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-serif text-[11px] uppercase leading-none tracking-[0.2em] text-stone-900 transition-opacity hover:opacity-60 sm:text-sm sm:tracking-[0.24em]"
+        >
+          On the Record
+        </button>
       </div>
     </header>
   )
@@ -374,7 +362,7 @@ function TopNav({ onOpenMenu, onGoHome, onAsk }) {
 // Opens from the top bar. A Pinyon wordmark, Today as the anchor, then the
 // pillars as a numbered serif index (two columns on wide screens), the current
 // one inked. One tap goes anywhere and closes. Editorial, calm, and fast.
-function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDream, onGoSettings }) {
+function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDream, onGoSettings, onAsk }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -430,8 +418,13 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
 
               Becoming has left this page for the foot of Today, so the accent
               is unspent here and this is the one thing wearing it. */}
-          <div className="mt-14 border-t border-stone-200 pt-5">
-            <button onClick={() => go(onGoSettings)} className="mx-auto block py-2 text-[11px] uppercase tracking-[0.18em] text-cobalt transition-opacity hover:opacity-60">
+          <div className="mt-14 flex items-center justify-center gap-10 border-t border-stone-200 pt-5">
+            {onAsk && (
+              <button onClick={() => go(onAsk)} className="block py-2 text-[11px] uppercase tracking-[0.18em] text-cobalt transition-opacity hover:opacity-60">
+                Ask
+              </button>
+            )}
+            <button onClick={() => go(onGoSettings)} className="block py-2 text-[11px] uppercase tracking-[0.18em] text-cobalt transition-opacity hover:opacity-60">
               Settings
             </button>
           </div>
