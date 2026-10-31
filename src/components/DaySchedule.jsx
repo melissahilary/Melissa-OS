@@ -69,6 +69,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
   const scroller = useRef(null)
   const layer = useRef(null)
   const drag = useRef(null)
+  const take = useRef(() => {})
   const date = parseKey(dateKeyStr)
 
   // What is on the day, placed at its hour.
@@ -88,10 +89,17 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     return on.sort((x, y) => x.start - y.start)
   }, [appointments])
 
-  // Open on the morning rather than at midnight.
+  // Open on the morning rather than at midnight. Set once before the rows
+  // have been laid out and it does nothing at all, which is how the day came
+  // up at twelve in the morning.
   useEffect(() => {
     const el = scroller.current
-    if (el) el.scrollTop = OPENS_AT * HOUR
+    if (!el) return undefined
+    const go = () => { el.scrollTop = OPENS_AT * HOUR }
+    go()
+    const r = requestAnimationFrame(go)
+    const t = setTimeout(go, 120)
+    return () => { cancelAnimationFrame(r); clearTimeout(t) }
   }, [dateKeyStr])
 
   // ── Drawing an hour ───────────────────────────────────────────────
@@ -105,14 +113,30 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     return Math.max(0, Math.min(DAY, Math.round(mins / SNAP) * SNAP))
   }
 
-  const put = (v) => { if (drag.current) drag.current.span = v; setDraft(v) }
+  // Where the window is, kept in a ref as well as in state, so a gesture that
+  // begins on one of its handles knows where it is standing without waiting
+  // for a render to tell it.
+  const span = useRef(null)
+  const put = (v) => { span.current = v; setDraft(v) }
+  const drop = () => { span.current = null; setDraft(null) }
+  const open = () => {
+    const v = span.current
+    if (v) setAdding({ at: clockOf(v.start), until: clockOf(v.end) })
+  }
 
-  const begin = (clientY) => {
-    const m = Math.min(atY(clientY), DAY - SNAP)
-    drag.current = { anchor: m, y: clientY, drew: false, span: null, raf: 0 }
-    put({ start: m, end: m + SNAP })
-    // Once a length is being drawn, the day carries on under the finger at
-    // the edges, so a block can run past the bottom of the window without
+  // Four ways to be holding the window: drawing a new one, or taking it by
+  // its start, its end, or its middle.
+  const begin = (clientY, mode) => {
+    const m = atY(clientY)
+    const was = span.current
+    if (mode !== 'new' && !was) return
+    drag.current = { mode, anchor: m, y: clientY, drew: false, raf: 0, from: was ? { ...was, grab: m } : null }
+    if (mode === 'new') {
+      const at = Math.min(m, DAY - SNAP)
+      put({ start: at, end: at + SNAP })
+    }
+    // Once something is being dragged, the day carries on under the finger at
+    // the edges, so a window can run past the bottom of the screen without
     // letting go. Not before: a press that simply lands near the edge is
     // standing still, and the day should stand still with it.
     const creep = () => {
@@ -137,9 +161,23 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     d.y = clientY
     const m = atY(clientY)
     if (Math.abs(m - d.anchor) >= SNAP) d.drew = true
-    const start = Math.min(d.anchor, m)
-    const end = Math.max(d.anchor, m)
-    put({ start, end: end > start ? end : start + SNAP })
+    if (d.mode === 'new') {
+      const a = Math.min(d.anchor, m)
+      const b = Math.max(d.anchor, m)
+      put({ start: a, end: b > a ? b : a + SNAP })
+      return
+    }
+    const f = d.from
+    if (!f) return
+    // An end never passes the other end: a quarter of an hour is the least a
+    // window can be.
+    if (d.mode === 'top') put({ start: Math.max(0, Math.min(m, f.end - SNAP)), end: f.end })
+    else if (d.mode === 'bottom') put({ start: f.start, end: Math.min(DAY, Math.max(m, f.start + SNAP)) })
+    else {
+      const len = f.end - f.start
+      const start = Math.max(0, Math.min(DAY - len, f.start + (m - f.grab)))
+      put({ start, end: start + len })
+    }
   }
 
   const finish = () => {
@@ -147,14 +185,15 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     if (!d) return
     if (d.raf) cancelAnimationFrame(d.raf)
     drag.current = null
-    const span = d.span
-    setDraft(null)
-    if (!span) return
-    // A tap is still a tap: it means the hour it landed in, the way it always
-    // has. A drag means exactly what she drew.
-    const start = d.drew ? span.start : Math.floor(span.start / 60) * 60
-    const end = d.drew ? span.end : start + 60
-    setAdding({ at: clockOf(start), until: clockOf(end) })
+    // A tap on an empty hour means that hour, whole — and the window stays
+    // there to be adjusted rather than throwing her straight into a form.
+    if (d.mode === 'new' && !d.drew) {
+      const at = Math.floor(d.anchor / 60) * 60
+      put({ start: at, end: Math.min(at + 60, DAY) })
+      return
+    }
+    // A tap on the window itself is how it is taken up.
+    if (d.mode === 'move' && !d.drew) open()
   }
 
   // A mouse draws from the moment it goes down. A finger has to rest first,
@@ -168,6 +207,9 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     let origin = null
 
     const clear = () => { if (hold) { clearTimeout(hold); hold = 0 } }
+    // The window's own handles hand their gesture to these same listeners, so
+    // a resize holds the page still exactly the way a draw does.
+    take.current = (clientY, mode) => { clear(); armed = true; begin(clientY, mode) }
 
     const onDown = (e) => {
       if (e.pointerType === 'touch') return
@@ -175,7 +217,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
       if (e.target && e.target.closest && e.target.closest('[data-no-draw]')) return
       e.preventDefault()
       armed = true
-      begin(e.clientY)
+      begin(e.clientY, 'new')
     }
     const onMove = (e) => { if (armed && drag.current) carry(e.clientY) }
     const onUp = () => { if (armed) { armed = false; finish() } }
@@ -186,7 +228,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
       const t = e.touches[0]
       origin = { x: t.clientX, y: t.clientY }
       clear()
-      hold = setTimeout(() => { hold = 0; armed = true; begin(origin.y) }, HOLD)
+      hold = setTimeout(() => { hold = 0; armed = true; begin(origin.y, 'new') }, HOLD)
     }
     const onTouchMove = (e) => {
       const t = e.touches[0]
@@ -201,13 +243,13 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     }
     const onTouchEnd = () => {
       if (armed) { armed = false; clear(); finish(); return }
-      // Lifted before it had settled, and never moved: a tap, which means the
-      // hour it landed in — the way it always has.
+      // Lifted before it had settled, and never moved: a tap, which puts an
+      // hour down where it landed and leaves it there to be adjusted.
       const tapped = !!hold && origin
       clear()
       if (tapped) {
         const at = Math.floor(atY(origin.y) / 60) * 60
-        setAdding({ at: clockOf(at), until: clockOf(at + 60) })
+        put({ start: at, end: Math.min(at + 60, DAY) })
       }
     }
 
@@ -262,7 +304,6 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
           >
             <span className="mt-6 block font-serif leading-[0.82] text-[130px] md:text-[170px]">{date.getDate()}</span>
             <span className="mt-2 block font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</span>
-            <span className="mt-5 block text-[10px] uppercase tracking-[0.22em] underline underline-offset-[6px]" style={{ color: W.muted }}>Another day</span>
           </button>
           <p className="mt-6 text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
         </div>
@@ -327,22 +368,74 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
               </div>
             ))}
 
-            {/* The length she is drawing, with a mark at each end and the two
-                hours said in the gutter as they change. */}
+            {/* The window. It is drawn by pulling down the day or set by a tap
+                on an hour, and then it STAYS: she takes it by either end to
+                change when it starts or when it finishes, by the middle to
+                move the whole of it, and taps it when it says what she meant.
+                Nothing is committed by letting go, which is the difference
+                between drawing a time and being thrown into a form. */}
             {draft && (
               <>
                 <div
-                  className="pointer-events-none absolute right-4 md:right-8"
+                  data-no-draw
+                  className="absolute right-4 z-20 md:right-8"
                   style={{
                     top: (draft.start / 60) * HOUR,
-                    height: Math.max(((draft.end - draft.start) / 60) * HOUR, 14),
+                    height: Math.max(((draft.end - draft.start) / 60) * HOUR, 26),
                     left: 72,
                     background: W.draft,
                     outline: `1px solid ${W.ivory}`,
+                    touchAction: 'none',
+                  }}
+                  onPointerDown={(e) => {
+                    if (e.pointerType === 'touch' || (e.target.closest && e.target.closest('[data-grip]'))) return
+                    e.preventDefault()
+                    take.current(e.clientY, 'move')
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.target.closest && e.target.closest('[data-grip]')) return
+                    take.current(e.touches[0].clientY, 'move')
                   }}
                 >
-                  <span className="absolute left-0 top-0 block h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: W.ivory }} />
-                  <span className="absolute bottom-0 right-0 block h-[9px] w-[9px] translate-x-1/2 translate-y-1/2 rounded-full" style={{ background: W.ivory }} />
+                  {/* What it says it is, and the way to take it up. */}
+                  <div className="flex h-full items-center justify-between gap-3 px-3.5">
+                    {((draft.end - draft.start) / 60) * HOUR >= 30 && (
+                      <>
+                        <span className="min-w-0 truncate text-[11px] uppercase tracking-[0.12em]" style={{ color: W.ivory }}>
+                          {spokenTime(draft.start)} &ndash; {spokenTime(draft.end)}
+                        </span>
+                        <span className="shrink-0 text-[10px] uppercase tracking-[0.18em]" style={{ color: W.ivory }}>Add</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Either end, with a target around it big enough for a
+                      thumb — the mark is nine pixels, the thing she is
+                      actually holding is thirty. */}
+                  <span
+                    data-grip
+                    role="button"
+                    tabIndex={-1}
+                    aria-label="When it starts"
+                    onPointerDown={(e) => { if (e.pointerType === 'touch') return; e.preventDefault(); take.current(e.clientY, 'top') }}
+                    onTouchStart={(e) => take.current(e.touches[0].clientY, 'top')}
+                    className="absolute -left-[15px] -top-[15px] flex h-[30px] w-[30px] cursor-ns-resize items-center justify-center"
+                    style={{ touchAction: 'none' }}
+                  >
+                    <span className="block h-[11px] w-[11px] rounded-full" style={{ background: W.ivory }} />
+                  </span>
+                  <span
+                    data-grip
+                    role="button"
+                    tabIndex={-1}
+                    aria-label="When it finishes"
+                    onPointerDown={(e) => { if (e.pointerType === 'touch') return; e.preventDefault(); take.current(e.clientY, 'bottom') }}
+                    onTouchStart={(e) => take.current(e.touches[0].clientY, 'bottom')}
+                    className="absolute -bottom-[15px] -right-[15px] flex h-[30px] w-[30px] cursor-ns-resize items-center justify-center"
+                    style={{ touchAction: 'none' }}
+                  >
+                    <span className="block h-[11px] w-[11px] rounded-full" style={{ background: W.ivory }} />
+                  </span>
                 </div>
                 {/* Only the ends that fall between the hours are said: on the
                     hour the gutter has already said it. */}
@@ -396,8 +489,8 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
           at={adding.at}
           until={adding.until}
           on={dateKeyStr}
-          onClose={() => setAdding(null)}
-          onSave={(title, at, until, repeat) => { onAdd(title, at, until, repeat); setAdding(null) }}
+          onClose={() => { setAdding(null); drop() }}
+          onSave={(title, at, until, repeat) => { onAdd(title, at, until, repeat); setAdding(null); drop() }}
         />
       )}
     </section>
