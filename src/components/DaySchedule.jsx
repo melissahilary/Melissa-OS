@@ -616,6 +616,7 @@ function AddToDay({ at: opensAt, until: opensUntil, on: onKey, onClose, onSave }
               type="time"
               value={at}
               onChange={(e) => setAt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
               className="mt-2 w-full border-b bg-transparent pb-2 font-serif text-[21px] leading-none outline-none md:text-[26px]"
               style={{ borderColor: W.faint, color: W.ivory, colorScheme: 'dark' }}
             />
@@ -626,6 +627,7 @@ function AddToDay({ at: opensAt, until: opensUntil, on: onKey, onClose, onSave }
               type="time"
               value={until}
               onChange={(e) => setUntil(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
               className="mt-2 w-full border-b bg-transparent pb-2 font-serif text-[21px] leading-none outline-none md:text-[26px]"
               style={{ borderColor: W.faint, color: W.ivory, colorScheme: 'dark' }}
             />
@@ -644,6 +646,7 @@ function AddToDay({ at: opensAt, until: opensUntil, on: onKey, onClose, onSave }
             autoComplete="off"
             spellCheck={false}
             data-no-dictation
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
             className="mt-2 w-full border-b bg-transparent pb-2 text-[19px] lowercase outline-none placeholder:opacity-40"
             style={{ borderColor: W.faint, color: W.ivory }}
           />

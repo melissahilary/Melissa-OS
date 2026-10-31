@@ -346,6 +346,12 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
     const pace = () => {
       const px = el.scrollWidth
       if (px > 0) box.style.setProperty('--mos-billboard-time', `${Math.max(24, px / BILLBOARD_SPEED)}s`)
+      // A fifth of the measure, measured rather than reckoned in vw: vw counts
+      // the scrollbar, so a fifth of it is a hair wider than a fifth of the
+      // room there actually is, and the fifth slot never quite fitted — which
+      // is why four were not always standing there whole.
+      const room = box.clientWidth
+      box.style.setProperty('--mos-slot', room >= 640 ? `${room / 5}px` : 'auto')
     }
     pace()
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(pace) : null
@@ -363,11 +369,15 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
   }
   useEffect(() => () => { if (letGo.current) clearTimeout(letGo.current) }, [])
 
-  // Each reading takes a quarter of the measure, so four of them stand on the
-  // screen at a time and the fifth is on its way in. Sunrise and sunset are
-  // one reading of the sky and share a slot; left to size themselves they ran
-  // half again as long as everything else and made five.
-  const SLOT = 'relative flex shrink-0 items-center justify-center px-6 sm:w-[25vw]'
+  // Four readings on the screen at a time. A quarter of the measure each was
+  // the arithmetic answer and the wrong one: the line is always moving, so at
+  // any moment the first and the last are half off their ends and only three
+  // are whole. A little under a quarter leaves room for the two halves, and
+  // four stand there complete however the line happens to be sitting.
+  //
+  // Sunrise and sunset are one reading of the sky and share a slot; left to
+  // size themselves they ran half again as long as the rest and made five.
+  const SLOT = 'relative flex shrink-0 items-center justify-center px-6 sm:w-[23vw]'
   const Line = ({ ghost }) => (
     <div
       ref={ghost ? undefined : copy}
@@ -377,11 +387,12 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
       {[
         <MoonField key="moon" />,
         <WeatherField key="weather" w={w} />,
-        <SunField key="sun" w={w} />,
+        <SunField key="sunrise" w={w} which="sunrise" />,
+        <SunField key="sunset" w={w} which="sunset" />,
         <UvField key="uv" location={location} />,
         <AirField key="air" location={location} />,
       ].map((f, idx) => (
-        <span key={idx} className={SLOT}>
+        <span key={idx} className={SLOT} style={{ width: 'var(--mos-slot, auto)' }}>
           {f}
           <span aria-hidden className="absolute right-0 text-stone-300">·</span>
         </span>
@@ -407,14 +418,16 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
 }
 
 
-// The two hours the day is actually bounded by. They come back with the
-// forecast, so they cost nothing more to print — and they are the one pair of
-// times on this page that nobody set.
-function SunField({ w }) {
-  if (!w || (!w.sunrise && !w.sunset)) return <span className="text-stone-400">—</span>
+// One of the two hours the day is actually bounded by. They come back with
+// the forecast, so they cost nothing more to print — and they are the one
+// pair of times on this page that nobody set. One reading each: together they
+// were a sentence in a row of readings.
+function SunField({ w, which }) {
+  const at = w && w[which]
+  if (!at) return <span className="text-stone-400">—</span>
   return (
     <span className="whitespace-nowrap text-stone-600">
-      Sunrise {fmtClock(w.sunrise)} <span aria-hidden className="text-stone-300">·</span> Sunset {fmtClock(w.sunset)}
+      {which === 'sunrise' ? 'Sunrise' : 'Sunset'} {fmtClock(at)}
     </span>
   )
 }
@@ -1994,6 +2007,7 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
             autoCapitalize="none"
             spellCheck={false}
             data-no-dictation
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
             className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 text-[19px] lowercase text-cream outline-none placeholder:text-cream/35"
           />
         </label>
