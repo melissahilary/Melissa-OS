@@ -601,7 +601,15 @@ function AddToDay({ at: opensAt, until: opensUntil, on: onKey, onClose, onSave }
   const [until, setUntil] = useState(opensUntil || '')
   const [title, setTitle] = useState('')
   const [repeat, setRepeat] = useState({ frequency: 'once' })
-  const save = () => { const t = title.trim().toLowerCase(); if (!t) return; onSave(t, at, until, repeat) }
+  const field = useRef(null)
+  // Pressing Add with nothing written used to do nothing at all, which reads
+  // as a broken button rather than as a question. It puts the cursor where
+  // the answer goes instead.
+  const save = () => {
+    const t = title.trim().toLowerCase()
+    if (!t) { if (field.current) field.current.focus(); return }
+    onSave(t, at, until, repeat)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" style={{ background: 'rgba(22,19,15,0.55)' }} onClick={onClose}>
@@ -642,6 +650,7 @@ function AddToDay({ at: opensAt, until: opensUntil, on: onKey, onClose, onSave }
           <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: W.muted }}>What</span>
           <input
             autoFocus
+            ref={field}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Drinks with Cheryl"

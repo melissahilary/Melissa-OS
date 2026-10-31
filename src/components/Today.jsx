@@ -14,6 +14,7 @@ import { fmtSpan } from '../lib/date'
 import { holidayFor } from '../lib/holidays'
 import DayLists from './DayLists'
 import DaySchedule from './DaySchedule'
+import Movement from './Movement'
 import MonthGrid from './shared/MonthGrid'
 import { slotMeta, SITTINGS, spoken, blankMeal } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
@@ -1030,6 +1031,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onBlockChange={setCurrentBlock}
       />
 
+      {/* What she did with her body, after what she ate and before the hours
+          themselves — the two halves of looking after it, in that order. */}
+      <Movement dateKeyStr={selectedKey} />
+
       {/* The month used to stand here as a record of its own. It is inside
           the day now — pressing the date opens it on the same brown — so a
           second grid above it was a second copy of the same month, drawn and
@@ -1760,7 +1765,12 @@ function EditMeal({ activity, onSave, onDrop, onClose }) {
 // two gestures — open it, type it — and it stands still while she does.
 function AddStep({ block, onClose, onSave }) {
   const [t, setT] = useState('')
-  const save = () => { const v = t.trim().toLowerCase(); if (!v) return; onSave(v) }
+  const field = useRef(null)
+  const save = () => {
+    const v = t.trim().toLowerCase()
+    if (!v) { if (field.current) field.current.focus(); return }
+    onSave(v)
+  }
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
@@ -1775,6 +1785,7 @@ function AddStep({ block, onClose, onSave }) {
         <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">Add to {block}</p>
         <input
           autoFocus
+          ref={field}
           value={t}
           onChange={(e) => setT(e.target.value)}
           placeholder="A step"
@@ -2374,9 +2385,10 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
   const slot = what === 'drink' ? sitting.drink : sitting.food
   const kind = what === 'supp' ? 'supp' : 'food'
 
+  const field = useRef(null)
   const save = () => {
     const t = name.trim()
-    if (!t) return
+    if (!t) { if (field.current) field.current.focus(); return }
     onSave({
       ...blankMeal(slot, kind),
       name: t.toLowerCase(),
@@ -2418,6 +2430,7 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
           <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">What</span>
           <input
             autoFocus
+            ref={field}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={what === 'supp' ? 'Magnesium' : what === 'drink' ? 'Green tea' : 'Green goddess salad'}
