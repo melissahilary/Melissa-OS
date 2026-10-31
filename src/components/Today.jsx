@@ -799,7 +799,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       }
       partsOfActivity(a).forEach((part) => add(part))
     })
-    return out
+    const off = Array.isArray(skips[k]) ? skips[k] : []
+    return off.length ? out.filter((r) => !off.includes(r.id)) : out
   }
 
   // THE MONTH — the appointments: the things she has to be somewhere for.
@@ -881,6 +882,17 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const pauseItem = (id) => update(id, { status: 'paused' })
   // Add a quick to-do to a specific block on the selected day (a daily ritual
   // pinned to that block; edit it later to change how often it repeats).
+  // Skipping a step for one day. Not the same as keeping it and not the same
+  // as letting the whole thing go — some mornings a thing simply is not
+  // happening, and the routine should say so without losing the habit.
+  const [skipRaw, setSkips] = useLocalStorage('mos:skips', {})
+  const skips = skipRaw && typeof skipRaw === 'object' ? skipRaw : {}
+  const skipToday = (id) => setSkips((prev) => {
+    const base = prev && typeof prev === 'object' ? prev : {}
+    const day = Array.isArray(base[selectedKey]) ? base[selectedKey] : []
+    return day.includes(id) ? base : { ...base, [selectedKey]: [...day, id] }
+  })
+
   const addTask = (block, title) =>
     add(blankActivity('protocol', {
       title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
@@ -948,6 +960,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onToggle={toggleEvent}
         onReorder={setOrder}
         onAddStep={addRoutineStep}
+        onSkip={skipToday}
+        onDrop={remove}
       />
 
       {/* The world outside the window, read as one line under the routines. */}
@@ -1059,7 +1073,7 @@ const PHASE_AGENDA_HINT = {
 // number used to, because a numbered list that shortens as she keeps it
 // renumbers itself, and no pillar is named beside it either.
 
-function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
+function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
   // A kept step is not gone, it is done: it stays on the panel, struck
@@ -1082,6 +1096,49 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
   // Writing a new step. It lands at the foot; anywhere else is a drag away.
   const [writing, setWriting] = useState(false)
   const [draft, setDraft] = useState('')
+
+  // ── Sliding a step away.
+  //
+  // A row taken sideways reveals what it would mean to let it go, and asks on
+  // release: today only, or for good. The grip still takes it up and down —
+  // whichever way the finger commits to first is the only way it goes.
+  const swipe = useRef(null)
+  const [slid, setSlid] = useState({ id: null, dx: 0 })
+  const [asking, setAsking] = useState(null) // the step being let go
+  const PULL = 72 // how far it has to come before the question is asked
+
+  const swipeStart = (e, id) => {
+    if (held) return
+    const pt = e.touches && e.touches.length ? e.touches[0] : e
+    swipe.current = { id, x0: pt.clientX, y0: pt.clientY, axis: null, dx: 0 }
+  }
+  const swipeMove = (e) => {
+    const w = swipe.current
+    if (!w) return
+    const pt = e.touches && e.touches.length ? e.touches[0] : e
+    const dx = pt.clientX - w.x0
+    const dy = pt.clientY - w.y0
+    if (!w.axis) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
+      // Whichever way it commits to first: sideways is a question, up and
+      // down is the page scrolling and none of our business.
+      w.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+    }
+    if (w.axis !== 'x') return
+    if (e.cancelable) e.preventDefault()
+    w.dx = Math.max(-140, Math.min(0, dx))
+    setSlid({ id: w.id, dx: w.dx })
+  }
+  const swipeEnd = () => {
+    const w = swipe.current
+    swipe.current = null
+    if (!w || w.axis !== 'x') { setSlid({ id: null, dx: 0 }); return }
+    if (w.dx <= -PULL) {
+      const it = left.find((x) => x.id === w.id)
+      if (it) setAsking(it)
+    }
+    setSlid({ id: null, dx: 0 })
+  }
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
@@ -1193,9 +1250,19 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
           <div
             key={it.id}
             data-id={it.id}
-            className="flex w-full items-center gap-5 py-3 text-left"
+            className="relative flex w-full items-center gap-5 py-3 text-left"
+            onPointerDown={(e) => swipeStart(e, it.id)}
+            onPointerMove={swipeMove}
+            onPointerUp={swipeEnd}
+            onPointerCancel={swipeEnd}
+            onTouchStart={(e) => swipeStart(e, it.id)}
+            onTouchMove={swipeMove}
+            onTouchEnd={swipeEnd}
             style={{
               borderBottom: `1px solid ${rule}`,
+              transform: slid.id === it.id ? `translateX(${slid.dx}px)` : undefined,
+              transition: slid.id === it.id ? 'none' : 'transform 160ms ease-out',
+              touchAction: 'pan-y',
               ...(held && held.id === it.id
                 ? {
                     transform: `translateY(${lift}px)`,
@@ -1242,6 +1309,16 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
               <span className="block h-px w-4" style={{ backgroundColor: dim }} />
               <span className="block h-px w-4" style={{ backgroundColor: dim }} />
             </span>
+
+            {/* What the pull means, said once it is far enough to mean it. */}
+            {slid.id === it.id && slid.dx < -16 && (
+              <span
+                className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.18em]"
+                style={{ right: slid.dx, color: slid.dx <= -PULL ? 'rgb(247,244,237)' : dim }}
+              >
+                Let go
+              </span>
+            )}
           </div>
         ))}
 
@@ -1268,6 +1345,42 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
         )}
       </div>
 
+      {/* Today, or for good. A step pulled aside is one of two things and the
+          app cannot tell which, so it asks — once, in two lines, the way the
+          hour of a sitting is asked about. */}
+      {asking && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+          style={{ background: 'rgba(22,19,15,0.55)' }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setAsking(null) }}
+        >
+          <div className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9" style={{ background: '#68472C', color: '#F7F4ED' }}>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{title} routine</p>
+            <p className="mt-3 font-serif text-[30px] leading-tight">{asking.title || 'Untitled'}</p>
+
+            <button
+              onClick={() => { if (onSkip) onSkip(asking.id); setAsking(null) }}
+              className="mt-8 block w-full border-b border-cream/25 pb-4 text-left"
+            >
+              <span className="text-[17px]">Not today</span>
+              <span className="mt-1 block text-[13px] text-cream/60">It stays in the routine and comes back tomorrow.</span>
+            </button>
+
+            <button
+              onClick={() => { if (onDrop) onDrop(asking.id); setAsking(null) }}
+              className="mt-5 block w-full text-left"
+            >
+              <span className="text-[17px]">Let it go</span>
+              <span className="mt-1 block text-[13px] text-cream/60">Off the routine for good, from today on.</span>
+            </button>
+
+            <div className="mt-9 flex justify-end">
+              <button onClick={() => setAsking(null)} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* The way in, held at the foot of the block. The list scrolls past it
           and it stays where it is, so adding a step is never somewhere she has
           to scroll to find. */}
@@ -1284,7 +1397,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
   )
 }
 
-function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, onReorder, onAddStep }) {
+function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, onReorder, onAddStep, onSkip, onDrop }) {
   // Deduped, and keyed on the block a task actually sits in rather than its
   // part of day — a repeat that shows in two parts is still one task.
   const uniq = dedupeById(rituals)
@@ -1326,6 +1439,8 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onToggle={onToggle}
               onReorder={onReorder}
               onAdd={(title) => onAddStep && onAddStep('morning', title)}
+          onSkip={onSkip}
+          onDrop={onDrop}
             />
           </div>
           <div className="flex w-full shrink-0 snap-start md:w-auto [&>section]:w-full">
@@ -1337,6 +1452,8 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onToggle={onToggle}
               onReorder={onReorder}
               onAdd={(title) => onAddStep && onAddStep('evening', title)}
+          onSkip={onSkip}
+          onDrop={onDrop}
             />
           </div>
         </div>
