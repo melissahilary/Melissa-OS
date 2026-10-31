@@ -46,22 +46,21 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
   const grid = useRef(null)
   const date = parseKey(dateKeyStr)
 
-  // What is on the day, placed at its hour. Anything without one waits above
-  // the grid rather than being guessed into a slot.
-  const { placed, loose } = useMemo(() => {
+  // What is on the day, placed at its hour.
+  const placed = useMemo(() => {
     const seen = new Set()
     const on = []
-    const off = []
     appointments.forEach((a) => {
       if (seen.has(a.id)) return
       seen.add(a.id)
       const start = minutesOf(a.time)
-      if (start == null) { off.push(a); return }
+      // No hour, no place on a grid of hours — and no pile under the day
+      // either, which is the thing a planner is meant to replace.
+      if (start == null) return
       const end = minutesOf(a.endTime)
       on.push({ ...a, start, end: end && end > start ? end : start + 60 })
     })
-    on.sort((x, y) => x.start - y.start)
-    return { placed: on, loose: off }
+    return on.sort((x, y) => x.start - y.start)
   }, [appointments])
 
   // Open on the morning rather than at midnight.
@@ -87,16 +86,6 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
           <p className="mt-6 font-serif leading-[0.82] text-[130px] md:text-[170px]">{date.getDate()}</p>
           <p className="mt-2 font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</p>
           <p className="mt-6 text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
-
-          {/* Anything on the day with no hour on it yet. */}
-          {loose.length > 0 && (
-            <div className="mt-10 border-t pt-5" style={{ borderColor: W.faint }}>
-              <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>No hour set</p>
-              {loose.map((e) => (
-                <p key={e.id} className="mt-2.5 text-[17px] leading-snug">{e.title}</p>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* The day itself. Hours down the left, the day beside them. */}
