@@ -1106,6 +1106,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   // A row taken sideways reveals what it would mean to let it go, and asks on
   // release: today only, or for good. The grip still takes it up and down —
   // whichever way the finger commits to first is the only way it goes.
+  const writeLine = useRef(null)
   const swipe = useRef(null)
   const [slid, setSlid] = useState({ id: null, dx: 0 })
   const [asking, setAsking] = useState(null) // the step being let go
@@ -1149,6 +1150,26 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
+
+  // Opening the line must not move the page. The input sits inside the rail,
+  // and left to itself the phone scrolls the document to bring a focused field
+  // into view — which on a routine near the top of the page throws her down to
+  // the month. The rail is scrolled to the line instead, the focus is taken
+  // without scrolling, and the page is put back where it was for the frames it
+  // takes the keyboard to arrive.
+  useEffect(() => {
+    if (!writing) return undefined
+    const el = writeLine.current
+    const y = window.scrollY
+    if (rail.current) rail.current.scrollTop = rail.current.scrollHeight
+    if (el && el.focus) el.focus({ preventScroll: true })
+    const hold = () => window.scrollTo(0, y)
+    hold()
+    const r = requestAnimationFrame(hold)
+    const t1 = setTimeout(hold, 120)
+    const t2 = setTimeout(hold, 320)
+    return () => { cancelAnimationFrame(r); clearTimeout(t1); clearTimeout(t2) }
+  }, [writing])
 
   const grab = (id, clientY) => {
     drag.current = { id, ids: rows.map((r) => r.id), y: clientY, dy: 0, raf: 0, settling: false }
@@ -1343,7 +1364,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           <div className="flex w-full items-center gap-5 py-3" style={{ borderBottom: `1px solid ${rule}` }}>
             <span aria-hidden className="h-[15px] w-[15px] shrink-0 border" style={{ borderColor: 'rgba(247,244,237,0.35)' }} />
             <input
-              autoFocus
+              ref={writeLine}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
