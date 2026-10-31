@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { activityOccursOn } from '../lib/activities'
-import { QUALITIES, qualityOf, readKinds, signatureOf, tidyKinds } from '../lib/movement'
+import { qualityOf, readKinds, signatureOf, tidyKinds } from '../lib/movement'
 import SwipeAway, { OXBLOOD } from './shared/SwipeAway'
 import RepeatField from './shared/Repeat'
 
@@ -133,30 +133,6 @@ export default function Movement({ dateKeyStr }) {
     return { ...x, completions: c }
   }))
 
-  // ── The week, in what it asked of her.
-  //
-  // Seven days back from the day she is standing on, and only what she actually
-  // kept. A session counts once towards each quality it carries.
-  const week = useMemo(() => {
-    const count = Object.fromEntries(QUALITIES.map((q) => [q.id, 0]))
-    const end = new Date(`${key}T12:00:00`)
-    if (Number.isNaN(end.getTime())) return count
-    for (let back = 0; back < 7; back += 1) {
-      const d = new Date(end)
-      d.setDate(d.getDate() - back)
-      const k = dateKey(d)
-      for (const x of all) {
-        if (!(x.completions && x.completions[k])) continue
-        if (!activityOccursOn({ ...x, seriesStart: x.seriesStart || '', type: 'protocol' }, k)) continue
-        for (const q of kindsOf(x)) count[q] += 1
-      }
-    }
-    return count
-  }, [all, key, kindsOf])
-
-  const most = Math.max(1, ...Object.values(week))
-  const movedAtAll = Object.values(week).some((n) => n > 0)
-
   const write = (field) => (e) => {
     const v = e.target.value
     setTally((prev) => ({ ...obj(prev), [key]: { ...obj(obj(prev)[key]), [field]: v } }))
@@ -169,19 +145,13 @@ export default function Movement({ dateKeyStr }) {
   return (
     <section className="mos-bleed border-t border-stone-200 px-6 py-14 md:px-12 md:py-20">
       <div className="mx-auto max-w-5xl">
-        {/* The spread's own line. It is the only place on the day that says
-            what the day is for rather than what is in it. */}
-        <div className="flex items-start justify-between gap-8">
-          <h2 className="font-serif text-[46px] leading-[0.95] text-stone-900 sm:text-[62px]">
-            Moved,
-            <br />
-            <span className="italic">not</span>
-            <br />
-            measured.
-          </h2>
-          <svg width="74" height="68" viewBox="0 0 74 68" fill="none" aria-hidden className="mt-2 shrink-0 sm:h-[86px] sm:w-[94px]">
-            <path d="M37 3 L71 65 L3 65 Z" stroke="#16130F" strokeWidth="1.25" />
-          </svg>
+        {/* Headed the way every other section on the day is headed: the small
+            word for what this is, then the name of it set large. The phrase
+            that stood here was a poster, not a heading — it told her what the
+            section was for, which is not a thing she needs told every day. */}
+        <div>
+          <p className="kicker text-stone-500">Movement</p>
+          <h2 className="mt-5 font-serif text-[46px] leading-[0.95] text-stone-900 sm:text-[62px]">Workouts</h2>
         </div>
 
         {/* The record. */}
@@ -251,33 +221,6 @@ export default function Movement({ dateKeyStr }) {
               +
             </button>
           </div>
-        </div>
-
-        {/* The eight, over the seven days behind her. */}
-        <div className="mt-14 border-t border-stone-200 pt-9">
-          <p className="kicker text-stone-500">Seven days, in what they asked</p>
-          <div className="mt-7 grid gap-x-16 gap-y-5 sm:grid-flow-col sm:grid-cols-2 sm:grid-rows-4">
-            {QUALITIES.map((q) => {
-              const n = week[q.id] || 0
-              return (
-                <div key={q.id} className="flex items-center gap-5">
-                  <span className="w-[86px] shrink-0 text-[13px] text-stone-600 sm:w-[104px] sm:text-[15px]">{q.label}</span>
-                  <span className="relative block h-[9px] min-w-0 flex-1" style={{ background: '#EEEAE1' }}>
-                    <span
-                      className="absolute inset-y-0 left-0 block transition-[width] duration-500"
-                      style={{ width: `${n ? Math.max(9, (n / most) * 100) : 0}%`, background: q.tone }}
-                    />
-                  </span>
-                  <span className="w-5 shrink-0 text-right text-[13px] text-stone-500 sm:text-[15px]">{n || ''}</span>
-                </div>
-              )
-            })}
-          </div>
-          {!movedAtAll && (
-            <p className="mt-7 text-[13px] italic text-stone-400">
-              The week fills itself as she keeps what she did.
-            </p>
-          )}
         </div>
 
         {/* The footnote. Steps are hers to write; the hours add themselves. */}
