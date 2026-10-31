@@ -29,6 +29,22 @@ No "Glow Protocol" branding anywhere — this is a personal planner.
   it the card falls back to a deterministic written-from-the-aspects reading.
 - Cached per day in `mos:horoscope` so it's at most one LLM call/day.
 
+## Palette — settled, do not change
+Melissa signed off on this and asked that it not move. Treat the colours and
+the shapes below as fixed; propose, never apply, a change to them.
+- Ground `#F8F4EC` · ink `#16130F` · ivory `#F7F4ED` · list panel `#EEEAE1`.
+- Cobalt `#1D2FC4` — the AM/PM blocks, the open tab's underline, focus. It
+  means "due" or "the section you are in", never a warning or a success.
+- Walnut `#68472C` — the day schedule, every sheet (Let go, Add to day,
+  Add to a sitting), the month picker. Tan `#C0966F` for labels on it.
+- Oxblood `#C87A7A` — the ONLY red. Slide-to-delete and "Let it go", nothing
+  else.
+- Sitting grounds run light to dark through the day (`src/lib/meals.js`).
+- No radii, no shadows (both are forced off in `src/index.css`). A lift is
+  said with an outline and an opaque ground.
+- One affordance per job: slide a row aside to delete it (never a ×), one `+`
+  at the foot of a list, the two-button Let go sheet for anything repeating.
+
 ## Branches & deploy
 - Develop on `claude/friendly-albattani-4dzpko`; `main` is production.
 - Push to `main` ONLY (one deployment per change). Commit on the feature branch
