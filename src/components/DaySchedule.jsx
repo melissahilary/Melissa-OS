@@ -111,7 +111,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
                 key={h}
                 onClick={() => setAdding({ at: `${String(h).padStart(2, '0')}:00` })}
                 aria-label={`Add something at ${spokenHour(h)}`}
-                className="absolute left-0 right-0 flex items-start border-t text-left transition-colors hover:bg-white/[0.04]"
+                className="group absolute left-0 right-0 flex items-start border-t text-left transition-colors hover:bg-white/[0.09]"
                 style={{ top: h * HOUR, height: HOUR, borderColor: W.hair }}
               >
                 <span
@@ -119,6 +119,14 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
                   style={{ color: W.muted }}
                 >
                   {spokenHour(h)}
+                </span>
+                {/* The hour lights under the cursor and says what a click
+                    would do, the way an empty hour does in a calendar. */}
+                <span
+                  className="pointer-events-none mt-1.5 hidden text-[10px] uppercase tracking-[0.18em] opacity-0 transition-opacity group-hover:opacity-100 md:block"
+                  style={{ color: W.muted }}
+                >
+                  +
                 </span>
               </button>
             ))}
@@ -158,12 +166,9 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
         </div>
       </div>
 
-      {/* One way in, at the foot, on the right. */}
-      <div className="flex justify-end border-t px-6 py-4 md:px-14" style={{ borderColor: W.faint }}>
-        <button onClick={() => setAdding({ at: '' })} className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">
-          <span className="text-base leading-none">+</span> Add to day
-        </button>
-      </div>
+      {/* No mark at the foot of this one. The hours are the way in: the one
+          she wants lights under her hand and opens on a tap, which is how a
+          day is written on everywhere else she writes on one. */}
 
       {adding && (
         <AddToDay

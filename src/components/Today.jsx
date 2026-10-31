@@ -1543,8 +1543,8 @@ const fmtApptTime = (t) => {
 // at the head of the page now, and the food is the strip, so the columns were
 // the same day written a second time. DayFlow went with them; this is what is
 // left of it.
-function DayColumns({ dateKeyStr, meals, onAddMeal, onOpen, onToggle }) {
-  return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onOpen={onOpen} onToggle={onToggle} />
+function DayColumns({ dateKeyStr, meals, onAddMeal, onRemoveMeal, onOpen, onToggle }) {
+  return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} onOpen={onOpen} onToggle={onToggle} />
 }
 
 // ── The day's nourishment, as seven sittings.
@@ -1560,7 +1560,7 @@ function DayColumns({ dateKeyStr, meals, onAddMeal, onOpen, onToggle }) {
 // same form the rest of the app adds meals with — which asks whether this is a
 // one-off or something that repeats, so a dinner tonight does not become a
 // dinner every night.
-function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
+function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
   // When she set an hour, and for how long. `standing` is the hour from here
   // on; `days` holds the one-off changes, so moving dinner tonight does not
   // move it for good.
@@ -1698,6 +1698,17 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
                   >
                     {m.name}
                   </button>
+                  {/* Taking a thing off the sitting, in the one place a thing
+                      is taken off anything here: a cross at the end of its own
+                      line. */}
+                  <button
+                    onClick={() => onRemove && onRemove(m.id)}
+                    aria-label={`Remove ${m.name}`}
+                    className="-my-1 shrink-0 px-1.5 py-1 text-[15px] leading-none transition-opacity hover:opacity-100 sm:opacity-45"
+                    style={{ color: dim }}
+                  >
+                    &times;
+                  </button>
                 </div>
               ))}
             </div>
@@ -1756,13 +1767,18 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
                 {x.eats && <Section name="Meal" list={food} />}
                 <Section name="Drink" list={drink} />
                 <Section name="Supplements" list={supps} />
-                {/* One mark to the sitting, not one to each part of it. What
-                    it is — food, drink or supplement — is chosen inside. */}
+              </div>
+
+              {/* One mark to the sitting, not one to each part of it, held at
+                  the foot of the card on its own rule — the same mark, in the
+                  same place, as the one under the routines. What it is — meal,
+                  drink or supplement — is chosen inside. */}
+              <div className="mt-6 border-t pt-4" style={{ borderColor: rule }}>
                 <button
                   onClick={() => setAdding({ id: x.id, label: x.label, food: x.food, drink: x.drink, eats: x.eats })}
                   aria-label={`Add to ${x.label.toLowerCase()}`}
-                  className="mt-7 text-[17px] leading-none transition-opacity hover:opacity-60"
-                  style={{ color: dim }}
+                  className="mx-auto block px-4 py-1 text-[19px] leading-none transition-opacity hover:opacity-70"
+                  style={{ color: ink }}
                 >
                   +
                 </button>
