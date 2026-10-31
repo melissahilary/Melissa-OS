@@ -743,7 +743,7 @@ function MoonPopup({ info, onClose }) {
   )
 }
 
-export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle, goToDream }) {
+export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
@@ -1038,25 +1038,11 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
           because they are the part of the page she is most often here for. */}
       <DayLists />
 
-      {/* The month grid that used to stand here is the ink calendar at the head
-          of the page now, and the day's notes have come off the page — the
-          notebook is its own place. */}
-
-      {/* The way into Becoming. It used to sit in the index, under the twelve
-          pillars, which put a place you visit once a week beside twelve you
-          keep daily. At the foot of the day it is where it belongs for now:
-          after everything today asks of her, the thing the days are for. */}
-      {goToDream && (
-        <div className="mt-6 flex flex-col items-center border-t border-stone-200 pt-10">
-          <p className="kicker text-stone-500">What the days are for</p>
-          <button
-            onClick={goToDream}
-            className="mt-4 inline-flex items-center gap-2.5 rounded-full bg-stone-900 px-8 py-3 font-serif text-lg tracking-wide text-cream transition-opacity hover:opacity-90"
-          >
-            Becoming
-          </button>
-        </div>
-      )}
+      {/* The day ends on the lists. The month grid that used to stand here is
+          inside the day now, the notes have gone to the notebook, and the way
+          into Becoming has come off the foot of the page — a door standing
+          after everything the day asks of her was one more thing being asked.
+          Becoming is reached from the index like everywhere else. */}
 
       {blockAdd && (
         <BlockAddChooser

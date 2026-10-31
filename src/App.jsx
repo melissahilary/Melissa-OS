@@ -299,7 +299,7 @@ export default function App() {
       <main className={`overflow-x-hidden px-6 pb-28 md:px-10 lg:px-12 ${isToday ? '' : 'pt-10'}`}>
         <div className="mx-auto max-w-5xl">
           {pageTitle && <h1 className="mb-9 text-center font-serif text-4xl text-stone-900 md:text-5xl">{pageTitle}</h1>}
-          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} goToDream={() => setActive('dream')} />}
+          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
           {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
           {isPillar && ActivePillar && (
             <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
@@ -422,6 +422,14 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
             {onAsk && (
               <button onClick={() => go(onAsk)} className="block py-2 text-[11px] uppercase tracking-[0.18em] text-cobalt transition-opacity hover:opacity-60">
                 Ask
+              </button>
+            )}
+            {/* Becoming stood at the foot of Today — a door held open after
+                everything the day had already asked of her. It is a place you
+                go to, so it is in the index with the other places. */}
+            {onGoDream && (
+              <button onClick={() => go(onGoDream)} className="block py-2 text-[11px] uppercase tracking-[0.18em] text-cobalt transition-opacity hover:opacity-60">
+                Becoming
               </button>
             )}
             <button onClick={() => go(onGoSettings)} className="block py-2 text-[11px] uppercase tracking-[0.18em] text-cobalt transition-opacity hover:opacity-60">
