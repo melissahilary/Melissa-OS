@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { PILLARS } from '../lib/pillars'
+import SwipeAway from './shared/SwipeAway'
 
 // ── The three lists that are not the day.
 //
@@ -12,7 +13,8 @@ import { PILLARS } from '../lib/pillars'
 //
 // The strip carries the name and the count; the list below carries nothing but
 // the list. No card head, no number, no right-hand column — the strip has
-// already said what this is and how much of it there is.
+// already said what this is and how much of it there is. A row comes off the
+// list the way it comes off everywhere else — slid aside, not crossed out.
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -25,7 +27,11 @@ const arr = (v) => (Array.isArray(v) ? v : [])
 
 // Ten rows and then a scroll. The height is the rows, not a guess at them.
 const PANE = 'mos-scroll max-h-[560px] overflow-y-auto'
-const ROW = 'flex items-center gap-4 border-b border-stone-200 py-3.5'
+const ROW = 'flex items-center gap-4 py-3.5'
+// The row slides on its own ground and carries its own rule, so the red comes
+// up from under it rather than through it.
+const GROUND = '#EEEAE1'
+const RULE = '#E2DED4'
 
 // The one mark of state in all three lists: a square hairline that fills when
 // it is kept, got, or done with. Never a tick icon, and never a colour.
@@ -92,10 +98,17 @@ function Tasks() {
     <div>
       <div className={PANE}>
         {items.map((t) => (
-          <div key={t.id} className={ROW}>
-            <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
-            <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
-          </div>
+          <SwipeAway
+            key={t.id}
+            ground={GROUND}
+            rule={RULE}
+            onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== t.id))}
+          >
+            <div className={ROW}>
+              <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
+              <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
+            </div>
+          </SwipeAway>
         ))}
       </div>
       <AddLine onAdd={(title) => setRaw((prev) => [...arr(prev), { id: uid(), title, topic: 'general', done: false }])} placeholder="Something owed" />
@@ -135,14 +148,20 @@ function Reminders() {
       </div>
       <div className={PANE}>
         {shown.map((r) => (
-          <div key={r.id} className={`group ${ROW}`}>
-            <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
-            <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
-            {r.auto && (
-              <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-cobalt">{topicLabel(r.topic)} · Auto</span>
-            )}
-            <button onClick={() => setRaw((prev) => arr(prev).filter((x) => x.id !== r.id))} aria-label={`Remove ${r.text}`} className="shrink-0 text-stone-300 transition-colors hover:text-stone-900 sm:opacity-0 sm:group-hover:opacity-100">×</button>
-          </div>
+          <SwipeAway
+            key={r.id}
+            ground={GROUND}
+            rule={RULE}
+            onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== r.id))}
+          >
+            <div className={ROW}>
+              <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
+              <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
+              {r.auto && (
+                <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-cobalt">{topicLabel(r.topic)} · Auto</span>
+              )}
+            </div>
+          </SwipeAway>
         ))}
       </div>
       <AddLine
@@ -172,10 +191,17 @@ function Shopping() {
     <div>
       <div className={PANE}>
         {ordered.map((it) => (
-          <div key={it.id} className={ROW}>
-            <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
-            <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
-          </div>
+          <SwipeAway
+            key={it.id}
+            ground={GROUND}
+            rule={RULE}
+            onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== it.id))}
+          >
+            <div className={ROW}>
+              <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
+              <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
+            </div>
+          </SwipeAway>
         ))}
       </div>
       <AddLine

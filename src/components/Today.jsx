@@ -3,6 +3,7 @@ import { Trash2, ChevronDown, Pause, BookOpen } from 'lucide-react'
 import { CloseIcon, NextIcon } from './shared/marks'
 import { BTN, BTN_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/buttons'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import SwipeAway from './shared/SwipeAway'
 import { phaseForConfig } from '../lib/cycle'
 import {
   dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
@@ -846,10 +847,12 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   }
 
   // NOURISHMENT — meal items + supplements for a day, shaped for the slots.
-  const dayMeals = (k) =>
-    activities
-      .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && active(a, k))
+  const dayMeals = (k) => {
+    const off = Array.isArray(skips[k]) ? skips[k] : []
+    return activities
+      .filter((a) => (a.type === 'meal_item' || a.type === 'supplement') && active(a, k) && !off.includes(a.id))
       .map((a) => ({ ...toMealShape(a), done: isDoneOn(a, k) }))
+  }
 
   // Quick inline add from a meal slot (AddMealForm shape → activity).
   const addMeal = (m) =>
@@ -973,6 +976,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         meals={dayMeals(selectedKey)}
         onAddMeal={addMeal}
         onRemoveMeal={removeMeal}
+        onSkip={skipToday}
         onMoveTaskBlock={moveTaskToBlock}
         onAddTask={addTask}
         onPause={pauseItem}
@@ -1072,6 +1076,45 @@ const PHASE_AGENDA_HINT = {
 // A row is the box and the step, in that order — the box stands where the
 // number used to, because a numbered list that shortens as she keeps it
 // renumbers itself, and no pillar is named beside it either.
+
+// ── Letting a thing go.
+//
+// The same two answers wherever a row is pulled aside: today only, or for
+// good. The app cannot tell them apart and guessing is how a bad morning
+// quietly becomes a lost habit, so it asks — once, in two buttons.
+function LetGo({ kicker, name, onSkip, onDrop, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9" style={{ background: '#68472C', color: '#F7F4ED' }}>
+        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{kicker}</p>
+        <p className="mt-3 font-serif text-[30px] lowercase leading-tight">{name || 'Untitled'}</p>
+
+        <button
+          onClick={onSkip}
+          className="mt-8 block w-full border border-cream/45 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-cream transition-colors hover:border-cream"
+        >
+          Not today
+        </button>
+
+        <button
+          onClick={onDrop}
+          className="mt-3 block w-full px-5 py-4 text-[11px] uppercase tracking-[0.18em] transition-opacity hover:opacity-90"
+          style={{ backgroundColor: OXBLOOD, color: '#F7F4ED' }}
+        >
+          Let it go
+        </button>
+
+        <div className="mt-7 flex justify-end">
+          <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // The one red in the house: the oxblood the concierge uses when something has
 // gone out of range. Nothing else here is red, so it reads as the warning it is.
@@ -1383,40 +1426,15 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         )}
       </div>
 
-      {/* Today, or for good. A step pulled aside is one of two things and the
-          app cannot tell which, so it asks — once, in two lines, the way the
-          hour of a sitting is asked about. */}
+      {/* Today, or for good. */}
       {asking && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
-          style={{ background: 'rgba(22,19,15,0.55)' }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setAsking(null) }}
-        >
-          <div className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9" style={{ background: '#68472C', color: '#F7F4ED' }}>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{title} routine</p>
-            <p className="mt-3 font-serif text-[30px] lowercase leading-tight">{asking.title || 'Untitled'}</p>
-
-            {/* Two answers, each one a thing to press. */}
-            <button
-              onClick={() => { if (onSkip) onSkip(asking.id); setAsking(null) }}
-              className="mt-8 block w-full border border-cream/45 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-cream transition-colors hover:border-cream"
-            >
-              Not today
-            </button>
-
-            <button
-              onClick={() => { if (onDrop) onDrop(asking.id); setAsking(null) }}
-              className="mt-3 block w-full px-5 py-4 text-[11px] uppercase tracking-[0.18em] transition-opacity hover:opacity-90"
-              style={{ backgroundColor: OXBLOOD, color: '#F7F4ED' }}
-            >
-              Let it go
-            </button>
-
-            <div className="mt-7 flex justify-end">
-              <button onClick={() => setAsking(null)} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
-            </div>
-          </div>
-        </div>
+        <LetGo
+          kicker={`${title} routine`}
+          name={asking.title}
+          onSkip={() => { if (onSkip) onSkip(asking.id); setAsking(null) }}
+          onDrop={() => { if (onDrop) onDrop(asking.id); setAsking(null) }}
+          onClose={() => setAsking(null)}
+        />
       )}
 
       {/* The way in, held at the foot of the block. The list scrolls past it
@@ -1697,8 +1715,8 @@ const fmtApptTime = (t) => {
 // at the head of the page now, and the food is the strip, so the columns were
 // the same day written a second time. DayFlow went with them; this is what is
 // left of it.
-function DayColumns({ dateKeyStr, meals, onAddMeal, onRemoveMeal, onOpen, onToggle }) {
-  return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} onOpen={onOpen} onToggle={onToggle} />
+function DayColumns({ dateKeyStr, meals, onAddMeal, onRemoveMeal, onOpen, onToggle, onSkip }) {
+  return <Sittings meals={meals} dateKeyStr={dateKeyStr} onAdd={onAddMeal} onRemove={onRemoveMeal} onOpen={onOpen} onToggle={onToggle} onSkip={onSkip} />
 }
 
 // ── The day's nourishment, as seven sittings.
@@ -1714,7 +1732,7 @@ function DayColumns({ dateKeyStr, meals, onAddMeal, onRemoveMeal, onOpen, onTogg
 // same form the rest of the app adds meals with — which asks whether this is a
 // one-off or something that repeats, so a dinner tonight does not become a
 // dinner every night.
-function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
+function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip }) {
   // When she set an hour, and for how long. `standing` is the hour from here
   // on; `days` holds the one-off changes, so moving dinner tonight does not
   // move it for good.
@@ -1756,6 +1774,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
   }
   const [i, setI] = useState(nearest)
   const [adding, setAdding] = useState(null) // { slot, kind }
+  const [letting, setLetting] = useState(null) // the line being let go
   const [editing, setEditing] = useState(null) // { id, value }
   const [asking, setAsking] = useState(null)   // { id, value } — today, or from now on
   const rail = useRef(null)
@@ -1834,7 +1853,14 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
                 <span className="h-px flex-1" style={{ backgroundColor: rule }} />
               </div>
               {list.map((m) => (
-                <div key={m.id} className="mt-2.5 flex items-start gap-3.5">
+                <SwipeAway
+                  key={m.id}
+                  ground={x.ground}
+                  label="Delete"
+                  className="mt-2.5"
+                  onAway={() => setLetting(m)}
+                >
+                <div className="flex items-start gap-3.5">
                   {/* Everything in a sitting is taken, so everything is
                       ticked. A square hairline that fills in the ink of the
                       card, with the line struck through. */}
@@ -1852,18 +1878,8 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
                   >
                     {m.name}
                   </button>
-                  {/* Taking a thing off the sitting, in the one place a thing
-                      is taken off anything here: a cross at the end of its own
-                      line. */}
-                  <button
-                    onClick={() => onRemove && onRemove(m.id)}
-                    aria-label={`Remove ${m.name}`}
-                    className="-my-1 shrink-0 px-1.5 py-1 text-[15px] leading-none transition-opacity hover:opacity-100 sm:opacity-45"
-                    style={{ color: dim }}
-                  >
-                    &times;
-                  </button>
                 </div>
+                </SwipeAway>
               ))}
             </div>
           )
@@ -1916,8 +1932,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
                   {spoken(hourOf(x.id))}
                 </button>
               )}
-              <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
-              <div className="mos-scroll mt-6 flex-1 overflow-y-auto">
+              <div className="mos-scroll mt-8 flex-1 overflow-y-auto">
                 {x.eats && <Section name="Meal" list={food} />}
                 <Section name="Drink" list={drink} />
                 <Section name="Supplements" list={supps} />
@@ -1927,7 +1942,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
                   the foot of the card on its own rule — the same mark, in the
                   same place, as the one under the routines. What it is — meal,
                   drink or supplement — is chosen inside. */}
-              <div className="mt-6 border-t pt-4" style={{ borderColor: rule }}>
+              <div className="mt-6 pt-2">
                 <button
                   onClick={() => setAdding({ id: x.id, label: x.label, food: x.food, drink: x.drink, eats: x.eats })}
                   aria-label={`Add to ${x.label.toLowerCase()}`}
@@ -2025,6 +2040,16 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle }) {
             <button onClick={() => setAsking(null)} className={`mt-6 ${QUIET}`}>Cancel</button>
           </div>
         </div>
+      )}
+
+      {letting && (
+        <LetGo
+          kicker={(SITTINGS.find((x) => x.food === letting.slot || x.drink === letting.slot) || {}).label || 'Sitting'}
+          name={letting.name}
+          onSkip={() => { if (onSkip) onSkip(letting.id); setLetting(null) }}
+          onDrop={() => { if (onRemove) onRemove(letting.id); setLetting(null) }}
+          onClose={() => setLetting(null)}
+        />
       )}
 
       {adding && (
