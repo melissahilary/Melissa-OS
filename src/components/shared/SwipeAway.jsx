@@ -1,76 +1,182 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 // ── Sliding a row away.
 //
-// The one way anything is taken off a list here. The row comes aside, the red
-// is underneath it with the word on it, and letting go past the pull asks —
-// or, where there is nothing to ask, takes it.
+// The one way anything is taken off a list here, and it behaves the way the
+// gesture behaves everywhere else on the phone: the row follows the finger
+// exactly, it rests open with the red standing beside it, and the red is a
+// button she then presses. Nothing is destroyed by the slide itself — the
+// slide only offers.
 //
-// It only ever moves sideways: whichever way the finger commits to first is
-// the only way it goes, so the page still scrolls under it, a grip can still
-// take a row up and down, and a tap is still a tap.
+// Two things were wrong before and both made it feel broken. React attaches
+// touchmove as a passive listener, so the preventDefault that holds the page
+// still never took: the browser took the gesture for a scroll and the row
+// sprang back under her finger. And the position was React state, so every
+// millimetre was a re-render. Now the listeners are attached by hand, and the
+// movement is written straight to the node — no render runs while she drags.
 
 export const OXBLOOD = '#C87A7A'
-const REVEAL = 96 // as far as the red panel is wide, and no further
-const PULL = 64 // how far it has to come before it means it
+const REVEAL = 104 // how wide the red stands when the row is resting open
+const CATCH = 46 // past this on release, the row stays open
+const FULL = 190 // and past this it is a sweep: the question is asked at once
+const EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)'
+
+// Only one row is ever open. Opening another closes it, the way a list of
+// them behaves anywhere else.
+let openRow = null
 
 export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', className = '', style, children }) {
+  const inner = useRef(null)
+  const panel = useRef(null)
   const grab = useRef(null)
-  const [dx, setDx] = useState(0)
+  const rest = useRef(0)
+  const [open, setOpen] = useState(false)
 
-  const start = (e) => {
-    if (disabled) return
-    const pt = e.touches && e.touches.length ? e.touches[0] : e
-    grab.current = { x0: pt.clientX, y0: pt.clientY, axis: null, dx: 0 }
-  }
-  const move = (e) => {
-    const g = grab.current
-    if (!g) return
-    const pt = e.touches && e.touches.length ? e.touches[0] : e
-    const x = pt.clientX - g.x0
-    const y = pt.clientY - g.y0
-    if (!g.axis) {
-      if (Math.abs(x) < 10 && Math.abs(y) < 10) return
-      g.axis = Math.abs(x) > Math.abs(y) ? 'x' : 'y'
+  // The row, put where it is being held or where it has come to rest.
+  const place = (dx, glide) => {
+    const i = inner.current
+    const p = panel.current
+    if (i) {
+      i.style.transition = glide ? `transform 280ms ${EASE}` : 'none'
+      i.style.transform = `translate3d(${dx}px, 0, 0)`
     }
-    if (g.axis !== 'x') return
-    if (e.cancelable) e.preventDefault()
-    g.dx = Math.max(-REVEAL, Math.min(0, x))
-    setDx(g.dx)
+    if (p) {
+      p.style.transition = glide ? `width 280ms ${EASE}` : 'none'
+      p.style.width = `${Math.max(0, -dx)}px`
+    }
   }
-  const end = () => {
-    const g = grab.current
-    grab.current = null
-    if (g && g.axis === 'x' && g.dx <= -PULL && onAway) onAway()
-    setDx(0)
+
+  const shut = useRef(() => {})
+  const settle = (toOpen) => {
+    rest.current = toOpen ? -REVEAL : 0
+    place(rest.current, true)
+    setOpen(toOpen)
+    if (toOpen) {
+      if (openRow && openRow !== shut.current) openRow()
+      openRow = shut.current
+    } else if (openRow === shut.current) openRow = null
   }
+  shut.current = () => settle(false)
+
+  // ── The gesture ───────────────────────────────────────────────────
+  //
+  // Attached by hand, because touchmove has to be able to hold the page still
+  // and React's own listener cannot.
+  useEffect(() => {
+    const el = inner.current
+    if (!el) return undefined
+
+    const start = (e) => {
+      if (disabled) return
+      // Anything that has its own job under the finger — a grip, a field —
+      // keeps it.
+      if (e.target && e.target.closest && e.target.closest('[data-no-swipe]')) return
+      const pt = e.touches ? e.touches[0] : e
+      grab.current = { x0: pt.clientX, y0: pt.clientY, axis: null, raw: rest.current, from: rest.current }
+      place(rest.current, false)
+    }
+
+    const move = (e) => {
+      const d = grab.current
+      if (!d) return
+      const pt = e.touches ? e.touches[0] : e
+      const x = pt.clientX - d.x0
+      const y = pt.clientY - d.y0
+      if (!d.axis) {
+        if (Math.abs(x) < 8 && Math.abs(y) < 8) return
+        // The page gets the benefit of the doubt: it has to be clearly
+        // sideways before the row takes it.
+        if (Math.abs(x) <= Math.abs(y) * 1.1) { grab.current = null; return }
+        d.axis = 'x'
+      }
+      if (e.cancelable) e.preventDefault()
+      const raw = d.from + x
+      d.raw = raw
+      // Past the rest there is resistance rather than a wall, and on the other
+      // side there is nothing to find at all.
+      let dx = raw
+      if (raw > 0) dx = raw * 0.2
+      else if (raw < -REVEAL) dx = -REVEAL - (-raw - REVEAL) * 0.42
+      place(dx, false)
+    }
+
+    const end = () => {
+      const d = grab.current
+      grab.current = null
+      if (!d || d.axis !== 'x') return
+      // A sweep all the way across asks straight away; anything shorter just
+      // rests open with the red beside it.
+      if (d.raw <= -FULL) { settle(false); if (onAway) onAway(); return }
+      settle(d.raw <= -CATCH)
+    }
+
+    const onPointerDown = (e) => { if (e.pointerType !== 'touch') start(e) }
+    const onPointerMove = (e) => { if (grab.current && e.pointerType !== 'touch') move(e) }
+    const onPointerUp = (e) => { if (e.pointerType !== 'touch') end() }
+
+    el.addEventListener('touchstart', start, { passive: true })
+    el.addEventListener('touchmove', move, { passive: false })
+    el.addEventListener('touchend', end)
+    el.addEventListener('touchcancel', end)
+    el.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    return () => {
+      el.removeEventListener('touchstart', start)
+      el.removeEventListener('touchmove', move)
+      el.removeEventListener('touchend', end)
+      el.removeEventListener('touchcancel', end)
+      el.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      if (openRow === shut.current) openRow = null
+    }
+  }, [disabled, onAway])
+
+  // Pressing anywhere else puts it back, which is how an open row closes
+  // without being told to.
+  useEffect(() => {
+    if (!open) return undefined
+    const away = (e) => {
+      const i = inner.current
+      const p = panel.current
+      if ((i && i.contains(e.target)) || (p && p.contains(e.target))) return
+      settle(false)
+    }
+    document.addEventListener('pointerdown', away, true)
+    return () => document.removeEventListener('pointerdown', away, true)
+  }, [open])
 
   return (
-    <div className={`relative ${className}`} style={style}>
-      <div
-        aria-hidden
-        className="absolute inset-y-0 right-0 flex items-center justify-end pr-5"
-        style={{ backgroundColor: OXBLOOD, width: Math.max(0, -dx) }}
+    <div className={`relative overflow-hidden ${className}`} style={style}>
+      {/* The red, standing where the row was. It is a button once it is
+          standing: the slide offers, the press asks. */}
+      <button
+        ref={panel}
+        type="button"
+        tabIndex={open ? 0 : -1}
+        aria-hidden={!open}
+        onClick={() => { settle(false); if (onAway) onAway() }}
+        className="absolute inset-y-0 right-0 flex items-center justify-center overflow-hidden whitespace-nowrap"
+        style={{ backgroundColor: OXBLOOD, width: 0, pointerEvents: open ? 'auto' : 'none' }}
       >
         <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#F7F4ED' }}>{label}</span>
-      </div>
+      </button>
       <div
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
-        onTouchStart={start}
-        onTouchMove={move}
-        onTouchEnd={end}
+        ref={inner}
         className="relative"
-        style={{
-          backgroundColor: ground,
-          transform: dx ? `translateX(${dx}px)` : undefined,
-          transition: dx ? 'none' : 'transform 160ms ease-out',
-          touchAction: 'pan-y',
-        }}
+        style={{ backgroundColor: ground, touchAction: 'pan-y' }}
       >
         {children}
+        {/* While the red is standing, the row itself is not live: a press on
+            it puts the row back rather than opening what is under it. */}
+        {open && (
+          <span
+            aria-hidden
+            className="absolute inset-0"
+            onClick={(e) => { e.stopPropagation(); settle(false) }}
+          />
+        )}
       </div>
     </div>
   )

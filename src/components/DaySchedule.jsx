@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { parseKey } from '../lib/date'
+import { parseKey, dateKey, monthGrid, DOW, isSameDay } from '../lib/date'
+import SwipeAway from './shared/SwipeAway'
+import LetGo from './shared/LetGo'
 
 // ── Today's schedule, as a day planner.
 //
@@ -57,10 +59,12 @@ const clockOf = (mins) => {
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
 }
 
-export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAdd }) {
+export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAdd, onPickDate, onSkip, onDrop, holds }) {
   const [adding, setAdding] = useState(null) // null | { at, until }
   const [draft, setDraft] = useState(null) // null | { start, end } — the thing being drawn
   const [hover, setHover] = useState(null) // the hour under a cursor, on a desktop
+  const [picking, setPicking] = useState(false) // the month, stood in front of the day
+  const [letting, setLetting] = useState(null) // the appointment being let go
   const scroller = useRef(null)
   const layer = useRef(null)
   const drag = useRef(null)
@@ -166,6 +170,8 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
 
     const onDown = (e) => {
       if (e.pointerType === 'touch') return
+      // A press that lands on something already on the day belongs to it.
+      if (e.target && e.target.closest && e.target.closest('[data-no-draw]')) return
       e.preventDefault()
       armed = true
       begin(e.clientY)
@@ -175,6 +181,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
 
     const onTouchStart = (e) => {
       if (e.touches.length !== 1) return
+      if (e.target && e.target.closest && e.target.closest('[data-no-draw]')) return
       const t = e.touches[0]
       origin = { x: t.clientX, y: t.clientY }
       clear()
@@ -233,12 +240,29 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
 
   return (
     <section className="mos-bleed" style={{ background: W.ground, color: W.ivory }}>
+      {picking ? (
+        <MonthPick
+          from={dateKeyStr}
+          holds={holds}
+          onPick={(k) => { if (onPickDate) onPickDate(k); setPicking(false) }}
+          onClose={() => setPicking(false)}
+        />
+      ) : (
       <div className="grid md:grid-cols-[1fr_1.35fr]">
-        {/* The date, set the way a date is set in print. */}
+        {/* The date, set the way a date is set in print — and the way to
+            another one: pressing it stands the month in front of the day. */}
         <div className="px-6 pb-8 pt-12 md:px-14 md:pb-16 md:pt-16">
           <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Today&rsquo;s schedule</p>
-          <p className="mt-6 font-serif leading-[0.82] text-[130px] md:text-[170px]">{date.getDate()}</p>
-          <p className="mt-2 font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</p>
+          <button
+            type="button"
+            onClick={() => setPicking(true)}
+            aria-label="Choose another day"
+            className="block w-full text-left transition-opacity hover:opacity-85"
+          >
+            <span className="mt-6 block font-serif leading-[0.82] text-[130px] md:text-[170px]">{date.getDate()}</span>
+            <span className="mt-2 block font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</span>
+            <span className="mt-5 block text-[10px] uppercase tracking-[0.22em] underline underline-offset-[6px]" style={{ color: W.muted }}>Another day</span>
+          </button>
           <p className="mt-6 text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
         </div>
 
@@ -273,24 +297,32 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
             {placed.map((e) => (
               <div
                 key={e.id}
-                className="pointer-events-none absolute right-4 md:right-8"
+                data-no-draw
+                className="absolute right-4 z-10 md:right-8"
                 style={{
                   top: (e.start / 60) * HOUR + 2,
                   height: Math.max(((e.end - e.start) / 60) * HOUR - 4, 28),
                   left: 72,
                 }}
               >
-                <div
-                  className="h-full overflow-hidden px-3.5 py-1.5"
-                  style={{ background: W.block, borderLeft: `2px solid ${W.ivory}` }}
+                <SwipeAway
+                  ground={W.ground}
+                  label="Delete"
+                  className="h-full"
+                  onAway={() => setLetting(e)}
                 >
-                  {/* The hour and the thing on one line, so a half-hour block
-                      says as much as a two-hour one. */}
-                  <p className={`truncate text-[15px] lowercase leading-snug ${e.done ? 'line-through' : ''}`} style={e.done ? { color: W.muted } : undefined}>
-                    <span className="mr-2.5 text-[10px] uppercase tracking-[0.14em]" style={{ color: W.muted }}>{spokenTime(e.start)}</span>
-                    {e.title}
-                  </p>
-                </div>
+                  <div
+                    className="h-full overflow-hidden px-3.5 py-1.5"
+                    style={{ background: W.block, borderLeft: `2px solid ${W.ivory}` }}
+                  >
+                    {/* The hour and the thing on one line, so a half-hour block
+                        says as much as a two-hour one. */}
+                    <p className={`truncate text-[15px] lowercase leading-snug ${e.done ? 'line-through' : ''}`} style={e.done ? { color: W.muted } : undefined}>
+                      <span className="mr-2.5 text-[10px] uppercase tracking-[0.14em]" style={{ color: W.muted }}>{spokenTime(e.start)}</span>
+                      {e.title}
+                    </p>
+                  </div>
+                </SwipeAway>
               </div>
             ))}
 
@@ -343,10 +375,21 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
           </div>
         </div>
       </div>
+      )}
 
       {/* No mark at the foot of this one. The day is the way in: press where it
           starts and pull to where it ends, which is how a day is written on
           everywhere else she writes on one. */}
+
+      {letting && (
+        <LetGo
+          kicker="Today's schedule"
+          name={letting.title}
+          onSkip={() => { if (onSkip) onSkip(letting.id); setLetting(null) }}
+          onDrop={() => { if (onDrop) onDrop(letting.id); setLetting(null) }}
+          onClose={() => setLetting(null)}
+        />
+      )}
 
       {adding && (
         <AddToDay
@@ -357,6 +400,87 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
         />
       )}
     </section>
+  )
+}
+
+// ── The month, stood in front of the day.
+//
+// The ink calendar at the head of the page is the record; this is the thing
+// she reaches for when she is already looking at a Friday and wants a
+// Tuesday. Same brown, same hand — numerals and nothing else, with a mark
+// under the days that hold something, and a line back to the day she left.
+function MonthPick({ from, holds, onPick, onClose }) {
+  const start = parseKey(from)
+  const [month, setMonth] = useState(new Date(start.getFullYear(), start.getMonth(), 1))
+  const today = new Date()
+  const cells = monthGrid(month)
+
+  return (
+    <div className="px-6 pb-12 pt-12 md:px-14 md:pb-16 md:pt-16">
+      <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Choose a day</p>
+
+      <div className="mt-7 flex items-center justify-between">
+        <button
+          onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+          aria-label="The month before"
+          className="px-3 py-1 text-[22px] leading-none transition-opacity hover:opacity-70"
+        >
+          &lsaquo;
+        </button>
+        <h3 className="whitespace-nowrap font-serif text-[34px] leading-none md:text-[44px]">{MONTHS[month.getMonth()]}</h3>
+        <button
+          onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+          aria-label="The month after"
+          className="px-3 py-1 text-[22px] leading-none transition-opacity hover:opacity-70"
+        >
+          <span className="block rotate-180">&lsaquo;</span>
+        </button>
+      </div>
+
+      <div className="mx-auto mt-9 grid max-w-xl grid-cols-7 gap-y-1">
+        {DOW.map((d) => (
+          <div key={d} className="pb-3 text-center text-[10px] uppercase tracking-[0.16em]" style={{ color: W.muted }} title={d}>
+            {d[0]}
+          </div>
+        ))}
+        {cells.map((cell) => {
+          const key = dateKey(cell)
+          const here = cell.getMonth() === month.getMonth()
+          const chosen = key === from
+          const now = isSameDay(cell, today)
+          const held = here && holds ? holds(key) : false
+          return (
+            <button
+              key={key}
+              onClick={() => onPick(key)}
+              aria-current={chosen ? 'date' : undefined}
+              className="relative flex h-12 flex-col items-center justify-center font-serif text-[19px] transition-opacity md:h-14 md:text-[22px]"
+              style={{
+                color: chosen ? W.ground : W.ivory,
+                background: chosen ? W.ivory : 'transparent',
+                opacity: here ? 1 : 0.28,
+                outline: !chosen && now ? `1px solid ${W.faint}` : undefined,
+              }}
+            >
+              {cell.getDate()}
+              {held && !chosen && (
+                <span aria-hidden className="absolute bottom-[7px] block h-[3px] w-[3px] rounded-full" style={{ background: W.ivory }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-10 flex justify-center">
+        <button
+          onClick={onClose}
+          className="text-[10px] uppercase tracking-[0.22em] underline underline-offset-[6px] transition-opacity hover:opacity-70"
+          style={{ color: W.muted }}
+        >
+          Back to the day
+        </button>
+      </div>
+    </div>
   )
 }
 

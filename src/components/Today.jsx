@@ -4,6 +4,7 @@ import { CloseIcon, NextIcon } from './shared/marks'
 import { BTN, BTN_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/buttons'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SwipeAway from './shared/SwipeAway'
+import LetGo from './shared/LetGo'
 import { phaseForConfig } from '../lib/cycle'
 import {
   dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
@@ -1001,6 +1002,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         appointments={dayAppointments(selectedKey)}
         phase={todayPhase}
         onAdd={(title, at, until) => addEvent(title, at, until)}
+        onPickDate={pickDay}
+        holds={(k) => dayScheduled(k).length > 0}
+        onSkip={skipToday}
+        onDrop={remove}
       />
 
       {/* What is owed rather than scheduled: the tasks, the reminders and the
@@ -1077,45 +1082,6 @@ const PHASE_AGENDA_HINT = {
 // number used to, because a numbered list that shortens as she keeps it
 // renumbers itself, and no pillar is named beside it either.
 
-// ── Letting a thing go.
-//
-// The same two answers wherever a row is pulled aside: today only, or for
-// good. The app cannot tell them apart and guessing is how a bad morning
-// quietly becomes a lost habit, so it asks — once, in two buttons.
-function LetGo({ kicker, name, onSkip, onDrop, onClose }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
-      style={{ background: 'rgba(22,19,15,0.55)' }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9" style={{ background: '#68472C', color: '#F7F4ED' }}>
-        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{kicker}</p>
-        <p className="mt-3 font-serif text-[30px] lowercase leading-tight">{name || 'Untitled'}</p>
-
-        <button
-          onClick={onSkip}
-          className="mt-8 block w-full border border-cream/45 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-cream transition-colors hover:border-cream"
-        >
-          Not today
-        </button>
-
-        <button
-          onClick={onDrop}
-          className="mt-3 block w-full px-5 py-4 text-[11px] uppercase tracking-[0.18em] transition-opacity hover:opacity-90"
-          style={{ backgroundColor: OXBLOOD, color: '#F7F4ED' }}
-        >
-          Let it go
-        </button>
-
-        <div className="mt-7 flex justify-end">
-          <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // The one red in the house: the oxblood the concierge uses when something has
 // gone out of range. Nothing else here is red, so it reads as the warning it is.
 const OXBLOOD = '#C87A7A'
@@ -1146,50 +1112,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
 
   // ── Sliding a step away.
   //
-  // A row taken sideways reveals what it would mean to let it go, and asks on
-  // release: today only, or for good. The grip still takes it up and down —
-  // whichever way the finger commits to first is the only way it goes.
+  // A row taken sideways rests open with the red beside it, and pressing the
+  // red asks: today only, or for good. The grip still takes it up and down.
   const writeLine = useRef(null)
-  const swipe = useRef(null)
-  const [slid, setSlid] = useState({ id: null, dx: 0 })
   const [asking, setAsking] = useState(null) // the step being let go
-  // As far as the red panel is wide and no further, the way a mail app lets a
-  // row come aside: enough to read the word, never so far the step is gone.
-  const REVEAL = 96
-  const PULL = 64 // how far it has to come before the question is asked
-
-  const swipeStart = (e, id) => {
-    if (held) return
-    const pt = e.touches && e.touches.length ? e.touches[0] : e
-    swipe.current = { id, x0: pt.clientX, y0: pt.clientY, axis: null, dx: 0 }
-  }
-  const swipeMove = (e) => {
-    const w = swipe.current
-    if (!w) return
-    const pt = e.touches && e.touches.length ? e.touches[0] : e
-    const dx = pt.clientX - w.x0
-    const dy = pt.clientY - w.y0
-    if (!w.axis) {
-      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
-      // Whichever way it commits to first: sideways is a question, up and
-      // down is the page scrolling and none of our business.
-      w.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
-    }
-    if (w.axis !== 'x') return
-    if (e.cancelable) e.preventDefault()
-    w.dx = Math.max(-REVEAL, Math.min(0, dx))
-    setSlid({ id: w.id, dx: w.dx })
-  }
-  const swipeEnd = () => {
-    const w = swipe.current
-    swipe.current = null
-    if (!w || w.axis !== 'x') { setSlid({ id: null, dx: 0 }); return }
-    if (w.dx <= -PULL) {
-      const it = left.find((x) => x.id === w.id)
-      if (it) setAsking(it)
-    }
-    setSlid({ id: null, dx: 0 })
-  }
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
@@ -1337,32 +1263,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
                 : null),
             }}
           >
-            {/* What is underneath a step, found by pulling it aside: the one
-                red in the house, with the word on it. */}
-            <div
-              aria-hidden
-              className="absolute inset-y-0 right-0 flex items-center justify-end pr-6"
-              style={{ backgroundColor: OXBLOOD, width: Math.max(0, -(slid.id === it.id ? slid.dx : 0)) }}
-            >
-              <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#F7F4ED' }}>Delete</span>
-            </div>
-
-          <div
-            className="relative flex w-full items-center gap-5 py-3.5 text-left"
-            onPointerDown={(e) => swipeStart(e, it.id)}
-            onPointerMove={swipeMove}
-            onPointerUp={swipeEnd}
-            onPointerCancel={swipeEnd}
-            onTouchStart={(e) => swipeStart(e, it.id)}
-            onTouchMove={swipeMove}
-            onTouchEnd={swipeEnd}
-            style={{
-              backgroundColor: ground,
-              transform: slid.id === it.id ? `translateX(${slid.dx}px)` : undefined,
-              transition: slid.id === it.id ? 'none' : 'transform 160ms ease-out',
-              touchAction: 'pan-y',
-            }}
-          >
+            {/* Pulled aside, a step rests open with the one red in the house
+                standing beside it; the red is then pressed. */}
+            <SwipeAway ground={ground} label="Delete" disabled={!!held} onAway={() => setAsking(it)}>
+          <div className="relative flex w-full items-center gap-5 py-3.5 text-left">
             <button
               onClick={() => onToggle && onToggle(it.id)}
               aria-pressed={!!it.done}
@@ -1384,6 +1288,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             <span
               role="button"
               tabIndex={-1}
+              data-no-swipe
               aria-label={`Move ${it.title || 'Untitled'}`}
               onPointerDown={(e) => { e.preventDefault(); grab(it.id, e.clientY) }}
               onTouchStart={(e) => { if (e.cancelable) e.preventDefault(); grab(it.id, e.touches[0].clientY) }}
@@ -1397,6 +1302,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             </span>
 
           </div>
+            </SwipeAway>
           </div>
         ))}
 
@@ -1746,13 +1652,11 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
     return (SITTINGS.find((x) => x.id === id) || {}).at
   }
 
-  // Sittings she has put away. A hiding, kept with the hours, never a deletion
-  // — what was written in one is still there when it comes back.
+  // Sittings put away before the mark that put them away was taken off the
+  // card. Nothing is hidden any more, but what already was can still come
+  // back, so the line under the rail stays for as long as it has something
+  // on it.
   const hidden = (clock.hidden && typeof clock.hidden === 'object') ? clock.hidden : {}
-  const hide = (id) => setClock((prev) => {
-    const base = prev && typeof prev === 'object' ? prev : {}
-    return { ...base, hidden: { ...(base.hidden || {}), [id]: true } }
-  })
   const unhide = (id) => setClock((prev) => {
     const base = prev && typeof prev === 'object' ? prev : {}
     const next = { ...(base.hidden || {}) }
@@ -1887,21 +1791,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
               style={{ backgroundColor: x.ground, color: ink }}
               aria-current={idx === i ? 'true' : undefined}
             >
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: labelInk }}>{x.label}</p>
-                {/* Put the sitting away. Not everyone eats breakfast, and a
-                    card that says nothing every day is worse than no card —
-                    but it is a hiding, never a deletion, and the line under
-                    the rail brings it back. */}
-                <button
-                  onClick={() => hide(x.id)}
-                  aria-label={`Hide ${x.label.toLowerCase()}`}
-                  className="text-[13px] leading-none transition-opacity hover:opacity-60"
-                  style={{ color: dim }}
-                >
-                  ×
-                </button>
-              </div>
+              <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: labelInk }}>{x.label}</p>
               {/* The hour, and a way to change it. Enter asks whether this is
                   tonight or from now on — the app has no other way to say the
                   difference, and guessing it is how a one-off becomes a rule. */}
