@@ -4,12 +4,13 @@ import { dateKey } from '../lib/date'
 import { PILLARS } from '../lib/pillars'
 import SwipeAway from './shared/SwipeAway'
 
-// ── The three lists that are not the day.
+// ── The lists that are not the day.
 //
 // Everything above these is scheduled: it happens at an hour, or it repeats.
-// These three are the opposite — things that are simply owed, with no clock on
-// them at all. They share one strip across the full measure and one is open at
-// a time, because they are alternatives rather than companions.
+// These are the opposite — things that are simply owed, or wanted, or thought
+// of, with no clock on them at all. They share one strip across the full
+// measure and one is open at a time, because they are alternatives rather
+// than companions.
 //
 // The strip carries the name and the count; the list below carries nothing but
 // the list. No card head, no number, no right-hand column — the strip has
@@ -107,64 +108,32 @@ function Done({ n, open, onToggle, children }) {
   )
 }
 
-// ── Task list.
+// ── A plain list.
 //
-// Things owed, with no due date on any of them. The box is a square hairline
-// that fills when it is kept — never a tick icon, and never a colour.
-function Tasks() {
-  const [raw, setRaw] = useLocalStorage('mos:tasks', [])
+// Task list, reminders, wishlist, ideas, follow ups: the same list each time —
+// a box, a line, slid aside to take it off, and what is kept folded away under
+// the count. They differ only in what they are called and where they are kept,
+// so they are one component and not five.
+function Plain({ storeKey, field, placeholder }) {
+  const [raw, setRaw] = useLocalStorage(storeKey, [])
   const [showing, setShowing] = useState(false)
   const items = arr(raw)
-  const live = items.filter((t) => !t.done)
-  const done = items.filter((t) => t.done)
+  const live = items.filter((x) => !x.done)
+  const done = items.filter((x) => x.done)
 
-  const toggle = (id) => setRaw((prev) => arr(prev).map((t) => (t.id === id ? { ...t, done: !t.done } : t)))
-  const row = (t) => (
+  const row = (x) => (
     <SwipeAway
-      key={t.id}
+      key={x.id}
       ground={GROUND}
-      onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== t.id))}
+      onAway={() => setRaw((prev) => arr(prev).filter((y) => y.id !== x.id))}
     >
       <div className={ROW}>
-        <Box on={t.done} onClick={() => toggle(t.id)} label={t.title} />
-        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${t.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{t.title}</span>
-      </div>
-    </SwipeAway>
-  )
-
-  return (
-    <div>
-      <div className={PANE}>{live.map(row)}</div>
-      <AddLine onAdd={(title) => setRaw((prev) => [...arr(prev), { id: uid(), title, topic: 'general', done: false }])} placeholder="Something owed" />
-      <Done n={done.length} open={showing} onToggle={() => setShowing((v) => !v)}>
-        {done.map(row)}
-      </Done>
-    </div>
-  )
-}
-
-// ── Reminders.
-//
-// The same list as the one above it, for the things that are owed to someone
-// else rather than to the day. It used to carry the twelve pillars across its
-// head as filters and the pillar again on every row it had raised itself —
-// two kinds of filing on a list that is usually four lines long. A reminder
-// is still filed where it was written; the page simply no longer says so.
-function Reminders() {
-  const [raw, setRaw] = useLocalStorage('mos:reminders', [])
-  const [showing, setShowing] = useState(false)
-  const items = arr(raw)
-  const live = items.filter((r) => !r.done)
-  const done = items.filter((r) => r.done)
-  const row = (r) => (
-    <SwipeAway
-      key={r.id}
-      ground={GROUND}
-      onAway={() => setRaw((prev) => arr(prev).filter((x) => x.id !== r.id))}
-    >
-      <div className={ROW}>
-        <Box on={r.done} onClick={() => setRaw((prev) => arr(prev).map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)))} label={r.text} />
-        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${r.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{r.text}</span>
+        <Box
+          on={x.done}
+          onClick={() => setRaw((prev) => arr(prev).map((y) => (y.id === x.id ? { ...y, done: !y.done } : y)))}
+          label={x[field]}
+        />
+        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${x.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{x[field]}</span>
       </div>
     </SwipeAway>
   )
@@ -173,8 +142,8 @@ function Reminders() {
     <div>
       <div className={PANE}>{live.map(row)}</div>
       <AddLine
-        onAdd={(text) => setRaw((prev) => [...arr(prev), { id: uid(), text, topic: 'general', auto: false }])}
-        placeholder="A reminder"
+        onAdd={(t) => setRaw((prev) => [...arr(prev), { id: uid(), [field]: t, topic: 'general', done: false }])}
+        placeholder={placeholder}
       />
       <Done n={done.length} open={showing} onToggle={() => setShowing((v) => !v)}>
         {done.map(row)}
@@ -232,52 +201,100 @@ function Shopping() {
 // beneath it in the same scale contrast the readings above use. The one that
 // is open carries a cobalt rule under its whole third; the others carry the
 // hairline. Nothing else distinguishes them — no box, no fill.
+//
+// There are six lists and three places, so the strip turns: a chevron at its
+// end brings the next three, drawn the way everything pressed in this house is
+// drawn. Turning it only changes what she can see — the list she had open
+// stays open until she picks another.
 const TABS = [
-  { id: 'tasks', label: 'Task list', Panel: Tasks },
-  { id: 'reminders', label: 'Reminders', Panel: Reminders },
-  { id: 'shopping', label: 'Shopping list', Panel: Shopping },
+  { id: 'tasks', label: 'Task list', key: 'mos:tasks', field: 'title', placeholder: 'Something owed' },
+  { id: 'reminders', label: 'Reminders', key: 'mos:reminders', field: 'text', placeholder: 'A reminder' },
+  { id: 'shopping', label: 'Shopping list', shopping: true },
+  { id: 'wishlist', label: 'Wishlist', key: 'mos:wishlist', field: 'text', placeholder: 'Something wanted' },
+  { id: 'ideas', label: 'Ideas', key: 'mos:ideas', field: 'text', placeholder: 'An idea' },
+  { id: 'followups', label: 'Follow ups', key: 'mos:followups', field: 'text', placeholder: 'Someone to come back to' },
 ]
+const PER = 3
+const PAGES = Math.ceil(TABS.length / PER)
+
+// The same chevron the sittings are turned with, at the scale of a strip head.
+function Turn({ back, onClick, label }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className="flex h-9 w-9 items-center justify-center border border-stone-300 text-stone-900 transition-colors hover:border-stone-900"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className={back ? '' : 'rotate-180'}>
+        <path d="M15 4 L7 12 L15 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+      </svg>
+    </button>
+  )
+}
 
 export default function DayLists() {
   const [tab, setTab] = useLocalStorage('mos:daylists:tab', 'tasks')
   const [tasks] = useLocalStorage('mos:tasks', [])
   const [reminders] = useLocalStorage('mos:reminders', [])
   const [shopping] = useLocalStorage('mos:shopping', [])
+  const [wishlist] = useLocalStorage('mos:wishlist', [])
+  const [ideas] = useLocalStorage('mos:ideas', [])
+  const [followups] = useLocalStorage('mos:followups', [])
 
-  // Each count is what is still owed, which is the same thing the list now
-  // shows: a kept line is off both.
+  // Each count is what is still owed, which is the same thing the list shows:
+  // a kept line is off both.
+  const left = (v) => arr(v).filter((x) => !x.done).length
   const counts = {
-    tasks: arr(tasks).filter((t) => !t.done).length,
-    reminders: arr(reminders).filter((r) => !r.done).length,
+    tasks: left(tasks),
+    reminders: left(reminders),
     shopping: arr(shopping).filter((it) => !it.bought).length,
+    wishlist: left(wishlist),
+    ideas: left(ideas),
+    followups: left(followups),
   }
 
   const active = TABS.find((t) => t.id === tab) || TABS[0]
-  const Panel = active.Panel
+  const at = TABS.indexOf(active)
+  // Open on the page the open list is on.
+  const [page, setPage] = useState(Math.max(0, Math.floor(at / PER)))
+  const shown = TABS.slice(page * PER, page * PER + PER)
 
   return (
     <section className="mt-10">
-      <div className="grid grid-cols-3 border-b border-stone-300">
-        {TABS.map((t) => {
-          const on = t.id === active.id
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              aria-current={on ? 'true' : undefined}
-              className={`-mb-px border-b-2 pb-4 pr-4 text-left transition-colors ${on ? 'border-cobalt' : 'border-transparent hover:border-stone-400'}`}
-            >
-              <span className={`kicker block ${on ? 'text-stone-900' : 'text-stone-500'}`}>{t.label}</span>
-              <span className={`mt-2 block font-serif text-[30px] leading-none ${on ? 'text-stone-900' : 'text-stone-400'}`}>{counts[t.id]}</span>
-            </button>
-          )
-        })}
+      <div className="flex items-stretch gap-5 border-b border-stone-300">
+        <div className="grid flex-1 grid-cols-3">
+          {shown.map((t) => {
+            const on = t.id === active.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                aria-current={on ? 'true' : undefined}
+                className={`-mb-px border-b-2 pb-4 pr-4 text-left transition-colors ${on ? 'border-cobalt' : 'border-transparent hover:border-stone-400'}`}
+              >
+                <span className={`kicker block ${on ? 'text-stone-900' : 'text-stone-500'}`}>{t.label}</span>
+                <span className={`mt-2 block font-serif text-[30px] leading-none ${on ? 'text-stone-900' : 'text-stone-400'}`}>{counts[t.id]}</span>
+              </button>
+            )
+          })}
+        </div>
+        {PAGES > 1 && (
+          <div className="flex shrink-0 items-end pb-3">
+            <Turn
+              back={page > 0}
+              onClick={() => setPage((p) => (p + 1) % PAGES)}
+              label={page > 0 ? 'The first three lists' : 'The other lists'}
+            />
+          </div>
+        )}
       </div>
       {/* Each list sits on its own panel — a step down from the page ground,
           the way the three specimens are drawn. The strip stays on the page
           above it; the box holds the list itself. */}
-      <div className="mt-8 px-6 py-8 md:px-10 md:py-10" style={{ backgroundColor: '#EEEAE1' }}>
-        <Panel />
+      <div className="mt-8 px-6 py-8 md:px-10 md:py-10" style={{ backgroundColor: GROUND }}>
+        {active.shopping
+          ? <Shopping />
+          : <Plain key={active.id} storeKey={active.key} field={active.field} placeholder={active.placeholder} />}
       </div>
     </section>
   )
