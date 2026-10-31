@@ -346,24 +346,25 @@ function TopNav({ onOpenMenu, onGoHome, onAsk }) {
             on the left, Ask on the right. Settings moved into the index, where
             the pillars are — a gear floating over every page is chrome, and the
             place you go to change the house is a destination like any other. */}
-        {onAsk && (
-          <button onClick={onAsk} aria-label="Ask" title="Ask" className="relative z-10 ml-auto -mr-1 flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
-            <ConciergeMark size={26} />
+        {/* The masthead, and it is permanent — every page, every width. Ask
+            stands immediately beside it rather than off in the far corner: it
+            is the one thing on this bar she might want at any moment, on any
+            page, and a mark alone in a corner reads as a setting. Beside the
+            name it reads as part of the paper. */}
+        <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3">
+          <button
+            onClick={onGoHome}
+            title="Home — Today"
+            className="whitespace-nowrap font-serif text-[11px] uppercase leading-none tracking-[0.2em] text-stone-900 transition-opacity hover:opacity-60 sm:text-sm sm:tracking-[0.24em]"
+          >
+            On the Record
           </button>
-        )}
-        {/* The masthead, and it is permanent — every page, every width. It used
-            to be hidden on Today, because the page carried a second copy of the
-            name an inch below the bar, and hidden on phones, because a centred
-            word between two buttons had nowhere to go. The page's copy is gone,
-            so this one is the only one, and it holds the middle of the bar the
-            way a masthead holds the top of a paper. */}
-        <button
-          onClick={onGoHome}
-          title="Home — Today"
-          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-serif text-[11px] uppercase leading-none tracking-[0.2em] text-stone-900 transition-opacity hover:opacity-60 sm:text-sm sm:tracking-[0.24em]"
-        >
-          On the Record
-        </button>
+          {onAsk && (
+            <button onClick={onAsk} aria-label="Ask" title="Ask" className="flex items-center justify-center p-1 text-stone-800 transition-opacity hover:opacity-60">
+              <ConciergeMark size={21} />
+            </button>
+          )}
+        </div>
       </div>
     </header>
   )

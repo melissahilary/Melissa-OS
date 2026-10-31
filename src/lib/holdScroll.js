@@ -51,6 +51,12 @@ function pin() {
 
 function release() {
   const b = document.body
+  // Send the keyboard on its way while the page is still pinned. A keyboard
+  // being dismissed scrolls the page itself on the way out, and if it is
+  // still going when the page is unpinned, its scroll is the one that lands.
+  const el = document.activeElement
+  if (el && el.blur && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) el.blur()
+
   b.style.position = ''
   b.style.top = ''
   b.style.left = ''
@@ -60,13 +66,27 @@ function release() {
   b.style.paddingRight = ''
   // The document has been the height of the viewport while it was pinned, so
   // asking for the old offset before it has grown back lands her wherever the
-  // short page happened to end. Read a layout property to make it grow first,
-  // then put her back — and once more on the next frame, because a sheet that
-  // was holding an image or a keyboard open can settle a frame late.
+  // short page happened to end. Read a layout property to make it grow first.
   void document.body.offsetHeight
+
+  // Then hold the line for as long as the keyboard takes to go — about half a
+  // second on a phone — because every one of those frames is a chance for
+  // something else to decide where she should be looking. The moment she
+  // touches the page herself, it is hers again and we stop.
   const back = () => window.scrollTo(0, at)
   back()
   requestAnimationFrame(back)
+  const timers = [60, 150, 260, 380, 520].map((ms) => setTimeout(back, ms))
+  const hers = () => {
+    timers.forEach(clearTimeout)
+    window.removeEventListener('touchstart', hers)
+    window.removeEventListener('wheel', hers)
+    window.removeEventListener('keydown', hers)
+  }
+  window.addEventListener('touchstart', hers, { passive: true, once: true })
+  window.addEventListener('wheel', hers, { passive: true, once: true })
+  window.addEventListener('keydown', hers, { once: true })
+  setTimeout(hers, 600)
 }
 
 // ── Room for the keyboard.
