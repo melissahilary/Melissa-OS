@@ -27,9 +27,16 @@ export const TOPICS = [{ id: 'general', label: 'General' }, ...PILLARS]
 
 const arr = (v) => (Array.isArray(v) ? v : [])
 
-// Ten rows and then a scroll. The height is the rows, not a guess at them.
-const PANE = 'mos-scroll max-h-[560px] overflow-y-auto'
-const ROW = 'flex items-center gap-4 py-4'
+// Ten rows and then a scroll, the way the routines do it. The row is given a
+// height rather than left to work one out, so ten of them is a number and not
+// a guess — it was showing ten and a fifth, and a fifth of a row at the bottom
+// of a list reads as a mistake. No bar drawn either, for the same reason the
+// routines draw none: the rail is the thing, not its furniture.
+// Written out rather than worked out: the stylesheet is built by reading
+// these files for class names, and a name assembled at run time is a name it
+// never sees. Ten rows of 55 is 550.
+const PANE = 'no-scrollbar max-h-[550px] overflow-y-auto'
+const ROW = 'flex h-[55px] items-center gap-4'
 // The row slides on its own ground, so the red comes up from under it rather
 // than through it. Nothing is ruled off from the row above — the space does
 // that, and a list of hairlines reads as a form.
