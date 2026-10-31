@@ -60,7 +60,7 @@ const clockOf = (mins) => {
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
 }
 
-export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAdd, onPickDate, onSkip, onDrop }) {
+export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAdd, onOpen, onPickDate, onSkip, onDrop }) {
   const [adding, setAdding] = useState(null) // null | { at, until }
   const [draft, setDraft] = useState(null) // null | { start, end } — the thing being drawn
   const [hover, setHover] = useState(null) // the hour under a cursor, on a desktop
@@ -365,8 +365,12 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
                   className="h-full"
                   onAway={() => setLetting(e)}
                 >
-                  <div
-                    className="h-full overflow-hidden px-3.5 py-1.5"
+                  {/* Press it to read it. An appointment on a day is a thing
+                      with a name, two hours and sometimes a note behind it,
+                      and until now the only thing it could do was sit there. */}
+                  <button
+                    onClick={() => onOpen && onOpen(e.id)}
+                    className="block h-full w-full overflow-hidden px-3.5 py-1.5 text-left"
                     style={{ background: W.block, borderLeft: `2px solid ${W.ivory}` }}
                   >
                     {/* The hour and the thing on one line, so a half-hour block
@@ -375,7 +379,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
                       <span className="mr-2.5 text-[10px] uppercase tracking-[0.14em]" style={{ color: W.muted }}>{spokenTime(e.start)}</span>
                       {e.title}
                     </p>
-                  </div>
+                  </button>
                 </SwipeAway>
               </div>
             ))}

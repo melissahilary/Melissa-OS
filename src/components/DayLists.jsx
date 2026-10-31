@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { PILLARS } from '../lib/pillars'
@@ -134,12 +134,12 @@ function Plain({ storeKey, field, placeholder }) {
           onClick={() => setRaw((prev) => arr(prev).map((y) => (y.id === x.id ? { ...y, done: !y.done } : y)))}
           label={x[field]}
         />
-        <button
-          onClick={() => setOpen(x)}
-          className={`min-w-0 flex-1 text-left text-[17px] lowercase leading-snug transition-opacity hover:opacity-70 ${x.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}
-        >
-          {x[field]}
-        </button>
+        <Line
+          value={x[field]}
+          done={x.done}
+          onChange={(t) => setRaw((prev) => arr(prev).map((y) => (y.id === x.id ? { ...y, [field]: t } : y)))}
+          onOpen={() => setOpen(x)}
+        />
       </div>
     </SwipeAway>
   )
@@ -167,6 +167,47 @@ function Plain({ storeKey, field, placeholder }) {
         />
       )}
     </div>
+  )
+}
+
+// ── The line itself, written on where it lies.
+//
+// It was a button: press it and a sheet came up to change a word in. On a
+// desk that is the wrong instrument — the line is text, and text is edited by
+// putting the cursor in it, dragging across a phrase and typing over it. So
+// the line is the field. What is typed is kept as it is typed; there is no
+// save, because a list is not a form.
+//
+// The sheet is still there for everything a line cannot hold — the notes —
+// and it opens on a double click, or on a press held down on a phone.
+function Line({ value, done, onChange, onOpen }) {
+  const hold = useRef(0)
+  const press = () => { clearTimeout(hold.current); hold.current = setTimeout(onOpen, 550) }
+  const let_go = () => clearTimeout(hold.current)
+  return (
+    <input
+      value={value || ''}
+      // What she typed, exactly as she typed it. Lower-casing it on the way
+      // through means React writes back a different string from the one in
+      // the field, and the caret is thrown to the end on every keystroke —
+      // so a word changed in the middle of a line ends up at the end of it.
+      // The case is settled when she leaves the line; the page has shown it
+      // in lower case all along.
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => onChange(e.target.value.trim().toLowerCase())}
+      onDoubleClick={onOpen}
+      onTouchStart={press}
+      onTouchEnd={let_go}
+      onTouchMove={let_go}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="none"
+      spellCheck={false}
+      data-no-dictation
+      data-no-swipe
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+      className={`min-w-0 flex-1 bg-transparent text-[17px] lowercase leading-snug outline-none ${done ? 'text-stone-500 line-through' : 'text-stone-900'}`}
+    />
   )
 }
 
@@ -254,7 +295,12 @@ function Shopping() {
     >
       <div className={ROW}>
         <Box on={it.bought} onClick={() => toggle(it.id)} label={it.text} />
-        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${it.bought ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{it.text}</span>
+        <Line
+          value={it.text}
+          done={it.bought}
+          onChange={(t) => setRaw((prev) => arr(prev).map((y) => (y.id === it.id ? { ...y, text: t } : y)))}
+          onOpen={() => {}}
+        />
       </div>
     </SwipeAway>
   )

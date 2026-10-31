@@ -1041,6 +1041,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         appointments={dayAppointments(selectedKey)}
         phase={todayPhase}
         onAdd={(title, at, until, repeat) => addEvent(title, at, until, repeat)}
+        onOpen={openActivity}
         onPickDate={pickDay}
         onSkip={skipToday}
         onDrop={remove}
@@ -1070,7 +1071,14 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       {/* Everything opened from this page opens in the house's own sheet. The
           old activity form is still what the pillar pages use; nothing on the
           day reaches it any more. */}
-      {editing && (editing.type === 'meal_item' || editing.type === 'supplement') ? (
+      {editing && editing.type === 'event' && !isNew(editing) ? (
+        <EditEvent
+          activity={editing}
+          onSave={(a) => { saveActivity(a); setFormAllowed(null) }}
+          onDrop={() => { remove(editing.id); setEditing(null); setFormAllowed(null) }}
+          onClose={() => { setEditing(null); setFormAllowed(null) }}
+        />
+      ) : editing && (editing.type === 'meal_item' || editing.type === 'supplement') ? (
         <EditMeal
           activity={editing}
           onSave={(a) => { saveActivity(a); setFormAllowed(null) }}
@@ -1361,6 +1369,109 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         />
       )}
     </section>
+  )
+}
+
+// ── An appointment on the day, opened.
+//
+// The same room as Add to day, which is the sheet it was made in: the two
+// hours it runs between, what it is, how often, and a page for anything
+// worth remembering. Pressing a block on the day is how she gets here.
+function EditEvent({ activity, onSave, onDrop, onClose }) {
+  const det = activity.details || {}
+  const [name, setName] = useState(activity.title || '')
+  const [at, setAt] = useState(det.time || '')
+  const [until, setUntil] = useState(det.endTime || '')
+  const [notes, setNotes] = useState(det.notes || det.description || '')
+  const [repeat, setRepeat] = useState(() => {
+    const r = { frequency: activity.frequency || 'once' }
+    if (Array.isArray(activity.daysOfWeek) && activity.daysOfWeek.length) r.daysOfWeek = activity.daysOfWeek
+    if (activity.interval) r.interval = activity.interval
+    if (activity.intervalUnit) r.intervalUnit = activity.intervalUnit
+    if (activity.seriesEnd) r.seriesEnd = activity.seriesEnd
+    return r
+  })
+
+  const save = () => {
+    const t = name.trim().toLowerCase()
+    if (!t) return
+    const r = repeat || {}
+    onSave({
+      ...activity,
+      title: t,
+      frequency: r.frequency || 'once',
+      daysOfWeek: r.daysOfWeek || [],
+      interval: r.interval || 0,
+      intervalUnit: r.intervalUnit || '',
+      seriesEnd: r.seriesEnd || '',
+      details: { ...det, time: at, endTime: at ? until : '', notes },
+    })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+      >
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          data-no-dictation
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+          className="w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[30px] lowercase text-cream outline-none"
+        />
+
+        <div className="mt-8 flex items-end gap-6">
+          <label className="min-w-0 flex-1 block">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">From</span>
+            <input
+              type="time"
+              value={at}
+              onChange={(e) => setAt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+              className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[21px] leading-none text-cream outline-none md:text-[26px]"
+              style={{ colorScheme: 'dark' }}
+            />
+          </label>
+          <label className="min-w-0 flex-1 block">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">To</span>
+            <input
+              type="time"
+              value={until}
+              onChange={(e) => setUntil(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+              className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[21px] leading-none text-cream outline-none md:text-[26px]"
+              style={{ colorScheme: 'dark' }}
+            />
+          </label>
+        </div>
+
+        <div className="mt-8">
+          <RepeatField value={repeat} startKey={activity.seriesStart || dateKey(new Date())} onChange={setRepeat} />
+        </div>
+
+        <Notes value={notes} onChange={setNotes} />
+
+        <div className="mt-9 flex items-center justify-between gap-6">
+          <button onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Let it go</button>
+          <div className="flex items-center gap-7">
+            <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+            <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
