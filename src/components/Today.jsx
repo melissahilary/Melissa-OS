@@ -1073,6 +1073,10 @@ const PHASE_AGENDA_HINT = {
 // number used to, because a numbered list that shortens as she keeps it
 // renumbers itself, and no pillar is named beside it either.
 
+// The one red in the house: the oxblood the concierge uses when something has
+// gone out of range. Nothing else here is red, so it reads as the warning it is.
+const OXBLOOD = '#C87A7A'
+
 function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
@@ -1105,7 +1109,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const swipe = useRef(null)
   const [slid, setSlid] = useState({ id: null, dx: 0 })
   const [asking, setAsking] = useState(null) // the step being let go
-  const PULL = 72 // how far it has to come before the question is asked
+  // As far as the red panel is wide and no further, the way a mail app lets a
+  // row come aside: enough to read the word, never so far the step is gone.
+  const REVEAL = 96
+  const PULL = 64 // how far it has to come before the question is asked
 
   const swipeStart = (e, id) => {
     if (held) return
@@ -1126,7 +1133,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
     }
     if (w.axis !== 'x') return
     if (e.cancelable) e.preventDefault()
-    w.dx = Math.max(-140, Math.min(0, dx))
+    w.dx = Math.max(-REVEAL, Math.min(0, dx))
     setSlid({ id: w.id, dx: w.dx })
   }
   const swipeEnd = () => {
@@ -1250,6 +1257,33 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           <div
             key={it.id}
             data-id={it.id}
+            className="relative"
+            style={{
+              borderBottom: `1px solid ${rule}`,
+              ...(held && held.id === it.id
+                ? {
+                    transform: `translateY(${lift}px)`,
+                    transition: drag.current && drag.current.settling ? 'transform 180ms ease-out' : 'none',
+                    zIndex: 20,
+                    // The house forbids shadows, so the lift is said with an
+                    // opaque ground and a hairline all the way round.
+                    backgroundColor: ground,
+                    outline: `1px solid ${rule}`,
+                  }
+                : null),
+            }}
+          >
+            {/* What is underneath a step, found by pulling it aside: the one
+                red in the house, with the word on it. */}
+            <div
+              aria-hidden
+              className="absolute inset-y-0 right-0 flex items-center justify-end pr-6"
+              style={{ backgroundColor: OXBLOOD, width: Math.max(0, -(slid.id === it.id ? slid.dx : 0)) }}
+            >
+              <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#F7F4ED' }}>Delete</span>
+            </div>
+
+          <div
             className="relative flex w-full items-center gap-5 py-3 text-left"
             onPointerDown={(e) => swipeStart(e, it.id)}
             onPointerMove={swipeMove}
@@ -1259,22 +1293,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             onTouchMove={swipeMove}
             onTouchEnd={swipeEnd}
             style={{
-              borderBottom: `1px solid ${rule}`,
+              backgroundColor: ground,
               transform: slid.id === it.id ? `translateX(${slid.dx}px)` : undefined,
               transition: slid.id === it.id ? 'none' : 'transform 160ms ease-out',
               touchAction: 'pan-y',
-              ...(held && held.id === it.id
-                ? {
-                    transform: `translateY(${lift}px)`,
-                    transition: drag.current && drag.current.settling ? 'transform 180ms ease-out' : 'none',
-                    position: 'relative',
-                    zIndex: 20,
-                    // The house forbids shadows, so the lift is said with an
-                    // opaque ground and a hairline all the way round.
-                    backgroundColor: ground,
-                    outline: `1px solid ${rule}`,
-                  }
-                : null),
             }}
           >
             <button
@@ -1310,15 +1332,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
               <span className="block h-px w-4" style={{ backgroundColor: dim }} />
             </span>
 
-            {/* What the pull means, said once it is far enough to mean it. */}
-            {slid.id === it.id && slid.dx < -16 && (
-              <span
-                className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.18em]"
-                style={{ right: slid.dx, color: slid.dx <= -PULL ? 'rgb(247,244,237)' : dim }}
-              >
-                Let go
-              </span>
-            )}
+          </div>
           </div>
         ))}
 
@@ -1358,23 +1372,23 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{title} routine</p>
             <p className="mt-3 font-serif text-[30px] lowercase leading-tight">{asking.title || 'Untitled'}</p>
 
+            {/* Two answers, each one a thing to press. */}
             <button
               onClick={() => { if (onSkip) onSkip(asking.id); setAsking(null) }}
-              className="mt-8 block w-full border-b border-cream/25 pb-4 text-left"
+              className="mt-8 block w-full border border-cream/45 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-cream transition-colors hover:border-cream"
             >
-              <span className="text-[17px]">Not today</span>
-              <span className="mt-1 block text-[13px] text-cream/60">It stays in the routine and comes back tomorrow.</span>
+              Not today
             </button>
 
             <button
               onClick={() => { if (onDrop) onDrop(asking.id); setAsking(null) }}
-              className="mt-5 block w-full text-left"
+              className="mt-3 block w-full px-5 py-4 text-[11px] uppercase tracking-[0.18em] transition-opacity hover:opacity-90"
+              style={{ backgroundColor: OXBLOOD, color: '#F7F4ED' }}
             >
-              <span className="text-[17px]">Let it go</span>
-              <span className="mt-1 block text-[13px] text-cream/60">Off the routine for good, from today on.</span>
+              Let it go
             </button>
 
-            <div className="mt-9 flex justify-end">
+            <div className="mt-7 flex justify-end">
               <button onClick={() => setAsking(null)} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
             </div>
           </div>
