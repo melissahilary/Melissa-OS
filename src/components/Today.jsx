@@ -379,8 +379,6 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
       <Dot />
       <AirField location={location} />
       <Dot />
-      <ZoneField location={location} setLocation={setLocation} />
-      <Dot />
     </div>
   )
 
@@ -406,8 +404,6 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
           <Dot />
           <AirField location={location} />
           <Dot />
-          <ZoneField location={location} setLocation={setLocation} />
-          <Dot />
         </div>
       </div>
     </div>
@@ -423,54 +419,6 @@ function SunField({ w }) {
     <span className="whitespace-nowrap text-stone-600">
       Sunrise {fmtClock(w.sunrise)} <span aria-hidden className="text-stone-300">·</span> Sunset {fmtClock(w.sunset)}
     </span>
-  )
-}
-
-// The zone, and the way back to changing it. It reads as a word rather than a
-// field because it is not somewhere to type — the picker opens on a tap, and
-// what it sets is still a city, because the forecast needs one. Only the
-// printing of it changed.
-function ZoneField({ location, setLocation }) {
-  const [tz, setTz] = useState(null)
-  const [open, setOpen] = useState(false)
-  useEffect(() => {
-    if (!location) { setTz(null); return undefined }
-    let alive = true
-    ;(async () => {
-      try { const loc = await resolveCoords(location); if (alive) setTz(loc && loc.timezone ? loc.timezone : null) }
-      catch { if (alive) setTz(null) }
-    })()
-    return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locKey(location)])
-
-  const label = tzLabel(tz)
-  return (
-    <>
-      <button onClick={() => setOpen(true)} className="text-stone-600 transition-colors hover:text-stone-900">
-        {label || 'Set a city'}
-      </button>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm text-left" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
-          <div className="w-full max-w-xs border border-stone-200 bg-cream">
-            <div className="flex justify-end px-4 pt-3">
-              <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-stone-900"><CloseIcon size={18} /></button>
-            </div>
-            <div className="px-6 pb-6">
-              <p className="kicker mb-2 text-stone-500">Where you are</p>
-              <LocationField
-                location={location}
-                setLocation={setLocation}
-                className="w-full border-b border-stone-300 bg-transparent pb-1.5 text-sm text-stone-900 outline-none transition-colors focus:border-stone-900 placeholder:text-stone-400"
-              />
-              <p className="mt-3 text-xs italic text-stone-500">
-                The forecast, the sun times and the clock run on this. Only the zone{label ? ` — ${label} —` : ''} is printed on the page.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   )
 }
 
@@ -1186,39 +1134,19 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   // the list reorders underneath it, so the row never leaves the fingertip.
   const [held, setHeld] = useState(null) // { id, ids }
   const [lift, setLift] = useState(0) // how far the held row is carried, in px
-  // Writing a new step. It lands at the foot; anywhere else is a drag away.
+  // Writing a new step. It opens as a sheet rather than a line in the list:
+  // a field at the foot of a scrolling rail is a field she has to find, and
+  // on a phone the keyboard arrives and throws the page somewhere else.
   const [writing, setWriting] = useState(false)
-  const [draft, setDraft] = useState('')
 
   // ── Sliding a step away.
   //
   // A row taken sideways rests open with the red beside it, and pressing the
   // red asks: today only, or for good. The grip still takes it up and down.
-  const writeLine = useRef(null)
   const [asking, setAsking] = useState(null) // the step being let go
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
-
-  // Opening the line must not move the page. The input sits inside the rail,
-  // and left to itself the phone scrolls the document to bring a focused field
-  // into view — which on a routine near the top of the page throws her down to
-  // the month. The rail is scrolled to the line instead, the focus is taken
-  // without scrolling, and the page is put back where it was for the frames it
-  // takes the keyboard to arrive.
-  useEffect(() => {
-    if (!writing) return undefined
-    const el = writeLine.current
-    const y = window.scrollY
-    if (rail.current) rail.current.scrollTop = rail.current.scrollHeight
-    if (el && el.focus) el.focus({ preventScroll: true })
-    const hold = () => window.scrollTo(0, y)
-    hold()
-    const r = requestAnimationFrame(hold)
-    const t1 = setTimeout(hold, 120)
-    const t2 = setTimeout(hold, 320)
-    return () => { cancelAnimationFrame(r); clearTimeout(t1); clearTimeout(t2) }
-  }, [writing])
 
   const grab = (id, clientY) => {
     drag.current = { id, ids: rows.map((r) => r.id), y: clientY, dy: 0, raf: 0, settling: false }
@@ -1386,30 +1314,6 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           </div>
         ))}
 
-        {/* Opened, the line is the last row of the routine, wearing the same
-            empty box — above the mark that opened it. It lands at the foot and
-            anywhere else is a drag away. */}
-        {writing && (
-          <div className="flex w-full items-center gap-5 py-3.5">
-            <span aria-hidden className="h-[15px] w-[15px] shrink-0 border" style={{ borderColor: 'rgba(247,244,237,0.35)' }} />
-            <input
-              ref={writeLine}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim().toLowerCase()); setDraft('') }
-                if (e.key === 'Escape') { setDraft(''); setWriting(false) }
-              }}
-              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim().toLowerCase()); setDraft(''); setWriting(false) }}
-              placeholder="A step"
-              data-no-dictation
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              className="min-w-0 flex-1 bg-transparent text-[17px] lowercase leading-snug text-cream outline-none placeholder:text-cream/45"
-            />
-          </div>
-        )}
       </div>
 
       {/* Today, or for good. */}
@@ -1424,17 +1328,68 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
 
       {/* The way in, held at the foot of the block. The list scrolls past it
           and it stays where it is, so adding a step is never somewhere she has
-          to scroll to find. */}
-      <div className="mt-3 pt-4">
+          to scroll to find — and it is drawn large enough to be seen without
+          being looked for. */}
+      <div className="mt-3 pt-3">
         <button
           onClick={() => setWriting(true)}
-          aria-label="Add a step"
-          className="mx-auto block px-4 py-1 text-[19px] leading-none text-cream transition-opacity hover:opacity-70"
+          aria-label={`Add a step to ${title}`}
+          className="mx-auto block px-6 py-2 text-[30px] leading-none text-cream transition-opacity hover:opacity-70"
         >
           +
         </button>
       </div>
+
+      {writing && (
+        <AddStep
+          block={title}
+          onClose={() => setWriting(false)}
+          onSave={(t) => { if (onAdd) onAdd(t); setWriting(false) }}
+        />
+      )}
     </section>
+  )
+}
+
+// ── Writing a step.
+//
+// It was a line at the foot of the list, which meant finding it, and meant the
+// keyboard arriving and taking the page somewhere else. A sheet is the same
+// two gestures — open it, type it — and it stands still while she does.
+function AddStep({ block, onClose, onSave }) {
+  const [t, setT] = useState('')
+  const save = () => { const v = t.trim().toLowerCase(); if (!v) return; onSave(v) }
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
+      >
+        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">Add to {block}</p>
+        <input
+          autoFocus
+          value={t}
+          onChange={(e) => setT(e.target.value)}
+          placeholder="A step"
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          data-no-dictation
+          className="mt-7 w-full border-b bg-transparent pb-2.5 text-[22px] lowercase outline-none placeholder:opacity-40"
+          style={{ borderColor: 'rgba(247,244,237,0.22)', color: '#F7F4ED' }}
+        />
+        <div className="mt-9 flex items-center justify-end gap-7">
+          <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+          <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Add</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1758,8 +1713,6 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
   const [i, setI] = useState(nearest)
   const [adding, setAdding] = useState(null) // { slot, kind }
   const [letting, setLetting] = useState(null) // the line being let go
-  const [editing, setEditing] = useState(null) // { id, value }
-  const [asking, setAsking] = useState(null)   // { id, value } — today, or from now on
   const rail = useRef(null)
   const n = rows.length
 
@@ -1814,7 +1767,6 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
         {rows.map((x, idx) => {
           const ink = x.dark ? '#F7F4ED' : '#16130F'
           const dim = x.dark ? 'rgba(247,244,237,0.58)' : 'rgba(22,19,15,0.52)'
-          const rule = x.dark ? 'rgba(247,244,237,0.20)' : 'rgba(22,19,15,0.16)'
           // The names of things — the sitting, and food, drink, supplements —
           // were set in the same grey as a measurement and disappeared into
           // the card. They take the walnut the house already uses on its dark
@@ -1870,34 +1822,12 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
               style={{ backgroundColor: x.ground, color: ink }}
               aria-current={idx === i ? 'true' : undefined}
             >
-              <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: labelInk }}>{x.label}</p>
-              {/* The hour, and a way to change it. Enter asks whether this is
-                  tonight or from now on — the app has no other way to say the
-                  difference, and guessing it is how a one-off becomes a rule. */}
-              {editing && editing.id === x.id ? (
-                <input
-                  autoFocus
-                  type="time"
-                  value={editing.value}
-                  onChange={(e) => setEditing({ id: x.id, value: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && editing.value) { setAsking({ id: x.id, value: editing.value }); setEditing(null) }
-                    if (e.key === 'Escape') setEditing(null)
-                  }}
-                  onBlur={() => { if (editing.value && editing.value !== hourOf(x.id)) setAsking({ id: x.id, value: editing.value }); setEditing(null) }}
-                  className="mt-2 w-full bg-transparent font-serif text-[40px] leading-none outline-none sm:text-[48px]"
-                  style={{ color: ink, borderBottom: `1px solid ${rule}` }}
-                />
-              ) : (
-                <button
-                  onClick={() => setEditing({ id: x.id, value: hourOf(x.id) })}
-                  aria-label={`Change the time for ${x.label}`}
-                  className="mt-2 text-left font-serif text-[44px] leading-none transition-opacity hover:opacity-70 sm:text-[52px]"
-                  style={{ color: ink }}
-                >
-                  {spoken(hourOf(x.id))}
-                </button>
-              )}
+              {/* The sitting, named the way the hour used to be set. The card
+                  said it twice before — small and brown above, large below —
+                  and of the two it is the name that tells her where she is.
+                  The hour is gone with the fine print: she knows when she
+                  eats, and the rail is already in the order of the day. */}
+              <p className="font-serif leading-[0.95] text-[42px] sm:text-[46px]" style={{ color: ink }}>{x.label}</p>
               <div className="mos-scroll mt-8 flex-1 overflow-y-auto">
                 {x.eats && <Section name="Meal" list={food} />}
                 <Section name="Drink" list={drink} />
@@ -1908,11 +1838,11 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
                   the foot of the card on its own rule — the same mark, in the
                   same place, as the one under the routines. What it is — meal,
                   drink or supplement — is chosen inside. */}
-              <div className="mt-6 pt-2">
+              <div className="mt-6 pt-1">
                 <button
                   onClick={() => setAdding({ id: x.id, label: x.label, food: x.food, drink: x.drink, eats: x.eats })}
                   aria-label={`Add to ${x.label.toLowerCase()}`}
-                  className="mx-auto block px-4 py-1 text-[19px] leading-none transition-opacity hover:opacity-70"
+                  className="mx-auto block px-6 py-2 text-[30px] leading-none transition-opacity hover:opacity-70"
                   style={{ color: ink }}
                 >
                   +
@@ -1958,52 +1888,6 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
                 {x.label}
               </button>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Tonight, or from now on. The app cannot tell the difference between
-          moving dinner once and moving it for good, and guessing is how a
-          one-off quietly becomes a rule — so it asks, once, in two lines. */}
-      {asking && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) setAsking(null) }}>
-          <div className="w-full max-w-sm border border-stone-200 bg-cream p-6">
-            <p className="kicker text-stone-500">{(SITTINGS.find((x) => x.id === asking.id) || {}).label}</p>
-            <p className="mt-2 font-serif text-3xl leading-tight text-stone-900">{spoken(asking.value)}</p>
-            <div className="mt-7">
-              <button
-                onClick={() => {
-                  setClock((prev) => {
-                    const c = prev && typeof prev === 'object' ? prev : {}
-                    const days = { ...(c.days || {}) }
-                    days[dateKeyStr] = { ...(days[dateKeyStr] || {}), [asking.id]: asking.value }
-                    return { ...c, days }
-                  })
-                  setAsking(null)
-                }}
-                className="block w-full border-b border-stone-200 pb-3 pt-3 text-left transition-opacity hover:opacity-70"
-              >
-                <span className="block font-serif text-[19px] leading-snug text-stone-900">Just today</span>
-                <span className="mt-1 block text-sm text-stone-500">Tomorrow goes back to {spoken(((SITTINGS.find((x) => x.id === asking.id) || {}).at))}.</span>
-              </button>
-              <button
-                onClick={() => {
-                  setClock((prev) => {
-                    const c = prev && typeof prev === 'object' ? prev : {}
-                    return { ...c, standing: { ...(c.standing || {}), [asking.id]: asking.value } }
-                  })
-                  setAsking(null)
-                }}
-                className="block w-full border-b border-cobalt pb-3 pt-4 text-left transition-opacity hover:opacity-70"
-              >
-                <span className="flex items-baseline justify-between gap-4">
-                  <span className="font-serif text-[19px] leading-snug text-stone-900">Start a series</span>
-                  <span className="shrink-0 text-[9px] tracking-[0.16em] text-cobalt">RECOMMENDED</span>
-                </span>
-                <span className="mt-1 block text-sm text-stone-500">Every day from today, until you change it again.</span>
-              </button>
-            </div>
-            <button onClick={() => setAsking(null)} className={`mt-6 ${QUIET}`}>Cancel</button>
           </div>
         </div>
       )}

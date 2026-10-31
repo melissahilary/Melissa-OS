@@ -80,7 +80,7 @@ function AddLine({ onAdd, placeholder }) {
     )
   }
   return (
-    <button onClick={() => setOpen(true)} aria-label={placeholder} className="mx-auto mt-3 block px-4 py-1 text-lg leading-none text-cobalt transition-opacity hover:opacity-60">+</button>
+    <button onClick={() => setOpen(true)} aria-label={placeholder} className="mx-auto mt-3 block px-6 py-2 text-[30px] leading-none text-cobalt transition-opacity hover:opacity-60">+</button>
   )
 }
 
