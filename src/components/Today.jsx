@@ -824,7 +824,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const dayScheduled = (k) =>
     activities
       .filter((a) => isAppointment(a) && active(a, k))
-      .map((a) => ({ id: a.id, title: a.title, time: a.details?.time || '', done: isDoneOn(a, k) }))
+      .map((a) => ({ id: a.id, title: a.title, time: a.details?.time || '', endTime: a.details?.endTime || '', done: isDoneOn(a, k) }))
       .sort((x, y) => (x.time || '99').localeCompare(y.time || '99'))
 
   // The main month grid previews everything scheduled that day (to-dos), deduped.
@@ -973,7 +973,6 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       <DaySchedule
         dateKeyStr={selectedKey}
         appointments={dayScheduled(selectedKey)}
-        meals={dayMeals(selectedKey)}
         phase={todayPhase}
         onAdd={(title, at) => addEvent(title, at)}
       />

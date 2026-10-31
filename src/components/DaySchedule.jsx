@@ -1,15 +1,17 @@
-import React, { useMemo, useState } from 'react'
-import { useLocalStorage } from '../hooks/useLocalStorage'
-import { SITTINGS } from '../lib/meals'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { parseKey } from '../lib/date'
 
-
-// ── Today's schedule.
+// ── Today's schedule, as a day planner.
 //
-// A spine rather than a grid: only the hours that hold something are drawn, in
-// the order they happen, so an empty afternoon costs no space at all. The date
-// is set at the scale a date is set at in print and the day is read down the
-// right — one column to know where you are, one to know what is next.
+// Hours down the left and the day beside them, empty until she fills it. It
+// was a spine before — only the hours that held something, printed in order —
+// which reads well and plans nothing: there is nowhere to put the two o'clock
+// she has not made yet. A grid has somewhere for everything, including what is
+// not there, and the gaps are the point.
+//
+// Nothing is pre-filled. The sittings are their own strip above this one, and
+// the routines are the two blocks above that; what lands here is what she is
+// due somewhere for.
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -19,153 +21,157 @@ const W = {
   ivory: '#F7F4ED',
   muted: 'rgba(247,244,237,0.62)',
   faint: 'rgba(247,244,237,0.22)',
+  hair: 'rgba(247,244,237,0.14)',
   cobalt: '#1D2FC4',
+  block: 'rgba(247,244,237,0.10)',
 }
 
-const COUNT_WORD = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
-// How many things a line actually contains. A sitting with electrolytes, clove
-// water, colostrum and the plate reads "four steps"; drinks with a friend has
-// no steps and so says nothing at all, rather than carrying a description.
-const steps = (n) => (n > 1 ? `${COUNT_WORD[n] || n} steps` : n === 1 ? 'one step' : '')
+const HOUR = 56 // the height of an hour, in pixels
+const OPENS_AT = 6 // where the day is scrolled to when it opens
 
-// An hour, split so the meridiem can be set small beside the numerals.
-const clockParts = (hhmm) => {
+const minutesOf = (hhmm) => {
   const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || ''))
-  if (!m) return null
-  const H = Number(m[1])
-  return { face: `${H % 12 || 12}:${m[2]}`, mer: H < 12 ? 'am' : 'pm', mins: H * 60 + Number(m[2]) }
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null
+}
+// An hour said the way it is said aloud: 6 AM, 12:30 PM, 9 PM.
+const spokenHour = (h) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`
+const spokenTime = (mins) => {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h < 12 ? 'AM' : 'PM'}`
 }
 
-// Five hours at a time. A day read all at once is a wall; five is a page of
-// it, and the arrows only exist when there is a sixth.
-const PER_PAGE = 5
-
-export default function DaySchedule({ dateKeyStr, appointments = [], meals = [], phase, onAdd }) {
-  const [adding, setAdding] = useState(false)
-  const [page, setPage] = useState(0)
-  const [clockRaw] = useLocalStorage('mos:sittings', { standing: {}, days: {} })
-  const standing = (clockRaw && clockRaw.standing) || {}
-  const day = ((clockRaw && clockRaw.days) || {})[dateKeyStr] || {}
-  const hidden = (clockRaw && clockRaw.hidden) || {}
-
+export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAdd }) {
+  const [adding, setAdding] = useState(null) // null | { at }
+  const grid = useRef(null)
   const date = parseKey(dateKeyStr)
 
-  const entries = useMemo(() => {
-    const out = []
-
-    // The sittings, at whatever hour they are set to — the ones that hold
-    // something, and never one she has put away.
-    SITTINGS.forEach((s) => {
-      if (hidden[s.id]) return
-      const held = meals.filter((m) => m.slot === s.food || m.slot === s.drink)
-      if (!held.length) return
-      const at = day[s.id] || standing[s.id] || s.at
-      out.push({ id: `sitting:${s.id}`, at, title: s.label, note: steps(held.length) })
-    })
-
-    // And the day's appointments — the same ones the month carries. One with
-    // an hour takes its place in the order; one without is still somewhere she
-    // has to be, so it waits at the end rather than not being said at all.
+  // What is on the day, placed at its hour. Anything without one waits above
+  // the grid rather than being guessed into a slot.
+  const { placed, loose } = useMemo(() => {
     const seen = new Set()
+    const on = []
+    const off = []
     appointments.forEach((a) => {
       if (seen.has(a.id)) return
       seen.add(a.id)
-      out.push({ id: a.id, at: a.time || '', title: a.title, note: '', done: a.done })
+      const start = minutesOf(a.time)
+      if (start == null) { off.push(a); return }
+      const end = minutesOf(a.endTime)
+      on.push({ ...a, start, end: end && end > start ? end : start + 60 })
     })
+    on.sort((x, y) => x.start - y.start)
+    return { placed: on, loose: off }
+  }, [appointments])
 
-    const timed = out.filter((e) => clockParts(e.at)).map((e) => ({ ...e, clock: clockParts(e.at) }))
-    const untimed = out.filter((e) => !clockParts(e.at)).map((e) => ({ ...e, clock: null }))
-    timed.sort((a, b) => a.clock.mins - b.clock.mins)
-    return [...timed, ...untimed]
-  }, [meals, appointments, day, standing, hidden])
+  // Open on the morning rather than at midnight.
+  useEffect(() => {
+    const el = grid.current
+    if (el) el.scrollTop = OPENS_AT * HOUR
+  }, [dateKeyStr])
 
-  // The cobalt mark goes on what is next, and only on the day itself — on any
-  // other date nothing is "next".
+  // Where now is, and only on the day itself.
   const now = new Date()
-  const isToday = dateKeyStr === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const mins = now.getHours() * 60 + now.getMinutes()
-  const nextId = isToday ? (entries.find((e) => e.clock && e.clock.mins >= mins) || {}).id : null
-
-  const pages = Math.max(1, Math.ceil(entries.length / PER_PAGE))
-  const pg = Math.min(page, pages - 1)
-  const shown = entries.slice(pg * PER_PAGE, pg * PER_PAGE + PER_PAGE)
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const nowAt = dateKeyStr === todayKey ? now.getHours() * 60 + now.getMinutes() : null
 
   const rail = [MONTHS[date.getMonth()], phase && phase.cycleDay ? `Day ${phase.cycleDay}` : '', phase && phase.label]
     .filter(Boolean).join(' · ')
 
   return (
     <section className="mos-bleed" style={{ background: W.ground, color: W.ivory }}>
-      <div className="grid md:grid-cols-[1fr_1fr]">
+      <div className="grid md:grid-cols-[1fr_1.35fr]">
         {/* The date, set the way a date is set in print. */}
-        <div className="px-6 pb-10 pt-12 md:px-14 md:pb-16 md:pt-16">
+        <div className="px-6 pb-8 pt-12 md:px-14 md:pb-16 md:pt-16">
           <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Today&rsquo;s schedule</p>
           <p className="mt-6 font-serif leading-[0.82] text-[130px] md:text-[170px]">{date.getDate()}</p>
           <p className="mt-2 font-serif text-[52px] leading-none md:text-[64px]">{WEEKDAYS[date.getDay()]}</p>
           <p className="mt-6 text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>{rail}</p>
-        </div>
 
-        {/* The day itself, read down. */}
-        <div className="px-6 pb-10 md:px-14 md:pb-16 md:pt-16 md:border-l" style={{ borderColor: W.faint }}>
-          {entries.length === 0 ? (
-            <p className="py-6 text-[15px] italic" style={{ color: W.muted }}>Nothing is set for today.</p>
-          ) : shown.map((e) => (
-            <div key={e.id} className="flex items-start gap-6 py-4 md:gap-8">
-              <p className="w-[104px] shrink-0 text-right font-serif text-[30px] leading-none md:w-[124px] md:text-[34px]">
-                {e.clock ? (
-                  <>
-                    {e.clock.face}
-                    <span className="ml-1.5 align-baseline text-[11px] tracking-[0.1em]" style={{ color: W.muted }}>{e.clock.mer}</span>
-                  </>
-                ) : (
-                  <span style={{ color: W.muted }}>&mdash;</span>
-                )}
-              </p>
-              <span
-                className="mt-0.5 w-px shrink-0 self-stretch"
-                style={{ background: e.id === nextId ? W.cobalt : W.faint, width: e.id === nextId ? 2 : 1 }}
-              />
-              <div className="min-w-0 flex-1">
-                <p className={`text-[19px] leading-snug ${e.done ? 'line-through' : ''}`} style={e.done ? { color: W.muted } : undefined}>{e.title}</p>
-                {e.note && <p className="mt-1 text-[14px] leading-snug" style={{ color: W.muted }}>{e.note}</p>}
-              </div>
-            </div>
-          ))}
-
-          {/* Both ways along the day, under what they move. The one that can
-              still be taken is lit; the one at the end of its travel is not. */}
-          {pages > 1 && (
-            <div className="mt-8 flex items-center justify-end gap-6">
-              <button
-                onClick={() => setPage(Math.max(0, pg - 1))}
-                disabled={pg === 0}
-                aria-label="Earlier"
-                className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default"
-                style={{ color: pg === 0 ? W.muted : W.ivory }}
-              >
-                &larr;
-              </button>
-              <button
-                onClick={() => setPage(Math.min(pages - 1, pg + 1))}
-                disabled={pg === pages - 1}
-                aria-label="Later"
-                className="text-xl leading-none transition-opacity hover:opacity-60 disabled:cursor-default"
-                style={{ color: pg === pages - 1 ? W.muted : W.ivory }}
-              >
-                &rarr;
-              </button>
+          {/* Anything on the day with no hour on it yet. */}
+          {loose.length > 0 && (
+            <div className="mt-10 border-t pt-5" style={{ borderColor: W.faint }}>
+              <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>No hour set</p>
+              {loose.map((e) => (
+                <p key={e.id} className="mt-2.5 text-[17px] leading-snug">{e.title}</p>
+              ))}
             </div>
           )}
+        </div>
+
+        {/* The day itself. Hours down the left, the day beside them. */}
+        <div
+          ref={grid}
+          className="mos-scroll max-h-[560px] overflow-y-auto border-t md:max-h-[640px] md:border-l md:border-t-0"
+          style={{ borderColor: W.faint }}
+        >
+          <div className="relative" style={{ height: 24 * HOUR }}>
+            {Array.from({ length: 24 }, (_, h) => (
+              <button
+                key={h}
+                onClick={() => setAdding({ at: `${String(h).padStart(2, '0')}:00` })}
+                aria-label={`Add something at ${spokenHour(h)}`}
+                className="absolute left-0 right-0 flex items-start border-t text-left transition-colors hover:bg-white/[0.04]"
+                style={{ top: h * HOUR, height: HOUR, borderColor: W.hair }}
+              >
+                <span
+                  className="w-[72px] shrink-0 pl-5 pt-1.5 text-[10px] uppercase tracking-[0.16em] md:w-[86px] md:pl-8"
+                  style={{ color: W.muted }}
+                >
+                  {spokenHour(h)}
+                </span>
+              </button>
+            ))}
+
+            {/* What she is due somewhere for, at the hour she is due. */}
+            {placed.map((e) => (
+              <div
+                key={e.id}
+                className="absolute right-4 md:right-8"
+                style={{
+                  top: (e.start / 60) * HOUR + 2,
+                  height: Math.max(((e.end - e.start) / 60) * HOUR - 4, 28),
+                  left: 72,
+                }}
+              >
+                <div
+                  className="h-full overflow-hidden px-3.5 py-1.5"
+                  style={{ background: W.block, borderLeft: `2px solid ${W.ivory}` }}
+                >
+                  {/* The hour and the thing on one line, so a half-hour block
+                      says as much as a two-hour one. */}
+                  <p className={`truncate text-[15px] leading-snug ${e.done ? 'line-through' : ''}`} style={e.done ? { color: W.muted } : undefined}>
+                    <span className="mr-2.5 text-[10px] uppercase tracking-[0.14em]" style={{ color: W.muted }}>{spokenTime(e.start)}</span>
+                    {e.title}
+                  </p>
+                </div>
+              </div>
+            ))}
+
+            {/* Now. */}
+            {nowAt != null && (
+              <div className="pointer-events-none absolute left-[72px] right-0" style={{ top: (nowAt / 60) * HOUR }}>
+                <span className="block h-px w-full" style={{ background: W.cobalt }} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* One way in, at the foot, on the right. */}
       <div className="flex justify-end border-t px-6 py-4 md:px-14" style={{ borderColor: W.faint }}>
-        <button onClick={() => setAdding(true)} className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">
+        <button onClick={() => setAdding({ at: '' })} className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">
           <span className="text-base leading-none">+</span> Add to day
         </button>
       </div>
 
-      {adding && <AddToDay onClose={() => setAdding(false)} onSave={(title, at) => { onAdd(title, at); setAdding(false) }} />}
+      {adding && (
+        <AddToDay
+          at={adding.at}
+          onClose={() => setAdding(null)}
+          onSave={(title, at) => { onAdd(title, at); setAdding(null) }}
+        />
+      )}
     </section>
   )
 }
@@ -175,8 +181,8 @@ export default function DaySchedule({ dateKeyStr, appointments = [], meals = [],
 // An hour and the thing itself, and nothing else to fill in. Anything that
 // wants a pillar, a repeat or a note is edited afterwards; this is the line
 // she writes while standing up.
-function AddToDay({ onClose, onSave }) {
-  const [at, setAt] = useState('')
+function AddToDay({ at: opensAt, onClose, onSave }) {
+  const [at, setAt] = useState(opensAt || '')
   const [title, setTitle] = useState('')
   const save = () => { const t = title.trim(); if (!t) return; onSave(t, at) }
 
