@@ -877,14 +877,15 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block },
     }))
-  // A step added to a routine lands at the foot of it, below everything
-  // already there. Anywhere else is a drag away — the gesture the panel
-  // already has, and the only one a thumb can be precise with.
+  // A step added to a routine lands at the top of it, where the mark that
+  // added it is and where she is already looking. Anywhere else is a drag
+  // away — the gesture the panel already has, and the only one a thumb can be
+  // precise with.
   const addRoutineStep = (block, title) => {
     const orders = activities
       .filter((a) => a.type === 'protocol' && (a.details || {}).block === block && typeof a.order === 'number')
       .map((a) => a.order)
-    const edge = orders.length ? Math.max(...orders) + 1 : 0
+    const edge = orders.length ? Math.min(...orders) - 1 : 0
     add(blankActivity('protocol', {
       title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block }, order: edge,
@@ -1165,7 +1166,19 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
-      <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
+      <div className="flex items-start justify-between gap-6">
+        <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
+        {/* The way in, set in the corner of the block rather than trailing the
+            list — the one mark on the panel that is not a step. */}
+        <button
+          onClick={() => setWriting(true)}
+          aria-label="Add a step"
+          className="-mr-1 -mt-1 shrink-0 p-1 text-[19px] leading-none transition-opacity hover:opacity-60"
+          style={{ color: dim }}
+        >
+          +
+        </button>
+      </div>
       {/* However long the routine is, the panel stays the height of the page
           and the list scrolls inside it — with no bar drawn, because the bar
           fell straight down the column the boxes are in and sat on top of
@@ -1181,6 +1194,27 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
           overscrollBehavior: 'contain',
         }}
       >
+        {/* Opened, the line is the first row of the routine, wearing the same
+            empty box — under the mark that opened it, where she is already
+            looking. It lands at the top and anywhere else is a drag away. */}
+        {writing && (
+          <div className="flex w-full items-center gap-5 py-3" style={{ borderBottom: `1px solid ${rule}` }}>
+            <span aria-hidden className="h-[15px] w-[15px] shrink-0 border" style={{ borderColor: 'rgba(247,244,237,0.35)' }} />
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim()); setDraft('') }
+                if (e.key === 'Escape') { setDraft(''); setWriting(false) }
+              }}
+              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim()); setDraft(''); setWriting(false) }}
+              placeholder="A step"
+              data-no-dictation
+              className="min-w-0 flex-1 bg-transparent text-[17px] leading-snug text-cream outline-none placeholder:text-cream/45"
+            />
+          </div>
+        )}
         {rows.map((it) => (
           <div
             key={it.id}
@@ -1237,37 +1271,6 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
           </div>
         ))}
 
-        {/* The way in. Opened, it is the next row of the routine wearing the
-            same empty box. It lands at the foot and anywhere else is a drag
-            away — the gesture the panel already has, and the only one a thumb
-            can be precise with. */}
-        {writing ? (
-          <div className="flex w-full items-center gap-5 py-3" style={{ borderBottom: `1px solid ${rule}` }}>
-            <span aria-hidden className="h-[15px] w-[15px] shrink-0 border" style={{ borderColor: 'rgba(247,244,237,0.35)' }} />
-            <input
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim()); setDraft('') }
-                if (e.key === 'Escape') { setDraft(''); setWriting(false) }
-              }}
-              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim()); setDraft(''); setWriting(false) }}
-              placeholder="A step"
-              data-no-dictation
-              className="min-w-0 flex-1 bg-transparent text-[17px] leading-snug text-cream outline-none placeholder:text-cream/45"
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => setWriting(true)}
-            aria-label="Add a step"
-            className="mt-5 text-[17px] leading-none transition-opacity hover:opacity-60"
-            style={{ color: dim }}
-          >
-            +
-          </button>
-        )}
       </div>
     </section>
   )
