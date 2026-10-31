@@ -174,11 +174,17 @@ export const activityOccursOn = (a, key) => {
     const weeks = Math.round((startOfWeek(d).getTime() - startOfWeek(parseKey(start)).getTime()) / (7 * 86400000))
     return weeks % n === 0
   }
-  // Monthly on a weekday — same ordinal occurrence as the start (e.g. 2nd Tuesday).
+  // Monthly on a weekday — the same ordinal occurrence as the start, e.g. the
+  // second Tuesday. A start that falls in the last seven days of its month
+  // means the LAST one, not the fifth: most months have no fifth Friday, and
+  // "monthly" that skips seven months of the year is not monthly.
   if (f === 'monthlyday') {
     const okDay = days ? days.includes(dow) : parseKey(start).getDay() === dow
     if (!okDay) return false
-    return Math.ceil(d.getDate() / 7) === Math.ceil(parseKey(start).getDate() / 7)
+    const s0 = parseKey(start)
+    const lastOf = (x) => x.getDate() + 7 > new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()
+    if (lastOf(s0)) return lastOf(d)
+    return !lastOf(d) && Math.ceil(d.getDate() / 7) === Math.ceil(s0.getDate() / 7)
   }
   // Custom — every N days / weeks / months / years from the start date.
   if (f === 'custom') {

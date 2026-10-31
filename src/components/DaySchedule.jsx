@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { parseKey, dateKey, monthGrid, DOW, isSameDay } from '../lib/date'
 import SwipeAway from './shared/SwipeAway'
 import LetGo from './shared/LetGo'
+import RepeatField from './shared/Repeat'
 
 // ── Today's schedule, as a day planner.
 //
@@ -394,8 +395,9 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
         <AddToDay
           at={adding.at}
           until={adding.until}
+          on={dateKeyStr}
           onClose={() => setAdding(null)}
-          onSave={(title, at, until) => { onAdd(title, at, until); setAdding(null) }}
+          onSave={(title, at, until, repeat) => { onAdd(title, at, until, repeat); setAdding(null) }}
         />
       )}
     </section>
@@ -488,19 +490,20 @@ function MonthPick({ from, holds, onPick, onClose }) {
 // The two hours she drew and the thing itself, and nothing else to fill in.
 // Anything that wants a pillar, a repeat or a note is edited afterwards; this
 // is the line she writes while standing up.
-function AddToDay({ at: opensAt, until: opensUntil, onClose, onSave }) {
+function AddToDay({ at: opensAt, until: opensUntil, on: onKey, onClose, onSave }) {
   const [at, setAt] = useState(opensAt || '')
   const [until, setUntil] = useState(opensUntil || '')
   const [title, setTitle] = useState('')
-  const save = () => { const t = title.trim().toLowerCase(); if (!t) return; onSave(t, at, until) }
+  const [repeat, setRepeat] = useState({ frequency: 'once' })
+  const save = () => { const t = title.trim().toLowerCase(); if (!t) return; onSave(t, at, until, repeat) }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(22,19,15,0.55)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" style={{ background: 'rgba(22,19,15,0.55)' }} onClick={onClose}>
       <div
-        className="w-full max-w-md p-8"
+        className="mos-scroll max-h-[88vh] w-full max-w-md overflow-y-auto p-8"
         style={{ background: W.ground, color: W.ivory }}
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >
         <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Add to day</p>
 
@@ -543,6 +546,13 @@ function AddToDay({ at: opensAt, until: opensUntil, onClose, onSave }) {
             style={{ borderColor: W.faint, color: W.ivory }}
           />
         </label>
+
+        {/* How often, if at all. Written out of the day she is adding to, so
+            "weekly on Friday" means this Friday's weekday and nothing has to
+            be worked out twice. */}
+        <div className="mt-8">
+          <RepeatField value={repeat} startKey={onKey} onChange={setRepeat} />
+        </div>
 
         <div className="mt-9 flex items-center justify-end gap-7">
           <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: W.muted }}>Cancel</button>

@@ -5,6 +5,7 @@ import { BTN, BTN_SM, QUIET, FIELD, CHIP, CHIP_ON, CHIP_OFF } from './shared/but
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SwipeAway from './shared/SwipeAway'
 import LetGo from './shared/LetGo'
+import RepeatField from './shared/Repeat'
 import { phaseForConfig } from '../lib/cycle'
 import {
   dateKey, parseKey, longDate, isSameDay, monthGrid, MONTHS, DOW,
@@ -15,7 +16,7 @@ import DayLists from './DayLists'
 import DaySchedule from './DaySchedule'
 import MonthCalendar from './MonthCalendar'
 import MonthGrid from './shared/MonthGrid'
-import { slotMeta, SITTINGS, spoken, blankMeal, MEAL_FREQ_OPTS, WEEKDAYS } from '../lib/meals'
+import { slotMeta, SITTINGS, spoken, blankMeal } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
@@ -886,6 +887,9 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   const addMeal = (m) =>
     add(blankActivity(m.kind === 'supp' ? 'supplement' : 'meal_item', {
       title: m.name, frequency: m.frequency || 'daily', daysOfWeek: m.days || [], seriesStart: m.startDate || '',
+      ...(m.interval ? { interval: m.interval } : {}),
+      ...(m.intervalUnit ? { intervalUnit: m.intervalUnit } : {}),
+      ...(m.seriesEnd ? { seriesEnd: m.seriesEnd } : {}),
       details: m.kind === 'supp' ? { slot: m.slot, dose: '', unit: 'mg' } : { slot: m.slot, beverage: slotMeta(m.slot).label === 'Drink' },
     }))
   const removeMeal = (id) => remove(id)
@@ -945,9 +949,13 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // Add a one-time appointment on the selected day, at a time. Shows in the day's
   // agenda and on the calendars.
   const partForTime = (t) => { if (!t) return 'morning'; const h = parseInt(t.slice(0, 2), 10); return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening' }
-  const addEvent = (title, time, endTime) =>
+  // `repeat` is whatever the How often field settled on: a frequency, the
+  // days it runs on, how many of the unit between turns, and the day it stops
+  // — the same shape the series engine has always read.
+  const addEvent = (title, time, endTime, repeat) =>
     add(blankActivity('event', {
       title, category: 'personal', frequency: 'once', seriesStart: selectedKey,
+      ...(repeat && typeof repeat === 'object' ? repeat : {}),
       details: { time: time || '', endTime: time ? (endTime || '') : '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' },
     }))
 
@@ -1029,7 +1037,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         dateKeyStr={selectedKey}
         appointments={dayAppointments(selectedKey)}
         phase={todayPhase}
-        onAdd={(title, at, until) => addEvent(title, at, until)}
+        onAdd={(title, at, until, repeat) => addEvent(title, at, until, repeat)}
         onPickDate={pickDay}
         holds={(k) => dayScheduled(k).length > 0}
         onSkip={skipToday}
@@ -1930,17 +1938,26 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
   const whats = sitting.eats ? WHATS : WHATS.filter((w) => w.id !== 'food')
   const [what, setWhat] = useState(whats[0].id)
   const [name, setName] = useState('')
-  const [freq, setFreq] = useState('daily')
-  const [days, setDays] = useState([])
+  // The same How often the day planner asks, so a drink and an appointment
+  // are set up the same way and both can say "every other Tuesday".
+  const [repeat, setRepeat] = useState({ frequency: 'daily' })
 
   const slot = what === 'drink' ? sitting.drink : sitting.food
   const kind = what === 'supp' ? 'supp' : 'food'
-  const needsDays = freq !== 'daily' && freq !== 'once'
 
   const save = () => {
     const t = name.trim()
     if (!t) return
-    onSave({ ...blankMeal(slot, kind), name: t.toLowerCase(), frequency: freq, days, startDate: dateKeyStr || '' }, slot, kind)
+    onSave({
+      ...blankMeal(slot, kind),
+      name: t.toLowerCase(),
+      frequency: repeat.frequency || 'daily',
+      days: repeat.daysOfWeek || [],
+      interval: repeat.interval,
+      intervalUnit: repeat.intervalUnit,
+      seriesEnd: repeat.seriesEnd,
+      startDate: dateKeyStr || '',
+    }, slot, kind)
   }
 
   const chip = (on) => `border px-3.5 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
@@ -1956,9 +1973,9 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
       {/* The same sheet the day planner opens, on the same walnut: one sheet
           for adding anything, rather than a form inside a box inside a card. */}
       <div
-        className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9"
+        className="mos-scroll max-h-[88vh] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
         style={{ background: '#68472C', color: '#F7F4ED' }}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >
         <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{sitting.label}</p>
 
@@ -1984,28 +2001,9 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
           />
         </label>
 
-        <div className="mt-7">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">How often</span>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {MEAL_FREQ_OPTS.map((o) => (
-              <button key={o.id} onClick={() => setFreq(o.id)} className={chip(o.id === freq)}>{o.label}</button>
-            ))}
-          </div>
+        <div className="mt-8">
+          <RepeatField value={repeat} startKey={dateKeyStr} onChange={setRepeat} />
         </div>
-
-        {needsDays && (
-          <div className="mt-6 flex flex-wrap gap-2">
-            {WEEKDAYS.map((w) => (
-              <button
-                key={w.d}
-                onClick={() => setDays((d) => (d.includes(w.d) ? d.filter((x) => x !== w.d) : [...d, w.d]))}
-                className={chip(days.includes(w.d))}
-              >
-                {w.label}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="mt-9 flex items-center justify-end gap-7">
           <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
