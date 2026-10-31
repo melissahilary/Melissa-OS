@@ -877,6 +877,22 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block },
     }))
+  // A step added to a routine lands where she says — above everything or
+  // below it — by taking an order either side of what is already there. Any
+  // place between the two is a drag away, which is the gesture that already
+  // exists and the only one a thumb can be precise with.
+  const addRoutineStep = (block, title, atTop) => {
+    const orders = activities
+      .filter((a) => a.type === 'protocol' && (a.details || {}).block === block && typeof a.order === 'number')
+      .map((a) => a.order)
+    const edge = orders.length
+      ? (atTop ? Math.min(...orders) - 1 : Math.max(...orders) + 1)
+      : 0
+    add(blankActivity('protocol', {
+      title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
+      timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block }, order: edge,
+    }))
+  }
   // Add a one-time appointment on the selected day, at a time. Shows in the day's
   // agenda and on the calendars.
   const partForTime = (t) => { if (!t) return 'morning'; const h = parseInt(t.slice(0, 2), 10); return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening' }
@@ -925,6 +941,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onOpen={openActivity}
         onToggle={toggleEvent}
         onReorder={setOrder}
+        onAddStep={addRoutineStep}
       />
 
       {/* The world outside the window, read as one line under the routines. */}
@@ -1037,7 +1054,7 @@ const PHASE_AGENDA_HINT = {
 // number used to, because a numbered list that shortens as she keeps it
 // renumbers itself, and no pillar is named beside it either.
 
-function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
+function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
   // A kept step is not gone, it is done: it stays on the panel, struck
@@ -1057,6 +1074,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
   // the list reorders underneath it, so the row never leaves the fingertip.
   const [held, setHeld] = useState(null) // { id, ids }
   const [lift, setLift] = useState(0) // how far the held row is carried, in px
+  // Writing a new step. `top` is where it will land; the rest is a drag away.
+  const [writing, setWriting] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [top, setTop] = useState(false)
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
@@ -1219,12 +1240,52 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
             </span>
           </div>
         ))}
+
+        {/* The way in. Opened, it is the next row of the routine wearing the
+            same empty box, and it says where it will land — above everything
+            or below it. Anywhere between the two is a drag away, which is the
+            gesture that already exists and the one a thumb can be precise
+            with. */}
+        {writing ? (
+          <div className="flex w-full items-center gap-5 py-3" style={{ borderBottom: `1px solid ${rule}` }}>
+            <span aria-hidden className="h-[15px] w-[15px] shrink-0 border" style={{ borderColor: 'rgba(247,244,237,0.35)' }} />
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim(), top); setDraft('') }
+                if (e.key === 'Escape') { setDraft(''); setWriting(false) }
+              }}
+              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim(), top); setDraft(''); setWriting(false) }}
+              placeholder="A step"
+              className="min-w-0 flex-1 bg-transparent text-[17px] leading-snug text-cream outline-none placeholder:text-cream/45"
+            />
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setTop((v) => !v)}
+              className="shrink-0 text-[10px] uppercase tracking-[0.16em] transition-opacity hover:opacity-70"
+              style={{ color: dim }}
+            >
+              {top ? 'At the top' : 'At the foot'}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setWriting(true)}
+            aria-label="Add a step"
+            className="mt-5 text-[17px] leading-none transition-opacity hover:opacity-60"
+            style={{ color: dim }}
+          >
+            +
+          </button>
+        )}
       </div>
     </section>
   )
 }
 
-function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, onReorder }) {
+function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, onReorder, onAddStep }) {
   // Deduped, and keyed on the block a task actually sits in rather than its
   // part of day — a repeat that shows in two parts is still one task.
   const uniq = dedupeById(rituals)
@@ -1250,6 +1311,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
           onOpen={onOpen}
           onToggle={onToggle}
           onReorder={onReorder}
+          onAdd={(title, atTop) => onAddStep && onAddStep('morning', title, atTop)}
         />
         <Routine
           title="PM"
@@ -1258,6 +1320,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
           onOpen={onOpen}
           onToggle={onToggle}
           onReorder={onReorder}
+          onAdd={(title, atTop) => onAddStep && onAddStep('evening', title, atTop)}
         />
       </div>
     </header>
