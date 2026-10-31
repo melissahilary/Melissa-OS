@@ -28,6 +28,24 @@ const mins = (v) => {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+// She does not put an hour to these. She puts a part of the day.
+const WHEN = [
+  { id: 'morning', label: 'Morning' },
+  { id: 'daytime', label: 'Daytime' },
+  { id: 'evening', label: 'Evening' },
+]
+const WHEN_ORDER = { morning: 0, daytime: 1, evening: 2 }
+const whenLabel = (id) => (WHEN.find((w) => w.id === id) || {}).label || ''
+
+// Hours and minutes, said the way she would say them.
+const spoken = (total) => {
+  if (!total) return ''
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (!h) return `${m} min`
+  return m ? `${h} h ${two(m)}` : `${h} h`
+}
+
 // ── Who reads the lines.
 //
 // The keyword table answers the instant she presses Add; Claude answers a
@@ -101,7 +119,10 @@ export default function Movement({ dateKeyStr }) {
   // What lands on this day, in the order she put it in.
   const today = all
     .filter((x) => activityOccursOn({ ...x, seriesStart: x.seriesStart || '', type: 'protocol' }, key))
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .sort((a, b) => {
+      const w = (WHEN_ORDER[a.when] ?? 1) - (WHEN_ORDER[b.when] ?? 1)
+      return w || (a.order || 0) - (b.order || 0)
+    })
 
   const done = (x) => !!(x.completions && x.completions[key])
   const setDone = (id, on) => setRaw((prev) => arr(prev).map((x) => {
@@ -141,11 +162,9 @@ export default function Movement({ dateKeyStr }) {
     setTally((prev) => ({ ...obj(prev), [key]: { ...obj(obj(prev)[key]), [field]: v } }))
   }
 
-  const TALLY = [
-    { id: 'steps', label: 'Steps', hint: '8,412' },
-    { id: 'active', label: 'Active', hint: '1 h 52' },
-    { id: 'distance', label: 'Distance', hint: '4.6 mi' },
-  ]
+  // Active is not hers to write. It is the day's movement added up — every
+  // line she has put down, whether or not she has kept it yet.
+  const active = today.reduce((n, x) => n + mins(x.minutes), 0)
 
   return (
     <section className="mos-bleed border-t border-stone-200 px-6 py-14 md:px-12 md:py-20">
@@ -170,7 +189,7 @@ export default function Movement({ dateKeyStr }) {
           {today.map((x, idx) => {
             const kept = done(x)
             const long = mins(x.minutes)
-            const meta = [long ? `${long} min` : '', x.detail].filter(Boolean).join(' · ')
+            const meta = [whenLabel(x.when), long ? `${long} min` : '', x.detail].filter(Boolean).join(' · ')
             const kinds = kindsOf(x)
             return (
               <SwipeAway
@@ -178,8 +197,22 @@ export default function Movement({ dateKeyStr }) {
                 ground="#F8F4EC"
                 onAway={() => setRaw((prev) => arr(prev).filter((y) => y.id !== x.id))}
               >
-                <div className="flex items-start gap-6 border-t border-stone-200 py-6">
-                  <span className="mt-[9px] w-6 shrink-0 text-[10px] uppercase tracking-[0.16em] text-stone-400">{two(idx + 1)}</span>
+                <div className={`flex items-start gap-6 py-6 ${idx ? 'border-t border-stone-200' : ''}`}>
+                  {/* Keeping it is the only thing to press on a row, so it is
+                      the thing on the left rather than a word on the right. */}
+                  <button
+                    onClick={() => setDone(x.id, !kept)}
+                    aria-pressed={kept}
+                    aria-label={`${kept ? 'Kept' : 'Keep'} ${x.name}`}
+                    className="mt-[11px] flex h-[19px] w-[19px] shrink-0 items-center justify-center border transition-colors"
+                    style={{ borderColor: kept ? '#16130F' : '#D6D3D1' }}
+                  >
+                    {kept && (
+                      <svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden>
+                        <path d="M1 5.1 L4.3 8.4 L11 1.3" stroke="#16130F" strokeWidth="1.4" />
+                      </svg>
+                    )}
+                  </button>
                   <button
                     onClick={() => setOpen(x)}
                     className="min-w-0 flex-1 text-left transition-opacity hover:opacity-70"
@@ -204,21 +237,12 @@ export default function Movement({ dateKeyStr }) {
                       </span>
                     )}
                   </button>
-                  {/* Kept. Pressing it keeps it. */}
-                  <button
-                    onClick={() => setDone(x.id, !kept)}
-                    aria-pressed={kept}
-                    className="mt-[9px] shrink-0 text-[10px] uppercase tracking-[0.18em] transition-opacity hover:opacity-60"
-                    style={{ color: kept ? '#A8A29E' : '#C0966F' }}
-                  >
-                    {kept ? 'Kept' : 'Keep'}
-                  </button>
                 </div>
               </SwipeAway>
             )
           })}
 
-          <div className="border-t border-stone-200 pt-3">
+          <div className="pt-6">
             <button
               onClick={() => setAdding(true)}
               aria-label="Add something she moved for"
@@ -232,7 +256,7 @@ export default function Movement({ dateKeyStr }) {
         {/* The eight, over the seven days behind her. */}
         <div className="mt-14 border-t border-stone-200 pt-9">
           <p className="kicker text-stone-500">Seven days, in what they asked</p>
-          <div className="mt-7 grid gap-x-16 gap-y-5 sm:grid-cols-2">
+          <div className="mt-7 grid gap-x-16 gap-y-5 sm:grid-flow-col sm:grid-cols-2 sm:grid-rows-4">
             {QUALITIES.map((q) => {
               const n = week[q.id] || 0
               return (
@@ -256,21 +280,25 @@ export default function Movement({ dateKeyStr }) {
           )}
         </div>
 
-        {/* The footnote: the only measuring on the page, and hers to write. */}
-        <div className="mt-14 grid grid-cols-3 gap-8 border-t border-stone-200 pt-9">
-          {TALLY.map((t) => (
-            <label key={t.id} className="block">
-              <span className="kicker block text-stone-500">{t.label}</span>
-              <input
-                value={tally[t.id] || ''}
-                onChange={write(t.id)}
-                placeholder={t.hint}
-                autoComplete="off"
-                data-no-dictation
-                className="mt-3 w-full bg-transparent font-serif text-[34px] leading-none text-stone-900 outline-none placeholder:text-stone-300 sm:text-[44px]"
-              />
-            </label>
-          ))}
+        {/* The footnote. Steps are hers to write; the hours add themselves. */}
+        <div className="mt-14 grid grid-cols-2 gap-8 border-t border-stone-200 pt-9">
+          <label className="block">
+            <span className="kicker block text-stone-500">Steps</span>
+            <input
+              value={tally.steps || ''}
+              onChange={write('steps')}
+              placeholder="8,412"
+              autoComplete="off"
+              data-no-dictation
+              className="mt-3 w-full bg-transparent font-serif text-[34px] leading-none text-stone-900 outline-none placeholder:text-stone-300 sm:text-[44px]"
+            />
+          </label>
+          <div className="block">
+            <span className="kicker block text-stone-500">Active</span>
+            <span className="mt-3 block font-serif text-[34px] leading-none sm:text-[44px]" style={{ color: active ? '#16130F' : '#D6D3D1' }}>
+              {active ? spoken(active) : '0 min'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -309,6 +337,7 @@ export default function Movement({ dateKeyStr }) {
 // Nothing here asks what it was for; that is read from the name.
 function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
   const [name, setName] = useState(item ? item.name : '')
+  const [when, setWhen] = useState(item && item.when ? item.when : 'morning')
   const [length, setLength] = useState(item ? String(item.minutes || '') : '')
   const [detail, setDetail] = useState(item ? item.detail || '' : '')
   const [notes, setNotes] = useState(item ? item.notes || '' : '')
@@ -321,6 +350,11 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
     return r
   })
 
+  // Pressing an action must not first blur the field: on a phone that dismisses
+  // the keyboard, the sheet grows back under her thumb, and the press lands on
+  // nothing. Holding focus through the press keeps the button where she aimed.
+  const hold = (e) => e.preventDefault()
+
   const field = useRef(null)
   const save = () => {
     const t = name.trim().toLowerCase()
@@ -328,6 +362,7 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
     const r = repeat || {}
     onSave({
       name: t,
+      when,
       minutes: mins(length) || '',
       detail: detail.trim().toLowerCase(),
       notes,
@@ -338,11 +373,6 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
       seriesEnd: r.seriesEnd || '',
     })
   }
-
-  // Pressing an action must not first blur the field: on a phone that dismisses
-  // the keyboard, the sheet grows back under her thumb, and the press lands on
-  // nothing. Holding focus through the press keeps the button where she aimed.
-  const hold = (e) => e.preventDefault()
 
   return (
     <div
@@ -371,6 +401,34 @@ function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
           className="mt-4 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[30px] lowercase text-cream outline-none placeholder:text-cream/30"
         />
+
+        {/* Not an hour. A part of the day, which is the only way she thinks
+            about when she moves. */}
+        <div className="mt-8">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">When</span>
+          <div className="mt-3 flex gap-2">
+            {WHEN.map((w) => {
+              const on = when === w.id
+              return (
+                <button
+                  key={w.id}
+                  type="button"
+                  onMouseDown={hold}
+                  onClick={() => setWhen(w.id)}
+                  aria-pressed={on}
+                  className="h-10 flex-1 border text-[10px] uppercase tracking-[0.14em] transition-colors"
+                  style={{
+                    borderColor: on ? '#F7F4ED' : 'rgba(247,244,237,0.3)',
+                    background: on ? '#F7F4ED' : 'transparent',
+                    color: on ? '#68472C' : 'rgba(247,244,237,0.75)',
+                  }}
+                >
+                  {w.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
         <div className="mt-8 flex items-end gap-6">
           <label className="w-[40%] block">
