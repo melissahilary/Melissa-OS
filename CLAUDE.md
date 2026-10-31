@@ -44,6 +44,10 @@ the shapes below as fixed; propose, never apply, a change to them.
   said with an outline and an opaque ground.
 - One affordance per job: slide a row aside to delete it (never a ×), one `+`
   at the foot of a list, the two-button Let go sheet for anything repeating.
+- The page stays where she left it. Anything that opens over the page must not
+  move the page under it; `src/lib/holdScroll.js` pins the body while any
+  full-screen sheet (fixed, inset-0, z ≥ 50) is up and puts her back after.
+  It is global — a new sheet gets this for free and must not fight it.
 
 ## Branches & deploy
 - Develop on `claude/friendly-albattani-4dzpko`; `main` is production.
