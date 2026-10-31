@@ -1631,15 +1631,32 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
     strip.scrollTo({ left: el.offsetLeft - strip.offsetLeft, behavior: 'smooth' })
   }, [i, per])
 
+  // And the other way round: a swipe moves the marks. They were only ever
+  // moved by their own tap, so sliding from the empty stomach to breakfast
+  // left the mark sitting under the card she had left.
+  const onRailScroll = () => {
+    const strip = rail.current
+    if (!strip || !strip.clientWidth) return
+    const at = Math.max(0, Math.min(stops - 1, Math.round(strip.scrollLeft / strip.clientWidth)))
+    setI((prev) => (prev === at ? prev : at))
+  }
+
   const itemsIn = (slot, kind) => (meals || []).filter((m) => m.slot === slot && m.kind === kind)
 
   return (
     <div className="mos-bleed mb-12">
-      <div ref={rail} className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto">
+      <div ref={rail} onScroll={onRailScroll} className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto">
         {rows.map((x, idx) => {
           const ink = x.dark ? '#F7F4ED' : '#16130F'
           const dim = x.dark ? 'rgba(247,244,237,0.58)' : 'rgba(22,19,15,0.52)'
           const rule = x.dark ? 'rgba(247,244,237,0.20)' : 'rgba(22,19,15,0.16)'
+          // The names of things — the sitting, and food, drink, supplements —
+          // were set in the same grey as a measurement and disappeared into
+          // the card. They take the walnut the house already uses on its dark
+          // grounds, which carries on cream and reads as a label rather than
+          // an afterthought. On the dark cards it lifts to the tan instead,
+          // since walnut on walnut is nothing.
+          const labelInk = x.dark ? '#C0966F' : '#68472C'
           const food = itemsIn(x.food, 'food')
           const supps = itemsIn(x.food, 'supp')
           const drink = itemsIn(x.drink, 'food')
@@ -1647,10 +1664,10 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
           // food, then what she drinks with it, then what she takes with it.
           // A section with nothing in it is not drawn at all — an empty
           // heading is a heading about nothing.
-          const Section = ({ label, list }) => (
+          const Section = ({ name, list }) => (
             <div className="mt-6 first:mt-0">
               <div className="flex items-baseline gap-3">
-                <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{label}</span>
+                <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: labelInk }}>{name}</span>
                 <span className="h-px flex-1" style={{ backgroundColor: rule }} />
               </div>
               {list.map((m) => (
@@ -1684,7 +1701,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
               aria-current={idx === i ? 'true' : undefined}
             >
               <div className="flex items-baseline justify-between gap-4">
-                <p className="text-[10px] uppercase tracking-[0.16em]" style={{ color: dim }}>{x.label}</p>
+                <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: labelInk }}>{x.label}</p>
                 {/* Put the sitting away. Not everyone eats breakfast, and a
                     card that says nothing every day is worse than no card —
                     but it is a hiding, never a deletion, and the line under
@@ -1727,9 +1744,9 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
               )}
               <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
               <div className="mos-scroll mt-6 flex-1 overflow-y-auto">
-                <Section label="Food" list={food} />
-                <Section label="Drink" list={drink} />
-                <Section label="Supplements" list={supps} />
+                <Section name="Food" list={food} />
+                <Section name="Drink" list={drink} />
+                <Section name="Supplements" list={supps} />
                 {/* One mark to the sitting, not one to each part of it. What
                     it is — food, drink or supplement — is chosen inside. */}
                 <button
