@@ -1753,13 +1753,13 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
               )}
               <span className="mt-6 block h-px w-full" style={{ backgroundColor: rule }} />
               <div className="mos-scroll mt-6 flex-1 overflow-y-auto">
-                <Section name="Food" list={food} />
+                {x.eats && <Section name="Meal" list={food} />}
                 <Section name="Drink" list={drink} />
                 <Section name="Supplements" list={supps} />
                 {/* One mark to the sitting, not one to each part of it. What
                     it is — food, drink or supplement — is chosen inside. */}
                 <button
-                  onClick={() => setAdding({ id: x.id, label: x.label, food: x.food, drink: x.drink })}
+                  onClick={() => setAdding({ id: x.id, label: x.label, food: x.food, drink: x.drink, eats: x.eats })}
                   aria-label={`Add to ${x.label.toLowerCase()}`}
                   className="mt-7 text-[17px] leading-none transition-opacity hover:opacity-60"
                   style={{ color: dim }}
@@ -1876,13 +1876,15 @@ function Sittings({ meals, dateKeyStr, onAdd, onOpen, onToggle }) {
 // the name, how often, which days — is the form the rest of the app uses, so a
 // thing added here repeats exactly as a thing added anywhere else does.
 const WHATS = [
-  { id: 'food', label: 'Food' },
+  { id: 'food', label: 'Meal' },
   { id: 'drink', label: 'Drink' },
   { id: 'supp', label: 'Supplement' },
 ]
 
 function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
-  const [what, setWhat] = useState('food')
+  // Where no meal belongs, it is not offered.
+  const whats = sitting.eats ? WHATS : WHATS.filter((w) => w.id !== 'food')
+  const [what, setWhat] = useState(whats[0].id)
   const slot = what === 'drink' ? sitting.drink : sitting.food
   const kind = what === 'supp' ? 'supp' : 'food'
 
@@ -1894,7 +1896,7 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
       <div className="w-full max-w-sm border border-stone-200 bg-cream p-6">
         <p className="kicker text-stone-500">{sitting.label}</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {WHATS.map((w) => {
+          {whats.map((w) => {
             const on = w.id === what
             return (
               <button

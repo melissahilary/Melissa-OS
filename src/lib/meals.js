@@ -37,14 +37,17 @@ export const MEAL_SLOTS = [
 //
 // The hour is stated the way a person says it — never a twenty-four hour
 // readout, which belongs on a departures board.
+// `eats` is whether a meal belongs at that hour at all. An empty stomach is
+// the point of the first sitting and nobody eats on the way to bed, so those
+// two carry what she drinks and what she takes and nothing else.
 export const SITTINGS = [
-  { id: 'empty', label: 'Empty Stomach', at: '06:40', food: 'empty', drink: 'emptydrink', ground: '#FDFCFA', dark: false },
-  { id: 'breakfast', label: 'Breakfast', at: '07:30', food: 'breakfast', drink: 'drink', ground: '#FAFAF7', dark: false },
-  { id: 'snackam', label: 'Snack', at: '10:30', food: 'snackam', drink: 'snackamdrink', ground: '#F3EFE4', dark: false },
-  { id: 'lunch', label: 'Lunch', at: '12:30', food: 'lunch', drink: 'lunchdrink', ground: '#EEEAE1', dark: false },
-  { id: 'snackpm', label: 'Snack', at: '16:00', food: 'snackpm', drink: 'snackpmdrink', ground: '#C0966F', dark: false },
-  { id: 'dinner', label: 'Dinner', at: '19:30', food: 'dinner', drink: 'dinnerdrink', ground: '#68472C', dark: true },
-  { id: 'bed', label: 'Before Bed', at: '21:50', food: 'bed', drink: 'beddrink', ground: '#151310', dark: true },
+  { id: 'empty', label: 'Empty Stomach', at: '06:40', food: 'empty', drink: 'emptydrink', ground: '#FDFCFA', dark: false, eats: false },
+  { id: 'breakfast', label: 'Breakfast', at: '07:30', food: 'breakfast', drink: 'drink', ground: '#FAFAF7', dark: false, eats: true },
+  { id: 'snackam', label: 'Snack', at: '10:30', food: 'snackam', drink: 'snackamdrink', ground: '#F3EFE4', dark: false, eats: true },
+  { id: 'lunch', label: 'Lunch', at: '12:30', food: 'lunch', drink: 'lunchdrink', ground: '#EEEAE1', dark: false, eats: true },
+  { id: 'snackpm', label: 'Snack', at: '16:00', food: 'snackpm', drink: 'snackpmdrink', ground: '#C0966F', dark: false, eats: true },
+  { id: 'dinner', label: 'Dinner', at: '19:30', food: 'dinner', drink: 'dinnerdrink', ground: '#68472C', dark: true, eats: true },
+  { id: 'bed', label: 'Before Bed', at: '21:50', food: 'bed', drink: 'beddrink', ground: '#151310', dark: true, eats: false },
 ]
 
 // An hour, said rather than clocked: 6:40 AM, 12:30 PM, 9:50 PM.
