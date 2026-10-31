@@ -196,6 +196,10 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     }
     // A tap on the window itself is how it is taken up.
     if (d.mode === 'move' && !d.drew) open()
+    // And letting go of a window she has just drawn takes it up straight
+    // away. She drew those two hours to put something in them; making her
+    // then tap the thing she is already holding was a step that said nothing.
+    if (d.mode === 'new' && d.drew) open()
   }
 
   // A mouse draws from the moment it goes down. A finger has to rest first,
@@ -612,11 +616,14 @@ function AddToDay({ at: opensAt, until: opensUntil, on: onKey, onClose, onSave }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" style={{ background: 'rgba(22,19,15,0.55)' }} onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
       <div
         className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto p-8"
         style={{ background: W.ground, color: W.ivory }}
-        onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >
         <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: W.muted }}>Add to day</p>

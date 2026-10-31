@@ -2307,19 +2307,7 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
                   and of the two it is the name that tells her where she is.
                   The hour is gone with the fine print: she knows when she
                   eats, and the rail is already in the order of the day. */}
-              {/* The name is also the way out of it. She does not take a
-                  snack at four, and there was no longer anywhere to say so —
-                  the mark that put a sitting away came off the card and left
-                  the Put away line underneath with nothing to fill it. */}
-              <button
-                type="button"
-                onClick={() => setPutting(x)}
-                aria-label={`Put ${x.label.toLowerCase()} away`}
-                className="block w-full text-left font-serif leading-[0.95] text-[42px] transition-opacity hover:opacity-75 sm:text-[46px]"
-                style={{ color: ink }}
-              >
-                {x.label}
-              </button>
+              <p className="font-serif leading-[0.95] text-[42px] sm:text-[46px]" style={{ color: ink }}>{x.label}</p>
               <div className="mos-scroll mt-8 flex-1 overflow-y-auto">
                 {x.eats && <Section name="Meal" list={food} />}
                 <Section name="Drink" list={drink} />
@@ -2329,8 +2317,15 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
               {/* One mark to the sitting, not one to each part of it, held at
                   the foot of the card on its own rule — the same mark, in the
                   same place, as the one under the routines. What it is — meal,
-                  drink or supplement — is chosen inside. */}
-              <div className="mt-6 pt-1">
+                  drink or supplement — is chosen inside.
+                  
+                  And its opposite, held off to the side at the same weight:
+                  the plus puts something into the sitting, the minus takes the
+                  sitting off the day. A row is slid aside to be rid of it, but
+                  a card in a rail that already slides has no such gesture to
+                  spare, so it is said with a mark instead. Never a cross — a
+                  cross in this house means nothing is here. */}
+              <div className="relative mt-6 pt-1">
                 <button
                   onClick={() => setAdding({ id: x.id, label: x.label, food: x.food, drink: x.drink, eats: x.eats })}
                   aria-label={`Add to ${x.label.toLowerCase()}`}
@@ -2338,6 +2333,14 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
                   style={{ color: ink }}
                 >
                   +
+                </button>
+                <button
+                  onClick={() => setPutting(x)}
+                  aria-label={`Put ${x.label.toLowerCase()} away`}
+                  className="absolute right-0 top-1 px-5 py-2 text-[30px] leading-none transition-opacity hover:opacity-100"
+                  style={{ color: ink, opacity: 0.45 }}
+                >
+                  &minus;
                 </button>
               </div>
             </section>

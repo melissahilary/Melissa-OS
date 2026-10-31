@@ -27,6 +27,33 @@ const mins = (v) => {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+// ── How long it took, wherever she happened to write it.
+//
+// How long was a field of its own only lately; before that she wrote it into
+// the line that counts the thing — "30 mins", "1 h 15". Those lines are still
+// in her planner, so the length is read out of them rather than lost, and
+// what is left of the line is what is shown beside it.
+const readLength = (text) => {
+  let rest = ` ${String(text || '')} `
+  let total = 0
+  const hm = rest.match(/(\d+(?:\.\d+)?)\s*(?:hours|hour|hrs|hr|h)\b/i)
+  if (hm) {
+    total += Math.round(parseFloat(hm[1]) * 60)
+    rest = rest.replace(hm[0], ' ')
+    // "1 h 15" — the minutes after an hour need no unit of their own.
+    const bare = rest.match(/^\s*(\d{1,2})\b/)
+    if (bare) { total += Number(bare[1]); rest = rest.replace(bare[0], ' ') }
+  }
+  const mm = rest.match(/(\d+)\s*(?:minutes|minute|mins|min|m)\b/i)
+  if (mm) { total += Number(mm[1]); rest = rest.replace(mm[0], ' ') }
+  rest = rest.replace(/\s+/g, ' ').replace(/^[\s·,|-]+|[\s·,|-]+$/g, '')
+  return { minutes: total, rest }
+}
+
+// The length of one line, from the field if it has one and from the line it
+// counts if it does not.
+const lengthOf = (x) => mins(x && x.minutes) || readLength(x && x.detail).minutes
+
 // She does not put an hour to these. She puts a part of the day.
 const WHEN = [
   { id: 'morning', label: 'Morning' },
@@ -79,7 +106,7 @@ export default function Movement({ dateKeyStr }) {
 
   // Active is not hers to write. It is the day's movement added up — every
   // line she has put down, whether or not she has kept it yet.
-  const active = today.reduce((n, x) => n + mins(x.minutes), 0)
+  const active = today.reduce((n, x) => n + lengthOf(x), 0)
 
   return (
     <section className="mos-bleed border-t border-stone-200 px-6 py-14 md:px-12 md:py-20">
@@ -94,8 +121,9 @@ export default function Movement({ dateKeyStr }) {
         <div className="mt-14">
           {today.map((x, idx) => {
             const kept = done(x)
-            const long = mins(x.minutes)
-            const meta = [whenLabel(x.when), long ? `${long} min` : '', x.detail].filter(Boolean).join(' · ')
+            const long = lengthOf(x)
+            const said = mins(x.minutes) ? x.detail : readLength(x.detail).rest
+            const meta = [whenLabel(x.when), long ? `${long} min` : '', said].filter(Boolean).join(' · ')
             return (
               <SwipeAway
                 key={x.id}
@@ -201,8 +229,8 @@ export default function Movement({ dateKeyStr }) {
 function MovementSheet({ item, startKey, onSave, onDrop, onClose }) {
   const [name, setName] = useState(item ? item.name : '')
   const [when, setWhen] = useState(item && item.when ? item.when : 'morning')
-  const [length, setLength] = useState(item ? String(item.minutes || '') : '')
-  const [detail, setDetail] = useState(item ? item.detail || '' : '')
+  const [length, setLength] = useState(item ? String(mins(item.minutes) || readLength(item.detail).minutes || '') : '')
+  const [detail, setDetail] = useState(item ? (mins(item.minutes) ? item.detail || '' : readLength(item.detail).rest) : '')
   const [notes, setNotes] = useState(item ? item.notes || '' : '')
   const [repeat, setRepeat] = useState(() => {
     const r = { frequency: (item && item.frequency) || 'once' }

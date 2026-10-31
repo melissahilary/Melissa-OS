@@ -121,11 +121,36 @@ function watchKeyboard() {
   vv.addEventListener('scroll', set)
 }
 
+
+// ── A press on a sheet must not first put the field down ───────────
+//
+// On a phone, pressing Add blurs the field she was typing in. The keyboard
+// starts to leave, the sheet grows back under her thumb, and by the time the
+// press completes the button is not where she aimed any more — so she gets
+// nothing, or worse, the backdrop behind it, and the line she wrote is gone.
+//
+// Preventing the default on the way down keeps the field focused, the
+// keyboard up and the sheet still, so the press lands where she put it. It is
+// global for the same reason the pinning is: every sheet needs it, and a new
+// one should not have to remember.
+function holdPress() {
+  document.addEventListener('mousedown', (e) => {
+    const field = document.activeElement
+    if (!field || !/^(INPUT|TEXTAREA)$/.test(field.tagName)) return
+    const t = e.target
+    if (!t || !t.closest) return
+    const btn = t.closest('button')
+    if (!btn || !btn.closest('.fixed.inset-0')) return
+    e.preventDefault()
+  }, true)
+}
+
 export default function holdScroll() {
   if (typeof document === 'undefined' || !document.body) return
   if (document.body.dataset.mosHolding) return
   document.body.dataset.mosHolding = '1'
   watchKeyboard()
+  holdPress()
 
   let raf = 0
   const look = () => {
