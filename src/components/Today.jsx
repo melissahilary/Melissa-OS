@@ -1000,7 +1000,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         dateKeyStr={selectedKey}
         appointments={dayAppointments(selectedKey)}
         phase={todayPhase}
-        onAdd={(title, at) => addEvent(title, at)}
+        onAdd={(title, at, until) => addEvent(title, at, until)}
       />
 
       {/* What is owed rather than scheduled: the tasks, the reminders and the
