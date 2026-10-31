@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { PILLARS } from '../lib/pillars'
-import SwipeAway from './shared/SwipeAway'
+import SwipeAway, { OXBLOOD } from './shared/SwipeAway'
 
 // ── The lists that are not the day.
 //
@@ -117,6 +117,7 @@ function Done({ n, open, onToggle, children }) {
 function Plain({ storeKey, field, placeholder }) {
   const [raw, setRaw] = useLocalStorage(storeKey, [])
   const [showing, setShowing] = useState(false)
+  const [open, setOpen] = useState(null) // the line being opened
   const items = arr(raw)
   const live = items.filter((x) => !x.done)
   const done = items.filter((x) => x.done)
@@ -133,7 +134,12 @@ function Plain({ storeKey, field, placeholder }) {
           onClick={() => setRaw((prev) => arr(prev).map((y) => (y.id === x.id ? { ...y, done: !y.done } : y)))}
           label={x[field]}
         />
-        <span className={`min-w-0 flex-1 text-[17px] lowercase leading-snug ${x.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}>{x[field]}</span>
+        <button
+          onClick={() => setOpen(x)}
+          className={`min-w-0 flex-1 text-left text-[17px] lowercase leading-snug transition-opacity hover:opacity-70 ${x.done ? 'text-stone-500 line-through' : 'text-stone-900'}`}
+        >
+          {x[field]}
+        </button>
       </div>
     </SwipeAway>
   )
@@ -148,6 +154,78 @@ function Plain({ storeKey, field, placeholder }) {
       <Done n={done.length} open={showing} onToggle={() => setShowing((v) => !v)}>
         {done.map(row)}
       </Done>
+      {open && (
+        <OpenLine
+          line={open}
+          field={field}
+          onSave={(text, note) => {
+            setRaw((prev) => arr(prev).map((y) => (y.id === open.id ? { ...y, [field]: text, notes: note } : y)))
+            setOpen(null)
+          }}
+          onDrop={() => { setRaw((prev) => arr(prev).filter((y) => y.id !== open.id)); setOpen(null) }}
+          onClose={() => setOpen(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── A line, opened.
+//
+// The same room as everything else that opens on this page, in the same
+// brown: the line itself, somewhere to say more about it, and the three ways
+// out. A list that cannot be corrected is a list she stops trusting.
+function OpenLine({ line, field, onSave, onDrop, onClose }) {
+  const [text, setText] = useState(line[field] || '')
+  const [note, setNote] = useState(line.notes || '')
+  const save = () => { const t = text.trim().toLowerCase(); if (!t) return; onSave(t, note) }
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+      >
+        <input
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          data-no-dictation
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+          className="w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[30px] lowercase text-cream outline-none"
+        />
+
+        <label className="mt-8 block">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">Notes</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={6}
+            placeholder="Anything worth remembering about it."
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            data-no-dictation
+            className="mos-scroll mt-3 block min-h-[150px] w-full resize-y border-b border-cream/30 bg-transparent pb-3 text-[16px] lowercase leading-relaxed text-cream outline-none placeholder:text-cream/35"
+          />
+        </label>
+
+        <div className="mt-9 flex items-center justify-between gap-6">
+          <button onClick={onDrop} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70" style={{ color: OXBLOOD }}>Let it go</button>
+          <div className="flex items-center gap-7">
+            <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+            <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">Save</button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

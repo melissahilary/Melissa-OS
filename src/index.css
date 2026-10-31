@@ -623,6 +623,17 @@ aside.translate-x-0 { transition-duration: 240ms; transition-timing-function: cu
   outline-color: var(--mos-cream, #F7F4ED);
 }
 
+/* A line she is typing on does not get a ring. The ring exists to say where
+   the keyboard is pointing, and a field already says it louder than a ring
+   can: there is a cursor blinking in it. A box drawn round the words while
+   she writes them is the browser's idea of focus, not ours. Everything that
+   is pressed rather than written in keeps its ring. */
+:where(input[type='text'], input[type='search'], input[type='url'], input[type='tel'],
+       input[type='email'], input[type='number'], input[type='time'], input[type='date'],
+       input:not([type]), textarea):focus-visible {
+  outline: none;
+}
+
 /* Mono labels never sit in chrome grey on ivory — the warm mid is the floor. */
 .kicker { color: var(--mos-kicker, #6E4526); }
 

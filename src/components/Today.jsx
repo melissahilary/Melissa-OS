@@ -1364,6 +1364,31 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   )
 }
 
+// ── Somewhere to write about a thing.
+//
+// Under How often, and given real room: the brand, the shop, the way it is
+// taken, what it did last time. Everything else on these sheets is a word or
+// a tap; this is the one place a sentence belongs, so it is drawn as a page
+// rather than as a field.
+function Notes({ value, onChange }) {
+  return (
+    <label className="mt-8 block">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">Notes</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={6}
+        placeholder="Anything worth remembering about it."
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        data-no-dictation
+        className="mos-scroll mt-3 block min-h-[150px] w-full resize-y border-b border-cream/30 bg-transparent pb-3 text-[16px] lowercase leading-relaxed text-cream outline-none placeholder:text-cream/35"
+      />
+    </label>
+  )
+}
+
 // ── A step on the AM or the PM, opened.
 //
 // The same room as the meal sheet, for the things that are not eaten: what it
@@ -1373,8 +1398,8 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
 function EditStep({ activity, onSave, onDrop, onClose }) {
   const det = activity.details || {}
   const [name, setName] = useState(activity.title || '')
-  const [block, setBlock] = useState(det.block === 'evening' ? 'evening' : 'morning')
-  const [time, setTime] = useState(det.time || '')
+  const block = det.block === 'evening' ? 'evening' : 'morning'
+  const [notes, setNotes] = useState(det.notes || det.description || '')
   const [repeat, setRepeat] = useState(() => {
     const r = { frequency: activity.frequency || 'daily' }
     if (Array.isArray(activity.daysOfWeek) && activity.daysOfWeek.length) r.daysOfWeek = activity.daysOfWeek
@@ -1396,7 +1421,7 @@ function EditStep({ activity, onSave, onDrop, onClose }) {
       interval: r.interval || 0,
       intervalUnit: r.intervalUnit || '',
       seriesEnd: r.seriesEnd || '',
-      details: { ...det, block, time, partOfDay: block === 'evening' ? 'evening' : 'morning' },
+      details: { ...det, block, notes, partOfDay: block === 'evening' ? 'evening' : 'morning' },
     })
   }
 
@@ -1430,27 +1455,15 @@ function EditStep({ activity, onSave, onDrop, onClose }) {
           className="mt-4 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[30px] lowercase text-cream outline-none"
         />
 
-        <p className="mt-8 text-[10px] uppercase tracking-[0.18em] text-cream/60">Which half of the day</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={() => setBlock('morning')} className={chip(block === 'morning')}>AM</button>
-          <button onClick={() => setBlock('evening')} className={chip(block === 'evening')}>PM</button>
-        </div>
-
-        <label className="mt-7 block">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">At an hour, if it has one</span>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
-            className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 font-serif text-[24px] leading-none text-cream outline-none"
-            style={{ colorScheme: 'dark' }}
-          />
-        </label>
+        {/* No pair of chips asking which half of the day it is. She opened it
+            from one of the two, and the line at the top says which. No hour
+            either: a step in a routine is kept in its order, not at a time. */}
 
         <div className="mt-8">
           <RepeatField value={repeat} startKey={activity.seriesStart || dateKey(new Date())} onChange={setRepeat} />
         </div>
+
+        <Notes value={notes} onChange={setNotes} />
 
         <div className="mt-9 flex items-center justify-between gap-6">
           <button
@@ -1490,6 +1503,7 @@ function EditMeal({ activity, onSave, onDrop, onClose }) {
   const [where, setWhere] = useState(where0.id)
   const [dose, setDose] = useState(det.dose || '')
   const [unit, setUnit] = useState(det.unit || 'mg')
+  const [notes, setNotes] = useState(det.notes || det.description || '')
   const [repeat, setRepeat] = useState(() => {
     const r = { frequency: activity.frequency || 'daily' }
     if (Array.isArray(activity.daysOfWeek) && activity.daysOfWeek.length) r.daysOfWeek = activity.daysOfWeek
@@ -1520,6 +1534,7 @@ function EditMeal({ activity, onSave, onDrop, onClose }) {
       details: {
         ...det,
         slot,
+        notes,
         beverage: kind === 'drink',
         ...(kind === 'supp' ? { dose, unit } : {}),
       },
@@ -1606,6 +1621,8 @@ function EditMeal({ activity, onSave, onDrop, onClose }) {
         <div className="mt-8">
           <RepeatField value={repeat} startKey={activity.seriesStart || dateKey(new Date())} onChange={setRepeat} />
         </div>
+
+        <Notes value={notes} onChange={setNotes} />
 
         <div className="mt-9 flex items-center justify-between gap-6">
           <button
@@ -2036,17 +2053,30 @@ function Sittings({ meals, dateKeyStr, onAdd, onRemove, onOpen, onToggle, onSkip
   // Keep the chosen card in view — by scrolling the rail itself, never the
   // page. scrollIntoView would drag the whole document down to reach a card
   // that is below the fold, which on load reads as the page jumping.
+  //
+  // While that scroll is running the rail is being driven, not read. A smooth
+  // scroll reports a hundred positions on the way and the handler below reads
+  // every one of them as her landing somewhere; for the first half of the
+  // journey the nearest card is still the one she is leaving, so it would put
+  // the rail straight back where it started. Press an arrow and nothing
+  // happens — which is exactly what it did.
+  const steering = useRef(0)
   useEffect(() => {
     const strip = rail.current
     const el = strip && strip.children[i * per]
-    if (!strip || !el) return
+    if (!strip || !el) return undefined
+    steering.current += 1
+    const mine = steering.current
     strip.scrollTo({ left: el.offsetLeft - strip.offsetLeft, behavior: 'smooth' })
+    const t = setTimeout(() => { if (steering.current === mine) steering.current = 0 }, 700)
+    return () => clearTimeout(t)
   }, [i, per])
 
   // And the other way round: a swipe moves the marks. They were only ever
   // moved by their own tap, so sliding from the empty stomach to breakfast
   // left the mark sitting under the card she had left.
   const onRailScroll = () => {
+    if (steering.current) return
     const strip = rail.current
     if (!strip || !strip.clientWidth) return
     const at = Math.max(0, Math.min(stops - 1, Math.round(strip.scrollLeft / strip.clientWidth)))
