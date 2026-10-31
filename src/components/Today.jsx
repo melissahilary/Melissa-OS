@@ -821,6 +821,16 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     // carry no time at all, and asking for one emptied the month.
     return !isHabit(a)
   }
+  // THE DAY'S OWN PLANNER — only what she put on the day herself. The pillars
+  // fill the month, which is a record of what is scheduled; the day is hers to
+  // map, and a grid that arrives already written on is not a plan, it is
+  // someone else's. Nothing reaches it but an appointment she made.
+  const dayAppointments = (k) =>
+    activities
+      .filter((a) => a.type === 'event' && active(a, k))
+      .map((a) => ({ id: a.id, title: a.title, time: a.details?.time || '', endTime: a.details?.endTime || '', done: isDoneOn(a, k) }))
+      .sort((x, y) => (x.time || '99').localeCompare(y.time || '99'))
+
   const dayScheduled = (k) =>
     activities
       .filter((a) => isAppointment(a) && active(a, k))
@@ -971,7 +981,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       {/* The day as a spine: only the hours that hold something, in order. */}
       <DaySchedule
         dateKeyStr={selectedKey}
-        appointments={dayScheduled(selectedKey)}
+        appointments={dayAppointments(selectedKey)}
         phase={todayPhase}
         onAdd={(title, at) => addEvent(title, at)}
       />
