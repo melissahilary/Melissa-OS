@@ -1040,9 +1040,10 @@ const PHASE_AGENDA_HINT = {
 function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
-  // Only what is still owed. Ticking a step takes it off the panel and the
-  // rest move up, so the routine is always the part of it that is left.
-  const left = items.filter((it) => !it.done)
+  // A kept step is not gone, it is done: it stays on the panel, struck
+  // through, and falls to the foot of the list. What is still owed keeps the
+  // top of the block, in her order.
+  const left = [...items.filter((it) => !it.done), ...items.filter((it) => it.done)]
 
   // ── Dragging a step to where it belongs.
   //
@@ -1186,13 +1187,18 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder }) {
           >
             <button
               onClick={() => onToggle && onToggle(it.id)}
+              aria-pressed={!!it.done}
               aria-label={`Done: ${it.title || 'Untitled'}`}
               className="h-[15px] w-[15px] shrink-0 border transition-colors"
-              style={{ borderColor: 'rgba(247,244,237,0.55)' }}
+              style={{
+                borderColor: 'rgba(247,244,237,0.55)',
+                backgroundColor: it.done ? 'rgb(247,244,237)' : 'transparent',
+              }}
             />
             <button
               onClick={() => onOpen && onOpen(it.id)}
               className="min-w-0 flex-1 text-left text-[17px] leading-snug text-cream transition-opacity hover:opacity-75"
+              style={it.done ? { color: dim, textDecoration: 'line-through' } : null}
             >
               {it.title || 'Untitled'}
             </button>
