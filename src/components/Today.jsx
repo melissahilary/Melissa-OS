@@ -877,17 +877,14 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block },
     }))
-  // A step added to a routine lands where she says — above everything or
-  // below it — by taking an order either side of what is already there. Any
-  // place between the two is a drag away, which is the gesture that already
-  // exists and the only one a thumb can be precise with.
-  const addRoutineStep = (block, title, atTop) => {
+  // A step added to a routine lands at the foot of it, below everything
+  // already there. Anywhere else is a drag away — the gesture the panel
+  // already has, and the only one a thumb can be precise with.
+  const addRoutineStep = (block, title) => {
     const orders = activities
       .filter((a) => a.type === 'protocol' && (a.details || {}).block === block && typeof a.order === 'number')
       .map((a) => a.order)
-    const edge = orders.length
-      ? (atTop ? Math.min(...orders) - 1 : Math.max(...orders) + 1)
-      : 0
+    const edge = orders.length ? Math.max(...orders) + 1 : 0
     add(blankActivity('protocol', {
       title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block }, order: edge,
@@ -1074,10 +1071,9 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
   // the list reorders underneath it, so the row never leaves the fingertip.
   const [held, setHeld] = useState(null) // { id, ids }
   const [lift, setLift] = useState(0) // how far the held row is carried, in px
-  // Writing a new step. `top` is where it will land; the rest is a drag away.
+  // Writing a new step. It lands at the foot; anywhere else is a drag away.
   const [writing, setWriting] = useState(false)
   const [draft, setDraft] = useState('')
-  const [top, setTop] = useState(false)
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
@@ -1242,10 +1238,9 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
         ))}
 
         {/* The way in. Opened, it is the next row of the routine wearing the
-            same empty box, and it says where it will land — above everything
-            or below it. Anywhere between the two is a drag away, which is the
-            gesture that already exists and the one a thumb can be precise
-            with. */}
+            same empty box. It lands at the foot and anywhere else is a drag
+            away — the gesture the panel already has, and the only one a thumb
+            can be precise with. */}
         {writing ? (
           <div className="flex w-full items-center gap-5 py-3" style={{ borderBottom: `1px solid ${rule}` }}>
             <span aria-hidden className="h-[15px] w-[15px] shrink-0 border" style={{ borderColor: 'rgba(247,244,237,0.35)' }} />
@@ -1254,21 +1249,14 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd }) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim(), top); setDraft('') }
+                if (e.key === 'Enter' && draft.trim()) { onAdd && onAdd(draft.trim()); setDraft('') }
                 if (e.key === 'Escape') { setDraft(''); setWriting(false) }
               }}
-              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim(), top); setDraft(''); setWriting(false) }}
+              onBlur={() => { if (draft.trim() && onAdd) onAdd(draft.trim()); setDraft(''); setWriting(false) }}
               placeholder="A step"
+              data-no-dictation
               className="min-w-0 flex-1 bg-transparent text-[17px] leading-snug text-cream outline-none placeholder:text-cream/45"
             />
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setTop((v) => !v)}
-              className="shrink-0 text-[10px] uppercase tracking-[0.16em] transition-opacity hover:opacity-70"
-              style={{ color: dim }}
-            >
-              {top ? 'At the top' : 'At the foot'}
-            </button>
           </div>
         ) : (
           <button
@@ -1294,34 +1282,66 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
   const inOrder = (list) => [...list].sort((a, b) => (
     (a.order == null ? 1e6 : a.order) - (b.order == null ? 1e6 : b.order)
   ))
+  // Which half is on screen, on a phone where only one of them is.
+  const rail = useRef(null)
+  const [halfOn, setHalfOn] = useState(0)
+  const onRailScroll = () => {
+    const el = rail.current
+    if (!el || !el.clientWidth) return
+    const at = Math.round(el.scrollLeft / el.clientWidth)
+    setHalfOn((n) => (n === at ? n : at))
+  }
+
   const morning = inOrder(uniq.filter((r) => effectiveBlock(r) === 'morning'))
   const evening = inOrder(uniq.filter((r) => effectiveBlock(r) === 'evening'))
 
   return (
     <header>
-      {/* The two routines, filling the split the date and the cycle used to
-          hold. Each row names the pillar it belongs to rather than whether it
-          is kept — the tick marks below already say that, and a row that says
-          KEPT twice on one page is saying nothing the second time. */}
-      <div className="mos-bleed grid gap-px md:grid-cols-2">
-        <Routine
-          title="AM"
-          items={morning}
-          ground="#1D2FC4"
-          onOpen={onOpen}
-          onToggle={onToggle}
-          onReorder={onReorder}
-          onAdd={(title, atTop) => onAddStep && onAddStep('morning', title, atTop)}
-        />
-        <Routine
-          title="PM"
-          items={evening}
-          ground="#16130F"
-          onOpen={onOpen}
-          onToggle={onToggle}
-          onReorder={onReorder}
-          onAdd={(title, atTop) => onAddStep && onAddStep('evening', title, atTop)}
-        />
+      {/* On a phone the two halves of the day are one card at a time, swiped
+          between, rather than one long column with the evening a scroll below
+          the morning. Side by side from a tablet up, where both fit. */}
+      <div className="mos-bleed">
+        <div
+          ref={rail}
+          onScroll={onRailScroll}
+          className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto md:grid md:grid-cols-2 md:gap-px md:overflow-x-visible"
+        >
+          <div className="flex w-full shrink-0 snap-start md:w-auto [&>section]:w-full">
+            <Routine
+              title="AM"
+              items={morning}
+              ground="#1D2FC4"
+              onOpen={onOpen}
+              onToggle={onToggle}
+              onReorder={onReorder}
+              onAdd={(title) => onAddStep && onAddStep('morning', title)}
+            />
+          </div>
+          <div className="flex w-full shrink-0 snap-start md:w-auto [&>section]:w-full">
+            <Routine
+              title="PM"
+              items={evening}
+              ground="#16130F"
+              onOpen={onOpen}
+              onToggle={onToggle}
+              onReorder={onReorder}
+              onAdd={(title) => onAddStep && onAddStep('evening', title)}
+            />
+          </div>
+        </div>
+
+        {/* Which half she is on. Only where there is a swipe to make. */}
+        <div className="flex items-center gap-4 px-6 py-4 md:hidden">
+          {['AM', 'PM'].map((half, idx) => (
+            <button
+              key={half}
+              onClick={() => rail.current && rail.current.scrollTo({ left: idx * rail.current.clientWidth, behavior: 'smooth' })}
+              aria-label={half}
+              aria-current={idx === halfOn ? 'true' : undefined}
+              className={`h-[2px] flex-1 transition-colors ${idx === halfOn ? 'bg-stone-900' : 'bg-stone-300'}`}
+            />
+          ))}
+        </div>
       </div>
     </header>
   )
