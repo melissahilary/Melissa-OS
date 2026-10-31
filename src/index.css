@@ -283,6 +283,46 @@ input[type='number'] {
   .mos-rail-track { animation: none; }
 }
 
+/* ── The strip at the head of the page, read the way a billboard is read.
+   It carries more than a phone is wide — the moon, the forecast, the sun
+   times, the air, the zone — and asking her to swipe a line of readings is
+   asking her to work for something she only wants to glance at. So it travels
+   instead, at a crawl, with the same two-copies trick the polaroid rail uses:
+   the track holds the set twice and moves exactly half its width, so the
+   moment it snaps back is the moment the second copy is standing where the
+   first one was, and there is no seam to see.
+
+   The pace is set in code rather than here, because a fixed duration means a
+   long line races and a short one creeps; what is fixed is the speed. */
+@keyframes mos-billboard {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+.mos-billboard {
+  overflow: hidden;
+  --mos-fade: 22px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--mos-fade), #000 calc(100% - var(--mos-fade)), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--mos-fade), #000 calc(100% - var(--mos-fade)), transparent 100%);
+}
+.mos-billboard-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: mos-billboard var(--mos-billboard-time, 70s) linear infinite;
+}
+/* It stops to be read, and to be used: a hover on a desk, a finger on a
+   phone. Nothing on a moving line can be tapped, so the touch that would
+   tap it holds it still first. */
+.mos-billboard:hover .mos-billboard-track,
+.mos-billboard:focus-within .mos-billboard-track,
+.mos-billboard-held .mos-billboard-track { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mos-billboard { overflow-x: auto; scrollbar-width: none; }
+  .mos-billboard::-webkit-scrollbar { display: none; }
+  .mos-billboard-track { animation: none; }
+}
+
 /* The concierge mark, listening. The book allows exactly one of its four states
    to move, and this is it: a microphone that is open has to be visible without
    colour. Reduced motion holds it at full opacity rather than stopping halfway. */

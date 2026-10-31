@@ -310,27 +310,119 @@ const byTime = (a, b) => {
 // The town is gone from the end of it. A planner that prints the city you live
 // in has put that in every screenshot you will ever send; the time zone is what
 // the page actually runs on and gives away nothing narrower than a coast.
+const BILLBOARD_SPEED = 26 // pixels a second — a crawl, not a ticker
+
 function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
   const todayKey = dateKey(today)
-  // On a phone the strip is one line that slides rather than a block of
-  // readings stacked three deep, so the separators stay: nothing wraps, and
-  // nothing is stranded at the end of a line.
+  const [w, setW] = useState(null)
+  const copy = useRef(null)
+  const rail = useRef(null)
+  const [held, setHeld] = useState(false)
+  const letGo = useRef(0)
+
+  // One reading of the sky for the whole strip: the forecast and the sun
+  // times come back in the same answer, so asking twice would be asking the
+  // same question twice.
+  useEffect(() => {
+    if (!location) { setW(null); return undefined }
+    let alive = true
+    const load = async () => {
+      try { const out = await fetchWeather(location); if (alive) setW(out) }
+      catch { if (alive) setW(null) }
+    }
+    load()
+    const id = setInterval(load, 10 * 60 * 1000) // keep it fresh through the day
+    return () => { alive = false; clearInterval(id) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locKey(location)])
+
+  // The speed is what is fixed, not the time: a long line and a short one
+  // should travel at the same pace, so the duration is measured off the
+  // width rather than guessed at.
+  useEffect(() => {
+    const el = copy.current
+    const box = rail.current
+    if (!el || !box) return undefined
+    const pace = () => {
+      const px = el.scrollWidth
+      if (px > 0) box.style.setProperty('--mos-billboard-time', `${Math.max(24, px / BILLBOARD_SPEED)}s`)
+    }
+    pace()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(pace) : null
+    if (ro) ro.observe(el)
+    window.addEventListener('resize', pace)
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', pace) }
+  }, [])
+
+  // A finger on it holds it still, because nothing on a moving line can be
+  // tapped. It starts again once she has finished with it.
+  const hold = () => { setHeld(true); if (letGo.current) clearTimeout(letGo.current) }
+  const release = () => {
+    if (letGo.current) clearTimeout(letGo.current)
+    letGo.current = setTimeout(() => setHeld(false), 4000)
+  }
+  useEffect(() => () => { if (letGo.current) clearTimeout(letGo.current) }, [])
+
   const Dot = () => <span aria-hidden className="text-stone-300">·</span>
-  return (
-    <div className="no-scrollbar flex items-center gap-x-5 overflow-x-auto py-4 text-sm text-stone-600 [&>*]:shrink-0 sm:flex-wrap sm:justify-center sm:gap-x-6 sm:overflow-x-visible">
+  const line = (
+    <div ref={copy} className="flex items-center gap-x-5 pr-5 text-sm text-stone-600 [&>*]:shrink-0 sm:gap-x-6 sm:pr-6">
       <MoonField />
       {selectedKey !== todayKey && (
         <button onClick={() => onPickDay(todayKey)} className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-700">Reset to today</button>
       )}
       <Dot />
-      <WeatherField location={location} />
+      <WeatherField w={w} />
+      <Dot />
+      <SunField w={w} />
       <Dot />
       <UvField location={location} />
       <Dot />
       <AirField location={location} />
       <Dot />
       <ZoneField location={location} setLocation={setLocation} />
+      <Dot />
     </div>
+  )
+
+  return (
+    <div
+      ref={rail}
+      className={`mos-billboard py-4 ${held ? 'mos-billboard-held' : ''}`}
+      onPointerDown={hold}
+      onPointerUp={release}
+      onPointerCancel={release}
+    >
+      <div className="mos-billboard-track">
+        {line}
+        {/* The same set again, so the loop has no seam. */}
+        <div aria-hidden className="flex items-center gap-x-5 pr-5 text-sm text-stone-600 [&>*]:shrink-0 sm:gap-x-6 sm:pr-6">
+          <MoonField />
+          <Dot />
+          <WeatherField w={w} />
+          <Dot />
+          <SunField w={w} />
+          <Dot />
+          <UvField location={location} />
+          <Dot />
+          <AirField location={location} />
+          <Dot />
+          <ZoneField location={location} setLocation={setLocation} />
+          <Dot />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// The two hours the day is actually bounded by. They come back with the
+// forecast, so they cost nothing more to print — and they are the one pair of
+// times on this page that nobody set.
+function SunField({ w }) {
+  if (!w || (!w.sunrise && !w.sunset)) return <span className="text-stone-400">—</span>
+  return (
+    <span className="whitespace-nowrap text-stone-600">
+      Sunrise {fmtClock(w.sunrise)} <span aria-hidden className="text-stone-300">·</span> Sunset {fmtClock(w.sunset)}
+    </span>
   )
 }
 
@@ -489,21 +581,8 @@ function DatePopup({ value, today, cycleConfig, onPick, onClose }) {
 }
 
 // Live weather for the location; click for sun times + today's forecast.
-function WeatherField({ location }) {
-  const [w, setW] = useState(null)
+function WeatherField({ w }) {
   const [open, setOpen] = useState(false)
-  useEffect(() => {
-    if (!location) { setW(null); return undefined }
-    let alive = true
-    const load = async () => {
-      try { const out = await fetchWeather(location); if (alive) setW(out) }
-      catch { if (alive) setW(null) }
-    }
-    load()
-    const id = setInterval(load, 10 * 60 * 1000) // keep it fresh through the day
-    return () => { alive = false; clearInterval(id) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locKey(location)])
   if (!w) return <span className="text-stone-400">—</span>
   return (
     <>
@@ -953,9 +1032,13 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   return (
     <div>
-      {/* The page opens on the two routines and the day's sittings — the part
-          of it that is actually worked, rather than a clock she already has on
-          the wall and in her hand. */}
+      {/* The world outside the window, read the way a billboard is read: one
+          line, travelling, at the head of everything. Then the two routines
+          and the day's sittings — the part of the page that is actually
+          worked, rather than a clock she already has on the wall and in her
+          hand. */}
+      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} />
+
       <DayMasthead
         selectedKey={selectedKey}
         rituals={dayRituals(selectedKey)}
@@ -967,9 +1050,6 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
         onSkip={skipToday}
         onDrop={remove}
       />
-
-      {/* The world outside the window, read as one line under the routines. */}
-      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} />
 
       <DayColumns
         rituals={dayRituals(selectedKey)}
