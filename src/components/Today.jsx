@@ -13,8 +13,7 @@ import DayLists from './DayLists'
 import DaySchedule from './DaySchedule'
 import MonthCalendar from './MonthCalendar'
 import MonthGrid from './shared/MonthGrid'
-import { AddMealForm } from './shared/MealSlots'
-import { slotMeta, SITTINGS, spoken } from '../lib/meals'
+import { slotMeta, SITTINGS, spoken, blankMeal, MEAL_FREQ_OPTS, WEEKDAYS } from '../lib/meals'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
@@ -1901,40 +1900,85 @@ function AddToSitting({ sitting, dateKeyStr, onClose, onSave }) {
   // Where no meal belongs, it is not offered.
   const whats = sitting.eats ? WHATS : WHATS.filter((w) => w.id !== 'food')
   const [what, setWhat] = useState(whats[0].id)
+  const [name, setName] = useState('')
+  const [freq, setFreq] = useState('daily')
+  const [days, setDays] = useState([])
+
   const slot = what === 'drink' ? sitting.drink : sitting.food
   const kind = what === 'supp' ? 'supp' : 'food'
+  const needsDays = freq !== 'daily' && freq !== 'once'
+
+  const save = () => {
+    const t = name.trim()
+    if (!t) return
+    onSave({ ...blankMeal(slot, kind), name: t, frequency: freq, days, startDate: dateKeyStr || '' }, slot, kind)
+  }
+
+  const chip = (on) => `border px-3.5 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+    on ? 'border-cream bg-cream text-stone-900' : 'border-cream/30 text-cream/70 hover:border-cream'
+  }`
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-16 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-sm border border-stone-200 bg-cream p-6">
-        <p className="kicker text-stone-500">{sitting.label}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {whats.map((w) => {
-            const on = w.id === what
-            return (
+      {/* The same sheet the day planner opens, on the same walnut: one sheet
+          for adding anything, rather than a form inside a box inside a card. */}
+      <div
+        className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
+      >
+        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{sitting.label}</p>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {whats.map((w) => (
+            <button key={w.id} onClick={() => setWhat(w.id)} className={chip(w.id === what)}>{w.label}</button>
+          ))}
+        </div>
+
+        <label className="mt-8 block">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">What</span>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={what === 'supp' ? 'Magnesium' : what === 'drink' ? 'Green tea' : 'Green goddess salad'}
+            autoComplete="off"
+            autoCorrect="off"
+            data-no-dictation
+            className="mt-2 w-full border-b border-cream/30 bg-transparent pb-2 text-[19px] text-cream outline-none placeholder:text-cream/35"
+          />
+        </label>
+
+        <div className="mt-7">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">How often</span>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {MEAL_FREQ_OPTS.map((o) => (
+              <button key={o.id} onClick={() => setFreq(o.id)} className={chip(o.id === freq)}>{o.label}</button>
+            ))}
+          </div>
+        </div>
+
+        {needsDays && (
+          <div className="mt-6 flex flex-wrap gap-2">
+            {WEEKDAYS.map((w) => (
               <button
-                key={w.id}
-                onClick={() => setWhat(w.id)}
-                className={`border px-3.5 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${on ? 'border-cobalt bg-cobalt text-cream' : 'border-stone-300 text-stone-600 hover:border-stone-900'}`}
+                key={w.d}
+                onClick={() => setDays((d) => (d.includes(w.d) ? d.filter((x) => x !== w.d) : [...d, w.d]))}
+                className={chip(days.includes(w.d))}
               >
                 {w.label}
               </button>
-            )
-          })}
-        </div>
-        <div className="mt-5">
-          {/* Keyed on what it is, so the blank it starts from is the right one. */}
-          <AddMealForm
-            key={what}
-            slot={slotMeta(slot)}
-            kind={kind}
-            dateKeyStr={dateKeyStr}
-            onCancel={onClose}
-            onSave={(item) => onSave(item, slot, kind)}
-          />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-9 flex items-center justify-end gap-7">
+          <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
+          <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] text-cream transition-opacity hover:opacity-70">Add</button>
         </div>
       </div>
     </div>
