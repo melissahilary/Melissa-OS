@@ -14,25 +14,6 @@
 
 export const AM_CATALOGUE = [
   {
-    group: "Before anything",
-    items: [
-      "feet on the floor before the phone",
-      "make the bed",
-      "open the curtains",
-      "open a window",
-      "no phone first thing",
-      "stand in the light",
-      "step outside barefoot",
-      "look at the sky before a screen",
-      "say the day's first thought",
-      "name one thing to look forward to",
-      "stretch in the bed before rising",
-      "drink the glass left by the bed",
-      "let the dog out",
-      "wake at the same hour",
-    ],
-  },
-  {
     group: "Water and minerals",
     items: [
       "a tall glass of water",
@@ -54,6 +35,7 @@ export const AM_CATALOGUE = [
       "a filter on the tap",
       "a filter on the shower",
       "water before the coffee, always",
+      "drink the glass left by the bed",
     ],
   },
   {
@@ -206,6 +188,7 @@ export const AM_CATALOGUE = [
       "deadbugs",
       "glute bridges",
       "the stairs twice",
+      "stretch in the bed before rising",
     ],
   },
   {
@@ -305,6 +288,8 @@ export const AM_CATALOGUE = [
       "a walk at solar noon",
       "screens dimmed until the sun is up",
       "the blinds opened in order",
+      "stand in the light",
+      "look at the sky before a screen",
     ],
   },
   {
@@ -390,6 +375,8 @@ export const AM_CATALOGUE = [
       "write the thing you are avoiding",
       "name the feeling",
       "a five minute start",
+      "say the day's first thought",
+      "name one thing to look forward to",
     ],
   },
   {
@@ -415,6 +402,8 @@ export const AM_CATALOGUE = [
       "the fridge wiped",
       "post opened",
       "one drawer",
+      "open a window",
+      "let the dog out",
     ],
   },
   {
@@ -542,6 +531,8 @@ export const AM_CATALOGUE = [
       "the inbox opened once",
       "social apps off the home screen",
       "the watch left on the side",
+      "feet on the floor before the phone",
+      "no phone first thing",
     ],
   },
   {
@@ -601,25 +592,6 @@ export const AM_CATALOGUE = [
 
 export const PM_CATALOGUE = [
   {
-    group: "Coming home",
-    items: [
-      "shoes off at the door",
-      "hands and face washed",
-      "change into something soft",
-      "phone on the counter, not the sofa",
-      "kettle on",
-      "lamps on, not the ceiling",
-      "one window open",
-      "music on",
-      "greet the dog properly",
-      "keys in the dish",
-      "bag emptied",
-      "the day's clothes hung or binned",
-      "the day taken off with the makeup",
-      "a moment of nothing",
-    ],
-  },
-  {
     group: "Winding down",
     items: [
       "screens off at nine",
@@ -644,6 +616,7 @@ export const PM_CATALOGUE = [
       "the watch off",
       "a bath run before the scroll",
       "the lamp on instead of the ceiling",
+      "phone on the counter, not the sofa",
     ],
   },
   {
@@ -680,6 +653,7 @@ export const PM_CATALOGUE = [
       "the backs of the hands",
       "the ears and behind them",
       "a gentle exfoliant",
+      "the day taken off with the makeup",
     ],
   },
   {
@@ -804,6 +778,7 @@ export const PM_CATALOGUE = [
       "slow breaths in the dark",
       "non sleep deep rest",
       "progressive muscle relaxation",
+      "a moment of nothing",
     ],
   },
   {
@@ -931,6 +906,8 @@ export const PM_CATALOGUE = [
       "flowers topped up",
       "one drawer",
       "the recycling flattened",
+      "bag emptied",
+      "the day's clothes hung or binned",
     ],
   },
   {
@@ -1039,6 +1016,7 @@ export const PM_CATALOGUE = [
       "a scent for the bedroom",
       "something instrumental",
       "silence",
+      "music on",
     ],
   },
   {
@@ -1052,6 +1030,7 @@ export const PM_CATALOGUE = [
       "a friend texted back",
       "one call returned",
       "something kind said out loud",
+      "greet the dog properly",
     ],
   },
   {
