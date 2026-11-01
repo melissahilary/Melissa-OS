@@ -1270,7 +1270,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
         <button
           onClick={() => onCatalogue && onCatalogue()}
-          aria-label={`A catalogue for the ${title === 'PM' ? 'evening' : 'morning'}`}
+          aria-label={`Catalogue for the ${title === 'PM' ? 'evening' : 'morning'}`}
           className="-mr-3 -mt-2 shrink-0 px-4 py-2 text-[30px] leading-none text-cream transition-opacity hover:opacity-70"
         >
           +
@@ -1862,7 +1862,7 @@ function Catalogue({ block, taken = [], onAdd, onClose }) {
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >
         <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: '#C0966F' }}>{block === 'evening' ? 'PM' : 'AM'}</p>
-        <h3 className="mt-3 font-serif text-[40px] leading-none sm:text-[46px]">A catalogue</h3>
+        <h3 className="mt-3 font-serif text-[40px] leading-none sm:text-[46px]">Catalogue</h3>
 
         <input
           value={q}
