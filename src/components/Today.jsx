@@ -1834,14 +1834,16 @@ function AddStep({ block, onClose, onSave }) {
 // cannot be pressed twice.
 function Catalogue({ block, taken = [], onAdd, onClose }) {
   const [q, setQ] = useState('')
+  const [only, setOnly] = useState('')
   const [just, setJust] = useState([])
   const cat = catalogueFor(block)
   const has = (name) => taken.includes(name) || just.includes(name)
 
   const look = q.trim().toLowerCase()
+  const within = only ? cat.filter((g) => g.group === only) : cat
   const shown = look
-    ? cat.map((g) => ({ ...g, items: g.items.filter((i) => i.includes(look) || g.group.toLowerCase().includes(look)) })).filter((g) => g.items.length)
-    : cat
+    ? within.map((g) => ({ ...g, items: g.items.filter((i) => i.includes(look) || g.group.toLowerCase().includes(look)) })).filter((g) => g.items.length)
+    : within
   const found = shown.reduce((n, g) => n + g.items.length, 0)
 
   const take = (name) => {
@@ -1877,6 +1879,32 @@ function Catalogue({ block, taken = [], onAdd, onClose }) {
           style={{ borderColor: 'rgba(247,244,237,0.3)', color: '#F7F4ED' }}
         />
 
+        {/* Six and twenty headings is a long scroll. The headings themselves
+            are the way through it: press one and the sheet is only that,
+            press it again and the whole thing is back. */}
+        <div className="no-scrollbar -mx-7 mt-5 flex shrink-0 gap-2 overflow-x-auto px-7 sm:-mx-10 sm:px-10">
+          {cat.map((g) => {
+            const on = only === g.group
+            return (
+              <button
+                key={g.group}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setOnly(on ? '' : g.group)}
+                aria-pressed={on}
+                className="shrink-0 whitespace-nowrap border px-3.5 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors"
+                style={{
+                  borderColor: on ? '#F7F4ED' : 'rgba(247,244,237,0.28)',
+                  background: on ? '#F7F4ED' : 'transparent',
+                  color: on ? '#68472C' : '#C0966F',
+                }}
+              >
+                {g.group}
+              </button>
+            )
+          })}
+        </div>
+
         <div className="mos-scroll -mx-1 mt-7 min-h-0 flex-1 overflow-y-auto px-1">
           {shown.map((g) => (
             <div key={g.group} className="mb-9">
@@ -1904,10 +1932,9 @@ function Catalogue({ block, taken = [], onAdd, onClose }) {
           {!found && <p className="text-[15px] italic opacity-50">Nothing by that name.</p>}
         </div>
 
-        <div className="mt-6 flex shrink-0 items-baseline justify-between gap-6 border-t pt-5" style={{ borderColor: 'rgba(247,244,237,0.22)' }}>
-          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#C0966F' }}>
-            {just.length ? `${just.length} added` : `${found} to choose from`}
-          </span>
+        {/* No tally. A number at the foot of a catalogue is a target, and she
+            is choosing a morning, not filling a quota. */}
+        <div className="mt-6 flex shrink-0 justify-end border-t pt-5" style={{ borderColor: 'rgba(247,244,237,0.22)' }}>
           <button onMouseDown={(e) => e.preventDefault()} onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Done</button>
         </div>
       </div>
