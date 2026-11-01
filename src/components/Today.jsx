@@ -17,6 +17,7 @@ import DaySchedule from './DaySchedule'
 import Movement from './Movement'
 import MonthGrid from './shared/MonthGrid'
 import { slotMeta, SITTINGS, spoken, blankMeal } from '../lib/meals'
+import { catalogueFor } from '../lib/catalogue'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
@@ -1142,7 +1143,7 @@ const PHASE_AGENDA_HINT = {
 // gone out of range. Nothing else here is red, so it reads as the warning it is.
 const OXBLOOD = '#C87A7A'
 
-function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop }) {
+function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop, onCatalogue }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
   // A kept step is not gone, it is done: it stays on the panel, struck
@@ -1263,7 +1264,18 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
 
   return (
     <section className="flex flex-col px-7 py-9 sm:px-10 sm:py-12" style={{ backgroundColor: ground }}>
-      <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
+      {/* The corner was empty, and a routine is easier chosen than invented.
+          The same mark as every other list's, held where nothing was. */}
+      <div className="flex items-start justify-between gap-6">
+        <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
+        <button
+          onClick={() => onCatalogue && onCatalogue()}
+          aria-label={`A catalogue for the ${title === 'PM' ? 'evening' : 'morning'}`}
+          className="-mr-3 -mt-2 shrink-0 px-4 py-2 text-[30px] leading-none text-cream transition-opacity hover:opacity-70"
+        >
+          +
+        </button>
+      </div>
       {/* However long the routine is, the panel stays the height of the page
           and the list scrolls inside it — with no bar drawn, because the bar
           fell straight down the column the boxes are in and sat on top of
@@ -1808,6 +1820,101 @@ function AddStep({ block, onClose, onSave }) {
   )
 }
 
+// ── The catalogue.
+//
+// A routine is easier to choose from than to invent, and at six in the morning
+// a blank field is a blank field. So the corner of each half of the day opens
+// two hundred-odd things real people actually do — the rituals the wellness
+// girls made ordinary, the protocols the biohackers measure, and the plain
+// small ones that are the ones most often kept.
+//
+// It is a list and nothing more: no pictures, no stars, no bundles, no
+// "starter routine". She presses a line and it is hers, at the foot of her
+// own order, to be slid away like any other. What she already has says so and
+// cannot be pressed twice.
+function Catalogue({ block, taken = [], onAdd, onClose }) {
+  const [q, setQ] = useState('')
+  const [just, setJust] = useState([])
+  const cat = catalogueFor(block)
+  const has = (name) => taken.includes(name) || just.includes(name)
+
+  const look = q.trim().toLowerCase()
+  const shown = look
+    ? cat.map((g) => ({ ...g, items: g.items.filter((i) => i.includes(look) || g.group.toLowerCase().includes(look)) })).filter((g) => g.items.length)
+    : cat
+  const found = shown.reduce((n, g) => n + g.items.length, 0)
+
+  const take = (name) => {
+    if (has(name)) return
+    setJust((prev) => [...prev, name])
+    if (onAdd) onAdd(name)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+      style={{ background: 'rgba(22,19,15,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="mos-scroll flex max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-xl flex-col overflow-hidden px-7 pb-8 pt-9 sm:px-10"
+        style={{ background: '#68472C', color: '#F7F4ED' }}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+      >
+        <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: '#C0966F' }}>{block === 'evening' ? 'PM' : 'AM'}</p>
+        <h3 className="mt-3 font-serif text-[40px] leading-none sm:text-[46px]">A catalogue</h3>
+
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Look for something"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          data-no-dictation
+          className="mt-7 w-full shrink-0 border-b bg-transparent pb-2.5 text-[17px] lowercase outline-none placeholder:opacity-40"
+          style={{ borderColor: 'rgba(247,244,237,0.3)', color: '#F7F4ED' }}
+        />
+
+        <div className="mos-scroll -mx-1 mt-7 min-h-0 flex-1 overflow-y-auto px-1">
+          {shown.map((g) => (
+            <div key={g.group} className="mb-9">
+              <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#C0966F' }}>{g.group}</p>
+              {g.items.map((name) => {
+                const mine = has(name)
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => take(name)}
+                    disabled={mine}
+                    className="mt-3.5 flex w-full items-baseline justify-between gap-6 text-left transition-opacity hover:opacity-70 disabled:cursor-default disabled:hover:opacity-100"
+                  >
+                    <span className="min-w-0 text-[17px] lowercase leading-snug" style={{ opacity: mine ? 0.45 : 1 }}>{name}</span>
+                    <span className="shrink-0 text-[10px] uppercase tracking-[0.18em]" style={{ color: mine ? 'rgba(247,244,237,0.4)' : '#C0966F' }}>
+                      {mine ? 'In' : 'Add'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+          {!found && <p className="text-[15px] italic opacity-50">Nothing by that name.</p>}
+        </div>
+
+        <div className="mt-6 flex shrink-0 items-baseline justify-between gap-6 border-t pt-5" style={{ borderColor: 'rgba(247,244,237,0.22)' }}>
+          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#C0966F' }}>
+            {just.length ? `${just.length} added` : `${found} to choose from`}
+          </span>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, onReorder, onAddStep, onSkip, onDrop }) {
   // Deduped, and keyed on the block a task actually sits in rather than its
   // part of day — a repeat that shows in two parts is still one task.
@@ -1837,6 +1944,11 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
   const morning = inOrder(uniq.filter((r) => effectiveBlock(r) === 'morning'))
   const evening = inOrder(uniq.filter((r) => effectiveBlock(r) === 'evening'))
 
+  // Which half's catalogue is open, and what is already in that half — so a
+  // line she keeps says so rather than letting her write it down twice.
+  const [catalogue, setCatalogue] = useState(null)
+  const taken = (list) => list.map((r) => String(r.title || '').trim().toLowerCase())
+
   return (
     <header>
       {/* On a phone the two halves of the day are one card at a time, swiped
@@ -1857,6 +1969,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onToggle={onToggle}
               onReorder={onReorder}
               onAdd={(title) => onAddStep && onAddStep('morning', title)}
+              onCatalogue={() => setCatalogue('morning')}
           onSkip={onSkip}
           onDrop={onDrop}
             />
@@ -1870,11 +1983,21 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onToggle={onToggle}
               onReorder={onReorder}
               onAdd={(title) => onAddStep && onAddStep('evening', title)}
+              onCatalogue={() => setCatalogue('evening')}
           onSkip={onSkip}
           onDrop={onDrop}
             />
           </div>
         </div>
+
+        {catalogue && (
+          <Catalogue
+            block={catalogue}
+            taken={taken(catalogue === 'evening' ? evening : morning)}
+            onAdd={(name) => onAddStep && onAddStep(catalogue, name)}
+            onClose={() => setCatalogue(null)}
+          />
+        )}
 
         {/* Which half she is on. Only where there is a swipe to make. */}
         <div className="flex items-center gap-4 px-6 py-4 md:hidden">
