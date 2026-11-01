@@ -828,7 +828,10 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       // belongs to. This object is a reduction of the activity, and anything
       // left out of it is simply not on the page — which is how the calendar's
       // rhythm dots went missing once already.
-      const add = (part, blk) => out.push({ id: a.id, title: a.title, category: a.category || '', part, block: moved || blk || PART_TO_BLOCK[part] || 'morning', time, endTime: a.details?.endTime || '', done: isDoneOn(a, k), order: a.order })
+      // `kind` rides along so the two halves of the day can tell a step of a
+      // routine from an appointment. They are not the same thing and must not
+      // appear in the same place.
+      const add = (part, blk) => out.push({ id: a.id, kind: a.type, title: a.title, category: a.category || '', part, block: moved || blk || PART_TO_BLOCK[part] || 'morning', time, endTime: a.details?.endTime || '', done: isDoneOn(a, k), order: a.order })
       if (a.type === 'event') { [...new Set(eventPartsOf(a))].forEach((part) => add(part)); return }
       const secs = daySectionsOf(a)
       if (secs.length) {
@@ -1808,7 +1811,14 @@ function AddStep({ block, onClose, onSave }) {
 function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, onReorder, onAddStep, onSkip, onDrop }) {
   // Deduped, and keyed on the block a task actually sits in rather than its
   // part of day — a repeat that shows in two parts is still one task.
-  const uniq = dedupeById(rituals)
+  //
+  // And never an appointment. AM and PM are the routine: the things she does
+  // every morning and every night, in an order she set. Something written on
+  // the day at a quarter past five is on the day at a quarter past five; it
+  // has an hour, and the routine has none. The two were being run together,
+  // so drawing a window on the schedule also put a step in the evening block
+  // she had not asked for.
+  const uniq = dedupeById(rituals).filter((r) => r.kind !== 'event')
 
   // Her order, when she has set one; otherwise the order they were written.
   const inOrder = (list) => [...list].sort((a, b) => (
