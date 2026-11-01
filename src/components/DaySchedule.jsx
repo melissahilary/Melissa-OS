@@ -132,7 +132,7 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
     const m = atY(clientY)
     const was = span.current
     if (mode !== 'new' && !was) return
-    drag.current = { mode, anchor: m, y: clientY, drew: false, raf: 0, from: was ? { ...was, grab: m } : null }
+    drag.current = { mode, anchor: m, y: clientY, drew: false, raf: 0, fromTop: false, fromBottom: false, from: was ? { ...was, grab: m } : null }
     if (mode === 'new') {
       const at = Math.min(m, DAY - SNAP)
       put({ start: at, end: at + SNAP })
@@ -147,10 +147,19 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
       const sc = scroller.current
       if (sc && d.drew) {
         const r = sc.getBoundingClientRect()
-        const over = d.y - (r.bottom - 36)
-        const under = (r.top + 36) - d.y
-        if (over > 0) { sc.scrollTop += Math.min(12, 3 + over / 8); carry(d.y) }
-        else if (under > 0) { sc.scrollTop -= Math.min(12, 3 + under / 8); carry(d.y) }
+        const EDGE = 22
+        // The day carries on under the finger only once the finger has come
+        // from somewhere further in. Without that, a window begun near the top
+        // of what is on screen — which is where the day opens, so where she
+        // begins most of them — was read as asking for the day to be pulled up,
+        // and it ran the start of the window hours back while she was still
+        // drawing. Half past two for something she began at a quarter to seven.
+        if (d.y > r.top + 90) d.fromTop = true
+        if (d.y < r.bottom - 90) d.fromBottom = true
+        const over = d.y - (r.bottom - EDGE)
+        const under = (r.top + EDGE) - d.y
+        if (over > 0 && d.fromBottom) { sc.scrollTop += Math.min(12, 3 + over / 8); carry(d.y) }
+        else if (under > 0 && d.fromTop) { sc.scrollTop -= Math.min(12, 3 + under / 8); carry(d.y) }
       }
       d.raf = requestAnimationFrame(creep)
     }
@@ -278,10 +287,6 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
       window.removeEventListener('touchcancel', onTouchEnd)
     }
   }, [])
-
-  // Where now is, and only on the day itself.
-  const now = new Date()
-  const nowAt = dateKeyStr === todayKey ? now.getHours() * 60 + now.getMinutes() : null
 
   const rail = [MONTHS[date.getMonth()], phase && phase.cycleDay ? `Day ${phase.cycleDay}` : '', phase && phase.label]
     .filter(Boolean).join(' · ')
@@ -469,13 +474,6 @@ export default function DaySchedule({ dateKeyStr, appointments = [], phase, onAd
                   </span>
                 ))}
               </>
-            )}
-
-            {/* Now. */}
-            {nowAt != null && (
-              <div className="pointer-events-none absolute left-[72px] right-0" style={{ top: (nowAt / 60) * HOUR }}>
-                <span className="block h-px w-full" style={{ background: W.cobalt }} />
-              </div>
             )}
 
             {/* The face that takes the drag. Everything above it is drawn on

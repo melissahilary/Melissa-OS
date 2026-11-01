@@ -395,7 +395,6 @@ function InfoStrip({ today, selectedKey, onPickDay, location, setLocation }) {
       ].map((f, idx) => (
         <span key={idx} className={SLOT} style={{ width: 'var(--mos-slot, auto)' }}>
           {f}
-          <span aria-hidden className="absolute right-0 text-stone-300">·</span>
         </span>
       ))}
     </div>

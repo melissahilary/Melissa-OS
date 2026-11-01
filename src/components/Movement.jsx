@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { activityOccursOn } from '../lib/activities'
@@ -90,6 +90,111 @@ export default function Movement({ dateKeyStr }) {
       return w || (a.order || 0) - (b.order || 0)
     })
 
+  // ── Carrying a workout to where it belongs.
+  //
+  // The same hold as the routines: the row is lifted out and carried under the
+  // finger while the others close behind it. The day is still kept in its own
+  // order — morning, then daytime, then evening — so a row dropped among the
+  // evening ones becomes an evening one. The sequence she let go of is the
+  // sequence she gets.
+  const [held, setHeld] = useState(null)
+  const [lift, setLift] = useState(0)
+  const drag = useRef(null)
+  const rail = useRef(null)
+
+  // The order in hand while a row is in hand; hers again once it is let go.
+  const rows = (() => {
+    if (!held) return today
+    const held0 = held.ids.map((id) => today.find((y) => y.id === id)).filter(Boolean)
+    return held0.length === today.length ? held0 : today
+  })()
+
+
+  const reorder = (ids) => setRaw((prev) => {
+    const all0 = arr(prev)
+    const seq = ids.map((id) => all0.find((y) => y.id === id)).filter(Boolean)
+    const moved = drag.current && drag.current.id
+    const at = seq.findIndex((y) => y.id === moved)
+    // It takes the part of the day of whatever it was put beside.
+    const beside = at > 0 ? seq[at - 1] : seq[1]
+    const landed = beside ? beside.when || 'daytime' : null
+    return all0.map((y) => {
+      const k = seq.findIndex((z) => z.id === y.id)
+      if (k < 0) return y
+      return { ...y, order: k, when: y.id === moved && landed ? landed : y.when }
+    })
+  })
+
+  const grab = (id, clientY) => {
+    drag.current = { id, ids: rows.map((r) => r.id), y: clientY, dy: 0, raf: 0, settling: false }
+    setLift(0)
+    setHeld({ id, ids: drag.current.ids })
+  }
+
+  const place = (clientY) => {
+    const d = drag.current
+    if (!d || !rail.current) return
+    const others = [...rail.current.children].filter((el) => el.dataset.id && el.dataset.id !== d.id)
+    let to = others.length
+    for (let i = 0; i < others.length; i += 1) {
+      const r = others[i].getBoundingClientRect()
+      if (clientY < r.top + r.height / 2) { to = i; break }
+    }
+    const rest = d.ids.filter((x) => x !== d.id)
+    rest.splice(to, 0, d.id)
+    if (rest.join() !== d.ids.join()) {
+      d.ids = rest
+      setHeld({ id: d.id, ids: rest })
+    }
+  }
+
+  const frame = () => {
+    const d = drag.current
+    if (!d) return
+    const el = rail.current && rail.current.querySelector(`[data-id="${d.id}"]`)
+    if (el) {
+      const r = el.getBoundingClientRect()
+      const off = d.y - (r.top + r.height / 2)
+      if (Math.abs(off) > 0.4) { d.dy += off; setLift(d.dy) }
+    }
+    place(d.y)
+    d.raf = requestAnimationFrame(frame)
+  }
+
+  // On the window, not on the grip: reordering moves the grip's own row through
+  // the DOM, and a capture held on a node that has just moved is dropped.
+  useEffect(() => {
+    if (!held) return undefined
+    const at = (e) => (e.touches && e.touches.length ? e.touches[0].clientY : e.clientY)
+    const onMove = (e) => { if (e.cancelable) e.preventDefault(); if (drag.current) drag.current.y = at(e) }
+    const onUp = () => {
+      const d = drag.current
+      if (!d) return
+      cancelAnimationFrame(d.raf)
+      reorder(d.ids)
+      d.settling = true
+      setLift(0)
+      setTimeout(() => { drag.current = null; setHeld(null) }, 180)
+    }
+    drag.current.raf = requestAnimationFrame(frame)
+    window.addEventListener('pointermove', onMove, { passive: false })
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+    window.addEventListener('touchcancel', onUp)
+    return () => {
+      if (drag.current) cancelAnimationFrame(drag.current.raf)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+      window.removeEventListener('touchcancel', onUp)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [held && held.id])
+
   const done = (x) => !!(x.completions && x.completions[key])
   const setDone = (id, on) => setRaw((prev) => arr(prev).map((x) => {
     if (x.id !== id) return x
@@ -118,19 +223,35 @@ export default function Movement({ dateKeyStr }) {
         <h2 className="font-serif text-[46px] leading-[0.95] text-stone-900 sm:text-[62px]">Workouts</h2>
 
         {/* The record. */}
-        <div className="mt-14">
-          {today.map((x, idx) => {
+        <div
+          className="mt-14 select-none"
+          ref={rail}
+          style={{ touchAction: held ? 'none' : undefined, WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+        >
+          {rows.map((x, idx) => {
             const kept = done(x)
             const long = lengthOf(x)
             const said = mins(x.minutes) ? x.detail : readLength(x.detail).rest
             const meta = [whenLabel(x.when), long ? `${long} min` : '', said].filter(Boolean).join(' · ')
             return (
-              <SwipeAway
+              <div
                 key={x.id}
+                data-id={x.id}
+                className="relative"
+                style={held && held.id === x.id ? {
+                  transform: `translateY(${lift}px)`,
+                  transition: drag.current && drag.current.settling ? 'transform 180ms ease-out' : 'none',
+                  zIndex: 20,
+                  background: '#F8F4EC',
+                  outline: '1px solid #D6D3D1',
+                } : null}
+              >
+              <SwipeAway
                 ground="#F8F4EC"
+                disabled={!!held}
                 onAway={() => setRaw((prev) => arr(prev).filter((y) => y.id !== x.id))}
               >
-                <div className={`flex items-start gap-6 py-6 ${idx ? 'border-t border-stone-200' : ''}`}>
+                <div className={`flex items-start gap-6 py-6 ${idx && !held ? 'border-t border-stone-200' : ''}`}>
                   {/* Keeping it is the only thing to press on a row, so it is
                       the thing on the left rather than a word on the right. */}
                   <button
@@ -155,8 +276,25 @@ export default function Movement({ dateKeyStr }) {
                     </span>
                     {meta && <span className="mt-1.5 block text-[10px] uppercase tracking-[0.16em] text-stone-500">{meta}</span>}
                   </button>
+                  {/* The grip. Three fine rules, the same hold as the routines. */}
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    data-no-swipe
+                    aria-label={`Move ${x.name}`}
+                    onPointerDown={(e) => { e.preventDefault(); grab(x.id, e.clientY) }}
+                    onTouchStart={(e) => { if (e.cancelable) e.preventDefault(); grab(x.id, e.touches[0].clientY) }}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="-my-2 mt-[4px] flex h-10 w-10 shrink-0 cursor-grab select-none flex-col items-end justify-center gap-[3px] active:cursor-grabbing"
+                    style={{ touchAction: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+                  >
+                    <span className="block h-px w-4 bg-stone-400" />
+                    <span className="block h-px w-4 bg-stone-400" />
+                    <span className="block h-px w-4 bg-stone-400" />
+                  </span>
                 </div>
               </SwipeAway>
+              </div>
             )
           })}
 

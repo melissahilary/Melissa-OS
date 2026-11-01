@@ -27,15 +27,14 @@ export const TOPICS = [{ id: 'general', label: 'General' }, ...PILLARS]
 
 const arr = (v) => (Array.isArray(v) ? v : [])
 
-// Ten rows and then a scroll, the way the routines do it. The row is given a
-// height rather than left to work one out, so ten of them is a number and not
-// a guess — it was showing ten and a fifth, and a fifth of a row at the bottom
-// of a list reads as a mistake. No bar drawn either, for the same reason the
+// Three rows and then a scroll. The row is given a height rather than left to
+// work one out, so three of them is a number and not a guess — a fraction of a
+// row at the foot of a list reads as a mistake. No bar drawn either, for the same reason the
 // routines draw none: the rail is the thing, not its furniture.
 // Written out rather than worked out: the stylesheet is built by reading
 // these files for class names, and a name assembled at run time is a name it
-// never sees. Ten rows of 55 is 550.
-const PANE = 'no-scrollbar max-h-[550px] overflow-y-auto'
+// never sees. Three rows of 55 is 165.
+const PANE = 'no-scrollbar max-h-[165px] overflow-y-auto'
 // The lists sit inside a rail that snaps sideways, and a drag that begins on
 // a row has two readings: turn the page, or scroll the list. Saying pan-y on
 // the pane settles it in the list's favour, which is the one she means when

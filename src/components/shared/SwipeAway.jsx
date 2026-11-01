@@ -220,9 +220,14 @@ export default function SwipeAway({ onAway, disabled, ground, label = 'Delete', 
       >
         <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#F7F4ED' }}>{label}</span>
       </button>
+      {/* Full height of whatever it was given. A row in a list has no height
+          of its own and this changes nothing for it; a block on the day DOES —
+          it is as tall as the hours it covers — and without this the sheet
+          inside collapsed to one line of text. Every appointment, whatever
+          window she drew, came out the same half-inch tall. */}
       <div
         ref={inner}
-        className="relative"
+        className="relative h-full"
         style={{ backgroundColor: ground, touchAction: 'pan-y' }}
       >
         {children}
