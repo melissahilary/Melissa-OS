@@ -50,6 +50,25 @@ const readLength = (text) => {
   return { minutes: total, rest }
 }
 
+// ── The intention, read from what she wrote.
+//
+// Nothing here counts her steps, and a second form asking her to set a number
+// she has already set would be the app not listening. She writes "walk 10k
+// steps" as the thing she means to do; that IS the figure. Ten thousand, two
+// fives, eight — whatever the day's lines add up to is what the day is for.
+const readSteps = (text) => {
+  let total = 0
+  const re = /(\d[\d,]*(?:\.\d+)?)\s*(k\b)?\s*steps\b/gi
+  let m = re.exec(String(text || ''))
+  while (m) {
+    const n = parseFloat(m[1].replace(/,/g, ''))
+    if (Number.isFinite(n)) total += Math.round(m[2] ? n * 1000 : n)
+    m = re.exec(String(text || ''))
+  }
+  return total
+}
+const stepsIn = (x) => readSteps(`${(x && x.name) || ''} ${(x && x.detail) || ''}`)
+
 // The length of one line, from the field if it has one and from the line it
 // counts if it does not.
 const lengthOf = (x) => mins(x && x.minutes) || readLength(x && x.detail).minutes
@@ -213,6 +232,9 @@ export default function Movement({ dateKeyStr }) {
   // line she has put down, whether or not she has kept it yet.
   const active = today.reduce((n, x) => n + lengthOf(x), 0)
 
+  // And what she set out to walk, added up the same way.
+  const stepGoal = today.reduce((n, x) => n + stepsIn(x), 0)
+
   return (
     <section className="mos-bleed border-t border-stone-200 px-6 py-14 md:px-12 md:py-20">
       <div className="mx-auto max-w-5xl">
@@ -321,6 +343,14 @@ export default function Movement({ dateKeyStr }) {
               data-no-dictation
               className="mt-3 w-full bg-transparent font-serif text-[34px] leading-none text-stone-900 outline-none placeholder:text-stone-300 sm:text-[44px]"
             />
+            {/* What she set out to walk, printed under what she walked. It is
+                the intention, not a verdict: no colour, no mark, nothing that
+                turns a quiet day into a failure. */}
+            {!!stepGoal && (
+              <span className="mt-3 block text-[10px] uppercase tracking-[0.16em] text-stone-500">
+                of {stepGoal.toLocaleString()}
+              </span>
+            )}
           </label>
           <div className="block">
             <span className="kicker block text-stone-500">Active</span>
