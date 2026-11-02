@@ -70,7 +70,9 @@ the shapes below as fixed; propose, never apply, a change to them.
 ## Standing workflow
 - "Build X" means: implement, commit, push to `main` (auto-deploys).
 - AFTER every push to `main`, verify the deploy via the Vercel MCP:
-  `get_deployment` for `melissa-os.vercel.app` with the team id above. Report
+  `get_deployment` for `melissa-os.vercel.app` — with NO `teamId`. The token
+  already resolves to the team; passing the team id explicitly scopes the query
+  to nothing and every call 404s (this cost a whole session once). Report
   `readyState`, the deployed `githubCommitSha`, and the URL. If it failed, pull
   `get_deployment_build_logs` and fix.
 - Always run `npm run build` locally before pushing.
