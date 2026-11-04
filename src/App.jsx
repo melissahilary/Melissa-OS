@@ -103,13 +103,6 @@ const SUBNAV = {
     { id: 'recipes', label: 'Recipes' },
     { id: 'grocery', label: "What's In My Fridge" },
   ],
-  fitness: [
-    { id: 'schedule', label: 'Protocol' },
-    { id: 'plan', label: 'Workout Plan' },
-    { id: 'sessions', label: 'Sessions' },
-    { id: 'appointments', label: 'Appointments' },
-    { id: 'devices', label: 'Equipment' },
-  ],
   workout: [
     { id: 'schedule', label: 'Protocol' },
     { id: 'cycle', label: 'My Body' },
@@ -136,8 +129,10 @@ const SUBNAV = {
     { id: 'practices', label: 'Practices' },
   ],
   relationship: [
-    { id: 'schedule', label: 'Protocol' },
-    { id: 'circle', label: 'My Circle' },
+    { id: 'dates', label: 'Date Nights' },
+    { id: 'social', label: 'Social' },
+    { id: 'gifts', label: 'Gifts' },
+    { id: 'journal', label: 'Journal' },
   ],
 }
 

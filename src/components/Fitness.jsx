@@ -1,407 +1,131 @@
 import React, { useState } from 'react'
-import { Calendar } from 'lucide-react'
-import { CloseIcon } from './shared/marks'
-import { useActivities } from '../hooks/useActivities'
-import { blankActivity } from '../lib/activities'
-import { parseKey, dateKey, addDays, MONTHS, MONTHS_SHORT, isSameDay } from '../lib/date'
-import { useRegisterAdd } from './shared/AddButton'
-import CategoryCalendar, { occursOnCal } from './shared/CategoryCalendar'
-import CategorySchedule from './shared/CategorySchedule'
-import FitnessPlan from './FitnessPlan'
-import { CategoryLog, CategoryShelf } from './shared/LogShelf'
+import { useLocalStorage } from '../hooks/useLocalStorage'
+import { dateKey } from '../lib/date'
+import {
+  Page, Band, Row, Name, Meta, Mark, Plus, Empty, Starters, Sheet, Big, Field, Notes, Chips,
+  useRequiredName, uid, arr,
+} from './shared/Ledger'
 
-// Dated records (logs) and things you own & keep using (shelves).
-const FIT_LOG = {
-  training: {
-    addNoun: 'session',
-    blurb: 'What you do yourself, on a program.',
-    suggestions: ['Strength', 'Cardio', 'Mobility', 'Pilates', 'Yoga', 'Running', 'Cycling', 'Swimming'],
-    place: { label: 'Where', placeholder: 'gym · home · studio' },
-    fields: [],
-  },
-  sessions: {
-    addNoun: 'session',
-    blurb: 'Performed with or by someone else.',
-    suggestions: ['Personal training', 'Group class', 'Physical therapy', 'Sports massage', 'Stretch therapy', 'Chiropractic'],
-    place: { label: 'With / where', placeholder: 'trainer · studio' },
-    fields: [],
-  },
-  appointments: {
-    addNoun: 'appointment',
-    blurb: 'Information only — no work performed.',
-    suggestions: ['Assessment', 'DEXA scan', 'VO2 max testing', 'Movement screen', 'InBody', 'Gait analysis'],
-    place: { label: 'Who / where', placeholder: 'provider · clinic' },
-    fields: [{ key: 'results', label: 'Results', placeholder: 'numbers to remember' }],
-  },
-}
-const FIT_SHELF = {
-  products: {
-    blurb: 'Recurring consumables.',
-    suggestions: ['Protein', 'Creatine', 'Electrolytes', 'Pre-workout', 'Recovery supplements'],
-    notePlaceholder: "what it's for · how often",
-  },
-  devices: {
-    blurb: 'Tools you own that do the work.',
-    suggestions: ['Whoop', 'Oura', 'Foam roller', 'Theragun', 'Sauna', 'Cold plunge', 'Compression boots', 'Weights'],
-    notePlaceholder: 'what it does · how often',
-  },
-}
+// ── The body, cared for.
+//
+// What stood here was a second gym: sessions, programmes, equipment, a plan —
+// all of it already on the day under Workouts, and none of it ever filled in.
+// The body does ask for something daily that nothing else covers, and it is
+// not training. It is the brush before the shower, the scrub twice a week,
+// the oil on damp skin, the SPF nobody puts below the jaw.
 
-const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const fmtDate = (k) => { if (!k) return '—'; const d = parseKey(k); return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}` }
-const WEEK = [1, 2, 3, 4, 5, 6, 0] // Monday-first
-const PARTS = [{ id: 'morning', label: 'Morning' }, { id: 'afternoon', label: 'Afternoon' }, { id: 'evening', label: 'Evening' }]
-const PART_LABEL = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' }
-// Weekday chips, Monday-first (value is JS getDay()).
-const WD_CHIPS = [
-  { d: 1, l: 'M' }, { d: 2, l: 'T' }, { d: 3, l: 'W' }, { d: 4, l: 'T' }, { d: 5, l: 'F' }, { d: 6, l: 'S' }, { d: 0, l: 'S' },
+const WHEN = [
+  { id: 'morning', label: 'Morning' },
+  { id: 'evening', label: 'Evening' },
+  { id: 'either', label: 'Either' },
 ]
-// Repeat patterns offered in the workout form.
-const PATTERNS = [
+const OFTEN = [
   { id: 'daily', label: 'Daily' },
-  { id: 'weekdays', label: 'Weekdays' },
-  { id: 'weekends', label: 'Weekends' },
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'biweekly', label: 'Bi-weekly' },
-  { id: 'monthlyday', label: 'Monthly' },
-  { id: 'quarterly', label: 'Quarterly' },
-  { id: 'yearly', label: 'Yearly' },
-  { id: 'custom', label: 'Custom' },
+  { id: 'weekly', label: 'Once a week' },
+  { id: '2x', label: 'Twice a week' },
+  { id: 'fortnightly', label: 'Fortnightly' },
+  { id: 'asneeded', label: 'When it is wanted' },
 ]
-// Units for the Custom "every N ___" interval.
-const UNITS = [
-  { id: 'day', label: 'days' },
-  { id: 'week', label: 'weeks' },
-  { id: 'month', label: 'months' },
-  { id: 'quarter', label: 'quarters' },
-  { id: 'year', label: 'years' },
+const label = (set, id) => (set.find((x) => x.id === id) || {}).label || ''
+const ORDER = { morning: 0, either: 1, evening: 2 }
+
+// One press each, already filled in. She can open any of them afterwards.
+const STARTERS = [
+  { name: 'dry brushing', when: 'morning', often: 'daily' },
+  { name: 'body exfoliation', when: 'evening', often: '2x' },
+  { name: 'body oil on damp skin', when: 'evening', often: 'daily' },
+  { name: 'body serum', when: 'evening', often: 'daily' },
+  { name: 'body spf', when: 'morning', often: 'daily' },
+  { name: 'body lotion', when: 'evening', often: 'daily' },
+  { name: 'hands and cuticle oil', when: 'evening', often: 'daily' },
+  { name: 'feet, then socks', when: 'evening', often: 'daily' },
+  { name: 'deodorant', when: 'morning', often: 'daily' },
+  { name: 'neck and chest cream', when: 'evening', often: 'daily' },
+  { name: 'in-shower scrub', when: 'morning', often: '2x' },
+  { name: 'self tan', when: 'evening', often: 'weekly' },
+  { name: 'magnesium oil on the legs', when: 'evening', often: 'daily' },
+  { name: 'gua sha the body', when: 'evening', often: 'weekly' },
+  { name: 'back and shoulders', when: 'evening', often: 'weekly' },
 ]
-const usesDays = (p) => p === 'weekly' || p === 'biweekly' || p === 'monthlyday'
-const isSeries = () => true
-const initialPattern = (a) => {
-  const f = a.frequency
-  if (f === 'daily') return 'daily'
-  if (f === 'weekdays') return 'weekdays'
-  if (f === 'weekends') return 'weekends'
-  if (f === 'biweekly') return 'biweekly'
-  if (f === 'monthlyday') return 'monthlyday'
-  if (f === 'quarterly') return 'quarterly'
-  if (f === 'yearly') return 'yearly'
-  if (f === 'custom' || f === 'nweeks') return 'custom'
-  return 'weekly'
-}
 
-const firstLine = (t) => (t || '').split('\n').map((s) => s.trim()).find(Boolean) || 'Workout'
-const isRecurring = (a) => a.frequency !== 'asneeded' && a.frequency !== 'once'
-// A workout's part of day (timeOfDay wins; falls back to the legacy event field).
-const workoutPart = (a) => (a.timeOfDay && a.timeOfDay[0]) || (a.details && a.details.partOfDay) || 'morning'
-// The workout body — protocol notes, falling back to the legacy event description.
-const workoutBody = (a) => a.notes || (a.details && a.details.description) || ''
-// Human label for the recurrence, shown under each workout.
-const patternLabel = (a) => {
-  const f = a.frequency
-  if (f === 'daily') return 'Daily'
-  if (f === 'weekdays') return 'Weekdays'
-  if (f === 'weekends') return 'Weekends'
-  if (f === 'biweekly') return 'Bi-weekly'
-  if (f === 'monthlyday') return 'Monthly'
-  if (f === 'quarterly') return 'Quarterly'
-  if (f === 'yearly') return 'Yearly'
-  if (f === 'nweeks') return `Every ${a.interval || 1} weeks`
-  if (f === 'custom') { const n = a.interval || 1; const u = a.intervalUnit || 'week'; return `Every ${n} ${u}${n === 1 ? '' : 's'}` }
-  if (f === 'asneeded' || f === 'once') return 'One-time'
-  return 'Weekly'
-}
-// The date of the given weekday within the current week.
-const thisWeekDate = (weekday) => { const d = new Date(); d.setDate(d.getDate() + (weekday - d.getDay())); return dateKey(d) }
-// Which weekdays a recurring workout lands on.
-const recurWeekdays = (a) => {
-  if (a.frequency === 'daily') return [0, 1, 2, 3, 4, 5, 6]
-  if (a.frequency === 'weekdays') return [1, 2, 3, 4, 5]
-  if (a.frequency === 'weekends') return [0, 6]
-  if (Array.isArray(a.daysOfWeek) && a.daysOfWeek.length) return a.daysOfWeek
-  if (a.seriesStart) return [parseKey(a.seriesStart).getDay()]
-  return []
-}
-
-export default function Fitness({ subPage, cycleConfig }) {
-  if (subPage === 'plan') return <FitnessPlan />
-  if (FIT_LOG[subPage]) return <CategoryLog storeKey={`mos:fitness:${subPage}`} {...FIT_LOG[subPage]} />
-  if (subPage === 'devices') return <CategoryShelf storeKey="mos:fitness:devices" blurb="The equipment you own that does the work." suggestions={['Weights', 'Foam roller', 'Theragun', 'Pilates reformer', 'Resistance bands', 'Sauna', 'Cold plunge', 'Compression boots']} notePlaceholder="what it does · how often" />
-  return <CategorySchedule category="fitness" question="What do you want to train today?" noun="Workout" cycleConfig={cycleConfig} />
-}
-
-// ── Workouts — a Monday–Sunday weekly schedule. Each workout is a ritual
-// protocol, so it shows in the home Morning/Evening Routine (not Agenda).
-function Workouts() {
-  const { activities, add, update, remove } = useActivities()
-  const [editing, setEditing] = useState(null) // { weekday, activity }
-  const today = new Date()
-  const todayKey = dateKey(today)
-  const [anchorKey, setAnchorKey] = useState(todayKey)
-
-  // Monday of the viewed week → the seven day dates.
-  const anchor = parseKey(anchorKey)
-  const monday = addDays(anchor, -((anchor.getDay() + 6) % 7))
-  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
-  const sunday = days[6]
-  const shiftWeek = (n) => setAnchorKey(dateKey(addDays(anchor, n * 7)))
-  const fullDay = (d) => `${DOW_LONG[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
-  const weekLabel = `${fullDay(monday)} - ${fullDay(sunday)}`
-
-  const workouts = activities.filter((a) => a.type === 'protocol' && a.category === 'fitness' && a.status !== 'archived')
-  const forDay = (d) => workouts.filter((a) => occursOnCal(a, dateKey(d)))
-
-  const openNew = (wd) => setEditing({ weekday: wd, activity: blankActivity('protocol', { category: 'fitness', frequency: 'weekly', daysOfWeek: [wd], timeOfDay: ['morning'] }) })
-  const openEdit = (a) => setEditing({ weekday: (a.daysOfWeek || [])[0] != null ? a.daysOfWeek[0] : (a.seriesStart ? parseKey(a.seriesStart).getDay() : 1), activity: a })
-  const save = (a) => { if (activities.some((x) => x.id === a.id)) update(a.id, a); else add(a); setEditing(null) }
-
-  useRegisterAdd(() => openNew(new Date().getDay()), [])
+export default function Fitness() {
+  const [raw, setRaw] = useLocalStorage('mos:body:routine', [])
+  const [open, setOpen] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const key = dateKey(new Date())
+  const all = arr(raw).sort((a, b) => ((ORDER[a.when] ?? 1) - (ORDER[b.when] ?? 1)) || (a.order || 0) - (b.order || 0))
+  const drop = (id) => setRaw((p) => arr(p).filter((x) => x.id !== id))
+  const done = (x) => !!(x.completions && x.completions[key])
+  const keep = (id) => setRaw((p) => arr(p).map((x) => {
+    if (x.id !== id) return x
+    const c = { ...(x.completions || {}) }
+    if (c[key]) delete c[key]; else c[key] = true
+    return { ...x, completions: c }
+  }))
 
   return (
-    <div className="mb-10">
-      {/* Week navigation — prev · range + jump-to-date · next */}
-      <div className="mb-6 flex items-center justify-between gap-2">
-        <button onClick={() => shiftWeek(-1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">‹</button>
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <span className="font-serif text-lg text-stone-900">{weekLabel}</span>
-          <label className="relative inline-flex cursor-pointer items-center text-stone-400 hover:text-stone-900">
-            <Calendar size={16} />
-            <input type="date" value={anchorKey} onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()} onChange={(e) => e.target.value && setAnchorKey(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
-          </label>
-        </div>
-        <button onClick={() => shiftWeek(1)} className="px-3 py-1 text-base text-stone-500 hover:text-stone-900">›</button>
-      </div>
-
-      <div className="space-y-6">
-      {days.map((d) => {
-        const items = forDay(d)
-        const isTod = isSameDay(d, today)
+    <Page
+      kicker="Bodycare"
+      title="The body"
+      intro="Everything from the neck down that is not training. The brush, the scrub, the oil, the SPF — in the order it is done, ticked as it is done."
+    >
+      {all.length ? all.map((x, i) => {
+        const kept = done(x)
         return (
-          <section key={dateKey(d)} className="border-t border-stone-200 pt-4">
-            <h3 className={`font-serif italic text-2xl mb-3 ${isTod ? 'text-stone-900' : 'text-stone-800'}`}>
-              {DOW_LONG[d.getDay()]}
-              <span className="ml-2 text-base not-italic text-stone-400">{MONTHS_SHORT[d.getMonth()]} {d.getDate()}</span>
-            </h3>
-            {items.length === 0 ? (
-              <p className="text-sm italic text-stone-400">Rest day.</p>
-            ) : (
-              <div className="space-y-2">
-                {items.map((a) => (
-                  <div key={a.id} className="group flex items-start gap-3 border border-stone-200 bg-white/40 px-4 py-3">
-                    <button onClick={() => openEdit(a)} className="min-w-0 flex-1 text-left">
-                      <p className="font-serif text-lg text-stone-900">{a.title || 'Workout'}</p>
-                      {workoutBody(a).trim() && (
-                        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-stone-500">{workoutBody(a)}</p>
-                      )}
-                      <p className="kicker text-stone-400 mt-2">{PART_LABEL[workoutPart(a)]} · {patternLabel(a)}</p>
-                    </button>
-                    <button onClick={() => remove(a.id)} className="text-stone-300 opacity-0 transition-opacity hover:text-stone-700 group-hover:opacity-100"><CloseIcon size={16} /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <Row
+            key={x.id}
+            first={!i}
+            onOpen={() => setOpen(x)}
+            onAway={() => drop(x.id)}
+            aside={<Mark on={kept} onClick={() => keep(x.id)} label={`${kept ? 'Kept' : 'Keep'} ${x.name}`}>{kept ? 'Kept' : 'Keep'}</Mark>}
+          >
+            <Name struck={kept}>{x.name}</Name>
+            <Meta>{[label(WHEN, x.when), label(OFTEN, x.often), x.product].filter(Boolean).join(' · ')}</Meta>
+          </Row>
         )
-      })}
-      </div>
+      }) : (
+        <Empty>Dry brushing, exfoliation, body serum, body SPF — the ones most often skipped.</Empty>
+      )}
 
-      {editing && (
-        <WorkoutForm
-          entry={editing}
-          isNew={!activities.some((x) => x.id === editing.activity.id)}
-          onSave={save}
-          onDelete={() => { remove(editing.activity.id); setEditing(null) }}
-          onClose={() => setEditing(null)}
+      <Plus onClick={() => setAdding(true)} label="Add a step" />
+
+      <Starters
+        options={STARTERS}
+        has={(o) => all.some((x) => x.name === o.name)}
+        onPick={(o) => setRaw((p) => [...arr(p), { ...o, id: uid(), product: '', notes: '', order: arr(p).length, completions: {} }])}
+      />
+
+      {(adding || open) && (
+        <StepSheet
+          item={open}
+          onClose={() => { setAdding(false); setOpen(null) }}
+          onDrop={open ? () => { drop(open.id); setOpen(null) } : null}
+          onSave={(d) => {
+            if (open) setRaw((p) => arr(p).map((x) => (x.id === open.id ? { ...x, ...d } : x)))
+            else setRaw((p) => [...arr(p), { ...d, id: uid(), order: arr(raw).length, completions: {} }])
+            setAdding(false); setOpen(null)
+          }}
         />
       )}
-    </div>
+    </Page>
   )
 }
 
-function WorkoutForm({ entry, isNew, onSave, onDelete, onClose }) {
-  const { weekday } = entry
-  const a0 = entry.activity
-  const [name, setName] = useState(a0.title || '')
-  const [text, setText] = useState(workoutBody(a0))
-  const [parts, setParts] = useState(Array.isArray(a0.timeOfDay) && a0.timeOfDay.length ? a0.timeOfDay : [workoutPart(a0)])
-  const togglePart = (id) => setParts((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
-  const [pattern, setPattern] = useState(initialPattern(a0))
-  const [days, setDays] = useState(Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length ? a0.daysOfWeek : [weekday])
-  const [num, setNum] = useState(a0.interval && a0.interval > 0 ? a0.interval : 2)
-  const [unit, setUnit] = useState(a0.intervalUnit || 'week')
-  const [start, setStart] = useState(a0.seriesStart || thisWeekDate(weekday))
-  const [end, setEnd] = useState(a0.seriesEnd || '')
-  const [noEnd, setNoEnd] = useState(!a0.seriesEnd)
-  // Existing workouts open read-only; the Edit button unlocks the fields.
-  const [readOnly, setReadOnly] = useState(!isNew)
-  const daysStr = usesDays(initialPattern(a0)) && Array.isArray(a0.daysOfWeek) && a0.daysOfWeek.length
-    ? [...a0.daysOfWeek].sort((x, y) => x - y).map((d) => DOW_SHORT[d]).join(', ')
-    : ''
-
-  const toggleDay = (d) => setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
-  const needDays = usesDays(pattern)
-  // Every schedule is a series: start + days (when relevant) + interval (Custom) +
-  // an end choice are mandatory.
-  const customValid = pattern !== 'custom' || (Number(num) >= 1 && !!unit)
-  const seriesValid = !!start && (!needDays || days.length > 0) && (noEnd || !!end) && customValid
-  const canSave = (name.trim() || firstLine(text)) && seriesValid
-
-  const submit = () => {
-    if (!canSave) return
-    const nm = name.trim() || firstLine(text)
-    const base = { ...a0, type: 'protocol', title: nm, category: 'fitness', timeOfDay: parts.length ? parts : ['morning'], notes: text.trim() }
-    if (pattern === 'custom') {
-      Object.assign(base, { frequency: 'custom', daysOfWeek: [], interval: Math.max(1, Number(num) || 1), intervalUnit: unit, seriesStart: start, seriesEnd: noEnd ? '' : end })
-    } else if (usesDays(pattern)) {
-      Object.assign(base, { frequency: pattern, daysOfWeek: [...days].sort((x, y) => x - y), interval: undefined, intervalUnit: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
-    } else {
-      // daily / weekdays / weekends / quarterly — no day picker, no interval.
-      Object.assign(base, { frequency: pattern, daysOfWeek: [], interval: undefined, intervalUnit: undefined, seriesStart: start, seriesEnd: noEnd ? '' : end })
-    }
-    onSave(base)
-  }
-
-  const chip = (on) => `rounded-full px-3.5 py-1.5 text-xs border transition-colors ${on ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`
+function StepSheet({ item, onSave, onDrop, onClose }) {
+  const { name, setName, field, ready } = useRequiredName(item ? item.name : '')
+  const [product, setProduct] = useState(item ? item.product || '' : '')
+  const [when, setWhen] = useState(item ? item.when || 'morning' : 'morning')
+  const [often, setOften] = useState(item ? item.often || 'daily' : 'daily')
+  const [notes, setNotes] = useState(item ? item.notes || '' : '')
+  const save = () => { const t = ready(); if (t) onSave({ name: t, product, when, often, notes }) }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 px-4 py-10 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-lg bg-cream rounded-2xl border border-stone-200 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-5">
-          <span className="kicker text-stone-400">{isNew ? 'New Workout' : 'Workout'}</span>
-          <div className="flex items-center gap-4">
-            {readOnly && <button onClick={() => setReadOnly(false)} className="text-sm text-stone-600 hover:text-stone-900">Edit</button>}
-            <button onClick={onClose} className="text-stone-400 hover:text-stone-900"><CloseIcon size={20} /></button>
-          </div>
-        </div>
-
-        {readOnly ? (
-          <div className="px-6 py-5 space-y-5">
-            <div>
-              <span className="kicker text-stone-400 mb-1.5 block">Name</span>
-              <p className="font-serif text-2xl text-stone-900">{a0.title || 'Workout'}</p>
-            </div>
-            {workoutBody(a0).trim() && (
-              <div>
-                <span className="kicker text-stone-400 mb-1.5 block">Exercises</span>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-stone-600">{workoutBody(a0)}</p>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-x-10 gap-y-4">
-              <div>
-                <span className="kicker text-stone-400 mb-1 block">Time of day</span>
-                <span className="text-sm text-stone-700">{(Array.isArray(a0.timeOfDay) && a0.timeOfDay.length ? a0.timeOfDay : [workoutPart(a0)]).map((p) => PART_LABEL[p]).join(', ')}</span>
-              </div>
-              <div>
-                <span className="kicker text-stone-400 mb-1 block">Repeat</span>
-                <span className="text-sm text-stone-700">{patternLabel(a0)}{daysStr ? ` · ${daysStr}` : ''}</span>
-              </div>
-              <div>
-                <span className="kicker text-stone-400 mb-1 block">Series</span>
-                <span className="text-sm text-stone-700">{fmtDate(a0.seriesStart)} · {a0.seriesEnd ? `ends ${fmtDate(a0.seriesEnd)}` : 'no end date'}</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-        <div className="px-6 py-5 space-y-5">
-          <div>
-            <span className="kicker text-stone-400 mb-1.5 block">Name</span>
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Lower Power"
-              className="w-full bg-transparent border-b border-stone-300 pb-1.5 font-serif text-2xl text-stone-900 placeholder-stone-300 outline-none focus:border-stone-900"
-            />
-          </div>
-          <div>
-            <span className="kicker text-stone-400 mb-1.5 block">Exercises</span>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={'Squats: 4x5-8 (heavy), 2-3 min rest\nDeadlifts: 4x5 (heavy), 3 min rest\nHip thrusts: 4x8 (heavy), 90 sec rest'}
-              className="w-full min-h-[160px] resize-y rounded-xl bg-stone-500/5 px-4 py-3 text-sm leading-relaxed outline-none focus:border-stone-900"
-            />
-          </div>
-          <div>
-            <span className="kicker text-stone-400 mb-2 block">Time of day</span>
-            <div className="flex gap-1.5">
-              {PARTS.map((p) => (
-                <button key={p.id} type="button" onClick={() => togglePart(p.id)} className={chip(parts.includes(p.id))}>{p.label}</button>
-              ))}
-            </div>
-            <p className="mt-1.5 text-xs italic text-stone-400">Pick one or more.</p>
-          </div>
-
-          <div>
-            <span className="kicker text-stone-400 mb-2 block">Repeat</span>
-            <div className="flex flex-wrap gap-1.5">
-              {PATTERNS.map((f) => (
-                <button key={f.id} type="button" onClick={() => setPattern(f.id)} className={chip(pattern === f.id)}>{f.label}</button>
-              ))}
-            </div>
-            {pattern === 'custom' && (
-              <div className="mt-3 flex items-center gap-2 text-sm text-stone-700">
-                Every
-                <input type="number" min="1" value={num} onChange={(e) => setNum(e.target.value)} className="w-14 bg-transparent border-b border-stone-300 pb-1 text-center outline-none focus:border-stone-900" />
-                <select value={unit} onChange={(e) => setUnit(e.target.value)} className="border-b border-stone-300 bg-transparent pb-1 text-sm outline-none focus:border-stone-900">
-                  {UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {needDays && (
-            <div>
-              <span className="kicker text-stone-400 mb-2 block">On {pattern === 'monthlyday' ? 'weekday' : 'days'}</span>
-              <div className="flex flex-wrap gap-1.5">
-                {WD_CHIPS.map((w) => (
-                  <button key={w.d} type="button" onClick={() => toggleDay(w.d)} className={`h-8 w-8 text-xs border transition-colors ${days.includes(w.d) ? 'bg-stone-900 text-cream border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}>{w.l}</button>
-                ))}
-              </div>
-              {pattern === 'monthlyday' && <p className="mt-2 text-xs italic text-stone-400">Repeats monthly on the same week-of-month as the start date (e.g. 2nd Tuesday).</p>}
-            </div>
-          )}
-
-          {isSeries(pattern) && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="kicker text-stone-400 mb-1.5 block">Starts</span>
-                <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-              </div>
-              <div>
-                <span className="kicker text-stone-400 mb-1.5 block">Ends</span>
-                <label className="mb-1.5 flex items-center gap-2 text-sm text-stone-700">
-                  <input type="checkbox" checked={noEnd} onChange={(e) => setNoEnd(e.target.checked)} /> No end date
-                </label>
-                {!noEnd && (
-                  <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
-                )}
-              </div>
-            </div>
-          )}
-
-          {!seriesValid && (
-            <p className="text-xs italic text-phase-menstrual">Pick a start date, at least one day, and an end date (or “No end date”).</p>
-          )}
-        </div>
-        )}
-
-        <div className="flex items-center justify-between border-t border-stone-200 px-6 py-4">
-          {isNew ? <span /> : <button onClick={onDelete} className="text-sm text-stone-400 hover:text-phase-menstrual">Delete</button>}
-          <div className="flex items-center gap-3">
-            {readOnly ? (
-              <button onClick={onClose} className="rounded-full px-6 py-2 text-sm bg-stone-900 text-cream hover:bg-stone-700">Close</button>
-            ) : (
-              <>
-                <button onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-900">Cancel</button>
-                <button onClick={submit} disabled={!canSave} className={`px-5 py-2 text-sm text-cream ${canSave ? 'bg-stone-900 hover:bg-stone-700' : 'bg-stone-300 cursor-not-allowed'}`}>Save</button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    <Sheet kicker="The body" onClose={onClose} onDrop={onDrop} onSave={save} saveLabel={item ? 'Save' : 'Add'}>
+      <Big ref={field} value={name} onChange={setName} placeholder="Dry brushing" onEnter={save} />
+      <Field label="What she uses" value={product} onChange={setProduct} placeholder="the boar bristle brush" width="mt-8" onEnter={save} />
+      <Chips label="When" options={WHEN} value={when} onChange={setWhen} />
+      <Chips label="How often" options={OFTEN} value={often} onChange={setOften} />
+      <Notes value={notes} onChange={setNotes} />
+    </Sheet>
   )
 }
