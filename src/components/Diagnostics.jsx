@@ -129,6 +129,8 @@ function Results() {
       }) : <Empty>Nothing in the vault yet.</Empty>}
 
       <Plus onClick={() => setAdding(true)} label="Add a test" />
+      <Starters options={DUE_STARTERS} has={() => false}
+        onPick={(o) => setRaw((p) => [...arr(p), { id: uid(), name: o, on: today(), where: '', notes: '', readings: [] }])} />
 
       {(adding || open) && (
         <PanelSheet item={open} onClose={() => { setAdding(false); setOpen(null) }}

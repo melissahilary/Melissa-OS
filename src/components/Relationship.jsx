@@ -26,6 +26,13 @@ export default function Relationship({ subPage }) {
 
 const said = (k) => (k ? longDate(k) : '')
 
+const DATE_STARTERS = ['dinner out', 'a film', 'a long walk', 'a drive', 'a gallery', 'cooking at home',
+  'a concert', 'a night in a hotel', 'breakfast out', 'a game night', 'a market', 'dancing']
+const SOCIAL_STARTERS = ['a dinner party', 'a birthday', 'a wedding', 'a launch', 'work drinks',
+  'brunch', 'a baby shower', 'a housewarming', 'a christening', 'a gallery opening']
+const GIFT_STARTERS = ['a birthday gift', 'a christmas gift', 'a thank you gift', 'a housewarming gift',
+  'flowers', 'a wedding gift', 'just because']
+
 // ── Date nights ────────────────────────────────────────────────────
 //
 // Two halves of one page: the ideas, which have no date and are the point of
@@ -59,6 +66,8 @@ function DateNights() {
       {ideas.length ? ideas.map((x, i) => line(x, !i)) : <Empty>Somewhere you have been meaning to go.</Empty>}
 
       <Plus onClick={() => setAdding(true)} label="Add a date night" />
+      <Starters options={DATE_STARTERS} has={() => false}
+        onPick={(o) => setRaw((p) => [...arr(p), { id: uid(), name: o, who: '', where: '', on: '', at: '', notes: '' }])} />
 
       {(adding || open) && (
         <DateSheet
@@ -145,6 +154,8 @@ function Gifts() {
       {given.length ? given.map((x, i) => line(x, !i, false)) : <Empty>Nothing yet.</Empty>}
 
       <Plus onClick={() => setAdding(true)} label="Add a gift" />
+      <Starters options={GIFT_STARTERS} has={() => false}
+        onPick={(o) => setRaw((p) => [...arr(p), { id: uid(), name: o, way: 'given', who: '', on: dateKey(new Date()), cost: '', occasion: '', notes: '', thanked: false }])} />
 
       {(adding || open) && (
         <GiftSheet
@@ -257,6 +268,8 @@ function Social() {
       )}
 
       <Plus onClick={() => setAdding(true)} label="Add something social" />
+      <Starters options={SOCIAL_STARTERS} has={() => false}
+        onPick={(o) => setRaw((p) => [...arr(p), { id: uid(), name: o, where: '', on: '', at: '', until: '', rsvp: 'asked', notes: '', linked: '' }])} />
 
       {(adding || open) && (
         <SocialSheet

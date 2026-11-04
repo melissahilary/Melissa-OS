@@ -91,11 +91,6 @@ const SUBNAV = {
     { id: 'devices', label: 'Devices' },
     { id: 'prescribed', label: 'Prescribed' },
   ],
-  bodycare: [
-    { id: 'schedule', label: 'Protocol' },
-    { id: 'therapies', label: 'Therapies' },
-    { id: 'products', label: 'Products' },
-  ],
   spirituality: [
     { id: 'practice', label: 'Practice' },
     { id: 'rituals', label: 'Calendar' },
@@ -109,6 +104,13 @@ const SUBNAV = {
     { id: 'supplements', label: 'Supplements' },
     { id: 'recipes', label: 'Recipes' },
     { id: 'grocery', label: "What's In My Fridge" },
+  ],
+  fitness: [
+    { id: 'calendar', label: 'Calendar' },
+    { id: 'log', label: 'The Log' },
+    { id: 'measurements', label: 'Measurements' },
+    { id: 'photos', label: 'Photographs' },
+    { id: 'classes', label: 'Classes' },
   ],
   workout: [
     { id: 'schedule', label: 'Protocol' },
