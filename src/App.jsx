@@ -68,16 +68,20 @@ const PILLAR_COMPONENTS = {
 // condensed into one Schedule view everywhere.
 const SUBNAV = {
   skincare: [
-    { id: 'schedule', label: 'Protocol' },
-    { id: 'morning', label: 'Morning Routine' },
-    { id: 'evening', label: 'Evening Routine' },
-    { id: 'products', label: 'Products' },
+    { id: 'routine', label: 'Routine' },
+    { id: 'shelf', label: 'The Shelf' },
+    { id: 'photos', label: 'Photographs' },
+    { id: 'rituals', label: 'At Home' },
+    { id: 'appointments', label: 'The Chair' },
+    { id: 'wishlist', label: 'Wanted' },
   ],
   haircare: [
-    { id: 'schedule', label: 'Protocol' },
-    { id: 'routine', label: 'Routine' },
-    { id: 'products', label: 'Products' },
-    { id: 'appointments', label: 'Appointments' },
+    { id: 'routine', label: 'Routines' },
+    { id: 'calendar', label: 'Calendar' },
+    { id: 'log', label: 'The Log' },
+    { id: 'photos', label: 'Photographs' },
+    { id: 'salon', label: 'The Salon' },
+    { id: 'treatments', label: 'Treatments' },
   ],
   aesthetics: [
     { id: 'schedule', label: 'Protocol' },
@@ -93,8 +97,11 @@ const SUBNAV = {
     { id: 'products', label: 'Products' },
   ],
   spirituality: [
-    { id: 'schedule', label: 'Protocol' },
-    { id: 'practices', label: 'Practices' },
+    { id: 'practice', label: 'Practice' },
+    { id: 'rituals', label: 'Calendar' },
+    { id: 'sessions', label: 'Sessions' },
+    { id: 'journal', label: 'Journal' },
+    { id: 'tools', label: 'Tools' },
   ],
   menu: [
     { id: 'schedule', label: 'Protocol' },
@@ -111,10 +118,11 @@ const SUBNAV = {
     { id: 'appointments', label: 'Appointments' },
   ],
   diagnostics: [
-    { id: 'schedule', label: 'Protocol' },
-    { id: 'bloodwork', label: 'Bloodwork' },
-    { id: 'imaging', label: 'Imaging' },
-    { id: 'log', label: 'Results' },
+    { id: 'due', label: 'Due' },
+    { id: 'results', label: 'The Vault' },
+    { id: 'markers', label: 'Trends' },
+    { id: 'symptoms', label: 'What To Ask' },
+    { id: 'wearables', label: 'Wearables' },
   ],
   mindset: [
     { id: 'schedule', label: 'Protocol' },
@@ -132,6 +140,8 @@ const SUBNAV = {
     { id: 'dates', label: 'Date Nights' },
     { id: 'social', label: 'Social' },
     { id: 'gifts', label: 'Gifts' },
+    { id: 'events', label: 'Life Events' },
+    { id: 'boundaries', label: 'Boundaries' },
     { id: 'journal', label: 'Journal' },
   ],
 }

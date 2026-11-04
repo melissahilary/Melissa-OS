@@ -254,5 +254,28 @@ export function useRequiredName(initial = '') {
   return { name, setName, field, ready }
 }
 
+// A photograph off a phone is four megabytes. It is shrunk and written down
+// at middling quality before it is kept, because this is a planner and not a
+// darkroom — and because everything here lives in one row of a database.
+export const shrink = (file) => new Promise((done, fail) => {
+  const reader = new FileReader()
+  reader.onerror = fail
+  reader.onload = () => {
+    const img = new Image()
+    img.onerror = fail
+    img.onload = () => {
+      const max = 900
+      const scale = Math.min(1, max / Math.max(img.width, img.height))
+      const c = document.createElement('canvas')
+      c.width = Math.round(img.width * scale)
+      c.height = Math.round(img.height * scale)
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+      done(c.toDataURL('image/jpeg', 0.68))
+    }
+    img.src = reader.result
+  }
+  reader.readAsDataURL(file)
+})
+
 export const uid = () => Math.random().toString(36).slice(2, 10)
 export const arr = (v) => (Array.isArray(v) ? v : [])

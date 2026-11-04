@@ -4,7 +4,7 @@ import { dateKey, longDate } from '../lib/date'
 import { useActivities } from '../hooks/useActivities'
 import { blankActivity } from '../lib/activities'
 import {
-  Page, Band, Row, Name, Meta, Mark, Plus, Empty, Sheet, Big, Field, Notes, Chips,
+  Page, Band, Row, Name, Meta, Mark, Plus, Empty, Starters, Sheet, Big, Field, Notes, Chips,
   useRequiredName, uid, arr,
 } from './shared/Ledger'
 
@@ -18,6 +18,8 @@ import {
 export default function Relationship({ subPage }) {
   if (subPage === 'gifts') return <Gifts />
   if (subPage === 'social') return <Social />
+  if (subPage === 'events') return <LifeEvents />
+  if (subPage === 'boundaries') return <Boundaries />
   if (subPage === 'journal') return <Journal />
   return <DateNights />
 }
@@ -178,7 +180,7 @@ function GiftSheet({ item, onSave, onDrop, onClose }) {
       <Chips label="Which way" options={WAYS} value={way} onChange={setWay} />
       <div className="mt-8 flex items-end gap-6">
         <Field label={way === 'received' ? 'From' : 'For'} value={who} onChange={setWho} placeholder="a name" width="flex-1" onEnter={save} />
-        <Field label="What it cost" value={cost} onChange={setCost} placeholder="£120" width="w-[38%]" onEnter={save} />
+        <Field label="What it cost" value={cost} onChange={setCost} placeholder="$120" width="w-[38%]" onEnter={save} />
       </div>
       <div className="mt-8 flex items-end gap-6">
         <Field label="When" type="date" value={on} onChange={setOn} width="flex-1" />
@@ -355,6 +357,194 @@ function JournalSheet({ item, onSave, onDrop, onClose }) {
         <Field label="When" type="date" value={on} onChange={setOn} width="w-[45%]" />
       </div>
       <Notes value={notes} onChange={setNotes} label="What was said" placeholder="What happened, and what you thought afterwards." />
+    </Sheet>
+  )
+}
+
+// ── Life events ────────────────────────────────────────────────────
+//
+// The things happening to the people around her. A friend moves, a sister has
+// surgery, someone sits an exam — and the thing that is actually hard is not
+// caring, it is remembering on the day. So every line carries the day, and
+// the day goes on her calendar.
+const EVENT_KINDS = [
+  { id: 'move', label: 'Moving' },
+  { id: 'job', label: 'New job' },
+  { id: 'surgery', label: 'Surgery' },
+  { id: 'baby', label: 'Baby' },
+  { id: 'loss', label: 'Loss' },
+  { id: 'breakup', label: 'Breakup' },
+  { id: 'exam', label: 'Exam' },
+  { id: 'wedding', label: 'Wedding' },
+  { id: 'other', label: 'Something else' },
+]
+const kindLabel = (id) => (EVENT_KINDS.find((k) => k.id === id) || {}).label || ''
+const EVENT_STARTERS = ['moving house', 'first day', 'surgery', 'due date', 'exam', 'a funeral', 'the breakup', 'anniversary of a loss']
+
+function LifeEvents() {
+  const [raw, setRaw] = useLocalStorage('mos:rel:events', [])
+  const { add, remove } = useActivities()
+  const [open, setOpen] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const all = arr(raw)
+  const k = dateKey(new Date())
+  const ahead = all.filter((x) => !x.on || x.on >= k).sort((a, b) => (a.on || '9').localeCompare(b.on || '9'))
+  const past = all.filter((x) => x.on && x.on < k).sort((a, b) => (b.on || '').localeCompare(a.on || ''))
+  const drop = (x) => { if (x.linked) remove(x.linked); setRaw((p) => arr(p).filter((y) => y.id !== x.id)) }
+
+  // The reminder is a line on the day itself, named as the thing to do rather
+  // than the thing that is happening: "ask how it went", not "surgery".
+  const remind = (x) => {
+    if (x.linked) { remove(x.linked); setRaw((p) => arr(p).map((y) => (y.id === x.id ? { ...y, linked: '' } : y))); return }
+    if (!x.on) return
+    const when = x.after ? x.after : x.on
+    const made = add(blankActivity('event', {
+      title: x.after ? `check in with ${x.who || x.name}` : `${x.who ? x.who + ' — ' : ''}${x.name}`,
+      category: 'personal', frequency: 'once', seriesStart: when,
+      details: { time: '', endTime: '', partOfDay: 'morning', description: x.notes || '', attendees: x.who || '', durationMinutes: '' },
+    }))
+    setRaw((p) => arr(p).map((y) => (y.id === x.id ? { ...y, linked: made.id } : y)))
+  }
+
+  const line = (x, first) => (
+    <Row key={x.id} first={first} onOpen={() => setOpen(x)} onAway={() => drop(x)}
+      aside={<Mark on={!!x.linked} onClick={() => remind(x)} label={`Remind me about ${x.name}`}>{x.linked ? 'Reminded' : 'Remind me'}</Mark>}>
+      <Name>{x.name}</Name>
+      <Meta>{[x.who, kindLabel(x.kind), said(x.on), x.after ? `check in ${said(x.after)}` : ''].filter(Boolean).join(' · ')}</Meta>
+    </Row>
+  )
+
+  return (
+    <Page kicker="Relationships" title="Life events"
+      intro="What is happening to the people around her. Caring is not the hard part — remembering on the day is, so the day goes on her calendar.">
+      <Band count={ahead.length || null}>Coming</Band>
+      {ahead.length ? ahead.map((x, i) => line(x, !i)) : <Empty>Nothing coming up.</Empty>}
+      {past.length > 0 && (<><Band count={past.length}>Been and gone</Band>{past.map((x, i) => line(x, !i))}</>)}
+
+      <Plus onClick={() => setAdding(true)} label="Add a life event" />
+      <Starters options={EVENT_STARTERS} has={() => false}
+        onPick={(o) => setRaw((p) => [...arr(p), { id: uid(), name: o, who: '', kind: 'other', on: '', after: '', notes: '', linked: '' }])} />
+
+      {(adding || open) && (
+        <EventSheet item={open} onClose={() => { setAdding(false); setOpen(null) }}
+          onDrop={open ? () => { drop(open); setOpen(null) } : null}
+          onSave={(d) => {
+            if (open) setRaw((p) => arr(p).map((x) => (x.id === open.id ? { ...x, ...d } : x)))
+            else setRaw((p) => [...arr(p), { ...d, id: uid(), linked: '' }])
+            setAdding(false); setOpen(null)
+          }} />
+      )}
+    </Page>
+  )
+}
+
+function EventSheet({ item, onSave, onDrop, onClose }) {
+  const { name, setName, field, ready } = useRequiredName(item ? item.name : '')
+  const [who, setWho] = useState(item ? item.who || '' : '')
+  const [kind, setKind] = useState(item ? item.kind || 'other' : 'other')
+  const [on, setOn] = useState(item ? item.on || '' : '')
+  const [after, setAfter] = useState(item ? item.after || '' : '')
+  const [notes, setNotes] = useState(item ? item.notes || '' : '')
+  const save = () => { const t = ready(); if (t) onSave({ name: t, who, kind, on, after, notes }) }
+  return (
+    <Sheet kicker="Life events" onClose={onClose} onDrop={onDrop} onSave={save} saveLabel={item ? 'Save' : 'Add'}>
+      <Big ref={field} value={name} onChange={setName} placeholder="Moving house" onEnter={save} />
+      <Field label="Who" value={who} onChange={setWho} placeholder="a name" width="mt-8" onEnter={save} />
+      <Chips label="What kind" options={EVENT_KINDS} value={kind} onChange={setKind} />
+      <div className="mt-8 flex items-end gap-6">
+        <Field label="The day" type="date" value={on} onChange={setOn} width="flex-1" />
+        <Field label="Check in after" type="date" value={after} onChange={setAfter} width="flex-1" />
+      </div>
+      <p className="mt-3 text-[13px] italic text-cream/50">Remind me puts it on the day — the check-in date if there is one, otherwise the day itself.</p>
+      <Notes value={notes} onChange={setNotes} />
+    </Sheet>
+  )
+}
+
+// ── Boundaries ─────────────────────────────────────────────────────
+//
+// A boundary is not a feeling, it is a sentence. The hard part is saying it
+// in the moment, so every one carries the words written down in advance —
+// and then, honestly, whether she said them.
+const BOUNDARY_STARTERS = [
+  'no work calls after seven', 'no phones at dinner', 'i do not lend money',
+  'sundays are mine', 'i answer messages once a day', 'no drop-in visits',
+  'i do not discuss my body', 'no unsolicited advice about my life',
+  'i leave parties when i am tired', 'i do not host last minute',
+]
+
+function Boundaries() {
+  const [raw, setRaw] = useLocalStorage('mos:rel:boundaries', [])
+  const [open, setOpen] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const all = arr(raw)
+  const k = dateKey(new Date())
+  const drop = (id) => setRaw((p) => arr(p).filter((x) => x.id !== id))
+  const mark = (id, how) => setRaw((p) => arr(p).map((x) => {
+    if (x.id !== id) return x
+    const log = { ...(x.log || {}) }
+    if (log[k] === how) delete log[k]; else log[k] = how
+    return { ...x, log }
+  }))
+  const tally = (x) => {
+    const v = Object.values(x.log || {})
+    return { held: v.filter((h) => h === 'held').length, slid: v.filter((h) => h === 'slid').length }
+  }
+
+  return (
+    <Page kicker="Relationships" title="Boundaries"
+      intro="A boundary is not a feeling, it is a sentence. The hard part is saying it in the moment — so the words are written down before you need them.">
+      {all.length ? all.map((x, i) => {
+        const t = tally(x)
+        const todayIs = (x.log || {})[k]
+        return (
+          <Row key={x.id} first={!i} onOpen={() => setOpen(x)} onAway={() => drop(x.id)}
+            aside={(
+              <div className="mt-[7px] flex shrink-0 flex-col items-end gap-1.5">
+                <button onClick={() => mark(x.id, 'held')} aria-pressed={todayIs === 'held'}
+                  className="text-[10px] uppercase tracking-[0.18em] transition-opacity hover:opacity-60"
+                  style={{ color: todayIs === 'held' ? '#6F8A63' : '#C0966F' }}>Held it</button>
+                <button onClick={() => mark(x.id, 'slid')} aria-pressed={todayIs === 'slid'}
+                  className="text-[10px] uppercase tracking-[0.18em] transition-opacity hover:opacity-60"
+                  style={{ color: todayIs === 'slid' ? '#C87A7A' : '#A8A29E' }}>Let it slide</button>
+              </div>
+            )}>
+            <Name>{x.name}</Name>
+            <Meta>{[x.who, t.held || t.slid ? `held ${t.held}, slid ${t.slid}` : 'nothing logged yet'].filter(Boolean).join(' · ')}</Meta>
+            {x.script && <span className="mt-3 block max-w-xl text-[15px] italic leading-relaxed text-stone-500">&ldquo;{x.script}&rdquo;</span>}
+          </Row>
+        )
+      }) : <Empty>Nothing set down yet.</Empty>}
+
+      <Plus onClick={() => setAdding(true)} label="Add a boundary" />
+      <Starters options={BOUNDARY_STARTERS} has={(o) => all.some((x) => x.name === o)}
+        onPick={(o) => setRaw((p) => [...arr(p), { id: uid(), name: o, who: '', script: '', notes: '', log: {} }])} />
+
+      {(adding || open) && (
+        <BoundarySheet item={open} onClose={() => { setAdding(false); setOpen(null) }}
+          onDrop={open ? () => { drop(open.id); setOpen(null) } : null}
+          onSave={(d) => {
+            if (open) setRaw((p) => arr(p).map((x) => (x.id === open.id ? { ...x, ...d } : x)))
+            else setRaw((p) => [...arr(p), { ...d, id: uid(), log: {} }])
+            setAdding(false); setOpen(null)
+          }} />
+      )}
+    </Page>
+  )
+}
+
+function BoundarySheet({ item, onSave, onDrop, onClose }) {
+  const { name, setName, field, ready } = useRequiredName(item ? item.name : '')
+  const [who, setWho] = useState(item ? item.who || '' : '')
+  const [script, setScript] = useState(item ? item.script || '' : '')
+  const [notes, setNotes] = useState(item ? item.notes || '' : '')
+  const save = () => { const t = ready(); if (t) onSave({ name: t, who, script, notes }) }
+  return (
+    <Sheet kicker="Boundaries" onClose={onClose} onDrop={onDrop} onSave={save} saveLabel={item ? 'Save' : 'Add'}>
+      <Big ref={field} value={name} onChange={setName} placeholder="No work calls after seven" onEnter={save} />
+      <Field label="With whom" value={who} onChange={setWho} placeholder="work · my mother · everyone" width="mt-8" onEnter={save} />
+      <Notes value={script} onChange={setScript} label="What to say" placeholder="The sentence, written out, so it is there when she needs it." />
+      <Notes value={notes} onChange={setNotes} label="Why it matters" />
     </Sheet>
   )
 }
