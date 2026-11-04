@@ -301,6 +301,121 @@ const byTime = (a, b) => {
   return ta.localeCompare(tb)
 }
 
+// ── The pillars, across the top.
+//
+// What stood here was the sky — the moon, the forecast, the UV, the air —
+// crawling past like a billboard. It was beautiful and it was the one strip on
+// the page that could not be used for anything. The top of a planner is where
+// you leave the page from, so it carries the twelve now: the mark, the name,
+// and the arrows to walk along them.
+//
+// Four at a time on a desk, two on a tablet, one and the edge of the next on a
+// phone — so there is always something showing past the end and the line reads
+// as longer than the window.
+function PillarStrip({ pillars = [], onPillar }) {
+  const rail = useRef(null)
+  const [per, setPer] = useState(4)
+  const [i, setI] = useState(0)
+  const n = pillars.length
+  const stops = Math.max(1, Math.ceil(n / per))
+
+  // The slot is a share of the measure rather than the width of the longest
+  // name: "Mindset" and "Relationships" standing in equal columns is the thing
+  // that makes a row of twelve read as a set.
+  useEffect(() => {
+    const box = rail.current
+    if (!box) return undefined
+    const size = () => {
+      const room = box.clientWidth
+      if (!room) return
+      const each = room >= 1024 ? room / 4 : room >= 640 ? room / 2 : room / 1.35
+      box.style.setProperty('--mos-pillar', `${each}px`)
+      setPer(Math.max(1, Math.round(room / each)))
+    }
+    size()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(size) : null
+    if (ro) ro.observe(box)
+    window.addEventListener('resize', size)
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', size) }
+  }, [])
+
+  useEffect(() => { if (i > stops - 1) setI(Math.max(0, stops - 1)) }, [stops, i])
+
+  // The same guard the sittings rail needs: a smooth scroll reports a hundred
+  // positions on the way, and the handler below would read every one of them
+  // as her landing somewhere and put the rail straight back.
+  const steering = useRef(0)
+  useEffect(() => {
+    const box = rail.current
+    const el = box && box.children[i * per]
+    if (!box || !el) return undefined
+    steering.current += 1
+    const mine = steering.current
+    box.scrollTo({ left: el.offsetLeft - box.offsetLeft, behavior: 'smooth' })
+    const t = setTimeout(() => { if (steering.current === mine) steering.current = 0 }, 700)
+    return () => clearTimeout(t)
+  }, [i, per])
+
+  const onRailScroll = () => {
+    if (steering.current) return
+    const box = rail.current
+    if (!box || !box.clientWidth) return
+    const at = Math.max(0, Math.min(stops - 1, Math.round(box.scrollLeft / box.clientWidth)))
+    setI((prev) => (prev === at ? prev : at))
+  }
+
+  if (!n) return null
+
+  return (
+    <div className="mos-bleed border-b border-stone-200">
+      <div className="flex items-stretch">
+        <StripArrow back onClick={() => setI(Math.max(0, i - 1))} off={i === 0} label="Earlier pillars" />
+        <div
+          ref={rail}
+          onScroll={onRailScroll}
+          className="no-scrollbar flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto"
+        >
+          {pillars.map((p) => {
+            const Mark = p.icon
+            return (
+              <button
+                key={p.id}
+                onClick={() => onPillar && onPillar(p.id)}
+                className="flex shrink-0 snap-start items-center gap-4 px-7 py-5 text-left transition-opacity hover:opacity-65"
+                style={{ width: 'var(--mos-pillar, auto)' }}
+              >
+                <Mark size={20} className="shrink-0 text-stone-500" />
+                <span className="truncate font-serif text-[19px] leading-none text-stone-900 sm:text-[21px]">{p.label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <StripArrow onClick={() => setI(Math.min(stops - 1, i + 1))} off={i >= stops - 1} label="Later pillars" />
+      </div>
+    </div>
+  )
+}
+
+// The rail's own arrows. The hairline square the house presses everything
+// else with, run the full height of the strip so the line it sits in is
+// unbroken from edge to edge.
+function StripArrow({ back, off, onClick, label }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={off}
+      aria-label={label}
+      className={`flex w-12 shrink-0 items-center justify-center border-stone-200 transition-colors sm:w-14 ${
+        back ? 'border-r' : 'border-l'
+      } ${off ? 'text-stone-300' : 'text-stone-900 hover:bg-stone-100'}`}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden className={back ? '' : 'rotate-180'}>
+        <path d="M15 4 L7 12 L15 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+      </svg>
+    </button>
+  )
+}
+
 // ── Info strip — moon · date · forecast · UV · air · zone, one elegant row.
 //
 // The cycle used to open it: LUTEAL · DAY 23, printed twice on the same screen,
@@ -757,7 +872,7 @@ function MoonPopup({ info, onClose }) {
   )
 }
 
-export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle }) {
+export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle, pillars = [], onPillar }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
@@ -1005,7 +1120,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
           and the day's sittings — the part of the page that is actually
           worked, rather than a clock she already has on the wall and in her
           hand. */}
-      <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} />
+      <PillarStrip pillars={pillars} onPillar={onPillar} />
 
       <DayMasthead
         selectedKey={selectedKey}
