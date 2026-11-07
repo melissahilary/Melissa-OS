@@ -42,6 +42,47 @@ const MODES = [
 ]
 const HALVES = [{ id: 'am', label: 'Morning' }, { id: 'pm', label: 'Evening' }]
 
+// ── How often a step happens.
+//
+// The thing the page was missing entirely. A routine is not a list, it is a
+// week: tretinoin on Monday, Wednesday and Friday, azelaic on the nights
+// between, and nothing but barrier cream on Sunday. Without this she cannot
+// open the app and see what tonight is.
+const DAYS = [
+  { d: 1, label: 'Mon' }, { d: 2, label: 'Tue' }, { d: 3, label: 'Wed' }, { d: 4, label: 'Thu' },
+  { d: 5, label: 'Fri' }, { d: 6, label: 'Sat' }, { d: 0, label: 'Sun' },
+]
+const EVERY = [
+  { id: 'daily', label: 'Every day' },
+  { id: 'days', label: 'Certain days' },
+  { id: 'alt', label: 'Every other day' },
+]
+
+// Does this step happen on this date?
+const dueOn = (st, key) => {
+  const every = st.every || 'daily'
+  if (every === 'daily') return true
+  const d = parseKey(key)
+  if (every === 'days') return arr(st.days).includes(d.getDay())
+  if (every === 'alt') {
+    const from = st.from || key
+    const n = Math.round((parseKey(key) - parseKey(from)) / 86400000)
+    return ((n % 2) + 2) % 2 === 0
+  }
+  return true
+}
+
+// How often, said the way she would say it.
+const howOften = (st) => {
+  const every = st.every || 'daily'
+  if (every === 'alt') return 'every other day'
+  if (every !== 'days') return ''
+  const on = arr(st.days)
+  if (!on.length) return 'no days chosen'
+  if (on.length === 7) return ''
+  return DAYS.filter((x) => on.includes(x.d)).map((x) => x.label).join(', ')
+}
+
 const AM_STARTERS = ['cleanse', 'splash with cold water only', 'toner', 'essence', 'vitamin c serum',
   'hyaluronic acid on damp skin', 'peptide serum', 'eye cream', 'moisturiser', 'spf', 'spf on the neck and chest', 'lip balm']
 const PM_STARTERS = ['remove makeup with balm', 'double cleanse', 'toner', 'retinol', 'niacinamide',
@@ -52,6 +93,7 @@ function Routine() {
   const [mode, setMode] = useLocalStorage('mos:skin:mode', 'everyday')
   const [open, setOpen] = useState(null)
   const [adding, setAdding] = useState(null) // the half being added to
+  const [view, setView] = useState('today')
   const key = today()
   const all = arr(raw)
   const using = MODES.some((m) => m.id === mode) ? mode : 'everyday'
@@ -68,11 +110,12 @@ function Routine() {
     return { ...x, completions: c }
   }))
   const put = (name, half) => setRaw((p) => [...arr(p), {
-    id: uid(), name, product: '', notes: '', mode: using, half, order: arr(p).length, completions: {},
+    id: uid(), name, product: '', notes: '', mode: using, half, order: arr(p).length,
+    every: 'daily', days: [], from: key, completions: {},
   }])
 
   const half = (id, label, starters) => {
-    const rows = inHalf(id)
+    const rows = inHalf(id).filter((x) => dueOn(x, key))
     return (
       <>
         <Band count={rows.length ? `${rows.filter(done).length} of ${rows.length}` : null}>{label}</Band>
@@ -87,7 +130,7 @@ function Routine() {
               aside={<Mark on={kept} onClick={() => tick(x.id)} label={`${kept ? 'Done' : 'Do'} ${x.name}`}>{kept ? 'Done' : 'Do'}</Mark>}
             >
               <Name struck={kept}>{x.name}</Name>
-              <Meta>{x.product}</Meta>
+              <Meta>{[x.product, howOften(x)].filter(Boolean).join(' · ')}</Meta>
             </Row>
           )
         }) : <Empty>Nothing in this half yet.</Empty>}
@@ -130,10 +173,28 @@ function Routine() {
         })}
       </div>
 
-      <div className="mt-4">
-        {half('am', 'Morning', AM_STARTERS)}
-        {half('pm', 'Evening', PM_STARTERS)}
+      {/* Tonight, or the whole week laid out. */}
+      <div className="mt-4 flex gap-2">
+        {[{ id: 'today', label: 'Today' }, { id: 'week', label: 'The week' }].map((v) => {
+          const on = view === v.id
+          return (
+            <button key={v.id} onClick={() => setView(v.id)} aria-pressed={on}
+              className="border px-4 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors"
+              style={{ borderColor: on ? '#16130F' : '#D6D3D1', background: on ? '#16130F' : 'transparent', color: on ? '#F7F4ED' : '#57534E' }}>
+              {v.label}
+            </button>
+          )
+        })}
       </div>
+
+      {view === 'week' ? (
+        <Week steps={all.filter((x) => (x.mode || 'everyday') === using)} onOpen={setOpen} />
+      ) : (
+        <div className="mt-4">
+          {half('am', 'Morning', AM_STARTERS)}
+          {half('pm', 'Evening', PM_STARTERS)}
+        </div>
+      )}
 
       {(adding || open) && (
         <StepSheet
@@ -151,15 +212,98 @@ function Routine() {
   )
 }
 
+// ── The week.
+//
+// Seven days down the page, morning and evening across it, each cell listing
+// what happens in the order it happens. This is the view a woman starting a
+// prescription actually needs: she opens it on a Tuesday and sees that
+// tonight is azelaic, and that tomorrow is tretinoin and nothing else.
+function Week({ steps, onOpen }) {
+  const k = today()
+  const now = parseKey(k).getDay()
+  // The seven days of this week, as real dates, so every-other-day lands right.
+  const start = parseKey(k)
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7)) // back to Monday
+  const week = DAYS.map((d, i) => {
+    const date = new Date(start)
+    date.setDate(date.getDate() + i)
+    return { ...d, key: dateKey(date) }
+  })
+  const cell = (dayKey, half) => steps
+    .filter((x) => (x.half || 'am') === half && dueOn(x, dayKey))
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+  return (
+    <div className="mt-10">
+      {week.map((d) => {
+        const am = cell(d.key, 'am')
+        const pm = cell(d.key, 'pm')
+        const isToday = d.d === now
+        return (
+          <div key={d.d} className="border-t border-stone-200 py-7 first:border-t-0 first:pt-0">
+            <p className="kicker" style={{ color: isToday ? '#16130F' : '#A8A29E' }}>
+              {d.label}{isToday ? ' · today' : ''}
+            </p>
+            <div className="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+              {[['Morning', am], ['Evening', pm]].map(([label, list]) => (
+                <div key={label}>
+                  <p className="text-[9px] uppercase tracking-[0.18em] text-stone-400">{label}</p>
+                  {list.length ? (
+                    <ol className="mt-3">
+                      {list.map((x, i) => (
+                        <li key={x.id} className="flex items-baseline gap-3 py-1">
+                          <span className="w-4 shrink-0 text-[9px] uppercase tracking-[0.12em] text-stone-300">{String(i + 1).padStart(2, '0')}</span>
+                          <button onClick={() => onOpen(x)} className="min-w-0 text-left transition-opacity hover:opacity-65">
+                            <span className="text-[15px] lowercase leading-snug text-stone-900">{x.name}</span>
+                            {x.product && <span className="ml-2 text-[11px] lowercase text-stone-400">{x.product}</span>}
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : <p className="mt-3 text-[14px] italic text-stone-300">Nothing.</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function StepSheet({ item, onSave, onDrop, onClose }) {
   const { name, setName, field, ready } = useRequiredName(item ? item.name : '')
   const [product, setProduct] = useState(item ? item.product || '' : '')
+  const [every, setEvery] = useState(item ? item.every || 'daily' : 'daily')
+  const [days, setDays] = useState(item ? arr(item.days) : [1, 3, 5])
   const [notes, setNotes] = useState(item ? item.notes || '' : '')
-  const save = () => { const t = ready(); if (t) onSave({ name: t, product, notes }) }
+  const flip = (d) => setDays((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d]))
+  const save = () => {
+    const t = ready()
+    if (t) onSave({ name: t, product, every, days, notes, from: (item && item.from) || today() })
+  }
   return (
     <Sheet kicker="A step" onClose={onClose} onDrop={onDrop} onSave={save} saveLabel={item ? 'Save' : 'Add'}>
-      <Big ref={field} value={name} onChange={setName} placeholder="Vitamin c serum" onEnter={save} />
-      <Field label="Which product" value={product} onChange={setProduct} placeholder="skinceuticals c e ferulic" width="mt-8" onEnter={save} />
+      <Big ref={field} value={name} onChange={setName} placeholder="Tretinoin" onEnter={save} />
+      <Field label="Which product" value={product} onChange={setProduct} placeholder="0.025% cream" width="mt-8" onEnter={save} />
+      <Chips label="How often" options={EVERY} value={every} onChange={setEvery} />
+      {every === 'days' && (
+        <div className="mt-6">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-cream/60">Which days</span>
+          <div className="mt-3 flex gap-2">
+            {DAYS.map((d) => {
+              const on = days.includes(d.d)
+              return (
+                <button key={d.d} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => flip(d.d)} aria-pressed={on}
+                  className="h-10 flex-1 border text-[10px] uppercase tracking-[0.1em] transition-colors"
+                  style={{ borderColor: on ? '#F7F4ED' : 'rgba(247,244,237,0.3)', background: on ? '#F7F4ED' : 'transparent', color: on ? '#68472C' : 'rgba(247,244,237,0.75)' }}>
+                  {d.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
       <Notes value={notes} onChange={setNotes} />
     </Sheet>
   )
