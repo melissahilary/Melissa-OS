@@ -18,6 +18,7 @@ import Movement from './Movement'
 import MonthGrid from './shared/MonthGrid'
 import { slotMeta, SITTINGS, spoken, blankMeal } from '../lib/meals'
 import { catalogueFor } from '../lib/catalogue'
+import { pillarLabel } from '../lib/pillars'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
@@ -1057,19 +1058,19 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
 
   const addTask = (block, title) =>
     add(blankActivity('protocol', {
-      title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
+      title, category: category || 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block },
     }))
   // A step added to a routine lands at the foot of it, beside the mark that
   // added it. Anywhere else is a drag away — the gesture the panel already
   // has, and the only one a thumb can be precise with.
-  const addRoutineStep = (block, title) => {
+  const addRoutineStep = (block, title, category) => {
     const orders = activities
       .filter((a) => a.type === 'protocol' && (a.details || {}).block === block && typeof a.order === 'number')
       .map((a) => a.order)
     const edge = orders.length ? Math.max(...orders) + 1 : 0
     add(blankActivity('protocol', {
-      title, category: 'wellness', frequency: 'daily', seriesStart: selectedKey,
+      title, category: category || 'wellness', frequency: 'daily', seriesStart: selectedKey,
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block }, order: edge,
     }))
   }
@@ -1258,6 +1259,28 @@ const PHASE_AGENDA_HINT = {
 // gone out of range. Nothing else here is red, so it reads as the warning it is.
 const OXBLOOD = '#C87A7A'
 
+// ── A morning is not a list, it is a handful of stacks.
+//
+// Eleven rows in one column is a document. What a morning actually is: four
+// or five short chains done back to back in one place — at the sink, then the
+// skin, then the kitchen. So the block shows the chains, each with what is
+// left of it, and opens the one she is in.
+//
+// The × between the names is the chain. It is how habit stacking is written
+// down and it is the one glyph that says these are done together rather than
+// merely listed near each other.
+const STACK_OF = {
+  skincare: 'Skincare', haircare: 'Haircare', bodycare: 'Bodycare', fitness: 'Fitness',
+  menu: 'Nutrition', nutrition: 'Nutrition', mindset: 'Mindset', brainhealth: 'Mindset',
+  spirituality: 'Spirituality', relationship: 'Relationships', relationships: 'Relationships',
+  workout: 'Hormones', hormones: 'Hormones', aesthetics: 'Aesthetics', diagnostics: 'Testing',
+}
+const stackName = (cat) => STACK_OF[cat] || 'The rest'
+// The order the stacks stand in: the body first, because that is the order a
+// morning actually happens in, and the mind last.
+const STACK_ORDER = ['Bodycare', 'Skincare', 'Haircare', 'Nutrition', 'Fitness', 'Hormones',
+  'Aesthetics', 'Testing', 'Spirituality', 'Relationships', 'Mindset', 'The rest']
+
 function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop, onCatalogue }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
@@ -1291,6 +1314,27 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const drag = useRef(null)
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
+
+  // The chains, in the order a morning happens in.
+  const stacks = (() => {
+    const by = new Map()
+    rows.forEach((r) => {
+      const n = stackName(r.category)
+      if (!by.has(n)) by.set(n, [])
+      by.get(n).push(r)
+    })
+    return [...by.entries()]
+      .map(([name, list]) => ({ name, rows: list }))
+      .sort((a, b) => STACK_ORDER.indexOf(a.name) - STACK_ORDER.indexOf(b.name))
+  })()
+
+  // The one she is in: the first with something still owed. She can open any
+  // other, and the choice sticks until the page is left.
+  const nextStack = (stacks.find((st) => st.rows.some((r) => !r.done)) || stacks[0] || {}).name || ''
+  const [opened, setOpened] = useState('')
+  const open = opened || nextStack
+  const setOpen = setOpened
+  const doneCount = rows.filter((r) => r.done).length
 
   const grab = (id, clientY) => {
     drag.current = { id, ids: rows.map((r) => r.id), y: clientY, dy: 0, raf: 0, settling: false }
@@ -1382,7 +1426,14 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
       {/* The corner was empty, and a routine is easier chosen than invented.
           The same mark as every other list's, held where nothing was. */}
       <div className="flex items-start justify-between gap-6">
-        <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
+        <span className="block">
+          <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
+          {rows.length > 0 && (
+            <span className="mt-2 block text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>
+              {doneCount === rows.length ? 'All of it' : `${doneCount} of ${rows.length}`}
+            </span>
+          )}
+        </span>
         <button
           onClick={() => onCatalogue && onCatalogue()}
           aria-label={`Catalogue for the ${title === 'PM' ? 'evening' : 'morning'}`}
@@ -1397,7 +1448,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           them. The rail takes a swipe and a wheel without being drawn. */}
       <div
         ref={rail}
-        className="no-scrollbar mt-10 max-h-[320px] flex-1 select-none overflow-y-auto"
+        className="no-scrollbar mt-9 max-h-[560px] flex-1 select-none overflow-y-auto"
         style={{
           WebkitUserSelect: 'none',
           WebkitTouchCallout: 'none',
@@ -1406,7 +1457,42 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           overscrollBehavior: 'contain',
         }}
       >
-        {rows.map((it) => (
+        {stacks.map((st) => {
+          const isOpen = open === st.name
+          const kept = st.rows.filter((r) => r.done).length
+          return (
+            <div key={st.name} className="mb-3 border" style={{ borderColor: isOpen ? dim : rule }}>
+              {/* The chain, folded. Pressing it opens the stack. */}
+              <button
+                onClick={() => setOpen(isOpen ? '' : st.name)}
+                aria-expanded={isOpen}
+                className="flex w-full items-start gap-4 px-4 py-4 text-left transition-opacity hover:opacity-80"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-3">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-cream">{st.name}</span>
+                    {/* What is left of it, as squares rather than a bar. */}
+                    <span className="flex shrink-0 items-center gap-[3px]">
+                      {st.rows.map((r) => (
+                        <span key={r.id} className="block h-[5px] w-[5px]"
+                          style={{ backgroundColor: r.done ? 'rgb(247,244,237)' : 'transparent', outline: `1px solid ${dim}`, outlineOffset: '-1px' }} />
+                      ))}
+                    </span>
+                  </span>
+                  {!isOpen && (
+                    <span className="mt-2 block text-[15px] lowercase leading-snug" style={{ color: kept === st.rows.length ? dim : 'rgb(247,244,237)' }}>
+                      {st.rows.map((r) => r.title || 'untitled').join('  \u00d7  ')}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-[2px] shrink-0 text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>
+                  {kept}/{st.rows.length}
+                </span>
+              </button>
+
+              {isOpen && (
+                <div className="px-4 pb-3">
+                  {st.rows.map((it) => (
           <div
             key={it.id}
             data-id={it.id}
@@ -1467,7 +1553,12 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           </div>
             </SwipeAway>
           </div>
-        ))}
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
 
       </div>
 
@@ -1947,6 +2038,14 @@ function AddStep({ block, onClose, onSave }) {
 // "starter routine". She presses a line and it is hers, at the foot of her
 // own order, to be slid away like any other. What she already has says so and
 // cannot be pressed twice.
+// The catalogue's pillars are the app's sections under other names, so a line
+// pressed there lands in the right stack rather than in a pile called the rest.
+const CATEGORY_OF = {
+  Body: 'bodycare', Mouth: 'bodycare', Skin: 'skincare', Hair: 'haircare',
+  Nutrition: 'menu', Hormones: 'workout', Mind: 'mindset', Sleep: 'mindset',
+  Recovery: 'fitness', Spirit: 'spirituality', Relationships: 'relationship',
+}
+
 function Catalogue({ block, taken = [], onAdd, onClose }) {
   const [q, setQ] = useState('')
   const [only, setOnly] = useState('')
@@ -1961,10 +2060,10 @@ function Catalogue({ block, taken = [], onAdd, onClose }) {
     : within
   const found = shown.reduce((n, g) => n + g.items.length, 0)
 
-  const take = (name) => {
+  const take = (name, group) => {
     if (has(name)) return
     setJust((prev) => [...prev, name])
-    if (onAdd) onAdd(name)
+    if (onAdd) onAdd(name, CATEGORY_OF[group] || 'wellness')
   }
 
   return (
@@ -2031,7 +2130,7 @@ function Catalogue({ block, taken = [], onAdd, onClose }) {
                     key={name}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => take(name)}
+                    onClick={() => take(name, g.group)}
                     disabled={mine}
                     className="mt-3.5 flex w-full items-baseline justify-between gap-6 text-left transition-opacity hover:opacity-70 disabled:cursor-default disabled:hover:opacity-100"
                   >
@@ -2136,7 +2235,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
           <Catalogue
             block={catalogue}
             taken={taken(catalogue === 'evening' ? evening : morning)}
-            onAdd={(name) => onAddStep && onAddStep(catalogue, name)}
+            onAdd={(name, category) => onAddStep && onAddStep(catalogue, name, category)}
             onClose={() => setCatalogue(null)}
           />
         )}
