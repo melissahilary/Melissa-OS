@@ -376,20 +376,16 @@ function PillarStrip({ pillars = [], onPillar }) {
           onScroll={onRailScroll}
           className="no-scrollbar flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto"
         >
-          {pillars.map((p) => {
-            const Mark = p.icon
-            return (
-              <button
-                key={p.id}
-                onClick={() => onPillar && onPillar(p.id)}
-                className="flex shrink-0 snap-start items-center gap-4 px-7 py-5 text-left transition-opacity hover:opacity-65"
-                style={{ width: 'var(--mos-pillar, auto)' }}
-              >
-                <Mark size={20} className="shrink-0 text-stone-500" />
-                <span className="truncate font-serif text-[19px] leading-none text-stone-900 sm:text-[21px]">{p.label}</span>
-              </button>
-            )
-          })}
+          {pillars.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => onPillar && onPillar(p.id)}
+              className="flex shrink-0 snap-start items-center px-7 py-5 text-left transition-opacity hover:opacity-65"
+              style={{ width: 'var(--mos-pillar, auto)' }}
+            >
+              <span className="truncate font-serif text-[19px] leading-none text-stone-900 sm:text-[21px]">{p.label}</span>
+            </button>
+          ))}
         </div>
         <StripArrow onClick={() => setI(Math.min(stops - 1, i + 1))} off={i >= stops - 1} label="Later pillars" />
       </div>
@@ -1281,11 +1277,9 @@ const STACK_OF = {
   spirituality: 'Spirit', spirit: 'Spirit',
   relationship: 'Circle', relationships: 'Circle', circle: 'Circle',
 }
-const stackName = (cat) => STACK_OF[cat] || 'The rest'
-// The ten, in the order they are said. Anything that does not answer to one
-// of them falls to the end rather than disappearing.
-const STACK_ORDER = ['Skin', 'Hair', 'Body', 'Mouth', 'Food', 'Supplements',
-  'Fitness', 'Mind', 'Spirit', 'Circle', 'The rest']
+// A step that answers to none of them wears no tag rather than a tag that
+// says nothing.
+const tagOf = (cat) => STACK_OF[cat] || ''
 
 function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop, onCatalogue }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
@@ -1321,19 +1315,6 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
 
-  // The chains, in the order a morning happens in.
-  const stacks = (() => {
-    const by = new Map()
-    rows.forEach((r) => {
-      const n = stackName(r.category)
-      if (!by.has(n)) by.set(n, [])
-      by.get(n).push(r)
-    })
-    return [...by.entries()]
-      .map(([name, list]) => ({ name, rows: list }))
-      .sort((a, b) => STACK_ORDER.indexOf(a.name) - STACK_ORDER.indexOf(b.name))
-  })()
-
   const doneCount = rows.filter((r) => r.done).length
 
   const grab = (id, clientY) => {
@@ -1346,10 +1327,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const place = (clientY) => {
     const d = drag.current
     if (!d || !rail.current) return
-    const mine = rail.current.querySelector(`[data-id="${d.id}"]`)
-    const stack = mine && mine.dataset.stack
-    const others = [...rail.current.querySelectorAll('[data-id]')]
-      .filter((el) => el.dataset.id !== d.id && el.dataset.stack === stack)
+    const others = [...rail.current.querySelectorAll('[data-id]')].filter((el) => el.dataset.id !== d.id)
     let to = others.length
     for (let i = 0; i < others.length; i += 1) {
       const r = others[i].getBoundingClientRect()
@@ -1451,7 +1429,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           them. The rail takes a swipe and a wheel without being drawn. */}
       <div
         ref={rail}
-        className="no-scrollbar mt-9 max-h-[560px] flex-1 select-none overflow-y-auto md:max-h-none md:overflow-y-visible xl:grid xl:grid-cols-2 xl:items-start xl:gap-x-12"
+        className="no-scrollbar mt-9 max-h-[560px] flex-1 select-none overflow-y-auto md:max-h-none md:overflow-y-visible"
         style={{
           WebkitUserSelect: 'none',
           WebkitTouchCallout: 'none',
@@ -1460,27 +1438,14 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           overscrollBehavior: 'contain',
         }}
       >
-        {stacks.map((st) => {
-          const kept = st.rows.filter((r) => r.done).length
-          return (
-            <div key={st.name} className="xl:mb-8">
-              {/* The name of the stack, said once over its own steps. It is a
-                  heading and not a lid: nothing folds, so the whole routine is
-                  one list she can strike straight down. */}
-              <div
-                className="mt-7 flex items-baseline justify-between border-b pb-2 first:mt-0 xl:mt-0"
-                style={{ borderColor: rule }}
-              >
-                <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{st.name}</span>
-                <span className="text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>
-                  {kept}/{st.rows.length}
-                </span>
-              </div>
-              {st.rows.map((it) => (
+        {/* One list, in the order she does it in. No headings and no
+            stacks: a morning is not skin then body then prayer for everyone,
+            and the grouping kept putting it back into an order that was not
+            hers. What a step belongs to is said on the step itself. */}
+        {rows.map((it) => (
           <div
             key={it.id}
             data-id={it.id}
-            data-stack={st.name}
             className="relative"
             style={{
               ...(held && held.id === it.id
@@ -1522,6 +1487,13 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             >
               {it.title || 'Untitled'}
             </button>
+            {/* What it belongs to, said quietly on the step rather than as a
+                heading over a group of them. */}
+            {tagOf(it.category) && (
+              <span className="shrink-0 text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>
+                {tagOf(it.category)}
+              </span>
+            )}
             {/* The grip. Three fine rules, in the dim of the block. */}
             <span
               role="button"
@@ -1542,10 +1514,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           </div>
             </SwipeAway>
           </div>
-              ))}
-            </div>
-          )
-        })}
+        ))}
 
       </div>
 
