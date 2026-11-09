@@ -1281,6 +1281,75 @@ const STACK_OF = {
 // says nothing.
 const tagOf = (cat) => STACK_OF[cat] || ''
 
+// The ten, said in the order they are offered. The way back from the tag to
+// the category the rest of the app stores.
+const TAGS = ['Skin', 'Hair', 'Body', 'Mouth', 'Food', 'Supplements', 'Fitness', 'Mind', 'Spirit', 'Circle']
+const CATEGORY_FOR_TAG = {
+  Skin: 'skincare', Hair: 'haircare', Body: 'bodycare', Mouth: 'mouth',
+  Food: 'menu', Supplements: 'supplements', Fitness: 'fitness',
+  Mind: 'mindset', Spirit: 'spirituality', Circle: 'relationship',
+}
+
+// ── Guessing the tag from what she wrote.
+//
+// A step typed by hand is tagged the moment there is something to read, so
+// she is never asked a question she did not come to answer. The guess is read
+// off her own words rather than drawn at random — "body oil" is BODY and
+// "floss" is MOUTH without her saying so — and it is only a guess: it is shown
+// as the chosen chip, and pressing another is all it takes to correct.
+const TAG_WORDS = [
+  // Not a bare "brush": dry brushing is the body, not the teeth.
+  ['Mouth', ['teeth', 'tooth', 'floss', 'mouth', 'tongue', 'gums', 'oil pull', 'whitening']],
+  ['Supplements', ['supplement', 'vitamin', 'capsule', 'tablet', 'creatine', 'magnesium', 'omega', 'collagen', 'probiotic', 'zinc', 'iron', 'd3', 'b12', 'ashwagandha', 'nmn', 'electrolyte']],
+  ['Food', ['eat', 'meal', 'breakfast', 'lunch', 'dinner', 'snack', 'smoothie', 'protein shake', 'juice', 'water', 'tea', 'coffee', 'matcha', 'broth', 'fast']],
+  ['Fitness', ['walk', 'steps', 'run', 'gym', 'lift', 'weights', 'strength', 'pilates', 'yoga', 'stretch', 'mobility', 'cardio', 'sauna', 'cold plunge', 'workout', 'train', 'reformer', 'vest']],
+  ['Mind', ['journal', 'read', 'breath', 'breathing', 'meditat', 'gratitude', 'affirmation', 'therapy', 'screen', 'phone', 'focus', 'learn', 'study']],
+  ['Spirit', ['pray', 'prayer', 'church', 'scripture', 'devotion', 'ritual', 'frequenc', 'sound bath', 'crystal', 'tarot', 'moon', 'manifest', 'altar', 'reiki']],
+  ['Circle', ['call', 'text', 'date night', 'friend', 'family', 'mum', 'mom', 'dad', 'husband', 'partner', 'dinner with', 'check in on', 'reach out']],
+  ['Hair', ['hair', 'scalp', 'shampoo', 'conditioner', 'rosemary', 'blow dry', 'heat protect', 'braid', 'mask hair']],
+  ['Skin', ['skin', 'spf', 'sunscreen', 'serum', 'retinol', 'tret', 'azelaic', 'cleanse', 'cleanser', 'moistur', 'toner', 'face', 'eye cream', 'mask', 'makeup', 'vitamin c', 'peel', 'microcurrent', 'red light', 'radio frequency', 'gua sha', 'lip']],
+  ['Body', ['body', 'shower', 'bath', 'dry brush', 'exfoliat', 'lotion', 'deodorant', 'nails', 'shave', 'wax', 'lymph', 'massage', 'posture']],
+]
+const guessTag = (title) => {
+  const t = String(title || '').toLowerCase()
+  if (!t.trim()) return ''
+  for (let i = 0; i < TAG_WORDS.length; i += 1) {
+    const [tag, words] = TAG_WORDS[i]
+    for (let j = 0; j < words.length; j += 1) if (t.includes(words[j])) return tag
+  }
+  // Nothing in it said what it was. Something is still chosen, because a tag
+  // she corrects is quicker than a tag she has to think of.
+  return 'Body'
+}
+
+// The ten, as chips. The same hairline chip the house presses everywhere
+// else; the one that is on is filled.
+function TagField({ value, onPick }) {
+  return (
+    <div className="mt-7">
+      <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">What it is</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {TAGS.map((tag) => {
+          const on = value === tag
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => onPick(tag)}
+              aria-pressed={on}
+              className={`border px-3.5 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                on ? 'border-cream bg-cream text-stone-900' : 'border-cream/30 text-cream/70 hover:border-cream'
+              }`}
+            >
+              {tag}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop, onCatalogue }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
@@ -1546,7 +1615,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         <AddStep
           block={title}
           onClose={() => setWriting(false)}
-          onSave={(t) => { if (onAdd) onAdd(t); setWriting(false) }}
+          onSave={(t, category) => { if (onAdd) onAdd(t, category); setWriting(false) }}
         />
       )}
     </section>
@@ -1692,6 +1761,9 @@ function EditStep({ activity, onSave, onDrop, onClose }) {
   const [name, setName] = useState(activity.title || '')
   const block = det.block === 'evening' ? 'evening' : 'morning'
   const [notes, setNotes] = useState(det.notes || det.description || '')
+  // Whatever it was filed as; and if it was filed as nothing, what its name
+  // says it is, so the chips are never all cold.
+  const [tag, setTag] = useState(() => tagOf(activity.category) || guessTag(activity.title || ''))
   const [repeat, setRepeat] = useState(() => {
     const r = { frequency: activity.frequency || 'daily' }
     if (Array.isArray(activity.daysOfWeek) && activity.daysOfWeek.length) r.daysOfWeek = activity.daysOfWeek
@@ -1708,6 +1780,7 @@ function EditStep({ activity, onSave, onDrop, onClose }) {
     onSave({
       ...activity,
       title: t,
+      category: CATEGORY_FOR_TAG[tag] || activity.category || '',
       frequency: r.frequency || 'daily',
       daysOfWeek: r.daysOfWeek || [],
       interval: r.interval || 0,
@@ -1749,7 +1822,9 @@ function EditStep({ activity, onSave, onDrop, onClose }) {
 
         {/* No pair of chips asking which half of the day it is. She opened it
             from one of the two, and the line at the top says which. No hour
-            either: a step in a routine is kept in its order, not at a time. */}
+            either: a step in a routine is kept in its order, not at a time.
+            What it is, though, is hers to move: skin to body is one press. */}
+        <TagField value={tag} onPick={setTag} />
 
         <div className="mt-8">
           <RepeatField value={repeat} startKey={activity.seriesStart || dateKey(new Date())} onChange={setRepeat} />
@@ -1941,11 +2016,20 @@ function EditMeal({ activity, onSave, onDrop, onClose }) {
 // two gestures — open it, type it — and it stands still while she does.
 function AddStep({ block, onClose, onSave }) {
   const [t, setT] = useState('')
+  // The guess follows what she types until she corrects it; after that it is
+  // hers and nothing moves it.
+  const [tag, setTag] = useState('')
+  const [chosen, setChosen] = useState(false)
   const field = useRef(null)
+  const write = (v) => {
+    setT(v)
+    if (!chosen) setTag(guessTag(v))
+  }
+  const pick = (next) => { setChosen(true); setTag(next) }
   const save = () => {
     const v = t.trim().toLowerCase()
     if (!v) { if (field.current) field.current.focus(); return }
-    onSave(v)
+    onSave(v, CATEGORY_FOR_TAG[tag] || '')
   }
   return (
     <div
@@ -1954,7 +2038,7 @@ function AddStep({ block, onClose, onSave }) {
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="w-full max-w-md px-7 pb-9 pt-8 sm:px-9"
+        className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
         style={{ background: '#68472C', color: '#F7F4ED' }}
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
       >
@@ -1963,7 +2047,7 @@ function AddStep({ block, onClose, onSave }) {
           autoFocus
           ref={field}
           value={t}
-          onChange={(e) => setT(e.target.value)}
+          onChange={(e) => write(e.target.value)}
           placeholder="A step"
           autoCapitalize="none"
           autoCorrect="off"
@@ -1973,6 +2057,7 @@ function AddStep({ block, onClose, onSave }) {
           className="mt-7 w-full border-b bg-transparent pb-2.5 text-[22px] lowercase outline-none placeholder:opacity-40"
           style={{ borderColor: 'rgba(247,244,237,0.22)', color: '#F7F4ED' }}
         />
+        {!!t.trim() && <TagField value={tag} onPick={pick} />}
         <div className="mt-9 flex items-center justify-end gap-7">
           <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
           <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Add</button>
@@ -1997,7 +2082,7 @@ function AddStep({ block, onClose, onSave }) {
 // The catalogue's pillars are the app's sections under other names, so a line
 // pressed there lands in the right stack rather than in a pile called the rest.
 const CATEGORY_OF = {
-  Body: 'bodycare', Mouth: 'bodycare', Skin: 'skincare', Hair: 'haircare',
+  Body: 'bodycare', Mouth: 'mouth', Skin: 'skincare', Hair: 'haircare',
   Nutrition: 'menu', Hormones: 'workout', Mind: 'mindset', Sleep: 'mindset',
   Recovery: 'fitness', Spirit: 'spirituality', Relationships: 'relationship',
 }
@@ -2165,7 +2250,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onOpen={onOpen}
               onToggle={onToggle}
               onReorder={onReorder}
-              onAdd={(title) => onAddStep && onAddStep('morning', title)}
+              onAdd={(title, category) => onAddStep && onAddStep('morning', title, category)}
               onCatalogue={() => setCatalogue('morning')}
           onSkip={onSkip}
           onDrop={onDrop}
@@ -2179,7 +2264,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onOpen={onOpen}
               onToggle={onToggle}
               onReorder={onReorder}
-              onAdd={(title) => onAddStep && onAddStep('evening', title)}
+              onAdd={(title, category) => onAddStep && onAddStep('evening', title, category)}
               onCatalogue={() => setCatalogue('evening')}
           onSkip={onSkip}
           onDrop={onDrop}
