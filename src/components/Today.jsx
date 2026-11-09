@@ -1284,6 +1284,10 @@ const tagOf = (cat) => STACK_OF[cat] || ''
 // The ten, said in the order they are offered. The way back from the tag to
 // the category the rest of the app stores.
 const TAGS = ['Skin', 'Hair', 'Body', 'Mouth', 'Food', 'Supplements', 'Fitness', 'Mind', 'Spirit', 'Circle']
+// Anything that answers to none of them is still shown, at the foot, rather
+// than disappearing.
+const STACK_ORDER = [...TAGS, 'The rest']
+const stackName = (cat) => STACK_OF[cat] || 'The rest'
 const CATEGORY_FOR_TAG = {
   Skin: 'skincare', Hair: 'haircare', Body: 'bodycare', Mouth: 'mouth',
   Food: 'menu', Supplements: 'supplements', Fitness: 'fitness',
@@ -1384,6 +1388,19 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const rail = useRef(null)
   const rows = held ? held.ids.map((id) => left.find((x) => x.id === id)).filter(Boolean) : left
 
+  // Skin, then all the skin. Body, then all the body.
+  const stacks = (() => {
+    const by = new Map()
+    rows.forEach((r) => {
+      const n = stackName(r.category)
+      if (!by.has(n)) by.set(n, [])
+      by.get(n).push(r)
+    })
+    return [...by.entries()]
+      .map(([name, list]) => ({ name, rows: list }))
+      .sort((a, b) => STACK_ORDER.indexOf(a.name) - STACK_ORDER.indexOf(b.name))
+  })()
+
   const doneCount = rows.filter((r) => r.done).length
 
   const grab = (id, clientY) => {
@@ -1396,7 +1413,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const place = (clientY) => {
     const d = drag.current
     if (!d || !rail.current) return
-    const others = [...rail.current.querySelectorAll('[data-id]')].filter((el) => el.dataset.id !== d.id)
+    const mine = rail.current.querySelector(`[data-id="${d.id}"]`)
+    const stack = mine && mine.dataset.stack
+    const others = [...rail.current.querySelectorAll('[data-id]')]
+      .filter((el) => el.dataset.id !== d.id && el.dataset.stack === stack)
     let to = others.length
     for (let i = 0; i < others.length; i += 1) {
       const r = others[i].getBoundingClientRect()
@@ -1498,7 +1518,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           them. The rail takes a swipe and a wheel without being drawn. */}
       <div
         ref={rail}
-        className="no-scrollbar mt-9 max-h-[560px] flex-1 select-none overflow-y-auto md:max-h-none md:overflow-y-visible"
+        className="no-scrollbar mt-9 max-h-[560px] flex-1 select-none overflow-y-auto md:max-h-none md:overflow-y-visible xl:grid xl:grid-cols-2 xl:items-start xl:gap-x-12"
         style={{
           WebkitUserSelect: 'none',
           WebkitTouchCallout: 'none',
@@ -1507,14 +1527,27 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           overscrollBehavior: 'contain',
         }}
       >
-        {/* One list, in the order she does it in. No headings and no
-            stacks: a morning is not skin then body then prayer for everyone,
-            and the grouping kept putting it back into an order that was not
-            hers. What a step belongs to is said on the step itself. */}
-        {rows.map((it) => (
+        {/* Skin, and then all the skin. The name is said once, over its own
+            steps, and every step under it is a box she strikes — nothing
+            folds and nothing is written out as a chain she cannot tick. */}
+        {stacks.map((st) => {
+          const kept = st.rows.filter((r) => r.done).length
+          return (
+            <div key={st.name} className="xl:mb-8">
+              <div
+                className="mt-7 flex items-baseline justify-between border-b pb-2 first:mt-0 xl:mt-0"
+                style={{ borderColor: rule }}
+              >
+                <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{st.name}</span>
+                <span className="text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>
+                  {kept}/{st.rows.length}
+                </span>
+              </div>
+              {st.rows.map((it) => (
           <div
             key={it.id}
             data-id={it.id}
+            data-stack={st.name}
             className="relative"
             style={{
               ...(held && held.id === it.id
@@ -1556,13 +1589,6 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             >
               {it.title || 'Untitled'}
             </button>
-            {/* What it belongs to, said quietly on the step rather than as a
-                heading over a group of them. */}
-            {tagOf(it.category) && (
-              <span className="shrink-0 text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>
-                {tagOf(it.category)}
-              </span>
-            )}
             {/* The grip. Three fine rules, in the dim of the block. */}
             <span
               role="button"
@@ -1583,7 +1609,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           </div>
             </SwipeAway>
           </div>
-        ))}
+              ))}
+            </div>
+          )
+        })}
 
       </div>
 
