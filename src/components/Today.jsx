@@ -1334,12 +1334,6 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
       .sort((a, b) => STACK_ORDER.indexOf(a.name) - STACK_ORDER.indexOf(b.name))
   })()
 
-  // The one she is in: the first with something still owed. She can open any
-  // other, and the choice sticks until the page is left.
-  const nextStack = (stacks.find((st) => st.rows.some((r) => !r.done)) || stacks[0] || {}).name || ''
-  const [opened, setOpened] = useState('')
-  const open = opened || nextStack
-  const setOpen = setOpened
   const doneCount = rows.filter((r) => r.done).length
 
   const grab = (id, clientY) => {
@@ -1352,7 +1346,10 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
   const place = (clientY) => {
     const d = drag.current
     if (!d || !rail.current) return
-    const others = [...rail.current.children].filter((el) => el.dataset.id !== d.id)
+    const mine = rail.current.querySelector(`[data-id="${d.id}"]`)
+    const stack = mine && mine.dataset.stack
+    const others = [...rail.current.querySelectorAll('[data-id]')]
+      .filter((el) => el.dataset.id !== d.id && el.dataset.stack === stack)
     let to = others.length
     for (let i = 0; i < others.length; i += 1) {
       const r = others[i].getBoundingClientRect()
@@ -1454,7 +1451,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           them. The rail takes a swipe and a wheel without being drawn. */}
       <div
         ref={rail}
-        className="no-scrollbar mt-9 max-h-[560px] flex-1 select-none overflow-y-auto"
+        className="no-scrollbar mt-9 max-h-[560px] flex-1 select-none overflow-y-auto md:max-h-none md:overflow-y-visible xl:grid xl:grid-cols-2 xl:items-start xl:gap-x-12"
         style={{
           WebkitUserSelect: 'none',
           WebkitTouchCallout: 'none',
@@ -1464,44 +1461,26 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         }}
       >
         {stacks.map((st) => {
-          const isOpen = open === st.name
           const kept = st.rows.filter((r) => r.done).length
           return (
-            <div key={st.name} className="mb-3 border" style={{ borderColor: isOpen ? dim : rule }}>
-              {/* The chain, folded. Pressing it opens the stack. */}
-              <button
-                onClick={() => setOpen(isOpen ? '' : st.name)}
-                aria-expanded={isOpen}
-                className="flex w-full items-start gap-4 px-4 py-4 text-left transition-opacity hover:opacity-80"
+            <div key={st.name} className="xl:mb-8">
+              {/* The name of the stack, said once over its own steps. It is a
+                  heading and not a lid: nothing folds, so the whole routine is
+                  one list she can strike straight down. */}
+              <div
+                className="mt-7 flex items-baseline justify-between border-b pb-2 first:mt-0 xl:mt-0"
+                style={{ borderColor: rule }}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-3">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-cream">{st.name}</span>
-                    {/* What is left of it, as squares rather than a bar. */}
-                    <span className="flex shrink-0 items-center gap-[3px]">
-                      {st.rows.map((r) => (
-                        <span key={r.id} className="block h-[5px] w-[5px]"
-                          style={{ backgroundColor: r.done ? 'rgb(247,244,237)' : 'transparent', outline: `1px solid ${dim}`, outlineOffset: '-1px' }} />
-                      ))}
-                    </span>
-                  </span>
-                  {!isOpen && (
-                    <span className="mt-2 block text-[15px] lowercase leading-snug" style={{ color: kept === st.rows.length ? dim : 'rgb(247,244,237)' }}>
-                      {st.rows.map((r) => r.title || 'untitled').join('  \u00d7  ')}
-                    </span>
-                  )}
-                </span>
-                <span className="mt-[2px] shrink-0 text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>
+                <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>{st.name}</span>
+                <span className="text-[10px] uppercase tracking-[0.14em]" style={{ color: dim }}>
                   {kept}/{st.rows.length}
                 </span>
-              </button>
-
-              {isOpen && (
-                <div className="px-4 pb-3">
-                  {st.rows.map((it) => (
+              </div>
+              {st.rows.map((it) => (
           <div
             key={it.id}
             data-id={it.id}
+            data-stack={st.name}
             className="relative"
             style={{
               ...(held && held.id === it.id
@@ -1521,20 +1500,24 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             {/* Pulled aside, a step rests open with the one red in the house
                 standing beside it; the red is then pressed. */}
             <SwipeAway ground={ground} label="Delete" disabled={!!held} onAway={() => setAsking(it)}>
-          <div className="relative flex w-full items-center gap-5 py-3.5 text-left">
+          <div className="relative flex w-full items-center gap-5 py-3.5 text-left md:py-4">
             <button
               onClick={() => onToggle && onToggle(it.id)}
               aria-pressed={!!it.done}
               aria-label={`Done: ${it.title || 'Untitled'}`}
-              className="h-[15px] w-[15px] shrink-0 border transition-colors"
-              style={{
-                borderColor: 'rgba(247,244,237,0.55)',
-                backgroundColor: it.done ? 'rgb(247,244,237)' : 'transparent',
-              }}
-            />
+              className="-m-3 shrink-0 p-3"
+            >
+              <span
+                className="block h-[15px] w-[15px] border transition-colors md:h-[17px] md:w-[17px]"
+                style={{
+                  borderColor: 'rgba(247,244,237,0.55)',
+                  backgroundColor: it.done ? 'rgb(247,244,237)' : 'transparent',
+                }}
+              />
+            </button>
             <button
               onClick={() => onOpen && onOpen(it.id)}
-              className="min-w-0 flex-1 text-left text-[17px] lowercase leading-snug text-cream transition-opacity hover:opacity-75"
+              className="min-w-0 flex-1 text-left text-[17px] lowercase leading-snug text-cream transition-opacity hover:opacity-75 md:text-[19px]"
               style={it.done ? { color: dim, textDecoration: 'line-through' } : null}
             >
               {it.title || 'Untitled'}
@@ -1559,9 +1542,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           </div>
             </SwipeAway>
           </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
           )
         })}
