@@ -1270,16 +1270,22 @@ const OXBLOOD = '#C87A7A'
 // down and it is the one glyph that says these are done together rather than
 // merely listed near each other.
 const STACK_OF = {
-  skincare: 'Skincare', haircare: 'Haircare', bodycare: 'Bodycare', fitness: 'Fitness',
-  menu: 'Nutrition', nutrition: 'Nutrition', mindset: 'Mindset', brainhealth: 'Mindset',
-  spirituality: 'Spirituality', relationship: 'Relationships', relationships: 'Relationships',
-  workout: 'Hormones', hormones: 'Hormones', aesthetics: 'Aesthetics', diagnostics: 'Testing',
+  skincare: 'Skin', facial: 'Skin', aesthetics: 'Skin',
+  haircare: 'Hair',
+  bodycare: 'Body', body: 'Body', treatments: 'Body',
+  mouth: 'Mouth',
+  menu: 'Food', nutrition: 'Food', diet: 'Food',
+  supplements: 'Supplements',
+  fitness: 'Fitness',
+  mindset: 'Mind', brainhealth: 'Mind',
+  spirituality: 'Spirit', spirit: 'Spirit',
+  relationship: 'Circle', relationships: 'Circle', circle: 'Circle',
 }
 const stackName = (cat) => STACK_OF[cat] || 'The rest'
-// The order the stacks stand in: the body first, because that is the order a
-// morning actually happens in, and the mind last.
-const STACK_ORDER = ['Bodycare', 'Skincare', 'Haircare', 'Nutrition', 'Fitness', 'Hormones',
-  'Aesthetics', 'Testing', 'Spirituality', 'Relationships', 'Mindset', 'The rest']
+// The ten, in the order they are said. Anything that does not answer to one
+// of them falls to the end rather than disappearing.
+const STACK_ORDER = ['Skin', 'Hair', 'Body', 'Mouth', 'Food', 'Supplements',
+  'Fitness', 'Mind', 'Spirit', 'Circle', 'The rest']
 
 function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop, onCatalogue }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
