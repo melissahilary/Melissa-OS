@@ -1254,6 +1254,8 @@ const PHASE_AGENDA_HINT = {
 // The one red in the house: the oxblood the concierge uses when something has
 // gone out of range. Nothing else here is red, so it reads as the warning it is.
 const OXBLOOD = '#C87A7A'
+// The walnut sheets' own label colour.
+const TAN = '#C0966F'
 
 // ── A morning is not a list, it is a handful of stacks.
 //
@@ -1294,47 +1296,91 @@ const CATEGORY_FOR_TAG = {
   Mind: 'mindset', Spirit: 'spirituality', Circle: 'relationship',
 }
 
-// ── Guessing the tag from what she wrote.
+// ── Reading what she wrote.
 //
-// A step typed by hand is tagged the moment there is something to read, so
-// she is never asked a question she did not come to answer. The guess is read
-// off her own words rather than drawn at random — "body oil" is BODY and
-// "floss" is MOUTH without her saying so — and it is only a guess: it is shown
-// as the chosen chip, and pressing another is all it takes to correct.
+// The moment there is something to read, the sheet says where it thinks the
+// step goes. It is a recommendation and it is drawn as one — named in tan on
+// its own line, with the chip it points at ringed in the same tan — so it is
+// never mistaken for a decision already made on her behalf. The decision is
+// one press, hers, and the recommendation stays on the page after she has
+// overruled it so she can take it back.
+//
+// It reads her own words rather than asking a model: it answers while she is
+// still typing, it costs nothing, it works on a plane, and nothing she writes
+// down leaves the page. The longest word that matches wins, so "dry brush"
+// beats "brush" and "vitamin c" beats "vitamin".
 const TAG_WORDS = [
-  // Not a bare "brush": dry brushing is the body, not the teeth.
-  ['Mouth', ['teeth', 'tooth', 'floss', 'mouth', 'tongue', 'gums', 'oil pull', 'whitening']],
-  ['Supplements', ['supplement', 'vitamin', 'capsule', 'tablet', 'creatine', 'magnesium', 'omega', 'collagen', 'probiotic', 'zinc', 'iron', 'd3', 'b12', 'ashwagandha', 'nmn', 'electrolyte']],
-  ['Food', ['eat', 'meal', 'breakfast', 'lunch', 'dinner', 'snack', 'smoothie', 'protein shake', 'juice', 'water', 'tea', 'coffee', 'matcha', 'broth', 'fast']],
-  ['Fitness', ['walk', 'steps', 'run', 'gym', 'lift', 'weights', 'strength', 'pilates', 'yoga', 'stretch', 'mobility', 'cardio', 'sauna', 'cold plunge', 'workout', 'train', 'reformer', 'vest']],
-  ['Mind', ['journal', 'read', 'breath', 'breathing', 'meditat', 'gratitude', 'affirmation', 'therapy', 'screen', 'phone', 'focus', 'learn', 'study']],
-  ['Spirit', ['pray', 'prayer', 'church', 'scripture', 'devotion', 'ritual', 'frequenc', 'sound bath', 'crystal', 'tarot', 'moon', 'manifest', 'altar', 'reiki']],
-  ['Circle', ['call', 'text', 'date night', 'friend', 'family', 'mum', 'mom', 'dad', 'husband', 'partner', 'dinner with', 'check in on', 'reach out']],
-  ['Hair', ['hair', 'scalp', 'shampoo', 'conditioner', 'rosemary', 'blow dry', 'heat protect', 'braid', 'mask hair']],
-  ['Skin', ['skin', 'spf', 'sunscreen', 'serum', 'retinol', 'tret', 'azelaic', 'cleanse', 'cleanser', 'moistur', 'toner', 'face', 'eye cream', 'mask', 'makeup', 'vitamin c', 'peel', 'microcurrent', 'red light', 'radio frequency', 'gua sha', 'lip']],
-  ['Body', ['body', 'shower', 'bath', 'dry brush', 'exfoliat', 'lotion', 'deodorant', 'nails', 'shave', 'wax', 'lymph', 'massage', 'posture']],
+  ['Mouth', ['teeth', 'tooth', 'floss', 'mouth', 'tongue scrape', 'tongue', 'gums', 'oil pull', 'whitening strip', 'retainer']],
+  ['Supplements', ['supplement', 'vitamin d', 'vitamin b', 'vitamin', 'capsule', 'tablet', 'creatine', 'magnesium', 'omega', 'fish oil', 'collagen', 'probiotic', 'zinc', 'iron', 'd3', 'b12', 'ashwagandha', 'nmn', 'electrolyte', 'greens powder']],
+  ['Food', ['eat', 'meal', 'breakfast', 'lunch', 'dinner', 'snack', 'smoothie', 'protein shake', 'juice', 'drink water', 'water', 'tea', 'coffee', 'matcha', 'bone broth', 'broth', 'fast', 'calories', 'macros']],
+  ['Fitness', ['walk', 'steps', 'run', 'gym', 'lift', 'weights', 'strength', 'pilates', 'yoga', 'stretch', 'mobility', 'cardio', 'sauna', 'cold plunge', 'workout', 'train', 'reformer', 'weighted vest', 'vest', 'squat', 'abs', 'glute']],
+  ['Mind', ['journal', 'read', 'breathwork', 'breathing', 'breath', 'meditat', 'gratitude', 'affirmation', 'therapy', 'no screens', 'screen', 'phone', 'focus', 'learn', 'study', 'brain dump']],
+  ['Spirit', ['pray', 'prayer', 'church', 'scripture', 'devotion', 'ritual', 'frequenc', 'sound bath', 'crystal', 'tarot', 'full moon', 'moon', 'manifest', 'altar', 'reiki', 'oracle']],
+  ['Circle', ['call', 'text', 'date night', 'friend', 'family', 'mum', 'mom', 'dad', 'husband', 'partner', 'dinner with', 'check in on', 'reach out', 'write to']],
+  ['Hair', ['hair mask', 'hair oil', 'hair', 'scalp', 'shampoo', 'conditioner', 'rosemary', 'blow dry', 'heat protect', 'braid', 'silk pillow']],
+  ['Skin', ['skin', 'spf', 'sunscreen', 'serum', 'retinol', 'tret', 'azelaic', 'niacinamide', 'cleanse', 'cleanser', 'moistur', 'toner', 'face', 'eye cream', 'sheet mask', 'makeup', 'vitamin c', 'peel', 'microcurrent', 'red light', 'radio frequency', 'gua sha', 'lip']],
+  ['Body', ['dry brush', 'body', 'shower', 'bath', 'exfoliat', 'lotion', 'deodorant', 'nails', 'shave', 'wax', 'lymph', 'massage', 'posture', 'perfume']],
 ]
-const guessTag = (title) => {
+
+// The recommendation, and whether there was anything in the words to go on.
+const readTag = (title) => {
   const t = String(title || '').toLowerCase()
-  if (!t.trim()) return ''
+  if (!t.trim()) return { tag: '', sure: false }
+  let best = ''
+  let longest = 0
   for (let i = 0; i < TAG_WORDS.length; i += 1) {
     const [tag, words] = TAG_WORDS[i]
-    for (let j = 0; j < words.length; j += 1) if (t.includes(words[j])) return tag
+    for (let j = 0; j < words.length; j += 1) {
+      const w = words[j]
+      if (t.includes(w) && w.length > longest) { longest = w.length; best = tag }
+    }
   }
-  // Nothing in it said what it was. Something is still chosen, because a tag
-  // she corrects is quicker than a tag she has to think of.
-  return 'Body'
+  // Nothing in it said what it was. Something is still put forward, because a
+  // recommendation she overrules is quicker than a question she must answer,
+  // and the line above the chips says plainly that it is a shot in the dark.
+  return best ? { tag: best, sure: true } : { tag: 'Body', sure: false }
 }
+const guessTag = (title) => readTag(title).tag
 
 // The ten, as chips. The same hairline chip the house presses everywhere
 // else; the one that is on is filled.
-function TagField({ value, onPick }) {
+//
+// `rec` is where the sheet thinks it goes, if anywhere. It is said once in
+// words, in tan, and the chip it points at is ringed in the same tan — a
+// recommendation looks like a recommendation and never like a choice already
+// made. When she has gone another way the line stays, with the way back on
+// the end of it.
+function TagField({ value, rec, sure = true, onPick }) {
   return (
     <div className="mt-7">
       <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">What it is</p>
+
+      {rec ? (
+        <div
+          className="mt-3 flex items-center gap-3 border px-3.5 py-3"
+          style={{ borderColor: TAN }}
+        >
+          <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: TAN }}>
+            {sure ? 'Looks like' : 'Best guess'}
+          </span>
+          <span className="text-[10px] uppercase tracking-[0.14em] text-cream">{rec}</span>
+          {value !== rec && (
+            <button
+              type="button"
+              onClick={() => onPick(rec)}
+              className="ml-auto text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70"
+              style={{ color: TAN }}
+            >
+              Use it
+            </button>
+          )}
+        </div>
+      ) : null}
+
       <div className="mt-3 flex flex-wrap gap-2">
         {TAGS.map((tag) => {
           const on = value === tag
+          const put = rec === tag && !on
           return (
             <button
               key={tag}
@@ -1344,6 +1390,7 @@ function TagField({ value, onPick }) {
               className={`border px-3.5 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
                 on ? 'border-cream bg-cream text-stone-900' : 'border-cream/30 text-cream/70 hover:border-cream'
               }`}
+              style={put ? { borderColor: TAN, color: TAN } : null}
             >
               {tag}
             </button>
@@ -2045,14 +2092,19 @@ function EditMeal({ activity, onSave, onDrop, onClose }) {
 // two gestures — open it, type it — and it stands still while she does.
 function AddStep({ block, onClose, onSave }) {
   const [t, setT] = useState('')
-  // The guess follows what she types until she corrects it; after that it is
-  // hers and nothing moves it.
+  // Where the sheet thinks it goes, read afresh on every keystroke, and what
+  // she has settled on. They start as the same thing so Add is never blocked
+  // on a question; once she has gone another way the recommendation keeps
+  // reading and keeps showing, but it stops moving her choice.
+  const [rec, setRec] = useState({ tag: '', sure: false })
   const [tag, setTag] = useState('')
   const [chosen, setChosen] = useState(false)
   const field = useRef(null)
   const write = (v) => {
     setT(v)
-    if (!chosen) setTag(guessTag(v))
+    const r = readTag(v)
+    setRec(r)
+    if (!chosen) setTag(r.tag)
   }
   const pick = (next) => { setChosen(true); setTag(next) }
   const save = () => {
@@ -2086,7 +2138,7 @@ function AddStep({ block, onClose, onSave }) {
           className="mt-7 w-full border-b bg-transparent pb-2.5 text-[22px] lowercase outline-none placeholder:opacity-40"
           style={{ borderColor: 'rgba(247,244,237,0.22)', color: '#F7F4ED' }}
         />
-        {!!t.trim() && <TagField value={tag} onPick={pick} />}
+        {!!t.trim() && <TagField value={tag} rec={rec.tag} sure={rec.sure} onPick={pick} />}
         <div className="mt-9 flex items-center justify-end gap-7">
           <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
           <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Add</button>
