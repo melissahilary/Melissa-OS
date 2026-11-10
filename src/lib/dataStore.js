@@ -59,7 +59,12 @@ export function getSaveState() {
   return { state: 'saved', keys: [], message: '' }
 }
 export function getStatus() {
-  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '' }
+  return { phase, loaded, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '' }
+}
+// Did the rows actually come back? Anything that writes a first-run default
+// must ask this and not merely whether the app is up.
+export function isLoaded() {
+  return loaded
 }
 
 // ── read / write ────────────────────────────────────────────────────
@@ -70,7 +75,7 @@ export function get(key, fallback) {
 export function set(key, value) {
   cache.set(key, value)
   notify(key)
-  if (phase === 'ready' && user) scheduleUpsert(key)
+  if (phase === 'ready' && loaded && user) scheduleUpsert(key)
 }
 
 function scheduleUpsert(key) {
@@ -115,7 +120,7 @@ if (typeof document !== 'undefined') {
 // retries, and if it still won't go the app can say so.
 const RETRY_MS = [1200, 3500, 9000]
 async function upsert(key, attempt = 0) {
-  if (!user) return
+  if (!user || !loaded) return
   let failed = null
   try {
     const { error } = await supabase
@@ -143,6 +148,30 @@ async function upsert(key, attempt = 0) {
   }
 }
 
+// Whether the rows in `cache` are the rows in Postgres, or merely the absence
+// of an answer. NOTHING may be written until this is true.
+//
+// It used to not exist, and a load that failed looked exactly like an account
+// with nothing in it: the cache was empty, the app was told it was ready, the
+// first-run seeding saw no planner and wrote a fresh one — over the top of a
+// year of her habits. A failed read must never become a write.
+let loaded = false
+
+// One dropped request is not an empty account, so the read is given a few goes
+// before the app is told anything at all.
+const LOAD_RETRY_MS = [600, 1800, 4000]
+
+async function loadOnce() {
+  try {
+    const { data, error } = await supabase.from(TABLE).select('key,value')
+    if (error) { console.warn('[mos] load failed', error.message); return null }
+    return data || []
+  } catch (e) {
+    console.warn('[mos] load error', e)
+    return null
+  }
+}
+
 async function loadAll() {
   // Whatever was in flight belongs to the state we are about to replace.
   writeTimers.forEach((t) => clearTimeout(t))
@@ -150,15 +179,29 @@ async function loadAll() {
   pending.clear()
   failures.clear()
   notifySave()
+  loaded = false
   cache.clear()
-  try {
-    const { data, error } = await supabase.from(TABLE).select('key,value')
-    if (error) console.warn('[mos] load failed', error.message)
-    else if (data) data.forEach((row) => cache.set(row.key, row.value))
-  } catch (e) {
-    console.warn('[mos] load error', e)
+
+  let rows = await loadOnce()
+  for (let i = 0; rows === null && i < LOAD_RETRY_MS.length; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, LOAD_RETRY_MS[i]))
+    // eslint-disable-next-line no-await-in-loop
+    rows = await loadOnce()
   }
+
+  if (rows === null) {
+    // The cache stays empty and `loaded` stays false, so every write is refused
+    // and the app shows that it could not read rather than showing a blank
+    // planner that looks like the truth.
+    notifyAllKnown()
+    return false
+  }
+
+  rows.forEach((row) => cache.set(row.key, row.value))
+  loaded = true
   notifyAllKnown()
+  return true
 }
 
 // ── lifecycle ───────────────────────────────────────────────────────
@@ -171,8 +214,7 @@ export async function init() {
   } = await supabase.auth.getSession()
   user = session ? session.user : null
   if (user) {
-    await loadAll()
-    phase = 'ready'
+    phase = (await loadAll()) ? 'ready' : 'unread'
   } else {
     phase = 'signed-out'
   }
@@ -186,17 +228,27 @@ export async function init() {
       if (changed || phase !== 'ready') {
         phase = 'loading'
         notifyStatus()
-        await loadAll()
+        phase = (await loadAll()) ? 'ready' : 'unread'
       }
-      phase = 'ready'
       notifyStatus()
     } else {
       cache.clear()
+      loaded = false
       phase = 'signed-out'
       notifyStatus()
       notifyAllKnown()
     }
   })
+}
+
+// Another go at reading, for the screen shown when the read failed.
+export async function retryLoad() {
+  if (!user) return false
+  phase = 'loading'
+  notifyStatus()
+  phase = (await loadAll()) ? 'ready' : 'unread'
+  notifyStatus()
+  return phase === 'ready'
 }
 
 // ── auth ────────────────────────────────────────────────────────────

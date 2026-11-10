@@ -110,7 +110,10 @@ export const buildNutrition = (startKey) => build(ROWS, startKey)
 // Runs once, and only with the store loaded — seeding an empty cache would
 // write the week in twice the moment the real rows arrived.
 export function runNutritionSeed(todayKey) {
-  if (store.getStatus().phase !== 'ready') return false
+  // Ready is not the same as read. If the rows never came back, the cache is
+  // empty for want of an answer rather than for want of a planner, and seeding
+  // it writes this week over everything she has. Ask whether the read landed.
+  if (store.getStatus().phase !== 'ready' || !store.isLoaded()) return false
   let did = false
 
   if (!store.get(SEED_FLAG, false)) {

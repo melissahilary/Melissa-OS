@@ -22,14 +22,48 @@ export default function AuthGate({ children }) {
   }, [])
 
   // The week of nourishment written on the calendar is written into the
-  // planner once, the first time the store is loaded and ready.
+  // planner once, the first time the store is loaded and ready. `loaded` is
+  // asked for as well as the phase: a read that failed must never be mistaken
+  // for an account with nothing in it, because what gets written then lands on
+  // top of everything that was there.
   useEffect(() => {
-    if (st.phase === 'ready') runNutritionSeed(dateKey(new Date()))
-  }, [st.phase])
+    if (st.phase === 'ready' && st.loaded) runNutritionSeed(dateKey(new Date()))
+  }, [st.phase, st.loaded])
 
   if (st.phase === 'loading') return <Splash />
   if (st.phase === 'signed-out') return <Login />
+  if (st.phase === 'unread') return <Unread />
   return children
+}
+
+// Signed in, but her rows did not come back. The planner is NOT shown: an empty
+// one would look like the truth, and anything touched on it would be saved over
+// the real thing. Nothing can be written from here — the store refuses every
+// write until a read has actually succeeded.
+function Unread() {
+  const [busy, setBusy] = useState(false)
+  const again = async () => { setBusy(true); await store.retryLoad(); setBusy(false) }
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-cream px-6 text-center">
+      <Cursive className="text-4xl text-stone-400">Melissa's Digital Planner</Cursive>
+      <div className="max-w-xs">
+        <p className="text-sm leading-relaxed text-stone-600">
+          Couldn&rsquo;t reach your planner just now. Nothing has been changed &mdash;
+          your pages are where you left them.
+        </p>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <button
+            onClick={again}
+            disabled={busy}
+            className="bg-stone-900 px-5 py-2.5 text-sm text-cream hover:bg-stone-700 disabled:opacity-50"
+          >
+            {busy ? 'Trying…' : 'Try again'}
+          </button>
+          <button onClick={() => store.signOut()} className="border border-stone-300 px-5 py-2.5 text-sm text-stone-600 hover:border-stone-500">Sign in again</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // Splash while the session resolves. If it's still loading after a few seconds,
