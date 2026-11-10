@@ -107,42 +107,42 @@ const build = (rows, startKey) =>
 
 export const buildNutrition = (startKey) => build(ROWS, startKey)
 
-// Runs once, and only with the store loaded — seeding an empty cache would
-// write the week in twice the moment the real rows arrived.
+// ── The one rule.
+//
+// Her planner does not change unless she changes it. Opening the app is not
+// changing it. So this writes in exactly one situation — a planner that has
+// never been written to at all — and even then it writes only where there is
+// nothing, through `fill`, which refuses to land on anything that exists.
+//
+// It used to run on every load and decide for itself what was missing. That is
+// how a week of meals came to be written over a year of her habits: the rows
+// had failed to arrive, the app read the silence as an empty account, and the
+// starter week went in on top. The guard against that is not a better test for
+// emptiness. It is never writing over her at all.
+//
+// A planner she has emptied herself is not a planner that was never written:
+// `has` asks whether the row exists, not whether it holds anything.
 export function runNutritionSeed(todayKey) {
   // Ready is not the same as read. If the rows never came back, the cache is
-  // empty for want of an answer rather than for want of a planner, and seeding
-  // it writes this week over everything she has. Ask whether the read landed.
+  // empty for want of an answer rather than for want of a planner.
   if (store.getStatus().phase !== 'ready' || !store.isLoaded()) return false
+
+  // Anything already here is hers, including an empty list she made empty.
+  if (store.has('mos:activities')) return false
+
   let did = false
+  did = store.fill('mos:activities', buildNutrition(todayKey)) || did
 
-  if (!store.get(SEED_FLAG, false)) {
-    const current = arr(store.get('mos:activities', []))
-    const kept = current.map((a) => (
-      a && (a.type === 'meal_item' || a.type === 'supplement') && a.status !== 'archived'
-        ? { ...a, status: 'archived' }
-        : a
-    ))
-    store.set('mos:activities', [...kept, ...buildNutrition(todayKey)])
+  // The hours a new week starts with. Never the hours she has set.
+  const standing = {}
+  SITTINGS.forEach((s) => { if (SEED_HOURS[s.id]) standing[s.id] = SEED_HOURS[s.id] })
+  did = store.fill('mos:sittings', { standing, days: {} }) || did
 
-    // The sittings keep the calendar's hours from now on.
-    const clock = store.get('mos:sittings', { standing: {}, days: {} })
-    const base = clock && typeof clock === 'object' ? clock : {}
-    const standing = { ...(base.standing || {}) }
-    SITTINGS.forEach((s) => { if (SEED_HOURS[s.id]) standing[s.id] = SEED_HOURS[s.id] })
-    store.set('mos:sittings', { ...base, standing })
-
-    store.set(SEED_FLAG, true)
-    did = true
-  }
-
-  // Anything added to the week since. Appended, never replacing.
-  PATCHES.forEach((patch) => {
-    if (store.get(patch.flag, false)) return
-    store.set('mos:activities', [...arr(store.get('mos:activities', [])), ...build(patch.rows, todayKey)])
-    store.set(patch.flag, true)
-    did = true
-  })
+  // The flags that said "this has run". A planner it has never run on carries
+  // every one of them from the start, so nothing is ever appended later to a
+  // planner she has been keeping.
+  did = store.fill(SEED_FLAG, true) || did
+  PATCHES.forEach((patch) => { did = store.fill(patch.flag, true) || did })
 
   return did
 }

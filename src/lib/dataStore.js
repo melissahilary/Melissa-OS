@@ -72,6 +72,23 @@ export function get(key, fallback) {
   return cache.has(key) ? cache.get(key) : fallback
 }
 
+// Is there a row for this key at all? Not "is it empty" — a planner she has
+// emptied herself is not a planner that was never written.
+export function has(key) {
+  return cache.has(key)
+}
+
+// Write ONLY where nothing has ever been written. The rule this enforces:
+// her data does not change unless she changes it. Anything the app writes on
+// its own — a first-run default, a starter week — goes through here, so it can
+// fill a blank and can never, by construction, land on top of her own work.
+// Returns whether it wrote.
+export function fill(key, value) {
+  if (cache.has(key)) return false
+  set(key, value)
+  return true
+}
+
 export function set(key, value) {
   cache.set(key, value)
   notify(key)
