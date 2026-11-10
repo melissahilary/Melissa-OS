@@ -1544,7 +1544,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
           The same mark as every other list's, held where nothing was. */}
       <div className="flex items-start justify-between gap-6">
         <span className="block">
-          <h2 className="font-serif text-[40px] leading-[1.02] text-cream sm:text-[52px]">{title}</h2>
+          <h2 className="font-serif text-[31px] leading-[1.06] text-cream sm:text-[38px]">{title}</h2>
           {rows.length > 0 && (
             <span className="mt-2 block text-[10px] uppercase tracking-[0.18em]" style={{ color: dim }}>
               {doneCount === rows.length ? 'All of it' : `${doneCount} of ${rows.length}`}
@@ -1553,7 +1553,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         </span>
         <button
           onClick={() => onCatalogue && onCatalogue()}
-          aria-label={`Catalogue for the ${title === 'PM' ? 'evening' : 'morning'}`}
+          aria-label={`Catalogue for the ${title === 'Evening Routine' ? 'evening' : 'morning'}`}
           className="-mr-3 -mt-2 shrink-0 px-4 py-2 text-[30px] leading-none text-cream transition-opacity hover:opacity-70"
         >
           +
@@ -1881,7 +1881,7 @@ function EditStep({ activity, onSave, onDrop, onClose }) {
         style={{ background: '#68472C', color: '#F7F4ED' }}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >
-        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{block === 'evening' ? 'PM' : 'AM'}</p>
+        <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">{block === 'evening' ? 'Evening Routine' : 'Morning Routine'}</p>
 
         <input
           autoFocus
@@ -2199,7 +2199,7 @@ function Catalogue({ block, taken = [], onAdd, onClose }) {
         style={{ background: '#68472C', color: '#F7F4ED' }}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
       >
-        <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: '#C0966F' }}>{block === 'evening' ? 'PM' : 'AM'}</p>
+        <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: '#C0966F' }}>{block === 'evening' ? 'Evening Routine' : 'Morning Routine'}</p>
         <h3 className="mt-3 font-serif text-[40px] leading-none sm:text-[46px]">Catalogue</h3>
 
         <input
@@ -2325,7 +2325,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
         >
           <div className="flex w-full shrink-0 snap-start md:w-auto [&>section]:w-full">
             <Routine
-              title="AM"
+              title="Morning Routine"
               items={morning}
               ground="#1D2FC4"
               onOpen={onOpen}
@@ -2339,7 +2339,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
           </div>
           <div className="flex w-full shrink-0 snap-start md:w-auto [&>section]:w-full">
             <Routine
-              title="PM"
+              title="Evening Routine"
               items={evening}
               ground="#16130F"
               onOpen={onOpen}
