@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { dateKey } from '../lib/date'
+import { dateKey, parseKey, weekDays, DOW } from '../lib/date'
 import { activityOccursOn } from '../lib/activities'
 import SwipeAway, { OXBLOOD } from './shared/SwipeAway'
 import RepeatField from './shared/Repeat'
@@ -95,6 +95,7 @@ export default function Movement({ dateKeyStr }) {
   const [raw, setRaw] = useLocalStorage('mos:movement', [])
   const [tallyRaw, setTally] = useLocalStorage('mos:movement:tally', {})
   const [adding, setAdding] = useState(false)
+  const [span, setSpan] = useState('today')
   const [open, setOpen] = useState(null)
 
   const key = dateKeyStr || dateKey(new Date())
@@ -214,12 +215,12 @@ export default function Movement({ dateKeyStr }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [held && held.id])
 
-  const done = (x) => !!(x.completions && x.completions[key])
-  const setDone = (id, on) => setRaw((prev) => arr(prev).map((x) => {
+  const done = (x, on = key) => !!(x.completions && x.completions[on])
+  const setDone = (id, on, k = key) => setRaw((prev) => arr(prev).map((x) => {
     if (x.id !== id) return x
     const c = { ...(x.completions || {}) }
-    if (on) c[key] = true
-    else delete c[key]
+    if (on) c[k] = true
+    else delete c[k]
     return { ...x, completions: c }
   }))
 
@@ -228,9 +229,29 @@ export default function Movement({ dateKeyStr }) {
     setTally((prev) => ({ ...obj(prev), [key]: { ...obj(obj(prev)[key]), [field]: v } }))
   }
 
+  // ── Today, or the week it sits in.
+  //
+  // The same record, read at two distances. Today is the one she works from;
+  // the week is the one she judges by — whether it was three sessions or six,
+  // and which day she keeps letting go.
+  const occursOn = (x, k) => activityOccursOn({ ...x, seriesStart: x.seriesStart || '', type: 'protocol' }, k)
+  const inOrder = (list) => [...list].sort((a, b) => {
+    const w = (WHEN_ORDER[a.when] ?? 1) - (WHEN_ORDER[b.when] ?? 1)
+    return w || (a.order || 0) - (b.order || 0)
+  })
+  const week = weekDays(parseKey(key)).map((d) => {
+    const k = dateKey(d)
+    return { k, d, dow: DOW[d.getDay()], day: d.getDate(), items: inOrder(all.filter((x) => occursOn(x, k))) }
+  })
+  const weekTotal = week.reduce((n, g) => n + g.items.reduce((m, x) => m + lengthOf(x), 0), 0)
+  const weekKept = week.reduce((n, g) => n + g.items.filter((x) => done(x, g.k)).length, 0)
+  const weekCount = week.reduce((n, g) => n + g.items.length, 0)
+
   // Active is not hers to write. It is the day's movement added up — every
   // line she has put down, whether or not she has kept it yet.
-  const active = today.reduce((n, x) => n + lengthOf(x), 0)
+  const active = span === 'week'
+    ? weekTotal
+    : today.reduce((n, x) => n + lengthOf(x), 0)
 
   // And what she set out to walk, added up the same way.
   const stepGoal = today.reduce((n, x) => n + stepsIn(x), 0)
@@ -244,7 +265,36 @@ export default function Movement({ dateKeyStr }) {
             section was for, which is not a thing she needs told every day. */}
         <h2 className="font-serif text-[46px] leading-[0.95] text-stone-900 sm:text-[62px]">Workouts</h2>
 
+        {/* Today, or the week it sits in. Two words and a cobalt rule under
+            the one she is in — the same way every other tab in the house says
+            where she is. Nothing moves but what is listed below it. */}
+        <div className="mt-8 flex items-center gap-9">
+          {[['today', 'Today'], ['week', 'This week']].map(([id, label]) => {
+            const on = span === id
+            return (
+              <button
+                key={id}
+                onClick={() => setSpan(id)}
+                aria-pressed={on}
+                className="-mb-px border-b-2 pb-2 text-[10px] uppercase tracking-[0.18em] transition-colors"
+                style={{
+                  borderColor: on ? '#1D2FC4' : 'transparent',
+                  color: on ? '#1D2FC4' : '#78716C',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+          {span === 'week' && (
+            <span className="ml-auto text-[10px] uppercase tracking-[0.16em] text-stone-500">
+              {weekKept} of {weekCount} kept
+            </span>
+          )}
+        </div>
+
         {/* The record. */}
+        {span === 'today' && (
         <div
           className="mt-14 select-none"
           ref={rail}
@@ -330,6 +380,70 @@ export default function Movement({ dateKeyStr }) {
             </button>
           </div>
         </div>
+        )}
+
+        {/* ── The week.
+            Seven days down the page, each with what it holds. A day with
+            nothing in it still gets its line, because the gap is the thing
+            worth seeing. Nothing is carried or slid away here — this is the
+            week read, not the week worked; today is where it is worked. */}
+        {span === 'week' && (
+          <div className="mt-14">
+            {week.map((g) => {
+              const isToday = g.k === key
+              const mins0 = g.items.reduce((n, x) => n + lengthOf(x), 0)
+              return (
+                <div key={g.k} className="border-t border-stone-200 py-7 first:border-t-0 first:pt-0">
+                  <div className="flex items-baseline justify-between">
+                    <span
+                      className="text-[10px] uppercase tracking-[0.18em]"
+                      style={{ color: isToday ? '#1D2FC4' : '#78716C' }}
+                    >
+                      {g.dow} {g.day}{isToday ? ' · Today' : ''}
+                    </span>
+                    {!!mins0 && (
+                      <span className="text-[10px] uppercase tracking-[0.16em] text-stone-500">{spoken(mins0)}</span>
+                    )}
+                  </div>
+
+                  {g.items.length === 0 ? (
+                    <p className="mt-3 font-serif text-[22px] leading-tight text-stone-300 sm:text-[26px]">Rest</p>
+                  ) : (
+                    g.items.map((x) => {
+                      const kept = done(x, g.k)
+                      const long = lengthOf(x)
+                      const said = mins(x.minutes) ? x.detail : readLength(x.detail).rest
+                      const meta = [whenLabel(x.when), long ? `${long} min` : '', said].filter(Boolean).join(' · ')
+                      return (
+                        <div key={x.id} className="mt-4 flex items-start gap-5">
+                          <button
+                            onClick={() => setDone(x.id, !kept, g.k)}
+                            aria-pressed={kept}
+                            aria-label={`${kept ? 'Kept' : 'Keep'} ${x.name} on ${g.dow}`}
+                            className="mt-[7px] flex h-[17px] w-[17px] shrink-0 items-center justify-center border transition-colors"
+                            style={{ borderColor: kept ? '#16130F' : '#D6D3D1' }}
+                          >
+                            {kept && (
+                              <svg width="11" height="9" viewBox="0 0 12 10" fill="none" aria-hidden>
+                                <path d="M1 5.1 L4.3 8.4 L11 1.3" stroke="#16130F" strokeWidth="1.4" />
+                              </svg>
+                            )}
+                          </button>
+                          <button onClick={() => setOpen(x)} className="min-w-0 flex-1 text-left transition-opacity hover:opacity-70">
+                            <span className={`block font-serif text-[22px] leading-tight sm:text-[26px] ${kept ? 'text-stone-400 line-through' : 'text-stone-900'}`}>
+                              {x.name}
+                            </span>
+                            {meta && <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-stone-500">{meta}</span>}
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* The footnote. Steps are hers to write; the hours add themselves. */}
         <div className="mt-14 grid grid-cols-2 gap-8 border-t border-stone-200 pt-9">
@@ -353,7 +467,7 @@ export default function Movement({ dateKeyStr }) {
             )}
           </label>
           <div className="block">
-            <span className="kicker block text-stone-500">Active</span>
+            <span className="kicker block text-stone-500">{span === 'week' ? 'Active this week' : 'Active'}</span>
             <span className="mt-3 block font-serif text-[34px] leading-none sm:text-[44px]" style={{ color: active ? '#16130F' : '#D6D3D1' }}>
               {active ? spoken(active) : '0 min'}
             </span>
