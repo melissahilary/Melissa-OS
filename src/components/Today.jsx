@@ -17,7 +17,6 @@ import DaySchedule from './DaySchedule'
 import Movement from './Movement'
 import MonthGrid from './shared/MonthGrid'
 import { slotMeta, SITTINGS, spoken, blankMeal } from '../lib/meals'
-import { catalogueFor } from '../lib/catalogue'
 import { pillarLabel } from '../lib/pillars'
 import { useRegisterAdd, AddChooser } from './shared/AddButton'
 import Checkbox from './shared/Checkbox'
@@ -1060,13 +1059,19 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // A step added to a routine lands at the foot of it, beside the mark that
   // added it. Anywhere else is a drag away — the gesture the panel already
   // has, and the only one a thumb can be precise with.
-  const addRoutineStep = (block, title, category) => {
+  const addRoutineStep = (block, title, category, repeat) => {
     const orders = activities
       .filter((a) => a.type === 'protocol' && (a.details || {}).block === block && typeof a.order === 'number')
       .map((a) => a.order)
     const edge = orders.length ? Math.max(...orders) + 1 : 0
+    const r = (repeat && typeof repeat === 'object') ? repeat : {}
     add(blankActivity('protocol', {
-      title, category: category || 'wellness', frequency: 'daily', seriesStart: selectedKey,
+      title, category: category || '', seriesStart: selectedKey,
+      frequency: r.frequency || 'daily',
+      daysOfWeek: r.daysOfWeek || [],
+      interval: r.interval || 0,
+      intervalUnit: r.intervalUnit || '',
+      seriesEnd: r.seriesEnd || '',
       timeOfDay: [BLOCK_PART[block] || 'morning'], details: { block }, order: edge,
     }))
   }
@@ -1267,62 +1272,57 @@ const TAN = '#C0966F'
 // The × between the names is the chain. It is how habit stacking is written
 // down and it is the one glyph that says these are done together rather than
 // merely listed near each other.
+// ── The ten pillars.
+//
+// What a step belongs to. The same ten words everywhere: on the step, on the
+// heading above its stack, and on the chips in the sheets.
 const STACK_OF = {
-  skincare: 'Skin', facial: 'Skin', aesthetics: 'Skin',
-  haircare: 'Hair',
-  bodycare: 'Body', body: 'Body', treatments: 'Body',
-  mouth: 'Mouth',
-  menu: 'Food', nutrition: 'Food', diet: 'Food',
-  supplements: 'Supplements',
-  fitness: 'Fitness',
-  mindset: 'Mind', brainhealth: 'Mind',
-  spirituality: 'Spirit', spirit: 'Spirit',
-  relationship: 'Circle', relationships: 'Circle', circle: 'Circle',
+  skincare: 'Face', facial: 'Face', face: 'Face',
+  bodycare: 'Body', body: 'Body', treatments: 'Body', mouth: 'Body', haircare: 'Body',
+  menu: 'Nutrition', nutrition: 'Nutrition', diet: 'Nutrition', supplements: 'Nutrition',
+  mindset: 'Mindfulness', mindfulness: 'Mindfulness',
+  brainhealth: 'Brain', brain: 'Brain',
+  fitness: 'Movement', workout: 'Movement', movement: 'Movement',
+  spirituality: 'Spirituality', spirit: 'Spirituality',
+  aesthetics: 'Aesthetics',
+  hormones: 'Hormones',
+  diagnostics: 'Diagnostics', labs: 'Diagnostics', testing: 'Diagnostics',
 }
-// A step that answers to none of them wears no tag rather than a tag that
-// says nothing.
-const tagOf = (cat) => STACK_OF[cat] || ''
-
-// The ten, said in the order they are offered. The way back from the tag to
-// the category the rest of the app stores.
-const TAGS = ['Skin', 'Hair', 'Body', 'Mouth', 'Food', 'Supplements', 'Fitness', 'Mind', 'Spirit', 'Circle']
-// Anything that answers to none of them is still shown, at the foot, rather
-// than disappearing.
+const TAGS = ['Face', 'Body', 'Nutrition', 'Mindfulness', 'Brain', 'Movement',
+  'Spirituality', 'Aesthetics', 'Hormones', 'Diagnostics']
+// Anything answering to none of them is still shown, at the foot, rather than
+// disappearing — but it wears no tag, because a tag saying nothing is worse
+// than none.
 const STACK_ORDER = [...TAGS, 'The rest']
 const stackName = (cat) => STACK_OF[cat] || 'The rest'
+const tagOf = (cat) => STACK_OF[cat] || ''
 const CATEGORY_FOR_TAG = {
-  Skin: 'skincare', Hair: 'haircare', Body: 'bodycare', Mouth: 'mouth',
-  Food: 'menu', Supplements: 'supplements', Fitness: 'fitness',
-  Mind: 'mindset', Spirit: 'spirituality', Circle: 'relationship',
+  Face: 'skincare', Body: 'bodycare', Nutrition: 'menu', Mindfulness: 'mindset',
+  Brain: 'brainhealth', Movement: 'fitness', Spirituality: 'spirituality',
+  Aesthetics: 'aesthetics', Hormones: 'hormones', Diagnostics: 'diagnostics',
 }
 
 // ── Reading what she wrote.
 //
-// The moment there is something to read, the sheet says where it thinks the
-// step goes. It is a recommendation and it is drawn as one — named in tan on
-// its own line, with the chip it points at ringed in the same tan — so it is
-// never mistaken for a decision already made on her behalf. The decision is
-// one press, hers, and the recommendation stays on the page after she has
-// overruled it so she can take it back.
-//
-// It reads her own words rather than asking a model: it answers while she is
-// still typing, it costs nothing, it works on a plane, and nothing she writes
-// down leaves the page. The longest word that matches wins, so "dry brush"
-// beats "brush" and "vitamin c" beats "vitamin".
+// The moment there is something to read, the sheet says which pillar it thinks
+// the step belongs to — named in tan on its own line, with the chip it points
+// at ringed in the same tan, so it is never mistaken for a decision made on her
+// behalf. It reads her own words rather than asking a model: it answers while
+// she is still typing, costs nothing, and nothing she writes leaves the page.
+// The longest word that matches wins.
 const TAG_WORDS = [
-  ['Mouth', ['teeth', 'tooth', 'floss', 'mouth', 'tongue scrape', 'tongue', 'gums', 'oil pull', 'whitening strip', 'retainer']],
-  ['Supplements', ['supplement', 'vitamin d', 'vitamin b', 'vitamin', 'capsule', 'tablet', 'creatine', 'magnesium', 'omega', 'fish oil', 'collagen', 'probiotic', 'zinc', 'iron', 'd3', 'b12', 'ashwagandha', 'nmn', 'electrolyte', 'greens powder']],
-  ['Food', ['eat', 'meal', 'breakfast', 'lunch', 'dinner', 'snack', 'smoothie', 'protein shake', 'juice', 'drink water', 'water', 'tea', 'coffee', 'matcha', 'bone broth', 'broth', 'fast', 'calories', 'macros']],
-  ['Fitness', ['walk', 'steps', 'run', 'gym', 'lift', 'weights', 'strength', 'pilates', 'yoga', 'stretch', 'mobility', 'cardio', 'sauna', 'cold plunge', 'workout', 'train', 'reformer', 'weighted vest', 'vest', 'squat', 'abs', 'glute']],
-  ['Mind', ['journal', 'read', 'breathwork', 'breathing', 'breath', 'meditat', 'gratitude', 'affirmation', 'therapy', 'no screens', 'screen', 'phone', 'focus', 'learn', 'study', 'brain dump']],
-  ['Spirit', ['pray', 'prayer', 'church', 'scripture', 'devotion', 'ritual', 'frequenc', 'sound bath', 'crystal', 'tarot', 'full moon', 'moon', 'manifest', 'altar', 'reiki', 'oracle']],
-  ['Circle', ['call', 'text', 'date night', 'friend', 'family', 'mum', 'mom', 'dad', 'husband', 'partner', 'dinner with', 'check in on', 'reach out', 'write to']],
-  ['Hair', ['hair mask', 'hair oil', 'hair', 'scalp', 'shampoo', 'conditioner', 'rosemary', 'blow dry', 'heat protect', 'braid', 'silk pillow']],
-  ['Skin', ['skin', 'spf', 'sunscreen', 'serum', 'retinol', 'tret', 'azelaic', 'niacinamide', 'cleanse', 'cleanser', 'moistur', 'toner', 'face', 'eye cream', 'sheet mask', 'makeup', 'vitamin c', 'peel', 'microcurrent', 'red light', 'radio frequency', 'gua sha', 'lip']],
-  ['Body', ['dry brush', 'body', 'shower', 'bath', 'exfoliat', 'lotion', 'deodorant', 'nails', 'shave', 'wax', 'lymph', 'massage', 'posture', 'perfume']],
+  ['Diagnostics', ['blood work', 'blood', 'panel', 'labs', 'lab work', 'test', 'scan', 'dexa', 'mri', 'biopsy', 'screening', 'results', 'biomarker', 'glucose', 'cgm']],
+  ['Hormones', ['hormone', 'seed cycling', 'cycle sync', 'progesterone', 'estrogen', 'testosterone', 'thyroid', 'cortisol', 'fertility', 'ovulation', 'luteal', 'follicular', 'peptide']],
+  ['Aesthetics', ['botox', 'tox', 'filler', 'laser', 'microneedling', 'morpheus', 'injector', 'facial', 'derm', 'nails', 'manicure', 'pedicure', 'wax', 'lashes', 'brows', 'salon', 'appointment', 'blowout']],
+  ['Nutrition', ['eat', 'meal', 'breakfast', 'lunch', 'dinner', 'snack', 'smoothie', 'protein', 'juice', 'water', 'tea', 'coffee', 'matcha', 'broth', 'fast', 'supplement', 'vitamin', 'capsule', 'creatine', 'magnesium', 'omega', 'collagen', 'probiotic', 'zinc', 'electrolyte']],
+  ['Movement', ['walk', 'steps', 'run', 'gym', 'lift', 'weights', 'strength', 'pilates', 'yoga', 'stretch', 'mobility', 'cardio', 'sauna', 'cold plunge', 'workout', 'train', 'reformer', 'weighted vest', 'squat', 'glute']],
+  ['Brain', ['read', 'learn', 'study', 'focus', 'memory', 'nootropic', 'puzzle', 'language', 'brain', 'cognition', 'deep work']],
+  ['Mindfulness', ['journal', 'breathwork', 'breathing', 'breath', 'meditat', 'gratitude', 'affirmation', 'therapy', 'stillness', 'brain dump', 'nervous system']],
+  ['Spirituality', ['pray', 'prayer', 'church', 'scripture', 'devotion', 'ritual', 'frequenc', 'sound bath', 'crystal', 'tarot', 'moon', 'manifest', 'altar', 'reiki', 'oracle']],
+  ['Face', ['spf', 'sunscreen', 'serum', 'retinol', 'tret', 'azelaic', 'niacinamide', 'cleanse', 'cleanser', 'moistur', 'toner', 'face', 'eye cream', 'sheet mask', 'makeup', 'vitamin c', 'gua sha', 'lip', 'red light']],
+  ['Body', ['dry brush', 'body', 'shower', 'bath', 'exfoliat', 'lotion', 'deodorant', 'shave', 'lymph', 'posture', 'perfume', 'teeth', 'tooth', 'floss', 'mouth', 'tongue', 'hair', 'scalp', 'shampoo', 'conditioner', 'rosemary']],
 ]
 
-// The recommendation, and whether there was anything in the words to go on.
 const readTag = (title) => {
   const t = String(title || '').toLowerCase()
   if (!t.trim()) return { tag: '', sure: false }
@@ -1335,9 +1335,6 @@ const readTag = (title) => {
       if (t.includes(w) && w.length > longest) { longest = w.length; best = tag }
     }
   }
-  // Nothing in it said what it was. Something is still put forward, because a
-  // recommendation she overrules is quicker than a question she must answer,
-  // and the line above the chips says plainly that it is a shot in the dark.
   return best ? { tag: best, sure: true } : { tag: 'Body', sure: false }
 }
 const guessTag = (title) => readTag(title).tag
@@ -1401,7 +1398,7 @@ function TagField({ value, rec, sure = true, onPick }) {
   )
 }
 
-function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop, onCatalogue }) {
+function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onSkip, onDrop }) {
   const dim = ground === '#1D2FC4' ? 'rgba(247,244,237,0.55)' : 'rgba(247,244,237,0.45)'
   const rule = ground === '#1D2FC4' ? 'rgba(247,244,237,0.22)' : 'rgba(247,244,237,0.16)'
   // A kept step is not gone, it is done: it stays on the panel, struck
@@ -1551,13 +1548,6 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
             </span>
           )}
         </span>
-        <button
-          onClick={() => onCatalogue && onCatalogue()}
-          aria-label={`Catalogue for the ${title === 'Evening Routine' ? 'evening' : 'morning'}`}
-          className="-mr-3 -mt-2 shrink-0 px-4 py-2 text-[30px] leading-none text-cream transition-opacity hover:opacity-70"
-        >
-          +
-        </button>
       </div>
       {/* However long the routine is, the panel stays the height of the page
           and the list scrolls inside it — with no bar drawn, because the bar
@@ -1691,7 +1681,7 @@ function Routine({ title, items, ground, onOpen, onToggle, onReorder, onAdd, onS
         <AddStep
           block={title}
           onClose={() => setWriting(false)}
-          onSave={(t, category) => { if (onAdd) onAdd(t, category); setWriting(false) }}
+          onSave={(t, category, repeat) => { if (onAdd) onAdd(t, category, repeat); setWriting(false) }}
         />
       )}
     </section>
@@ -2099,6 +2089,9 @@ function AddStep({ block, onClose, onSave }) {
   const [rec, setRec] = useState({ tag: '', sure: false })
   const [tag, setTag] = useState('')
   const [chosen, setChosen] = useState(false)
+  // How often it runs. The same field the step's own sheet uses, so the
+  // question is asked the same way whether she is writing it or changing it.
+  const [repeat, setRepeat] = useState({ frequency: 'daily' })
   const field = useRef(null)
   const write = (v) => {
     setT(v)
@@ -2110,7 +2103,7 @@ function AddStep({ block, onClose, onSave }) {
   const save = () => {
     const v = t.trim().toLowerCase()
     if (!v) { if (field.current) field.current.focus(); return }
-    onSave(v, CATEGORY_FOR_TAG[tag] || '')
+    onSave(v, CATEGORY_FOR_TAG[tag] || '', repeat || { frequency: 'daily' })
   }
   return (
     <div
@@ -2121,7 +2114,10 @@ function AddStep({ block, onClose, onSave }) {
       <div
         className="mos-scroll max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-md overflow-y-auto px-7 pb-9 pt-8 sm:px-9"
         style={{ background: '#68472C', color: '#F7F4ED' }}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose()
+          if (e.key === 'Enter' && e.target === field.current) save()
+        }}
       >
         <p className="text-[10px] uppercase tracking-[0.22em] text-cream/60">Add to {block}</p>
         <input
@@ -2139,139 +2135,16 @@ function AddStep({ block, onClose, onSave }) {
           style={{ borderColor: 'rgba(247,244,237,0.22)', color: '#F7F4ED' }}
         />
         {!!t.trim() && <TagField value={tag} rec={rec.tag} sure={rec.sure} onPick={pick} />}
+
+        {/* How often, written down at the same time as the name — so it is
+            never a step she has to go back into to say when it runs. */}
+        <div className="mt-8">
+          <RepeatField value={repeat} startKey={dateKey(new Date())} onChange={setRepeat} />
+        </div>
+
         <div className="mt-9 flex items-center justify-end gap-7">
           <button onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] text-cream/60 transition-opacity hover:opacity-70">Cancel</button>
           <button onClick={save} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Add</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── The catalogue.
-//
-// A routine is easier to choose from than to invent, and at six in the morning
-// a blank field is a blank field. So the corner of each half of the day opens
-// two hundred-odd things real people actually do — the rituals the wellness
-// girls made ordinary, the protocols the biohackers measure, and the plain
-// small ones that are the ones most often kept.
-//
-// It is a list and nothing more: no pictures, no stars, no bundles, no
-// "starter routine". She presses a line and it is hers, at the foot of her
-// own order, to be slid away like any other. What she already has says so and
-// cannot be pressed twice.
-// The catalogue's pillars are the app's sections under other names, so a line
-// pressed there lands in the right stack rather than in a pile called the rest.
-const CATEGORY_OF = {
-  Body: 'bodycare', Mouth: 'mouth', Skin: 'skincare', Hair: 'haircare',
-  Nutrition: 'menu', Hormones: 'workout', Mind: 'mindset', Sleep: 'mindset',
-  Recovery: 'fitness', Spirit: 'spirituality', Relationships: 'relationship',
-}
-
-function Catalogue({ block, taken = [], onAdd, onClose }) {
-  const [q, setQ] = useState('')
-  const [only, setOnly] = useState('')
-  const [just, setJust] = useState([])
-  const cat = catalogueFor(block)
-  const has = (name) => taken.includes(name) || just.includes(name)
-
-  const look = q.trim().toLowerCase()
-  const within = only ? cat.filter((g) => g.group === only) : cat
-  const shown = look
-    ? within.map((g) => ({ ...g, items: g.items.filter((i) => i.includes(look) || g.group.toLowerCase().includes(look)) })).filter((g) => g.items.length)
-    : within
-  const found = shown.reduce((n, g) => n + g.items.length, 0)
-
-  const take = (name, group) => {
-    if (has(name)) return
-    setJust((prev) => [...prev, name])
-    if (onAdd) onAdd(name, CATEGORY_OF[group] || 'wellness')
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
-      style={{ background: 'rgba(22,19,15,0.55)' }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div
-        className="mos-scroll flex max-h-[calc(88vh_-_var(--mos-kb))] w-full max-w-xl flex-col overflow-hidden px-7 pb-8 pt-9 sm:px-10"
-        style={{ background: '#68472C', color: '#F7F4ED' }}
-        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
-      >
-        <p className="text-[10px] uppercase tracking-[0.22em]" style={{ color: '#C0966F' }}>{block === 'evening' ? 'Evening Routine' : 'Morning Routine'}</p>
-        <h3 className="mt-3 font-serif text-[40px] leading-none sm:text-[46px]">Catalogue</h3>
-
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Look for something"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          data-no-dictation
-          className="mt-7 w-full shrink-0 border-b bg-transparent pb-2.5 text-[17px] lowercase outline-none placeholder:opacity-40"
-          style={{ borderColor: 'rgba(247,244,237,0.3)', color: '#F7F4ED' }}
-        />
-
-        {/* Six and twenty headings is a long scroll. The headings themselves
-            are the way through it: press one and the sheet is only that,
-            press it again and the whole thing is back. */}
-        <div className="no-scrollbar -mx-7 mt-5 flex shrink-0 gap-2 overflow-x-auto px-7 sm:-mx-10 sm:px-10">
-          {cat.map((g) => {
-            const on = only === g.group
-            return (
-              <button
-                key={g.group}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setOnly(on ? '' : g.group)}
-                aria-pressed={on}
-                className="shrink-0 whitespace-nowrap border px-3.5 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors"
-                style={{
-                  borderColor: on ? '#F7F4ED' : 'rgba(247,244,237,0.28)',
-                  background: on ? '#F7F4ED' : 'transparent',
-                  color: on ? '#68472C' : '#C0966F',
-                }}
-              >
-                {g.group}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="mos-scroll -mx-1 mt-7 min-h-0 flex-1 overflow-y-auto px-1">
-          {shown.map((g) => (
-            <div key={g.group} className="mb-9">
-              <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: '#C0966F' }}>{g.group}</p>
-              {g.items.map((name) => {
-                const mine = has(name)
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => take(name, g.group)}
-                    disabled={mine}
-                    className="mt-3.5 flex w-full items-baseline justify-between gap-6 text-left transition-opacity hover:opacity-70 disabled:cursor-default disabled:hover:opacity-100"
-                  >
-                    <span className="min-w-0 text-[17px] lowercase leading-snug" style={{ opacity: mine ? 0.45 : 1 }}>{name}</span>
-                    <span className="shrink-0 text-[10px] uppercase tracking-[0.18em]" style={{ color: mine ? 'rgba(247,244,237,0.4)' : '#C0966F' }}>
-                      {mine ? 'In' : 'Add'}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          ))}
-          {!found && <p className="text-[15px] italic opacity-50">Nothing by that name.</p>}
-        </div>
-
-        {/* No tally. A number at the foot of a catalogue is a target, and she
-            is choosing a morning, not filling a quota. */}
-        <div className="mt-6 flex shrink-0 justify-end border-t pt-5" style={{ borderColor: 'rgba(247,244,237,0.22)' }}>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={onClose} className="text-[10px] uppercase tracking-[0.22em] transition-opacity hover:opacity-70">Done</button>
         </div>
       </div>
     </div>
@@ -2309,8 +2182,6 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
 
   // Which half's catalogue is open, and what is already in that half — so a
   // line she keeps says so rather than letting her write it down twice.
-  const [catalogue, setCatalogue] = useState(null)
-  const taken = (list) => list.map((r) => String(r.title || '').trim().toLowerCase())
 
   return (
     <header>
@@ -2331,8 +2202,7 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onOpen={onOpen}
               onToggle={onToggle}
               onReorder={onReorder}
-              onAdd={(title, category) => onAddStep && onAddStep('morning', title, category)}
-              onCatalogue={() => setCatalogue('morning')}
+              onAdd={(title, category, repeat) => onAddStep && onAddStep('morning', title, category, repeat)}
           onSkip={onSkip}
           onDrop={onDrop}
             />
@@ -2345,22 +2215,12 @@ function DayMasthead({ selectedKey, rituals = [], meals = [], onOpen, onToggle, 
               onOpen={onOpen}
               onToggle={onToggle}
               onReorder={onReorder}
-              onAdd={(title, category) => onAddStep && onAddStep('evening', title, category)}
-              onCatalogue={() => setCatalogue('evening')}
+              onAdd={(title, category, repeat) => onAddStep && onAddStep('evening', title, category, repeat)}
           onSkip={onSkip}
           onDrop={onDrop}
             />
           </div>
         </div>
-
-        {catalogue && (
-          <Catalogue
-            block={catalogue}
-            taken={taken(catalogue === 'evening' ? evening : morning)}
-            onAdd={(name, category) => onAddStep && onAddStep(catalogue, name, category)}
-            onClose={() => setCatalogue(null)}
-          />
-        )}
 
         {/* Which half she is on. Only where there is a swipe to make. */}
         <div className="flex items-center gap-4 px-6 py-4 md:hidden">
