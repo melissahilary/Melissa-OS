@@ -19,6 +19,8 @@ import { useActivities } from '../hooks/useActivities'
 import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf } from '../lib/activities'
 import { moonInfo } from '../lib/moon'
 import LocationField, { resolveCoords, locKey } from './shared/LocationField'
+import { useHouseName, useActiveProfileId } from '../hooks/useHouseName'
+import { OWNER_ID } from '../lib/scope'
 
 // Hourly UV index for the location, keyed by UTC hour ("YYYY-MM-DDTHH:00") so the
 // current-hour value can be picked as the day progresses. Null on failure.
@@ -638,6 +640,8 @@ function MoonPopup({ info, onClose }) {
 }
 
 export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle }) {
+  const plannerName = useHouseName()
+  const activeProfile = useActiveProfileId()
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
@@ -807,13 +811,15 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     <div>
       {/* Page title — centered at the very top of the main content */}
       <div className="mb-6 text-center">
-        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
+        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">{plannerName}&apos;s Digital Planner</Cursive>
         <Clock location={location} />
       </div>
 
       <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} goToCycle={goToCycle} />
 
-      <Horoscope />
+      {activeProfile === OWNER_ID ? <Horoscope /> : (
+        <p className="mb-8 text-center font-serif italic text-lg text-stone-400">The sky reading opens on your own planner.</p>
+      )}
 
       <div className="pt-6">
       <Calendar

@@ -3,6 +3,7 @@ import { X, ArrowUp } from 'lucide-react'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useLifeStage } from '../lib/lifeStage'
+import { useHouseName } from '../hooks/useHouseName'
 
 // ── Esmé — the house concierge. A full-height salon, not a chat widget. She
 // answers only from Melissa's own planner, in the voice of a great European spa
@@ -69,6 +70,7 @@ export default function AskConcierge({ open, onClose }) {
   const [, setActivePage] = useLocalStorage('mos:active', 'today')
   const [, setSubs] = useLocalStorage('mos:subpages', {})
   const { stage } = useLifeStage()
+  const plannerName = useHouseName()
   const openDoor = (door) => {
     setActivePage(door.page)
     if (door.sub) setSubs((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [door.page]: door.sub }))
@@ -136,7 +138,7 @@ export default function AskConcierge({ open, onClose }) {
                 <span className="text-[10px] tracking-[0.22em] text-stone-400">AT HER DESK · PRIVATE · YOURS ALONE</span>
               </div>
 
-              <p className="font-serif text-[26px] leading-tight text-stone-900">{greeting}, Melissa.</p>
+              <p className="font-serif text-[26px] leading-tight text-stone-900">{greeting}, {plannerName}.</p>
               <p className="mt-2 font-serif italic text-[16px] leading-relaxed text-stone-500">
                 Every room of your house, one question away. If it isn't in your planner, I'll say so plainly.
               </p>

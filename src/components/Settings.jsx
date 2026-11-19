@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Copy, Check, LogOut, Upload, Trash2, Mail, X, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
+import { Copy, Check, LogOut, Upload, Trash2, Mail, X, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch, Users } from 'lucide-react'
+import HouseholdPeople from './HouseholdPeople'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
@@ -25,6 +26,7 @@ const SECTIONS = [
 // The portal's rooms — each one owns a coherent slice of the account.
 const ROOMS = [
   { id: 'profile', label: 'Profile', icon: UserRound, blurb: 'Who you are' },
+  { id: 'people', label: 'People', icon: Users, blurb: 'Planners in the house' },
   { id: 'appearance', label: 'Appearance', icon: Palette, blurb: 'Your palette' },
   { id: 'body', label: 'My Body', icon: HeartPulse, blurb: 'Life stage & cycle' },
   { id: 'house', label: 'My House', icon: LayoutGrid, blurb: 'Sections & layout' },
@@ -297,6 +299,8 @@ export default function Settings() {
               <button onClick={() => store.signOut()} className="mt-5 flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-700"><LogOut size={14} /> Sign out</button>
             </Card>
           </>)}
+
+          {room === 'people' && <HouseholdPeople />}
 
           {room === 'appearance' && (
             <Card title="The wardrobe." blurb="Choose the palette your whole planner wears. Elegant in every shade.">

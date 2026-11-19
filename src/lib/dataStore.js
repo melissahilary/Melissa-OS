@@ -8,25 +8,36 @@
 // localStorage — that's just the login token, not your planner data.)
 
 import { supabase } from './supabaseClient'
+import { OWNER_ID, physicalKey, isMemberId } from './scope'
 
 const TABLE = 'planner_state'
 
 const cache = new Map()
-const subscribers = new Map() // key -> Set<cb>
+const subscribers = new Map() // logical key -> Set<cb>
 const statusSubs = new Set()
 const writeTimers = new Map()
 
 let user = null
 let phase = 'loading' // loading | signed-out | ready
 let started = false
+// '' means the account holder, whose rows keep their original keys.
+let scopeId = ''
+
+function readLogical(key) {
+  const sk = physicalKey(key, scopeId)
+  return cache.has(sk) ? cache.get(sk) : undefined
+}
 
 // ── pub/sub ─────────────────────────────────────────────────────────
 function notify(key) {
   const subs = subscribers.get(key)
-  if (subs) subs.forEach((cb) => cb(cache.get(key)))
+  if (subs) subs.forEach((cb) => cb(readLogical(key)))
 }
 function notifyAllKnown() {
-  subscribers.forEach((set, key) => set.forEach((cb) => cb(cache.get(key))))
+  subscribers.forEach((set, key) => {
+    const v = readLogical(key)
+    set.forEach((cb) => cb(v))
+  })
 }
 function notifyStatus() {
   const s = getStatus()
@@ -43,37 +54,91 @@ export function subscribeStatus(cb) {
   return () => statusSubs.delete(cb)
 }
 export function getStatus() {
-  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '' }
+  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '', profileId: scopeId || OWNER_ID }
+}
+
+export function getActiveProfile() {
+  return scopeId || OWNER_ID
+}
+
+// Open another person's planner. Their rows live beside the owner's, prefixed,
+// in the same table. Passing the owner id restores the original keys.
+export function setActiveProfile(id) {
+  const next = isMemberId(id) ? id : ''
+  scopeId = next
+  cache.set('mos:active-profile', next || OWNER_ID)
+  if (phase === 'ready' && user) scheduleUpsert('mos:active-profile')
+  notifyAllKnown()
+}
+
+// Drop one person's rows. The owner's book cannot be removed this way.
+export async function forgetProfile(id) {
+  if (!isMemberId(id)) return
+  const prefix = `p:${id}:`
+  const keys = [...cache.keys()].filter((k) => k.startsWith(prefix))
+  keys.forEach((k) => cache.delete(k))
+  if (scopeId === id) {
+    scopeId = ''
+    cache.set('mos:active-profile', OWNER_ID)
+    if (phase === 'ready' && user) scheduleUpsert('mos:active-profile')
+  }
+  notifyAllKnown()
+  if (user && keys.length) {
+    try {
+      const { error } = await supabase.from(TABLE).delete().eq('user_id', user.id).in('key', keys)
+      if (error) console.warn('[mos] forget failed', error.message)
+    } catch (e) {
+      console.warn('[mos] forget error', e)
+    }
+  }
+}
+
+// Dev-only in-memory session, so the house can be reviewed without a login
+// and without touching the hosted database. Vite strips this from production.
+export function enablePreview() {
+  if (!import.meta.env.DEV) return
+  started = true
+  user = null
+  scopeId = ''
+  phase = 'ready'
+  notifyStatus()
 }
 
 // ── read / write ────────────────────────────────────────────────────
 export function get(key, fallback) {
-  return cache.has(key) ? cache.get(key) : fallback
+  const sk = physicalKey(key, scopeId)
+  return cache.has(sk) ? cache.get(sk) : fallback
 }
 
 export function set(key, value) {
-  cache.set(key, value)
+  const sk = physicalKey(key, scopeId)
+  cache.set(sk, value)
   notify(key)
-  if (phase === 'ready' && user) scheduleUpsert(key)
+  if (phase === 'ready' && user) scheduleUpsert(sk)
 }
 
-function scheduleUpsert(key) {
-  clearTimeout(writeTimers.get(key))
-  writeTimers.set(key, setTimeout(() => upsert(key), 400))
+function scheduleUpsert(sk) {
+  clearTimeout(writeTimers.get(sk))
+  writeTimers.set(sk, setTimeout(() => upsert(sk), 400))
 }
-async function upsert(key) {
+async function upsert(sk) {
   if (!user) return
   try {
     const { error } = await supabase
       .from(TABLE)
       .upsert(
-        { user_id: user.id, key, value: cache.get(key), updated_at: new Date().toISOString() },
+        { user_id: user.id, key: sk, value: cache.get(sk), updated_at: new Date().toISOString() },
         { onConflict: 'user_id,key' },
       )
-    if (error) console.warn('[mos] save failed', key, error.message)
+    if (error) console.warn('[mos] save failed', sk, error.message)
   } catch (e) {
-    console.warn('[mos] save error', key, e)
+    console.warn('[mos] save error', sk, e)
   }
+}
+
+function applyStoredScope() {
+  const id = cache.get('mos:active-profile')
+  scopeId = isMemberId(id) ? id : ''
 }
 
 async function loadAll() {
@@ -85,6 +150,7 @@ async function loadAll() {
   } catch (e) {
     console.warn('[mos] load error', e)
   }
+  applyStoredScope()
   notifyAllKnown()
 }
 
@@ -188,8 +254,7 @@ export async function wipeAll() {
   if (user) {
     try { await supabase.from(TABLE).delete().eq('user_id', user.id) } catch (e) { console.warn('[mos] wipe error', e) }
   }
-  const keys = [...cache.keys()]
+  scopeId = ''
   cache.clear()
-  keys.forEach((k) => notify(k))
   notifyAllKnown()
 }

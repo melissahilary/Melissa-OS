@@ -11,13 +11,24 @@ const Cursive = ({ children, className = '' }) => (
 // Gates the whole app on a Supabase session. Shows a splash while resolving the
 // session, a magic-link login when signed out, and the app once signed in.
 export default function AuthGate({ children }) {
-  const [st, setSt] = useState(store.getStatus())
+  // `?preview=1` on a dev server opens an in-memory house and never calls
+  // the hosted database. The flag is compiled out of production builds.
+  const preview = import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === '1'
+  const [st, setSt] = useState(() => {
+    if (preview) store.enablePreview()
+    return store.getStatus()
+  })
 
   useEffect(() => {
+    if (preview) {
+      store.enablePreview()
+      setSt(store.getStatus())
+      return undefined
+    }
     const unsub = store.subscribeStatus(setSt)
     store.init()
     return unsub
-  }, [])
+  }, [preview])
 
   if (st.phase === 'loading') return <Splash />
   if (st.phase === 'signed-out') return <Login />
