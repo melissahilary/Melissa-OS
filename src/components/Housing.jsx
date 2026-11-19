@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { resolveProfile } from '../lib/profile'
+import * as store from '../lib/dataStore'
 import SectionTitle from './shared/SectionTitle'
 import { useRegisterAdd } from './shared/AddButton'
 
@@ -262,6 +264,8 @@ function PropertyCard({ property: p, index, open, onToggle, onUpdate, onRemove }
 }
 
 function ApplicationDetails({ application, setApp, split, setSplit }) {
+  const [profile] = useLocalStorage('mos:profile', null)
+  const you = resolveProfile(profile, store.getStatus().userId).firstName || 'You'
   const rows = [
     { key: 'incomeBefore', label: 'Income before taxes' },
     { key: 'incomeAfter', label: 'Income after taxes' },
@@ -284,7 +288,7 @@ function ApplicationDetails({ application, setApp, split, setSplit }) {
       {/* Credit row */}
       <div className="mb-6 grid gap-3 md:grid-cols-2">
         <div>
-          <p className="kicker text-stone-400 mb-1.5">Melissa · Credit</p>
+          <p className="kicker text-stone-400 mb-1.5">{you} · Credit</p>
           <input value={application.melissa.credit} onChange={(e) => setApp('melissa', { credit: e.target.value })} type="number" placeholder="Score" className="w-32 bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900" />
         </div>
         <div>
@@ -340,7 +344,7 @@ function ApplicationDetails({ application, setApp, split, setSplit }) {
           </div>
           <p className="text-sm text-stone-600">
             <span className="inline-block h-2.5 w-2.5 align-middle mr-2" style={{ backgroundColor: '#B8849A' }} />
-            Melissa · {melPct.toFixed(0)}%
+            {you} · {melPct.toFixed(0)}%
           </p>
           <p className="mt-1.5 text-sm text-stone-600">
             <span className="inline-block h-2.5 w-2.5 align-middle mr-2" style={{ backgroundColor: '#5A6B7B' }} />
@@ -396,7 +400,7 @@ function Chores({ chores, setData }) {
               <input
                 value={c.who || ''}
                 onChange={(e) => update(name, { who: e.target.value })}
-                placeholder="Melissa / Tariq"
+                placeholder={`${you} / Partner`}
                 className="w-full bg-transparent border-b border-stone-300 pb-1 text-sm outline-none focus:border-stone-900"
               />
             </div>

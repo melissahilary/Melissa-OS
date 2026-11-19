@@ -8,36 +8,30 @@
 // localStorage — that's just the login token, not your planner data.)
 
 import { supabase } from './supabaseClient'
-import { OWNER_ID, physicalKey, isMemberId } from './scope'
+import { missingSeeds } from './profile'
+import { listenForAuthLinks, redirectTo, sessionFromUrl } from './nativeAuth'
 
 const TABLE = 'planner_state'
 
 const cache = new Map()
-const subscribers = new Map() // logical key -> Set<cb>
+const subscribers = new Map() // key -> Set<cb>
 const statusSubs = new Set()
 const writeTimers = new Map()
 
 let user = null
-let phase = 'loading' // loading | signed-out | ready
+let phase = 'loading' // loading | signed-out | ready | read-error
 let started = false
-// '' means the account holder, whose rows keep their original keys.
-let scopeId = ''
-
-function readLogical(key) {
-  const sk = physicalKey(key, scopeId)
-  return cache.has(sk) ? cache.get(sk) : undefined
-}
+// Writes wait until a read of this account has succeeded. A failed read must
+// not look like an empty book, and must not be saved over.
+let readOk = false
 
 // ── pub/sub ─────────────────────────────────────────────────────────
 function notify(key) {
   const subs = subscribers.get(key)
-  if (subs) subs.forEach((cb) => cb(readLogical(key)))
+  if (subs) subs.forEach((cb) => cb(cache.get(key)))
 }
 function notifyAllKnown() {
-  subscribers.forEach((set, key) => {
-    const v = readLogical(key)
-    set.forEach((cb) => cb(v))
-  })
+  subscribers.forEach((set, key) => set.forEach((cb) => cb(cache.get(key))))
 }
 function notifyStatus() {
   const s = getStatus()
@@ -54,104 +48,82 @@ export function subscribeStatus(cb) {
   return () => statusSubs.delete(cb)
 }
 export function getStatus() {
-  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '', profileId: scopeId || OWNER_ID }
-}
-
-export function getActiveProfile() {
-  return scopeId || OWNER_ID
-}
-
-// Open another person's planner. Their rows live beside the owner's, prefixed,
-// in the same table. Passing the owner id restores the original keys.
-export function setActiveProfile(id) {
-  const next = isMemberId(id) ? id : ''
-  scopeId = next
-  cache.set('mos:active-profile', next || OWNER_ID)
-  if (phase === 'ready' && user) scheduleUpsert('mos:active-profile')
-  notifyAllKnown()
-}
-
-// Drop one person's rows. The owner's book cannot be removed this way.
-export async function forgetProfile(id) {
-  if (!isMemberId(id)) return
-  const prefix = `p:${id}:`
-  const keys = [...cache.keys()].filter((k) => k.startsWith(prefix))
-  keys.forEach((k) => cache.delete(k))
-  if (scopeId === id) {
-    scopeId = ''
-    cache.set('mos:active-profile', OWNER_ID)
-    if (phase === 'ready' && user) scheduleUpsert('mos:active-profile')
-  }
-  notifyAllKnown()
-  if (user && keys.length) {
-    try {
-      const { error } = await supabase.from(TABLE).delete().eq('user_id', user.id).in('key', keys)
-      if (error) console.warn('[mos] forget failed', error.message)
-    } catch (e) {
-      console.warn('[mos] forget error', e)
-    }
-  }
-}
-
-// Dev-only in-memory session, so the house can be reviewed without a login
-// and without touching the hosted database. Vite strips this from production.
-export function enablePreview() {
-  if (!import.meta.env.DEV) return
-  started = true
-  user = null
-  scopeId = ''
-  phase = 'ready'
-  notifyStatus()
+  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '', userId: user ? user.id : '' }
 }
 
 // ── read / write ────────────────────────────────────────────────────
 export function get(key, fallback) {
-  const sk = physicalKey(key, scopeId)
-  return cache.has(sk) ? cache.get(sk) : fallback
+  return cache.has(key) ? cache.get(key) : fallback
+}
+
+function canPersist() {
+  return readOk && user && user.id && user.id !== 'preview-user'
 }
 
 export function set(key, value) {
-  const sk = physicalKey(key, scopeId)
-  cache.set(sk, value)
+  if (!readOk) return
+  cache.set(key, value)
   notify(key)
-  if (phase === 'ready' && user) scheduleUpsert(sk)
+  if (canPersist()) scheduleUpsert(key)
 }
 
-function scheduleUpsert(sk) {
-  clearTimeout(writeTimers.get(sk))
-  writeTimers.set(sk, setTimeout(() => upsert(sk), 400))
+// An automatic write may create a missing key. It never replaces one.
+export function fillBlank(key, value) {
+  if (!readOk || cache.has(key)) return false
+  set(key, value)
+  return true
 }
-async function upsert(sk) {
-  if (!user) return
+
+function scheduleUpsert(key) {
+  clearTimeout(writeTimers.get(key))
+  writeTimers.set(key, setTimeout(() => upsert(key), 400))
+}
+async function upsert(key) {
+  if (!canPersist()) return
   try {
     const { error } = await supabase
       .from(TABLE)
       .upsert(
-        { user_id: user.id, key: sk, value: cache.get(sk), updated_at: new Date().toISOString() },
+        { user_id: user.id, key, value: cache.get(key), updated_at: new Date().toISOString() },
         { onConflict: 'user_id,key' },
       )
-    if (error) console.warn('[mos] save failed', sk, error.message)
+    if (error) console.warn('[mos] save failed', key, error.message)
   } catch (e) {
-    console.warn('[mos] save error', sk, e)
+    console.warn('[mos] save error', key, e)
   }
 }
 
-function applyStoredScope() {
-  const id = cache.get('mos:active-profile')
-  scopeId = isMemberId(id) ? id : ''
+function applyMissingSeeds() {
+  if (!user) return
+  missingSeeds((key) => cache.has(key), user.id).forEach(([key, value]) => fillBlank(key, value))
 }
 
 async function loadAll() {
-  cache.clear()
   try {
     const { data, error } = await supabase.from(TABLE).select('key,value')
-    if (error) console.warn('[mos] load failed', error.message)
-    else if (data) data.forEach((row) => cache.set(row.key, row.value))
+    if (error || !Array.isArray(data)) {
+      console.warn('[mos] load failed', error && error.message)
+      readOk = false
+      return false
+    }
+    cache.clear()
+    data.forEach((row) => cache.set(row.key, row.value))
+    readOk = true
+    applyMissingSeeds()
+    notifyAllKnown()
+    return true
   } catch (e) {
     console.warn('[mos] load error', e)
+    readOk = false
+    return false
   }
-  applyStoredScope()
-  notifyAllKnown()
+}
+
+async function acceptLink(url) {
+  const found = sessionFromUrl(url)
+  if (!found) return
+  if (found.type === 'code') await supabase.auth.exchangeCodeForSession(found.code)
+  else await supabase.auth.setSession({ access_token: found.access_token, refresh_token: found.refresh_token })
 }
 
 // ── lifecycle ───────────────────────────────────────────────────────
@@ -164,12 +136,13 @@ export async function init() {
   } = await supabase.auth.getSession()
   user = session ? session.user : null
   if (user) {
-    await loadAll()
-    phase = 'ready'
+    const ok = await loadAll()
+    phase = ok ? 'ready' : 'read-error'
   } else {
     phase = 'signed-out'
   }
   notifyStatus()
+  listenForAuthLinks(acceptLink)
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
     const next = session ? session.user : null
@@ -179,11 +152,12 @@ export async function init() {
       if (changed || phase !== 'ready') {
         phase = 'loading'
         notifyStatus()
-        await loadAll()
+        const ok = await loadAll()
+        phase = ok ? 'ready' : 'read-error'
       }
-      phase = 'ready'
       notifyStatus()
     } else {
+      readOk = false
       cache.clear()
       phase = 'signed-out'
       notifyStatus()
@@ -192,11 +166,23 @@ export async function init() {
   })
 }
 
+// Dev-only in-memory book. Vite removes this branch from production builds,
+// and it never calls the hosted database.
+export function enablePreview(mode) {
+  if (!import.meta.env.DEV) return
+  started = true
+  user = { id: 'preview-user', email: 'preview@example.com' }
+  readOk = true
+  if (mode === 'app') cache.set('mos:profile', { firstName: 'Ada', setupComplete: true, cycleOptIn: true })
+  phase = 'ready'
+  notifyStatus()
+}
+
 // ── auth ────────────────────────────────────────────────────────────
 export async function signIn(email) {
   return supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: redirectTo() },
   })
 }
 export async function signOut() {
@@ -204,7 +190,7 @@ export async function signOut() {
 }
 // Change the account email — Supabase emails a confirmation to the new address.
 export async function updateEmail(email) {
-  return supabase.auth.updateUser({ email }, { emailRedirectTo: window.location.origin })
+  return supabase.auth.updateUser({ email }, { emailRedirectTo: redirectTo() })
 }
 
 // ── files ───────────────────────────────────────────────────────────
@@ -219,8 +205,16 @@ export function currentUserId() {
 }
 
 // Returns the stored path, or null when there's no session to own the file.
+export async function uploadResultPhoto(blob) {
+  if (!canPersist()) return null
+  const path = `${user.id}/results/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.jpg`
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false })
+  if (error) { console.warn('[mos] result upload failed', error.message); return null }
+  return path
+}
+
 export async function uploadPhoto(blob, ext = 'jpg') {
-  if (!user) return null
+  if (!canPersist()) return null
   const path = `${user.id}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${ext}`
   const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false })
   if (error) { console.warn('[mos] upload failed', error.message); return null }
@@ -251,10 +245,12 @@ export function all() {
 
 // Permanently delete all planner data for the account (irreversible).
 export async function wipeAll() {
+  if (!readOk) return
   if (user) {
     try { await supabase.from(TABLE).delete().eq('user_id', user.id) } catch (e) { console.warn('[mos] wipe error', e) }
   }
-  scopeId = ''
+  const keys = [...cache.keys()]
   cache.clear()
+  keys.forEach((k) => notify(k))
   notifyAllKnown()
 }

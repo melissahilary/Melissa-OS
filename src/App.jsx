@@ -40,11 +40,9 @@ import Relationship from './components/Relationship'
 import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
 import AskConcierge from './components/AskConcierge'
-import Portfolio from './components/Portfolio'
+import Shelf from './components/Shelf'
 import PhoneTabBar from './components/PhoneTabBar'
-import { useHouseName, useActiveProfileId } from './hooks/useHouseName'
-import * as store from './lib/dataStore'
-import { normalizeMembers, OWNER_ID } from './lib/scope'
+import { APP_NAME } from './lib/brand'
 
 const PILLARS = [
   { id: 'mindset', label: 'Mindset', icon: Compass },
@@ -161,7 +159,7 @@ export default function App() {
   const visiblePillars = PILLARS.filter((p) => !hidden.includes(p.id))
   // Redirect away from any removed or hidden section.
   useEffect(() => {
-    const valid = new Set(['today', 'dream', 'settings', 'portfolio', ...PILLARS.map((p) => p.id)])
+    const valid = new Set(['today', 'dream', 'settings', 'shelf', ...PILLARS.map((p) => p.id)])
     if (!valid.has(active) || hidden.includes(active)) setActive('today')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, setActive, hiddenRaw])
@@ -234,7 +232,7 @@ export default function App() {
     setActivitiesRaw(migrateToActivities({ events: eventsForFix, meals: mealsSource, protocols: protocolsForMigrate }))
   }, [activitiesRaw, eventsForFix, meals, protocolsForMigrate, setActivitiesRaw])
   const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
-  const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
+  const [location, setLocation] = useLocalStorage('mos:settings:location', '')
   const [cycleConfig, setCycleConfig] = useLocalStorage('mos:settings:cycle', {
     lastPeriodStart: '',
     cycleLength: 28,
@@ -253,14 +251,7 @@ export default function App() {
   const goToDay = (k) => { setPendingDay(k); setActive('today') }
   const [menuOpen, setMenuOpen] = useState(false)
   const [askOpen, setAskOpen] = useState(false)
-  const plannerName = useHouseName()
-  const activeProfile = useActiveProfileId()
-  const [householdRaw] = useLocalStorage('mos:household', [])
-  const household = normalizeMembers(householdRaw)
-  // If the open person was removed, come back to the original planner.
-  useEffect(() => {
-    if (store.getActiveProfile() !== activeProfile) store.setActiveProfile(activeProfile)
-  }, [activeProfile])
+  const [shelfView, setShelfView] = useState('cabinet')
   // The chosen wardrobe palette re-skins the whole app via CSS variables.
   const [themeRaw] = useLocalStorage('mos:settings:theme', 'porcelain')
   useEffect(() => {
@@ -271,13 +262,13 @@ export default function App() {
   const isToday = active === 'today'
   const isDream = active === 'dream'
   const isSettings = active === 'settings'
-  const isPortfolio = active === 'portfolio'
-  const isPillar = !isToday && !isDream && !isSettings && !isPortfolio
+  const isShelf = active === 'shelf'
+  const isPillar = !isToday && !isDream && !isSettings && !isShelf
 
   const goToday = () => setActive('today')
   const ActivePillar = isPillar ? PILLAR_COMPONENTS[active] : null
   const activePillarMeta = PILLARS.find((p) => p.id === active)
-  const activeLabel = isToday ? 'Today' : isDream ? 'Dream Planning' : isSettings ? 'Settings' : isPortfolio ? 'Portfolio' : (activePillarMeta ? activePillarMeta.label : 'Menu')
+  const activeLabel = isToday ? 'Today' : isDream ? 'Dream Planning' : isSettings ? 'Settings' : (activePillarMeta ? activePillarMeta.label : 'Menu')
 
   // The sub-page value + setter for whichever pillar is active.
   const activeSub = SUBNAV[active]
@@ -299,15 +290,7 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} onAsk={() => setAskOpen(true)} plannerName={plannerName} />
-      {activeProfile !== OWNER_ID && (
-        <div className="border-b border-stone-200 bg-stone-900 text-cream">
-          <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-6 py-2 md:px-10">
-            <p className="text-sm">{plannerName}&apos;s planner</p>
-            <button onClick={() => store.setActiveProfile(OWNER_ID)} className="text-xs tracking-wide text-cream/80 hover:text-cream">Back to yours</button>
-          </div>
-        </div>
-      )}
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} onAsk={() => setAskOpen(true)} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -316,11 +299,8 @@ export default function App() {
         onGoToday={goToday}
         onGoPillar={(id) => setActive(id)}
         onGoDream={() => { setActive('dream'); setDreamPage('goals') }}
-        onGoPortfolio={() => setActive('portfolio')}
+        onGoShelf={() => { setShelfView('cabinet'); setActive('shelf') }}
         onGoSettings={() => setActive('settings')}
-        household={household}
-        activeProfile={activeProfile}
-        onOpenProfile={(id) => store.setActiveProfile(id)}
       />
 
       {/* Contextual second row — the active section's sub-pages. Mindset also
@@ -337,34 +317,34 @@ export default function App() {
       <main className="overflow-x-hidden px-6 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-10 md:px-10 md:pb-10 lg:px-12">
         <div className="mx-auto max-w-5xl">
           {pageTitle && <h1 className="mb-9 text-center font-serif text-4xl text-stone-900 md:text-5xl">{pageTitle}</h1>}
-          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
+          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} onOpenShelf={() => { setShelfView('cabinet'); setActive('shelf') }} />}
           {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
           {isPillar && ActivePillar && (
             <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
           )}
-          {isPortfolio && <Portfolio />}
           {isSettings && <Settings />}
+          {isShelf && <Shelf view={shelfView} setView={setShelfView} />}
           <Footer />
         </div>
       </main>
 
-      {/* Floating Settings — bottom-left, opposite the Add button. Sits above the phone dock. */}
+      {/* Floating Settings — bottom-left, opposite the Add button */}
       <button
         onClick={() => setActive('settings')}
         title="Settings"
         aria-label="Settings"
-        className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-6 z-40 flex h-11 w-11 items-center justify-center shadow-lg transition-opacity hover:opacity-90 md:bottom-6"
+        className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-6 z-40 flex h-11 w-11 items-center justify-center transition-opacity hover:opacity-90 md:bottom-6"
         style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7', borderRadius: '9999px' }}
       >
         <SettingsIcon size={18} />
       </button>
 
       <PhoneTabBar
-        active={askOpen ? 'ask' : isPortfolio ? 'portfolio' : isToday ? 'today' : menuOpen ? 'index' : ''}
+        active={askOpen ? 'ask' : isShelf && shelfView === 'scan' ? 'scan' : isShelf ? 'shelf' : isToday ? 'today' : menuOpen ? 'index' : ''}
         onToday={goToday}
         onIndex={() => setMenuOpen(true)}
-        onPortfolio={() => setActive('portfolio')}
-        onAsk={() => setAskOpen(true)}
+        onShelf={() => { setShelfView('cabinet'); setActive('shelf') }}
+        onScan={() => { setShelfView('scan'); setActive('shelf') }}
       />
 
       <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} />
@@ -377,7 +357,7 @@ export default function App() {
 // A slim, calm bar: the hairline "index" mark on the left opens the full index
 // (NavMenu); the centered cursive wordmark is a persistent masthead that taps
 // home to Today, so home is always one tap away from any pillar page.
-function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk, plannerName = 'Melissa' }) {
+function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
       <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
@@ -403,7 +383,7 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk, plannerName 
             style={{ fontFamily: "'Pinyon Script', cursive" }}
             className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-2xl"
           >
-            {plannerName}&apos;s Digital Planner
+            {APP_NAME}
           </button>
         )}
       </div>
@@ -415,7 +395,7 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk, plannerName 
 // Opens from the top bar. A Pinyon wordmark, Today as the anchor, then the
 // pillars as a numbered serif index (two columns on wide screens), the current
 // one inked. One tap goes anywhere and closes. Editorial, calm, and fast.
-function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDream, onGoPortfolio, onGoSettings, household = [], activeProfile = OWNER_ID, onOpenProfile }) {
+function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDream, onGoShelf, onGoSettings }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -454,26 +434,6 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
             })}
           </div>
 
-          {household.length > 0 && (
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
-              <button
-                onClick={() => onOpenProfile && onOpenProfile(OWNER_ID)}
-                className={`rounded-full px-3 py-1 text-xs ${activeProfile === OWNER_ID ? 'bg-stone-900 text-cream' : 'text-stone-400 hover:text-stone-800'}`}
-              >
-                You
-              </button>
-              {household.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => onOpenProfile && onOpenProfile(m.id)}
-                  className={`rounded-full px-3 py-1 text-xs ${activeProfile === m.id ? 'bg-stone-900 text-cream' : 'text-stone-400 hover:text-stone-800'}`}
-                >
-                  {m.name}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Dream Planning lives apart from the pillars — a small indulgence you
               step into. A soft inked capsule with a sparkle, centred below. */}
           <div className="mt-14 flex flex-wrap items-center justify-center gap-3">
@@ -487,13 +447,12 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
               Dream Planning
             </button>
             <button
-              onClick={() => go(onGoPortfolio)}
-              className={`inline-flex items-center gap-2 rounded-full border px-6 py-3 font-serif text-lg tracking-wide transition-colors ${
-                active === 'portfolio' ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900'
+              onClick={() => go(onGoShelf)}
+              className={`inline-flex items-center gap-2 border px-6 py-3 font-serif text-lg ${
+                active === 'shelf' ? 'border-stone-900 bg-stone-900 text-cream' : 'border-[#C4A46A] text-stone-800'
               }`}
             >
-              <TrendingUp size={16} strokeWidth={1.5} />
-              Portfolio
+              The Shelf
             </button>
           </div>
         </div>

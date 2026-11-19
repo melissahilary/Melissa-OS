@@ -1,4 +1,4 @@
-// Vercel serverless function: turn the deterministic aspect list into Melissa's
+// Vercel serverless function: turn the deterministic aspect list into her
 // daily horoscope as STRUCTURED JSON (a theme + a per-aspect meaning), in Claude's
 // voice. The astrology MATH happens client-side and is passed in; this endpoint
 // only writes the language. Never invents placements.
@@ -8,16 +8,17 @@
 // its written-from-the-aspects voice.
 
 import Anthropic from '@anthropic-ai/sdk'
+import { requireUser, modelName } from './_guard.js'
 
 // Give the function room for Opus latency + retry backoff on overloaded responses.
 export const maxDuration = 30
 
-const SYSTEM = `You write Melissa's daily horoscope as STRUCTURED JSON.
+const SYSTEM = `You write her daily horoscope as STRUCTURED JSON.
 
 Output ONLY a JSON object — no prose, no markdown, no code fences. Shape:
 {"theme": string, "summary": string, "aspects": [{"from": string, "to": string, "type": string, "meaning": string}]}
 
-WHO YOU WRITE FOR — Speak to Melissa as a Greek goddess: magnetism, peace, and
+WHO YOU WRITE FOR — Speak to her as a Greek goddess: magnetism, peace, and
 effortlessness, a woman whose ease creates desire and life energy in everything
 around her. This is a LIFE horoscope: read the whole of her life through today's
 sky — love, work, body, spirit, money, creativity — not just a passing mood.
@@ -67,10 +68,12 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Method not allowed' })
     return
   }
+  const user = await requireUser(req, res)
+  if (!user) return
 
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    console.log('[horoscope] no ANTHROPIC_API_KEY in env')
+  const model = modelName()
+  if (!apiKey || !model) {
     res.status(200).json({ theme: null, aspects: null, source: 'none' })
     return
   }
@@ -85,7 +88,7 @@ export default async function handler(req, res) {
     const userContent = [
       `Date: ${date}`,
       '',
-      "Melissa's natal big three (context only — do not restate as today's transits):",
+      "Her natal big three (context only — do not restate as today's transits):",
       ...Object.entries(natal).map(([k, v]) => `- ${k}: ${v}`),
       '',
       "Today's aspects (write one distinct meaning for each; keep from/to/type exactly):",
@@ -100,7 +103,7 @@ export default async function handler(req, res) {
     ].join('\n')
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-8',
+      model,
       max_tokens: 700,
       system: SYSTEM,
       messages: [{ role: 'user', content: userContent }],

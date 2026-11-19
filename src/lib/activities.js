@@ -4,8 +4,8 @@
 // fields apply and where it shows. Completion is per-day in `completions` so the
 // same activity reflects the same state in Calendar and Dream Day.
 
-import { parseKey, startOfWeek, dateKey } from './date'
-import { MEAL_SLOTS } from './meals'
+import { parseKey, startOfWeek, dateKey } from './date.js'
+import { MEAL_SLOTS } from './meals.js'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -132,6 +132,7 @@ export const normActivity = (a) => {
   interval: typeof a.interval === 'number' && a.interval > 0 ? a.interval : undefined,
   intervalUnit: a.intervalUnit || undefined,
   linkedId: a.linkedId || null,
+  dayOverrides: a.dayOverrides && typeof a.dayOverrides === 'object' && !Array.isArray(a.dayOverrides) ? a.dayOverrides : {},
   }
 }
 

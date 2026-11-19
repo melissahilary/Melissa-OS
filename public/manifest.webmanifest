@@ -1,7 +1,7 @@
 {
-  "name": "Melissa's Digital Planner",
-  "short_name": "Planner",
-  "description": "A private digital planner for the house.",
+  "name": "The Glow Book",
+  "short_name": "Glow Book",
+  "description": "A private book for the woman who keeps it.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,6 +1,6 @@
 // Vercel serverless function: turn a goal into an achievement PLAN as structured
 // JSON — a ladder of milestones, each carrying the concrete steps that reach it,
-// every step routed to one of Melissa's life pillars + a section so the app can
+// every step routed to one of her life pillars + a section so the app can
 // drop it straight into her planner.
 //
 // Requires ANTHROPIC_API_KEY in the Vercel project env. Without it (or on any
@@ -8,10 +8,11 @@
 // steps manually.
 
 import Anthropic from '@anthropic-ai/sdk'
+import { requireUser, modelName } from './_guard.js'
 
 export const maxDuration = 30
 
-const SYSTEM = `You are Melissa's chief of staff. You turn one goal into a concrete, achievable PLAN.
+const SYSTEM = `You are her chief of staff. You turn one goal into a concrete, achievable PLAN.
 
 Output ONLY a JSON object — no prose, no markdown, no code fences. Shape:
 {"milestones":[{"title":string,"steps":[{"title":string,"pillar":string,"section":string,"kind":string,"cadence":string}]}]}
@@ -34,7 +35,7 @@ Pick the single most natural pillar+section for each step.
 KIND — one of: "appointment" (a booked visit), "lab" (a test/draw), "treatment" (a clinical procedure), "product" (something to buy/take), "habit" (a recurring practice), "action" (a one-time task).
 CADENCE — one of: "once", "daily", "weekly". Habits are daily/weekly; appointments/labs/treatments/actions are once; products are daily unless clearly one-time.
 
-VOICE — Melissa is a woman building a beautiful, high-standard life (skin, body, hormones, mind, home). Keep steps aspirational but concrete and grown-up. No fluff, no motivational filler in the titles.
+VOICE — She is building a beautiful, high-standard life (skin, body, hormones, mind, home). Keep steps aspirational but concrete and grown-up. No fluff, no motivational filler in the titles.
 
 Return 3-5 milestones. Keep the whole plan tight and real — a plan she could start today.`
 
@@ -43,9 +44,11 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Method not allowed' })
     return
   }
+  const user = await requireUser(req, res)
+  if (!user) return
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    console.log('[goal-plan] no ANTHROPIC_API_KEY in env')
+  const model = modelName()
+  if (!apiKey || !model) {
     res.status(200).json({ milestones: null, source: 'none' })
     return
   }
@@ -57,7 +60,7 @@ export default async function handler(req, res) {
     if (!title.trim()) { res.status(200).json({ milestones: null, source: 'empty-input' }); return }
 
     const client = new Anthropic({ apiKey })
-    const user = [
+    const prompt = [
       `GOAL: ${title}`,
       why ? `WHY IT MATTERS: ${why}` : '',
       pillar ? `PRIMARY LIFE AREA (a hint, steps may span others): ${pillar}` : '',
@@ -65,10 +68,10 @@ export default async function handler(req, res) {
     ].filter(Boolean).join('\n')
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-8',
+      model,
       max_tokens: 1200,
       system: SYSTEM,
-      messages: [{ role: 'user', content: user }],
+      messages: [{ role: 'user', content: prompt }],
     })
 
     const raw = (message.content || []).map((b) => (b.type === 'text' ? b.text : '')).join('').trim()

@@ -8,7 +8,9 @@ import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { routeStepToSection } from '../lib/goalRoutes'
 import DreamBoard from './DreamBoard'
-import { useHouseName } from '../hooks/useHouseName'
+import { authHeaders } from '../lib/apiAuth'
+import { resolveProfile } from '../lib/profile'
+import * as store from '../lib/dataStore'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -133,7 +135,7 @@ export default function DreamDashboard() {
   const runAI = async (g) => {
     setAi({ goalId: g.id, status: 'loading' })
     try {
-      const r = await fetch('/api/goal-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: g.title, why: g.vision, pillar: g.pillar }) })
+      const r = await fetch('/api/goal-plan', { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ title: g.title, why: g.vision, pillar: g.pillar }) })
       const data = await r.json()
       if (data && Array.isArray(data.milestones) && data.milestones.length) setAi({ goalId: g.id, status: 'ready', plan: data.milestones })
       else setAi({ goalId: g.id, status: 'error' })
@@ -514,7 +516,8 @@ function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
 
 // ── Briefing — the one thing you read first ──
 function Briefing({ on, attn, weekTotal, weekDone, goalCount }) {
-  const plannerName = useHouseName()
+  const [profile] = useLocalStorage('mos:profile', null)
+  const given = resolveProfile(profile, store.getStatus().userId).firstName
   const h = new Date().getHours()
   const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
   const now = new Date()
@@ -526,7 +529,7 @@ function Briefing({ on, attn, weekTotal, weekDone, goalCount }) {
   return (
     <div className="mb-8">
       <p className="kicker text-stone-400">{dateStr}</p>
-      <h2 className="mt-1 font-serif italic text-3xl md:text-4xl text-stone-900">{greet}, {plannerName}.</h2>
+      <h2 className="mt-1 font-serif italic text-3xl md:text-4xl text-stone-900">{greet}{given ? `, ${given}` : ''}.</h2>
       <p className="mt-3 max-w-xl font-serif text-lg leading-relaxed text-stone-600">{line} {weekLine}</p>
     </div>
   )

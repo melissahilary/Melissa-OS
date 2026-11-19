@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Copy, Check, LogOut, Upload, Trash2, Mail, X, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch, Users } from 'lucide-react'
-import HouseholdPeople from './HouseholdPeople'
+import { Copy, Check, LogOut, Upload, Trash2, Mail, X, UserRound, Palette, HeartPulse, LayoutGrid, Bell, Gem, ShieldCheck, MessageCircle, Watch } from 'lucide-react'
 import * as store from '../lib/dataStore'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import SectionTitle from './shared/SectionTitle'
@@ -26,7 +25,6 @@ const SECTIONS = [
 // The portal's rooms — each one owns a coherent slice of the account.
 const ROOMS = [
   { id: 'profile', label: 'Profile', icon: UserRound, blurb: 'Who you are' },
-  { id: 'people', label: 'People', icon: Users, blurb: 'Planners in the house' },
   { id: 'appearance', label: 'Appearance', icon: Palette, blurb: 'Your palette' },
   { id: 'body', label: 'My Body', icon: HeartPulse, blurb: 'Life stage & cycle' },
   { id: 'house', label: 'My House', icon: LayoutGrid, blurb: 'Sections & layout' },
@@ -121,7 +119,7 @@ export default function Settings() {
   const [profile, setProfile] = useLocalStorage('mos:profile', { name: '', photo: '', timezone: '', birthday: '', birthTime: '', birthPlace: '' })
   const p = profile && typeof profile === 'object' ? profile : {}
   const setP = (patch) => setProfile((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), ...patch }))
-  const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
+  const [location, setLocation] = useLocalStorage('mos:settings:location', '')
   const [hidden, setHidden] = useLocalStorage('mos:settings:hidden', [])
   const hiddenArr = Array.isArray(hidden) ? hidden : []
   const [cycle, setCycle] = useLocalStorage('mos:settings:cycle', { lastPeriodStart: '', cycleLength: 28 })
@@ -253,7 +251,7 @@ export default function Settings() {
                 </div>
               </div>
               <div className="mt-6 grid grid-cols-2 gap-4">
-                <Field label="First name"><input value={p.firstName || ''} onChange={(e) => setP({ firstName: e.target.value })} placeholder="Melissa" className={input} /></Field>
+                <Field label="First name"><input value={p.firstName || ''} onChange={(e) => setP({ firstName: e.target.value })} placeholder="First name" className={input} /></Field>
                 <Field label="Last name"><input value={p.lastName || ''} onChange={(e) => setP({ lastName: e.target.value })} placeholder="Hilary" className={input} /></Field>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -299,8 +297,6 @@ export default function Settings() {
               <button onClick={() => store.signOut()} className="mt-5 flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-700"><LogOut size={14} /> Sign out</button>
             </Card>
           </>)}
-
-          {room === 'people' && <HouseholdPeople />}
 
           {room === 'appearance' && (
             <Card title="The wardrobe." blurb="Choose the palette your whole planner wears. Elegant in every shade.">

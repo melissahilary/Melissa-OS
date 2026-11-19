@@ -3,7 +3,10 @@ import { X, ArrowUp } from 'lucide-react'
 import { plannerSnapshot } from '../lib/plannerSnapshot'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useLifeStage } from '../lib/lifeStage'
-import { useHouseName } from '../hooks/useHouseName'
+import { doorsFor } from '../lib/doors'
+import { authHeaders } from '../lib/apiAuth'
+import { resolveProfile } from '../lib/profile'
+import * as store from '../lib/dataStore'
 
 // ── Esmé — the house concierge. A full-height salon, not a chat widget. She
 // answers only from Melissa's own planner, in the voice of a great European spa
@@ -28,26 +31,7 @@ const ROOMS_OF_ASK = (stage) => [
   { k: 'The Circle', q: 'Whose birthday is coming up?' },
 ]
 
-// Doors — after she answers, the rooms her answer touched appear as quiet
-// chips. Tap one and the salon closes onto that page: every answer is a way in.
-const DOORS = [
-  { match: /\b(eat|eating|meal|diet|food|dinner|lunch|breakfast|menu)\b/i, label: 'The table', page: 'menu', sub: 'diet' },
-  { match: /\b(supplement|vitamin|capsule|stack|magnesium|omega)\b/i, label: 'Supplements', page: 'menu', sub: 'supplements' },
-  { match: /\b(recipe|cook)\b/i, label: 'Recipes', page: 'menu', sub: 'recipes' },
-  { match: /\b(goal|milestone|dream|project)\b/i, label: 'Dream planning', page: 'dream', sub: '' },
-  { match: /\b(week|today|schedule|appointment|calendar|agenda)\b/i, label: 'Today', page: 'today', sub: '' },
-  { match: /\b(skin|skincare|serum|retinol|spf)\b/i, label: 'Skincare', page: 'skincare', sub: 'schedule' },
-  { match: /\b(hair|haircare)\b/i, label: 'Haircare', page: 'haircare', sub: 'schedule' },
-  { match: /\b(cycle|period|phase|hormone|ovulat|luteal|menopause|pregnan)\b/i, label: 'My body', page: 'workout', sub: 'cycle' },
-  { match: /\b(workout|training|train|gym|pilates|lift|fitness)\b/i, label: 'Fitness', page: 'fitness', sub: 'schedule' },
-  { match: /\b(shop|shopping|grocery|buy)\b/i, label: 'Grocery', page: 'menu', sub: 'grocery' },
-]
-const doorsFor = (row) => {
-  const text = `${row.q} ${row.a || ''}`
-  const out = []
-  for (const d of DOORS) if (d.match.test(text) && !out.some((x) => x.label === d.label)) out.push(d)
-  return out.slice(0, 3)
-}
+// Doors live in src/lib/doors.js so a tag matches a whole word, or a declared stem.
 // Elegant monogram seal — a serif E inside a fine double ring.
 function Seal({ size = 44 }) {
   return (
@@ -70,7 +54,8 @@ export default function AskConcierge({ open, onClose }) {
   const [, setActivePage] = useLocalStorage('mos:active', 'today')
   const [, setSubs] = useLocalStorage('mos:subpages', {})
   const { stage } = useLifeStage()
-  const plannerName = useHouseName()
+  const [profile] = useLocalStorage('mos:profile', null)
+  const given = resolveProfile(profile, store.getStatus().userId).firstName
   const openDoor = (door) => {
     setActivePage(door.page)
     if (door.sub) setSubs((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), [door.page]: door.sub }))
@@ -97,7 +82,7 @@ export default function AskConcierge({ open, onClose }) {
     setThread((t) => [...t, { q: text, a: null }])
     setBusy(true)
     try {
-      const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: text, planner: plannerSnapshot() }) })
+      const r = await fetch('/api/ask', { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ question: text, planner: plannerSnapshot() }) })
       const data = await r.json()
       setThread((t) => t.map((row, i) => (i === t.length - 1 ? { ...row, a: data && data.answer ? data.answer : null, error: !(data && data.answer) } : row)))
     } catch (e) {
@@ -138,7 +123,7 @@ export default function AskConcierge({ open, onClose }) {
                 <span className="text-[10px] tracking-[0.22em] text-stone-400">AT HER DESK · PRIVATE · YOURS ALONE</span>
               </div>
 
-              <p className="font-serif text-[26px] leading-tight text-stone-900">{greeting}, {plannerName}.</p>
+              <p className="font-serif text-[26px] leading-tight text-stone-900">{greeting}{given ? `, ${given}` : ''}.</p>
               <p className="mt-2 font-serif italic text-[16px] leading-relaxed text-stone-500">
                 Every room of your house, one question away. If it isn't in your planner, I'll say so plainly.
               </p>

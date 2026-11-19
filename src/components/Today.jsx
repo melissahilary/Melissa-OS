@@ -17,10 +17,12 @@ import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { useActivities } from '../hooks/useActivities'
 import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf } from '../lib/activities'
+import { isRepeating, projectActivity } from '../lib/series'
+import ScopePrompt from './shared/ScopePrompt'
+import { APP_NAME } from '../lib/brand'
 import { moonInfo } from '../lib/moon'
 import LocationField, { resolveCoords, locKey } from './shared/LocationField'
-import { useHouseName, useActiveProfileId } from '../hooks/useHouseName'
-import { OWNER_ID } from '../lib/scope'
+import { ShelfGlance } from './Shelf'
 
 // Hourly UV index for the location, keyed by UTC hour ("YYYY-MM-DDTHH:00") so the
 // current-hour value can be picked as the day progresses. Null on failure.
@@ -639,9 +641,7 @@ function MoonPopup({ info, onClose }) {
   )
 }
 
-export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle }) {
-  const plannerName = useHouseName()
-  const activeProfile = useActiveProfileId()
+export default function Today({ cycleConfig, location, setLocation, pendingDay, clearPendingDay, goToCycle, onOpenShelf }) {
   const today = new Date()
   const [selectedKey, setSelectedKey] = useState(dateKey(today))
   const selected = parseKey(selectedKey)
@@ -662,8 +662,9 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     [cycleConfig.lastPeriodStart, cycleConfig.cycleLength, cycleConfig.manualPhase, dateKey(today)],
   )
 
-  const { activities, add, update, updateDetails, remove, toggleComplete, setOrder } = useActivities()
+  const { activities, add, update, updateDetails, remove, toggleComplete, setOrder, editSeries } = useActivities()
   const [editing, setEditing] = useState(null) // an activity (new or existing)
+  const [pendingEdit, setPendingEdit] = useState(null)
   const [blockAdd, setBlockAdd] = useState(false) // block-scoped add popup open
   const [currentBlock, setCurrentBlock] = useState(DAY_BLOCKS[0]) // the visible day slide
   const [formAllowed, setFormAllowed] = useState(null) // restrict category dropdown
@@ -678,7 +679,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // list, so an event shows once (its primary part orders it).
   const dayEvents = (k) => {
     const out = []
-    activities.forEach((a) => {
+    activities.forEach((raw) => {
+      const a = projectActivity(raw, k)
       if (!active(a, k)) return
       if (a.type === 'event') {
         out.push({ id: a.id, title: a.title, part: eventPartsOf(a)[0], time: a.details.time || '', endTime: a.details.endTime || '', done: isDoneOn(a, k), order: a.order })
@@ -705,7 +707,8 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
   // when it has one (appointments). Meals/supplements live on the meal slides.
   const dayRituals = (k) => {
     const out = []
-    activities.forEach((a) => {
+    activities.forEach((raw) => {
+      const a = projectActivity(raw, k)
       if (!active(a, k)) return
       if (a.type === 'meal_item' || a.type === 'supplement') return
       const moved = a.details?.block
@@ -781,7 +784,18 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
       details: { time: time || '', endTime: time ? (endTime || '') : '', partOfDay: partForTime(time), description: '', attendees: '', durationMinutes: '' },
     }))
 
-  const saveActivity = (a) => { if (isNew(a)) add(a); else update(a.id, a); setEditing(null) }
+  const saveActivity = (a) => {
+    if (isNew(a)) { add(a); setEditing(null); return }
+    const existing = activities.find((x) => x.id === a.id)
+    if (existing && isRepeating(existing)) { setPendingEdit(a); setEditing(null); return }
+    update(a.id, a)
+    setEditing(null)
+  }
+  const commitEdit = (scope) => {
+    if (!pendingEdit) return
+    editSeries(pendingEdit.id, selectedKey, pendingEdit, scope)
+    setPendingEdit(null)
+  }
 
   // The TODAY-view add chooser adds straight into a specific category, so a new
   // item lands in that section (and carries into Today). Nutrition adds a meal;
@@ -811,15 +825,15 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     <div>
       {/* Page title — centered at the very top of the main content */}
       <div className="mb-6 text-center">
-        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">{plannerName}&apos;s Digital Planner</Cursive>
+        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">{APP_NAME}</Cursive>
         <Clock location={location} />
       </div>
 
+      <ShelfGlance onOpen={onOpenShelf} />
+
       <InfoStrip today={today} selectedKey={selectedKey} onPickDay={pickDay} location={location} setLocation={setLocation} cycleConfig={cycleConfig} goToCycle={goToCycle} />
 
-      {activeProfile === OWNER_ID ? <Horoscope /> : (
-        <p className="mb-8 text-center font-serif italic text-lg text-stone-400">The sky reading opens on your own planner.</p>
-      )}
+      <Horoscope />
 
       <div className="pt-6">
       <Calendar
@@ -875,6 +889,12 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
           onClose={() => { setEditing(null); setFormAllowed(null) }}
         />
       )}
+      <ScopePrompt
+        open={!!pendingEdit}
+        itemName={pendingEdit ? pendingEdit.title : ''}
+        onChoose={commitEdit}
+        onClose={() => setPendingEdit(null)}
+      />
     </div>
   )
 }

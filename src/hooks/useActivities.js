@@ -1,5 +1,6 @@
 import { useLocalStorage } from './useLocalStorage'
 import { normActivity } from '../lib/activities'
+import { applySeriesEdit } from '../lib/series'
 import { dateKey } from '../lib/date'
 
 // Single source of truth for every activity (event / meal_item / supplement /
@@ -37,7 +38,17 @@ export function useActivities() {
       return idx >= 0 ? normActivity({ ...normActivity(x), order: idx }) : x
     }))
 
-  return { activities, setRaw, add, update, updateDetails, remove, toggleComplete, setOrder }
+  const editSeries = (id, key, patch, scope) => {
+    setRaw((prev) => {
+      const list = (Array.isArray(prev) ? prev : []).map(normActivity)
+      const current = list.find((x) => x.id === id)
+      if (!current) return list
+      const next = applySeriesEdit(current, key, patch, scope)
+      return [...list.filter((x) => x.id !== id), ...next]
+    })
+  }
+
+  return { activities, setRaw, add, update, updateDetails, remove, toggleComplete, setOrder, editSeries }
 }
 
 export default useActivities

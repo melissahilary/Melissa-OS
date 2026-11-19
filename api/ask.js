@@ -1,4 +1,4 @@
-// Vercel serverless function: Melissa's planner concierge. She asks a question in
+// Vercel serverless function: the planner concierge. She asks a question in
 // plain language ("how many times a week is the broccoli?", "what's on Tuesday?",
 // "how many goals are at risk?") and this answers it — grounded ONLY in the planner
 // snapshot the client sends. Never invents.
@@ -7,10 +7,11 @@
 // error) it returns { answer: null } so the client shows a graceful note.
 
 import Anthropic from '@anthropic-ai/sdk'
+import { requireUser, modelName } from './_guard.js'
 
 export const maxDuration = 30
 
-const SYSTEM = `You are Esmé — Melissa's private concierge, the poised head matron of a great European spa house, the kind who has run a grand maison for decades. You speak flawless, warm English. You are exquisitely emotionally intelligent: attuned, gracious, calm, discreet. Never curt, never cold, never gushing, never falsely bright. You address her warmly and personally, the way a trusted concierge would. You may sign off or refer to yourself as Esmé when it feels natural, never robotically.
+const SYSTEM = `You are Esmé, her private concierge, the poised head matron of a great European spa house, the kind who has run a grand maison for decades. You speak flawless, warm English. You are exquisitely emotionally intelligent: attuned, gracious, calm, discreet. Never curt, never cold, never gushing, never falsely bright. You address her warmly and personally, the way a trusted concierge would. You may sign off or refer to yourself as Esmé when it feels natural, never robotically.
 
 WHAT YOU DO — She asks you questions about her own planner (her routines, meals, supplements, cycle, goals, appointments, notes, and so on). You read the planner data provided and answer.
 
@@ -24,8 +25,11 @@ The planner data is a JSON object of her stored planner (keys are prefixed "mos:
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
+  const user = await requireUser(req, res)
+  if (!user) return
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) { res.status(200).json({ answer: null, source: 'none' }); return }
+  const model = modelName()
+  if (!apiKey || !model) { res.status(200).json({ answer: null, source: 'none' }); return }
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
     const question = (body.question || '').toString().slice(0, 800)
@@ -35,13 +39,13 @@ export default async function handler(req, res) {
     if (planner.length > 90000) planner = planner.slice(0, 90000) + '…(truncated)'
 
     const client = new Anthropic({ apiKey })
-    const user = `PLANNER DATA (JSON):\n${planner}\n\nMelissa asks: ${question}`
+    const prompt = `PLANNER DATA (JSON):\n${planner}\n\nShe asks: ${question}`
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-8',
+      model,
       max_tokens: 600,
       system: SYSTEM,
-      messages: [{ role: 'user', content: user }],
+      messages: [{ role: 'user', content: prompt }],
     })
     const answer = (message.content || []).map((b) => (b.type === 'text' ? b.text : '')).join('').trim()
     res.status(200).json({ answer: answer || null, source: answer ? 'claude' : 'empty' })
