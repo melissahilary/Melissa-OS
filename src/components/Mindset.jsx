@@ -526,7 +526,7 @@ function Gratitude() {
   const [cupsSeen, setCupsSeen] = useLocalStorage('mos:gratitude:cupsSeen', false)
   const chooseCup = (m) => { setMode(m); if (!cupsSeen) setCupsSeen(true) }
   const showCupLine = !cupsSeen && Object.keys(map).length === 0
-  const [locRaw] = useLocalStorage('mos:settings:location', 'Alameda')
+  const [locRaw] = useLocalStorage('mos:settings:location', '')
   const sunset = sunsetOn(today, locRaw)
   const evening = sunset ? today.getTime() >= sunset.getTime() : today.getHours() >= FALLBACK_EVENING_HOUR
   const opensAt = sunset ? clockOf(sunset) : ''

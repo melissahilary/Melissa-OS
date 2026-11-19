@@ -1,0 +1,14 @@
+{
+  "appId": "com.theglowbook.app",
+  "appName": "The Glow Book",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "backgroundColor": "#FAFAF7",
+      "launchAutoHide": true
+    }
+  }
+}

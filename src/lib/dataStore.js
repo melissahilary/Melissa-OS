@@ -8,6 +8,8 @@
 // localStorage — that's just the login token, not your planner data.)
 
 import { supabase } from './supabaseClient'
+import { missingSeeds } from './profile'
+import { listenForAuthLinks, redirectTo, sessionFromUrl } from './nativeAuth'
 
 const TABLE = 'planner_state'
 
@@ -17,8 +19,11 @@ const statusSubs = new Set()
 const writeTimers = new Map()
 
 let user = null
-let phase = 'loading' // loading | signed-out | ready
+let phase = 'loading' // loading | signed-out | ready | read-error
 let started = false
+// Writes wait until a read of this account has succeeded. A failed read must
+// not look like an empty book, and must not be saved over.
+let readOk = false
 
 // ── pub/sub ─────────────────────────────────────────────────────────
 function notify(key) {
@@ -43,7 +48,7 @@ export function subscribeStatus(cb) {
   return () => statusSubs.delete(cb)
 }
 export function getStatus() {
-  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '' }
+  return { phase, email: user ? user.email : '', createdAt: user ? user.created_at || '' : '', userId: user ? user.id : '' }
 }
 
 // ── read / write ────────────────────────────────────────────────────
@@ -51,10 +56,22 @@ export function get(key, fallback) {
   return cache.has(key) ? cache.get(key) : fallback
 }
 
+function canPersist() {
+  return readOk && user && user.id && user.id !== 'preview-user'
+}
+
 export function set(key, value) {
+  if (!readOk) return
   cache.set(key, value)
   notify(key)
-  if (phase === 'ready' && user) scheduleUpsert(key)
+  if (canPersist()) scheduleUpsert(key)
+}
+
+// An automatic write may create a missing key. It never replaces one.
+export function fillBlank(key, value) {
+  if (!readOk || cache.has(key)) return false
+  set(key, value)
+  return true
 }
 
 function scheduleUpsert(key) {
@@ -62,7 +79,7 @@ function scheduleUpsert(key) {
   writeTimers.set(key, setTimeout(() => upsert(key), 400))
 }
 async function upsert(key) {
-  if (!user) return
+  if (!canPersist()) return
   try {
     const { error } = await supabase
       .from(TABLE)
@@ -76,16 +93,37 @@ async function upsert(key) {
   }
 }
 
+function applyMissingSeeds() {
+  if (!user) return
+  missingSeeds((key) => cache.has(key), user.id).forEach(([key, value]) => fillBlank(key, value))
+}
+
 async function loadAll() {
-  cache.clear()
   try {
     const { data, error } = await supabase.from(TABLE).select('key,value')
-    if (error) console.warn('[mos] load failed', error.message)
-    else if (data) data.forEach((row) => cache.set(row.key, row.value))
+    if (error || !Array.isArray(data)) {
+      console.warn('[mos] load failed', error && error.message)
+      readOk = false
+      return false
+    }
+    cache.clear()
+    data.forEach((row) => cache.set(row.key, row.value))
+    readOk = true
+    applyMissingSeeds()
+    notifyAllKnown()
+    return true
   } catch (e) {
     console.warn('[mos] load error', e)
+    readOk = false
+    return false
   }
-  notifyAllKnown()
+}
+
+async function acceptLink(url) {
+  const found = sessionFromUrl(url)
+  if (!found) return
+  if (found.type === 'code') await supabase.auth.exchangeCodeForSession(found.code)
+  else await supabase.auth.setSession({ access_token: found.access_token, refresh_token: found.refresh_token })
 }
 
 // ── lifecycle ───────────────────────────────────────────────────────
@@ -98,12 +136,13 @@ export async function init() {
   } = await supabase.auth.getSession()
   user = session ? session.user : null
   if (user) {
-    await loadAll()
-    phase = 'ready'
+    const ok = await loadAll()
+    phase = ok ? 'ready' : 'read-error'
   } else {
     phase = 'signed-out'
   }
   notifyStatus()
+  listenForAuthLinks(acceptLink)
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
     const next = session ? session.user : null
@@ -113,11 +152,12 @@ export async function init() {
       if (changed || phase !== 'ready') {
         phase = 'loading'
         notifyStatus()
-        await loadAll()
+        const ok = await loadAll()
+        phase = ok ? 'ready' : 'read-error'
       }
-      phase = 'ready'
       notifyStatus()
     } else {
+      readOk = false
       cache.clear()
       phase = 'signed-out'
       notifyStatus()
@@ -126,11 +166,23 @@ export async function init() {
   })
 }
 
+// Dev-only in-memory book. Vite removes this branch from production builds,
+// and it never calls the hosted database.
+export function enablePreview(mode) {
+  if (!import.meta.env.DEV) return
+  started = true
+  user = { id: 'preview-user', email: 'preview@example.com' }
+  readOk = true
+  if (mode === 'app') cache.set('mos:profile', { firstName: 'Ada', setupComplete: true, cycleOptIn: true })
+  phase = 'ready'
+  notifyStatus()
+}
+
 // ── auth ────────────────────────────────────────────────────────────
 export async function signIn(email) {
   return supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: redirectTo() },
   })
 }
 export async function signOut() {
@@ -138,7 +190,7 @@ export async function signOut() {
 }
 // Change the account email — Supabase emails a confirmation to the new address.
 export async function updateEmail(email) {
-  return supabase.auth.updateUser({ email }, { emailRedirectTo: window.location.origin })
+  return supabase.auth.updateUser({ email }, { emailRedirectTo: redirectTo() })
 }
 
 // ── files ───────────────────────────────────────────────────────────
@@ -153,8 +205,16 @@ export function currentUserId() {
 }
 
 // Returns the stored path, or null when there's no session to own the file.
+export async function uploadResultPhoto(blob) {
+  if (!canPersist()) return null
+  const path = `${user.id}/results/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.jpg`
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false })
+  if (error) { console.warn('[mos] result upload failed', error.message); return null }
+  return path
+}
+
 export async function uploadPhoto(blob, ext = 'jpg') {
-  if (!user) return null
+  if (!canPersist()) return null
   const path = `${user.id}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${ext}`
   const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false })
   if (error) { console.warn('[mos] upload failed', error.message); return null }
@@ -185,6 +245,7 @@ export function all() {
 
 // Permanently delete all planner data for the account (irreversible).
 export async function wipeAll() {
+  if (!readOk) return
   if (user) {
     try { await supabase.from(TABLE).delete().eq('user_id', user.id) } catch (e) { console.warn('[mos] wipe error', e) }
   }

@@ -1,4 +1,4 @@
-# Melissa OS — Melissa's Digital Planner
+# The Glow Book
 
 A private React digital planner with an editorial, old-money aesthetic. Cycle-synced
 meal planning, daily schedule, wellness protocol tracking, housing, and Dream World

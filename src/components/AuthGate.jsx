@@ -1,26 +1,45 @@
 import React, { useEffect, useState } from 'react'
 import { Mail, Check } from 'lucide-react'
 import * as store from '../lib/dataStore'
-
-const Cursive = ({ children, className = '' }) => (
-  <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>
-    {children}
-  </span>
-)
+import Logo from './shared/Logo'
+import { needsSetup } from '../lib/profile'
+import { useLocalStorage } from '../hooks/useLocalStorage'
+import FirstRun from './FirstRun'
 
 // Gates the whole app on a Supabase session. Shows a splash while resolving the
 // session, a magic-link login when signed out, and the app once signed in.
 export default function AuthGate({ children }) {
-  const [st, setSt] = useState(store.getStatus())
+  const preview = import.meta.env.DEV && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('preview') : null
+  const [st, setSt] = useState(() => {
+    if (preview === 'signedout') return { phase: 'signed-out', email: '', userId: '' }
+    if (preview === 'setup') { store.enablePreview('setup'); return store.getStatus() }
+    if (preview === '1' || preview === 'app') { store.enablePreview('app'); return store.getStatus() }
+    return store.getStatus()
+  })
 
   useEffect(() => {
+    if (preview === 'signedout') {
+      setSt({ phase: 'signed-out', email: '', userId: '' })
+      return undefined
+    }
+    if (preview) {
+      setSt(store.getStatus())
+      return undefined
+    }
     const unsub = store.subscribeStatus(setSt)
     store.init()
     return unsub
-  }, [])
+  }, [preview])
 
   if (st.phase === 'loading') return <Splash />
+  if (st.phase === 'read-error') return <ReadError />
   if (st.phase === 'signed-out') return <Login />
+  return <Ready userId={st.userId}>{children}</Ready>
+}
+
+function Ready({ userId, children }) {
+  const [profile] = useLocalStorage('mos:profile', null)
+  if (needsSetup(profile, userId)) return <FirstRun />
   return children
 }
 
@@ -35,7 +54,7 @@ function Splash() {
   }, [])
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-cream px-6 text-center">
-      <Cursive className="text-4xl text-stone-400">Melissa's Digital Planner</Cursive>
+      <Logo size="splash" />
       {slow && (
         <div>
           <p className="text-sm text-stone-500">Taking longer than usual to load.</p>
@@ -91,7 +110,7 @@ function Login() {
     <div className="flex min-h-screen items-center justify-center px-6" style={linenBg}>
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
-          <Cursive className="text-5xl text-stone-900 leading-tight">Melissa's Digital Planner</Cursive>
+          <Logo size="signin" />
         </div>
 
         {sent ? (
@@ -127,12 +146,23 @@ function Login() {
               className="flex w-full items-center justify-center gap-2 bg-stone-900 px-4 py-2.5 text-sm text-cream hover:bg-stone-700 disabled:opacity-50"
             >
               <Mail size={15} />
-              {busy ? 'Sending…' : 'let me in.'}
+              {busy ? 'Sending…' : 'Email me a link'}
             </button>
+            <p className="mt-4 text-center text-xs leading-relaxed text-stone-400">A new address opens a new book. A link you have used brings that book back.</p>
             {error && <p className="mt-3 text-xs text-phase-menstrual">{error}</p>}
           </form>
         )}
       </div>
+    </div>
+  )
+}
+
+function ReadError() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-cream px-6 text-center">
+      <Logo size="splash" />
+      <p className="max-w-sm font-serif text-lg italic text-stone-600">The book did not open. Nothing was changed. Try again when the line is clear.</p>
+      <button onClick={() => window.location.reload()} className="bg-[#6B2B2B] px-5 py-2.5 text-sm text-cream">Try again</button>
     </div>
   )
 }

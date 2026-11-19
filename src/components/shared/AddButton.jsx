@@ -11,7 +11,12 @@ import { dateKey } from '../../lib/date'
 // useRegisterAdd — the sheet offers it as "Open the full editor" when present.
 
 const AddCtx = createContext(() => {})
+const OpenCtx = createContext(() => {})
 const uid = () => Math.random().toString(36).slice(2, 10)
+
+export function useOpenAdd() {
+  return useContext(OpenCtx)
+}
 
 export function useRegisterAdd(handler, deps = []) {
   const register = useContext(AddCtx)
@@ -106,6 +111,7 @@ export function AddProvider({ children }) {
 
   return (
     <AddCtx.Provider value={register}>
+      <OpenCtx.Provider value={() => setOpen(true)}>
       {children}
 
       {onHome && (
@@ -113,7 +119,7 @@ export function AddProvider({ children }) {
           onClick={() => setOpen(true)}
           aria-label="Add something"
           title="Add"
-          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105"
+          className="fixed bottom-6 right-6 z-40 hidden h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105 motion-reduce:transition-none md:flex"
           style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7' }}
         >
           <Plus size={22} strokeWidth={1.75} />
@@ -123,11 +129,12 @@ export function AddProvider({ children }) {
       {open && <QuickAdd onClose={() => setOpen(false)} onDone={showToast} fullEditor={hasHandler ? () => { setOpen(false); ref.current && ref.current() } : null} />}
 
       {toast && (
-        <button onClick={() => goTo(toast.dest)} className="fixed bottom-24 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream shadow-xl transition-transform hover:scale-[1.02]">
+        <button onClick={() => goTo(toast.dest)} className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-1/2 z-[80] flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm text-cream shadow-xl md:bottom-24">
           <Check size={14} strokeWidth={2.5} /> {toast.text}
           {toast.dest && <span className="ml-1 border-l border-cream/30 pl-2.5 text-cream/80">View →</span>}
         </button>
       )}
+      </OpenCtx.Provider>
     </AddCtx.Provider>
   )
 }

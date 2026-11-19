@@ -1,12 +1,8 @@
-# Melissa OS — project guide for Claude Code
+# The Glow Book — project guide
 
-A private React digital planner for Melissa Devenish. Editorial old-money aesthetic.
-No "Glow Protocol" branding anywhere — this is a personal planner.
-
-## Stack
-- React 18 + Vite 5 + Tailwind 3, lucide-react icons.
-- Fonts: Cormorant Garamond (serif), Inter (sans), Pinyon Script (cursive — only
-  "Daily Schedule" and "Melissa's Digital Planner").
+A private React planner. The public name lives in `src/lib/brand.js`.
+Fonts: Cormorant Garamond (serif), Inter (sans), Pinyon Script (cursive — the
+book's name, and "Daily Schedule").
 - Build: `npm run build` → `dist/`.
 
 ## Data & auth — Supabase
@@ -24,9 +20,7 @@ No "Glow Protocol" branding anywhere — this is a personal planner.
 - Deterministic ephemeris in the browser: `src/lib/astrology/` (natal chart
   hard-coded; `transits.js` computes today's geocentric tropical longitudes via
   `astronomy-engine` and aspects them to natal points). Math stays in code.
-- Voice from Claude via the Vercel serverless function `api/horoscope.js`
-  (model `claude-opus-4-8`). Needs `ANTHROPIC_API_KEY` set in Vercel env; without
-  it the card falls back to a deterministic written-from-the-aspects reading.
+- The daily reading is computed in the browser from the chart. No language service.
 - Cached per day in `mos:horoscope` so it's at most one LLM call/day.
 
 ## Branches & deploy
@@ -36,8 +30,7 @@ No "Glow Protocol" branding anywhere — this is a personal planner.
   the feature branch (it spawns a redundant preview deploy).
 - Vercel Git integration auto-deploys `main`.
   - Project: `melissa-os`, framework Vite. Live: https://melissa-os.vercel.app
-  - Vercel team "Glow Protocol": `team_OuXAEo7YnHHcXjqEE70tFgmr` (team label only,
-    not in the code).
+ - Vercel team id: `team_OuXAEo7YnHHcXjqEE70tFgmr` (team label only, not in the code).
   - `vercel.json` sets build/output + SPA rewrite; `public/_redirects` is the
     SPA fallback for other static hosts.
 

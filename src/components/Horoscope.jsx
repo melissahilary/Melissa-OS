@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { computeTransits } from '../lib/astrology/transits'
 import { natalLongitudesWith, SIGNS } from '../lib/astrology/natal'
+import { resolveSigns } from '../lib/profile'
+import * as store from '../lib/dataStore'
 
 const DEFAULT_SIGNS = { sun: 'Libra', moon: 'Taurus', rising: 'Libra' }
 const signSig = (s) => `${s.sun}|${s.moon}|${s.rising}`
@@ -263,14 +265,15 @@ function PlanetPopup({ ruler, onClose }) {
 function HoroscopeInner() {
   const today = useMemo(() => new Date(), [])
   const key = dateKey(today)
-
-  // The chart editor is a "try it on" tool — it lives in ephemeral state, so a page
-  // reload always returns to Melissa's real chart (the defaults).
-  const [signsRaw, setSigns] = useState(DEFAULT_SIGNS)
+  const userId = store.getStatus().userId
+  const [storedSigns, setStoredSigns] = useLocalStorage('mos:astro:signs', null)
+  const resolved = resolveSigns(storedSigns, userId)
+  const hasChart = !!(resolved.sun && resolved.moon && resolved.rising)
+  const [signsRaw, setSigns] = useState(resolved)
   const signs = {
-    sun: SIGNS.includes(signsRaw?.sun) ? signsRaw.sun : DEFAULT_SIGNS.sun,
-    moon: SIGNS.includes(signsRaw?.moon) ? signsRaw.moon : DEFAULT_SIGNS.moon,
-    rising: SIGNS.includes(signsRaw?.rising) ? signsRaw.rising : DEFAULT_SIGNS.rising,
+    sun: SIGNS.includes(signsRaw?.sun) ? signsRaw.sun : '',
+    moon: SIGNS.includes(signsRaw?.moon) ? signsRaw.moon : '',
+    rising: SIGNS.includes(signsRaw?.rising) ? signsRaw.rising : '',
   }
   const sig = signSig(signs)
   const [editing, setEditing] = useState(false)
@@ -278,6 +281,7 @@ function HoroscopeInner() {
   // Guard the math too — a thrown transit calc must not crash the page. The chosen
   // Sun/Moon/Rising personalize which natal points today's transits aspect.
   const top = useMemo(() => {
+    if (!SIGNS.includes(signs.sun) || !SIGNS.includes(signs.moon) || !SIGNS.includes(signs.rising)) return []
     try {
       const natalLons = natalLongitudesWith({ Sun: signs.sun, Moon: signs.moon, Ascendant: signs.rising })
       const { aspects } = computeTransits(today, natalLons)
@@ -287,76 +291,33 @@ function HoroscopeInner() {
     }
   }, [today, sig])
 
-  const [cached, setCached] = useLocalStorage('mos:horoscope', null)
   const [data, setData] = useState(() => fallbackData(top))
-  const [refresh, setRefresh] = useState(0) // bumped on Save to re-pull the reading
-  const lastRefresh = useRef(0)
+  const [refresh, setRefresh] = useState(0)
 
   useEffect(() => {
-    // A Save forces a fresh pull past the daily cache; a normal render uses cache.
-    const forced = refresh !== lastRefresh.current
-    lastRefresh.current = refresh
-    // Use the cache only if it's today's, matches the current signs, and is valid.
-    if (
-      !forced &&
-      cached &&
-      cached.date === key &&
-      cached.signs === sig &&
-      cached.voice === VOICE &&
-      typeof cached.theme === 'string' &&
-      Array.isArray(cached.aspects) &&
-      cached.aspects.length > 0 &&
-      cached.aspects.every(isValidAspect)
-    ) {
-      setData(normalizeData(cached))
-      return undefined
-    }
-
-    // No matching cache. Keep whatever accurate reading is already on screen; only
-    // fall to the deterministic reading if nothing is displayed yet. This is what
-    // prevents the backup from ever replacing a good reading (e.g. editing offline).
-    setData((prev) => {
-      const cur = normalizeData(prev)
-      return cur.summary || cur.aspects.length ? prev : fallbackData(top)
-    })
-    if (!top.length) return undefined
-
-    let alive = true
-    const payload = top.map((a) => ({
-      from: meaningOf(a.transit).toUpperCase(),
-      to: meaningOf(a.natal).toUpperCase(),
-      type: String(a.aspect || ''),
-      quality: qualityOf(a.aspect),
-      orb: a.orb,
-    }))
-    const natalContext = { sun: `${signs.sun} Sun`, moon: `${signs.moon} Moon`, rising: `${signs.rising} Rising` }
-    ;(async () => {
-      try {
-        const res = await fetch('/api/horoscope', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date: key, aspects: payload, natal: natalContext }),
-        })
-        if (!res.ok) return
-        const json = await res.json()
-        const next = normalizeData(json)
-        if (next.aspects.length && next.theme && alive) {
-          setData(next)
-          // Only persist the reading for the real chart, so a "try it on" combo
-          // never overwrites the daily reading that loads on refresh.
-          if (sig === signSig(DEFAULT_SIGNS)) {
-            setCached({ date: key, signs: sig, voice: VOICE, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'claude' })
-          }
-        }
-      } catch {
-        /* offline / no key — the deterministic fallback already rendered */
-      }
-    })()
-    return () => {
-      alive = false
-    }
+    if (!signs.sun || !signs.moon || !signs.rising) return undefined
+    setData(fallbackData(top))
+    return undefined
+    // Drawn on this device from the chart. The stored daily cache is left as it is.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, top, sig, refresh])
+
+  if (!signs.sun || !signs.moon || !signs.rising) {
+    return (
+      <div className="mb-8 rounded-2xl border border-stone-200 px-6 py-8 text-center">
+        <p className="font-serif text-2xl text-stone-900">Your chart</p>
+        <p className="mt-2 text-sm text-stone-500">Sun, Moon and Rising, when you want a reading.</p>
+        <button onClick={() => setEditing(true)} className="mt-4 min-h-11 px-4 text-sm text-stone-900">Set them</button>
+        {editing && (
+          <SignsModal
+            signs={{ sun: 'Aries', moon: 'Aries', rising: 'Aries' }}
+            onSave={(next) => { setSigns(next); setStoredSigns(next); setRefresh((n) => n + 1); setEditing(false) }}
+            onClose={() => setEditing(false)}
+          />
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
@@ -364,7 +325,7 @@ function HoroscopeInner() {
       {editing && (
         <SignsModal
           signs={signs}
-          onSave={(next) => { setSigns(next); setRefresh((n) => n + 1); setEditing(false) }}
+          onSave={(next) => { setSigns(next); setStoredSigns(next); setRefresh((n) => n + 1); setEditing(false) }}
           onClose={() => setEditing(false)}
         />
       )}

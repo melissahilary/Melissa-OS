@@ -1,4 +1,4 @@
-// A compact, grounded snapshot of the whole planner for the concierge (api/ask).
+// A compact reading of the planner, kept for export and for any future grounded view.
 // Reads every mos:* store from the in-memory data cache, trims bulky text, and
 // stamps today's date + weekday so answers about "this week" / "today" work.
 

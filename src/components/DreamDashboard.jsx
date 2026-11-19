@@ -8,6 +8,8 @@ import Checkbox from './shared/Checkbox'
 import ActivityForm from './shared/ActivityForm'
 import { routeStepToSection } from '../lib/goalRoutes'
 import DreamBoard from './DreamBoard'
+import { resolveProfile } from '../lib/profile'
+import * as store from '../lib/dataStore'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -100,7 +102,6 @@ export default function DreamDashboard() {
   const { activities, add, update, remove, toggleComplete } = useActivities()
   const [openId, setOpenId] = useState(null)
   const [openMs, setOpenMs] = useState(() => new Set())
-  const [ai, setAi] = useState(null) // { goalId, status:'loading'|'ready'|'error', plan }
   const [dragId, setDragId] = useState(null)
   const [tab, setTab] = useState('week')
   const [goalView, setGoalView] = useState('board') // board | timeline | metrics
@@ -122,29 +123,13 @@ export default function DreamDashboard() {
     add(stepActivity(goalId, milestoneId, s))
     routeStepToSection({ pillar: s.pillar, kind: s.kind, title: s.title, goalId })
   }
-  const acceptPlan = (g, plan) => {
-    const newMs = []
-    plan.forEach((m) => { const mid = uid(); newMs.push({ id: mid, title: m.title, done: false }); m.steps.forEach((s) => addStep(g.id, mid, s)) })
-    updateGoal(g.id, { milestones: [...g.milestones, ...newMs] })
-    setAi(null)
-  }
-
-  const runAI = async (g) => {
-    setAi({ goalId: g.id, status: 'loading' })
-    try {
-      const r = await fetch('/api/goal-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: g.title, why: g.vision, pillar: g.pillar }) })
-      const data = await r.json()
-      if (data && Array.isArray(data.milestones) && data.milestones.length) setAi({ goalId: g.id, status: 'ready', plan: data.milestones })
-      else setAi({ goalId: g.id, status: 'error' })
-    } catch (e) { setAi({ goalId: g.id, status: 'error' }) }
-  }
 
   const openGoal = (id) => {
     setOpenId(id)
     const g = goals.find((x) => x.id === id)
     const next = new Set()
     if (g) { const cur = g.milestones.findIndex((m) => !msDone(m)); if (cur >= 0) next.add(cur) }
-    setOpenMs(next); setAi(null)
+    setOpenMs(next)
   }
   const toggleMsOpen = (mi) => setOpenMs((s) => { const n = new Set(s); n.has(mi) ? n.delete(mi) : n.add(mi); return n })
 
@@ -267,10 +252,6 @@ export default function DreamDashboard() {
           onToggleStep={(id) => toggleComplete(id, todayKey())}
           onRemoveStep={(id) => remove(id)}
           onAddStep={(mid, title) => addStep(openGoalObj.id, mid, { title, pillar: openGoalObj.pillar, section: 'Today', kind: 'action', cadence: 'once' })}
-          ai={ai && ai.goalId === openGoalObj.id ? ai : null}
-          onRunAI={() => runAI(openGoalObj)}
-          onAcceptAI={(plan) => acceptPlan(openGoalObj, plan)}
-          onDismissAI={() => setAi(null)}
         />
       )}
 
@@ -316,7 +297,7 @@ function GoalCard({ goal, steps, onOpen, onDragStart, onDragEnd }) {
   )
 }
 
-function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep, ai, onRunAI, onAcceptAI, onDismissAI }) {
+function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onClose, onRemove, onToggleStep, onRemoveStep, onAddStep }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(() => setMounted(true), 10); return () => clearTimeout(t) }, [])
   useEffect(() => { const onEsc = (e) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', onEsc); return () => document.removeEventListener('keydown', onEsc) }, [onClose])
@@ -412,15 +393,6 @@ function GoalPanel({ goal, steps, health, openMs, onToggleMsOpen, onUpdate, onCl
           </div>
           <MilestoneAdd onAdd={addMilestone} />
 
-          {/* AI */}
-          {ai ? (
-            <AIPlan ai={ai} onAccept={onAcceptAI} onDismiss={onDismissAI} onRetry={onRunAI} />
-          ) : (
-            <button onClick={onRunAI} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-white/40 px-4 py-3.5 text-sm font-medium text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
-              <Sparkles size={16} /> {goal.milestones.length ? 'Extend the plan with AI' : 'Build the plan with AI'}
-            </button>
-          )}
-
           {/* links — attachments, the light way */}
           <LinksSection links={goal.links || []} onChange={(links) => onUpdate({ links })} />
 
@@ -469,50 +441,10 @@ function MilestoneAdd({ onAdd }) {
   )
 }
 
-function AIPlan({ ai, onAccept, onDismiss, onRetry }) {
-  if (ai.status === 'loading') {
-    return <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white/50 px-4 py-4 text-sm text-stone-500"><Sparkles size={15} className="animate-pulse" /> Building your plan…</div>
-  }
-  if (ai.status === 'error') {
-    return (
-      <div className="mt-3 rounded-xl border border-stone-200 bg-white/50 px-4 py-4 text-sm text-stone-500">
-        <p>Couldn't reach the planner right now. Add milestones and steps by hand, or</p>
-        <button onClick={onRetry} className="mt-1 text-stone-800 underline underline-offset-2 hover:text-stone-900">try again</button>.
-      </div>
-    )
-  }
-  return (
-    <div className="mt-3 overflow-hidden rounded-2xl border border-stone-200 bg-white/60 shadow-sm">
-      <div className="flex items-center gap-2 border-b border-stone-100 bg-stone-500/5 px-4 py-3"><Sparkles size={15} className="text-stone-600" /><span className="kicker text-stone-600">Proposed path</span></div>
-      <div className="px-4 py-2">
-        {ai.plan.map((m, i) => (
-          <div key={i} className="py-3 border-b border-stone-100 last:border-b-0">
-            <div className="mb-1.5 flex items-center gap-2.5">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-stone-300 text-[11px] font-medium text-stone-500 tabular-nums">{i + 1}</span>
-              <span className="font-serif text-base font-semibold text-stone-900">{m.title}</span>
-            </div>
-            {m.steps.map((s, j) => { const P = pillarMeta(s.pillar); return (
-              <div key={j} className="flex items-start gap-2.5 py-1 pl-7.5" style={{ paddingLeft: '1.9rem' }}>
-                <Check size={14} className="mt-0.5 shrink-0" style={{ color: HEALTH.on.c }} />
-                <div className="min-w-0">
-                  <div className="text-sm text-stone-800">{s.title}</div>
-                  <div className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-stone-400"><span className="h-2 w-2 rounded-full" style={{ background: P.tint }} /><span className="text-stone-500">{P.label}</span> · {s.section}</div>
-                </div>
-              </div>
-            ) })}
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-3 border-t border-stone-100 px-4 py-3">
-        <button onClick={() => onAccept(ai.plan)} className="flex-1 rounded-full bg-stone-900 px-4 py-2.5 text-sm text-cream hover:bg-stone-700">Accept plan → send to planner</button>
-        <button onClick={onDismiss} className="text-xs text-stone-400 hover:text-stone-700">Not now</button>
-      </div>
-    </div>
-  )
-}
-
 // ── Briefing — the one thing you read first ──
 function Briefing({ on, attn, weekTotal, weekDone, goalCount }) {
+  const [profile] = useLocalStorage('mos:profile', null)
+  const given = resolveProfile(profile, store.getStatus().userId).firstName
   const h = new Date().getHours()
   const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
   const now = new Date()
@@ -524,7 +456,7 @@ function Briefing({ on, attn, weekTotal, weekDone, goalCount }) {
   return (
     <div className="mb-8">
       <p className="kicker text-stone-400">{dateStr}</p>
-      <h2 className="mt-1 font-serif italic text-3xl md:text-4xl text-stone-900">{greet}, Melissa.</h2>
+      <h2 className="mt-1 font-serif italic text-3xl md:text-4xl text-stone-900">{greet}{given ? `, ${given}` : ''}.</h2>
       <p className="mt-3 max-w-xl font-serif text-lg leading-relaxed text-stone-600">{line} {weekLine}</p>
     </div>
   )

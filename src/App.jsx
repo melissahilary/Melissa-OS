@@ -3,14 +3,14 @@ import {
   UtensilsCrossed, Activity, Dumbbell, Brain, Scissors, Droplets, Heart, Briefcase, Code2, Home, Building2, Users,
   ChevronLeft, ChevronDown, Compass, PanelLeftClose, PanelLeftOpen, CalendarDays, CalendarRange, ClipboardList, Flower2, Gem, FlaskConical, Sun,
   Target, UserRound, MapPin, Shirt, Car, TrendingUp, Sparkles, MessageCircle,
-  Settings as SettingsIcon, X,
+  Settings as SettingsIcon, X, Plus,
 } from 'lucide-react'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { phaseFor } from './lib/cycle'
 import { dateKey } from './lib/date'
 import { migrateWeekPlan, normMeal } from './lib/meals'
 import { migrateToActivities } from './lib/activities'
-import { AddProvider } from './components/shared/AddButton'
+import { AddProvider, useOpenAdd } from './components/shared/AddButton'
 
 // Titles that were mistakenly stored as checkbox events but are really meal items.
 const RECLASSIFY = {
@@ -39,7 +39,9 @@ import Diagnostics from './components/Diagnostics'
 import Relationship from './components/Relationship'
 import Settings from './components/Settings'
 import DreamWorld, { DREAM_PAGES, DREAM_FIXED, DREAM_REORDER } from './components/DreamWorld'
-import AskConcierge from './components/AskConcierge'
+import Shelf from './components/Shelf'
+import PhoneTabBar from './components/PhoneTabBar'
+import Logo from './components/shared/Logo'
 
 const PILLARS = [
   { id: 'mindset', label: 'Mindset', icon: Compass },
@@ -156,7 +158,7 @@ export default function App() {
   const visiblePillars = PILLARS.filter((p) => !hidden.includes(p.id))
   // Redirect away from any removed or hidden section.
   useEffect(() => {
-    const valid = new Set(['today', 'dream', 'settings', ...PILLARS.map((p) => p.id)])
+    const valid = new Set(['today', 'dream', 'settings', 'shelf', ...PILLARS.map((p) => p.id)])
     if (!valid.has(active) || hidden.includes(active)) setActive('today')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, setActive, hiddenRaw])
@@ -229,7 +231,7 @@ export default function App() {
     setActivitiesRaw(migrateToActivities({ events: eventsForFix, meals: mealsSource, protocols: protocolsForMigrate }))
   }, [activitiesRaw, eventsForFix, meals, protocolsForMigrate, setActivitiesRaw])
   const [collapsed, setCollapsed] = useLocalStorage('mos:sidebar:collapsed', false)
-  const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
+  const [location, setLocation] = useLocalStorage('mos:settings:location', '')
   const [cycleConfig, setCycleConfig] = useLocalStorage('mos:settings:cycle', {
     lastPeriodStart: '',
     cycleLength: 28,
@@ -247,7 +249,7 @@ export default function App() {
   const [pendingDay, setPendingDay] = useState(null)
   const goToDay = (k) => { setPendingDay(k); setActive('today') }
   const [menuOpen, setMenuOpen] = useState(false)
-  const [askOpen, setAskOpen] = useState(false)
+  const [shelfView, setShelfView] = useState('cabinet')
   // The chosen wardrobe palette re-skins the whole app via CSS variables.
   const [themeRaw] = useLocalStorage('mos:settings:theme', 'porcelain')
   useEffect(() => {
@@ -258,7 +260,8 @@ export default function App() {
   const isToday = active === 'today'
   const isDream = active === 'dream'
   const isSettings = active === 'settings'
-  const isPillar = !isToday && !isDream && !isSettings
+  const isShelf = active === 'shelf'
+  const isPillar = !isToday && !isDream && !isSettings && !isShelf
 
   const goToday = () => setActive('today')
   const ActivePillar = isPillar ? PILLAR_COMPONENTS[active] : null
@@ -285,7 +288,7 @@ export default function App() {
   return (
     <AddProvider>
     <div className="min-h-screen bg-cream text-stone-900">
-      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} onAsk={() => setAskOpen(true)} />
+      <TopNav onOpenMenu={() => setMenuOpen(true)} onGoHome={goToday} showWordmark={!isToday} showAdd={isToday} onSettings={() => setActive('settings')} />
       <NavMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -294,6 +297,7 @@ export default function App() {
         onGoToday={goToday}
         onGoPillar={(id) => setActive(id)}
         onGoDream={() => { setActive('dream'); setDreamPage('goals') }}
+        onGoShelf={() => { setShelfView('cabinet'); setActive('shelf') }}
         onGoSettings={() => setActive('settings')}
       />
 
@@ -308,15 +312,16 @@ export default function App() {
       )}
 
       {/* ── Main content ────────────────────────────────────── */}
-      <main className="overflow-x-hidden px-6 py-10 md:px-10 lg:px-12">
+      <main className="overflow-x-hidden px-6 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-10 md:px-10 md:pb-10 lg:px-12">
         <div className="mx-auto max-w-5xl">
           {pageTitle && <h1 className="mb-9 text-center font-serif text-4xl text-stone-900 md:text-5xl">{pageTitle}</h1>}
-          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} />}
+          {isToday && <Today cycleConfig={cycleConfig} location={location} setLocation={setLocation} pendingDay={pendingDay} clearPendingDay={() => setPendingDay(null)} goToCycle={() => { setActive('workout'); setSub('workout', 'cycle') }} onOpenShelf={() => { setShelfView('cabinet'); setActive('shelf') }} />}
           {isDream && <DreamWorld page={dreamPage} cycleConfig={cycleConfig} />}
           {isPillar && ActivePillar && (
             <ActivePillar cycleConfig={cycleConfig} setCycleConfig={setCycleConfig} subPage={activeSub || undefined} goToDay={goToDay} />
           )}
           {isSettings && <Settings />}
+          {isShelf && <Shelf view={shelfView} setView={setShelfView} />}
           <Footer />
         </div>
       </main>
@@ -326,13 +331,19 @@ export default function App() {
         onClick={() => setActive('settings')}
         title="Settings"
         aria-label="Settings"
-        className="fixed bottom-6 left-6 z-40 flex h-11 w-11 items-center justify-center shadow-lg transition-opacity hover:opacity-90"
+        className="fixed bottom-6 left-6 z-40 hidden h-11 w-11 items-center justify-center shadow-lg md:flex"
         style={{ backgroundColor: '#1C1C1A', color: '#FAFAF7', borderRadius: '9999px' }}
       >
         <SettingsIcon size={18} />
       </button>
 
-      <AskConcierge open={askOpen} onClose={() => setAskOpen(false)} />
+      <PhoneTabBar
+        active={isShelf && shelfView === 'scan' ? 'scan' : isShelf ? 'shelf' : isToday ? 'today' : menuOpen ? 'index' : ''}
+        onToday={goToday}
+        onIndex={() => setMenuOpen(true)}
+        onShelf={() => { setShelfView('cabinet'); setActive('shelf') }}
+        onScan={() => { setShelfView('scan'); setActive('shelf') }}
+      />
     </div>
     </AddProvider>
   )
@@ -342,35 +353,37 @@ export default function App() {
 // A slim, calm bar: the hairline "index" mark on the left opens the full index
 // (NavMenu); the centered cursive wordmark is a persistent masthead that taps
 // home to Today, so home is always one tap away from any pillar page.
-function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
+function TopNav({ onOpenMenu, onGoHome, showWordmark = true, showAdd = false, onSettings }) {
+  const openAdd = useOpenAdd()
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur supports-[backdrop-filter]:bg-cream/80">
-      <div className="relative mx-auto flex max-w-[1400px] items-center px-6 py-3.5 md:px-10">
-        <button onClick={onOpenMenu} aria-label="Open the index" className="group relative z-10 flex items-center gap-2 py-1">
+      <div className="relative mx-auto flex h-14 max-w-[1400px] items-center px-2 md:px-10">
+        <button onClick={onOpenMenu} aria-label="Open the index" className="group relative z-10 flex min-h-11 min-w-11 items-center justify-center">
           <span className="flex flex-col items-start gap-[4px]" aria-hidden>
-            <span className="block h-px w-6 bg-stone-800 transition-all duration-300 group-hover:w-7" />
+            <span className="block h-px w-6 bg-stone-800 transition-all duration-300 group-hover:w-7 motion-reduce:transition-none" />
             <span className="block h-px w-7 bg-stone-800" />
-            <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-7" />
+            <span className="block h-px w-5 bg-stone-800 transition-all duration-300 group-hover:w-7 motion-reduce:transition-none" />
           </span>
         </button>
-        {onAsk && (
-          <button onClick={onAsk} aria-label="Esmé, your concierge" title="Esmé, your concierge" className="relative z-10 ml-auto flex items-center gap-2 rounded-full border border-stone-300 py-1.5 pl-2 pr-3.5 text-stone-600 transition-colors hover:border-stone-900 hover:text-stone-900">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-stone-300 font-serif italic text-[11px] leading-none">E</span>
-            <span className="text-xs tracking-wide" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '14px' }}>Esmé</span>
-          </button>
-        )}
-        {/* On the home (Today) page the big cursive masthead already carries the
-            name, so the bar wordmark is hidden there to avoid showing it twice. */}
         {showWordmark && (
           <button
             onClick={onGoHome}
             title="Home — Today"
-            style={{ fontFamily: "'Pinyon Script', cursive" }}
-            className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xl leading-none text-stone-800 transition-opacity hover:opacity-70 md:text-2xl"
+            className="absolute left-1/2 -translate-x-1/2"
           >
-            Melissa's Digital Planner
+            <Logo size="nav" />
           </button>
         )}
+        <div className="ml-auto flex items-center md:hidden">
+          {showAdd && (
+            <button onClick={openAdd} aria-label="Add something" className="flex min-h-11 min-w-11 items-center justify-center text-stone-900">
+              <Plus size={22} strokeWidth={1.5} />
+            </button>
+          )}
+          <button onClick={onSettings} aria-label="Settings" className="flex min-h-11 min-w-11 items-center justify-center text-stone-900">
+            <SettingsIcon size={20} strokeWidth={1.5} />
+          </button>
+        </div>
       </div>
     </header>
   )
@@ -380,7 +393,7 @@ function TopNav({ onOpenMenu, onGoHome, showWordmark = true, onAsk }) {
 // Opens from the top bar. A Pinyon wordmark, Today as the anchor, then the
 // pillars as a numbered serif index (two columns on wide screens), the current
 // one inked. One tap goes anywhere and closes. Editorial, calm, and fast.
-function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDream, onGoSettings }) {
+function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDream, onGoShelf, onGoSettings }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -421,7 +434,7 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
 
           {/* Dream Planning lives apart from the pillars — a small indulgence you
               step into. A soft inked capsule with a sparkle, centred below. */}
-          <div className="mt-14 flex justify-center">
+          <div className="mt-14 flex flex-wrap items-center justify-center gap-3">
             <button
               onClick={() => go(onGoDream)}
               className={`group inline-flex items-center gap-2.5 rounded-full px-7 py-3 font-serif text-lg tracking-wide transition-all duration-300 hover:scale-[1.03] hover:shadow-lg ${
@@ -430,6 +443,14 @@ function NavMenu({ open, onClose, active, pillars, onGoToday, onGoPillar, onGoDr
             >
               <Sparkles size={17} strokeWidth={1.5} className="transition-transform duration-500 group-hover:rotate-12" />
               Dream Planning
+            </button>
+            <button
+              onClick={() => go(onGoShelf)}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-full px-7 py-3 font-serif text-lg ${
+                active === 'shelf' ? 'bg-stone-900 text-cream' : 'border border-stone-300 text-stone-800'
+              }`}
+            >
+              The Shelf
             </button>
           </div>
         </div>

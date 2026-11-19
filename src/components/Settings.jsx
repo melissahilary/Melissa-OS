@@ -119,7 +119,7 @@ export default function Settings() {
   const [profile, setProfile] = useLocalStorage('mos:profile', { name: '', photo: '', timezone: '', birthday: '', birthTime: '', birthPlace: '' })
   const p = profile && typeof profile === 'object' ? profile : {}
   const setP = (patch) => setProfile((prev) => ({ ...(prev && typeof prev === 'object' ? prev : {}), ...patch }))
-  const [location, setLocation] = useLocalStorage('mos:settings:location', 'Alameda')
+  const [location, setLocation] = useLocalStorage('mos:settings:location', '')
   const [hidden, setHidden] = useLocalStorage('mos:settings:hidden', [])
   const hiddenArr = Array.isArray(hidden) ? hidden : []
   const [cycle, setCycle] = useLocalStorage('mos:settings:cycle', { lastPeriodStart: '', cycleLength: 28 })
@@ -251,7 +251,7 @@ export default function Settings() {
                 </div>
               </div>
               <div className="mt-6 grid grid-cols-2 gap-4">
-                <Field label="First name"><input value={p.firstName || ''} onChange={(e) => setP({ firstName: e.target.value })} placeholder="Melissa" className={input} /></Field>
+                <Field label="First name"><input value={p.firstName || ''} onChange={(e) => setP({ firstName: e.target.value })} placeholder="First name" className={input} /></Field>
                 <Field label="Last name"><input value={p.lastName || ''} onChange={(e) => setP({ lastName: e.target.value })} placeholder="Hilary" className={input} /></Field>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -414,24 +414,6 @@ export default function Settings() {
           )}
 
           {room === 'connected' && (<>
-            <Card title="Intelligence." blurb="The mind behind the house.">
-              <div className={`rounded-2xl border p-5 transition-all ${connections.claude?.off ? 'border-stone-200' : 'border-stone-900 bg-white/60'}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-serif text-lg leading-tight text-stone-900">Claude</p>
-                    <p className="mt-0.5 text-xs text-stone-400">Powers Esmé, your daily horoscope, and goal plans — reading only your own planner, never the open internet.</p>
-                  </div>
-                  <Toggle on={!connections.claude?.off} onClick={() => setConn('claude', { off: !connections.claude?.off })} title={connections.claude?.off ? 'Paused' : 'Connected'} />
-                </div>
-                {!connections.claude?.off && (
-                  <div className="mt-3 flex items-center gap-2 border-t border-stone-100 pt-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#7C8B6B]" />
-                    <span className="text-[10px] tracking-[0.12em] text-stone-400">CONNECTED · ANSWERS GROUNDED IN YOUR DATA</span>
-                  </div>
-                )}
-              </div>
-            </Card>
-
             <Card title="Wearables." blurb="What you wear that listens to your body. Toggle what you own; auto-sync arrives here first.">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {DEVICES.map((d) => {
@@ -531,7 +513,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <p className="kicker text-stone-400 mb-1.5">What leaves the app</p>
-                  <p>Weather and UV use your chosen city to fetch a local forecast. Your horoscope and concierge use your recorded data to write for you. Nothing is sold, shared, or used for advertising.</p>
+                  <p>Weather and UV use your chosen city to fetch a local forecast. A barcode can be looked up in a public product record. Nothing is sold, shared, or used for advertising.</p>
                 </div>
               </div>
             </Card>

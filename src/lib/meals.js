@@ -8,7 +8,7 @@
 //   PROTOCOL   — a recurring practice (Protocols page) that, on "Add to calendar",
 //                routes to either an EVENT or a MEAL ITEM.
 
-import { parseKey } from './date'
+import { parseKey } from './date.js'
 
 // Canonical meal slots, in daily order. `part` drives which Dream Day column the
 // slot appears under; `supps` marks slots that also carry a supplements list.
