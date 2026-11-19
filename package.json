@@ -10,11 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.68.0",
     "@capacitor-mlkit/barcode-scanning": "^8.2.2",
     "@capacitor/app": "^8.1.2",
     "@capacitor/camera": "^8.2.6",
     "@capacitor/core": "^8.6.2",
+    "@capacitor/haptics": "^8.0.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@supabase/supabase-js": "^2.45.4",
     "astronomy-engine": "^2.1.19",

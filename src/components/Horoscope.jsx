@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { dateKey } from '../lib/date'
 import { computeTransits } from '../lib/astrology/transits'
 import { natalLongitudesWith, SIGNS } from '../lib/astrology/natal'
 import { resolveSigns } from '../lib/profile'
-import { authHeaders } from '../lib/apiAuth'
 import * as store from '../lib/dataStore'
 
 const DEFAULT_SIGNS = { sun: 'Libra', moon: 'Taurus', rising: 'Libra' }
@@ -292,85 +291,23 @@ function HoroscopeInner() {
     }
   }, [today, sig])
 
-  const [cached, setCached] = useLocalStorage('mos:horoscope', null)
   const [data, setData] = useState(() => fallbackData(top))
-  const [refresh, setRefresh] = useState(0) // bumped on Save to re-pull the reading
-  const lastRefresh = useRef(0)
+  const [refresh, setRefresh] = useState(0)
 
   useEffect(() => {
     if (!signs.sun || !signs.moon || !signs.rising) return undefined
-    // A Save forces a fresh pull past the daily cache; a normal render uses cache.
-    const forced = refresh !== lastRefresh.current
-    lastRefresh.current = refresh
-    // Use the cache only if it's today's, matches the current signs, and is valid.
-    if (
-      !forced &&
-      cached &&
-      cached.date === key &&
-      cached.signs === sig &&
-      cached.voice === VOICE &&
-      typeof cached.theme === 'string' &&
-      Array.isArray(cached.aspects) &&
-      cached.aspects.length > 0 &&
-      cached.aspects.every(isValidAspect)
-    ) {
-      setData(normalizeData(cached))
-      return undefined
-    }
-
-    // No matching cache. Keep whatever accurate reading is already on screen; only
-    // fall to the deterministic reading if nothing is displayed yet. This is what
-    // prevents the backup from ever replacing a good reading (e.g. editing offline).
-    setData((prev) => {
-      const cur = normalizeData(prev)
-      return cur.summary || cur.aspects.length ? prev : fallbackData(top)
-    })
-    if (!top.length) return undefined
-
-    let alive = true
-    const payload = top.map((a) => ({
-      from: meaningOf(a.transit).toUpperCase(),
-      to: meaningOf(a.natal).toUpperCase(),
-      type: String(a.aspect || ''),
-      quality: qualityOf(a.aspect),
-      orb: a.orb,
-    }))
-    const natalContext = { sun: `${signs.sun} Sun`, moon: `${signs.moon} Moon`, rising: `${signs.rising} Rising` }
-    ;(async () => {
-      try {
-        const res = await fetch('/api/horoscope', {
-          method: 'POST',
-          headers: await authHeaders(),
-          body: JSON.stringify({ date: key, aspects: payload, natal: natalContext }),
-        })
-        if (!res.ok) return
-        const json = await res.json()
-        const next = normalizeData(json)
-        if (next.aspects.length && next.theme && alive) {
-          setData(next)
-          // Only persist the reading for the real chart, so a "try it on" combo
-          // never overwrites the daily reading that loads on refresh.
-          if (sig === signSig(resolved)) {
-            setStoredSigns(signs)
-            setCached({ date: key, signs: sig, voice: VOICE, theme: next.theme, summary: next.summary, aspects: next.aspects, source: 'written' })
-          }
-        }
-      } catch {
-        /* offline / no key — the deterministic fallback already rendered */
-      }
-    })()
-    return () => {
-      alive = false
-    }
+    setData(fallbackData(top))
+    return undefined
+    // Drawn on this device from the chart. The stored daily cache is left as it is.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, top, sig, refresh])
 
   if (!signs.sun || !signs.moon || !signs.rising) {
     return (
-      <div className="mb-8 border border-[#C4A46A] px-6 py-8 text-center">
+      <div className="mb-8 rounded-2xl border border-stone-200 px-6 py-8 text-center">
         <p className="font-serif text-2xl text-stone-900">Your chart</p>
         <p className="mt-2 text-sm text-stone-500">Sun, Moon and Rising, when you want a reading.</p>
-        <button onClick={() => setEditing(true)} className="mt-4 text-sm text-[#6B2B2B]">Set them</button>
+        <button onClick={() => setEditing(true)} className="mt-4 min-h-11 px-4 text-sm text-stone-900">Set them</button>
         {editing && (
           <SignsModal
             signs={{ sun: 'Aries', moon: 'Aries', rising: 'Aries' }}

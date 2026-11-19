@@ -20,9 +20,7 @@ book's name, and "Daily Schedule").
 - Deterministic ephemeris in the browser: `src/lib/astrology/` (natal chart
   hard-coded; `transits.js` computes today's geocentric tropical longitudes via
   `astronomy-engine` and aspects them to natal points). Math stays in code.
-- Voice from the configured model via the Vercel serverless function `api/horoscope.js`.
-  Needs `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` set in Vercel env; without
-  them the card falls back to a deterministic written-from-the-aspects reading.
+- The daily reading is computed in the browser from the chart. No language service.
 - Cached per day in `mos:horoscope` so it's at most one LLM call/day.
 
 ## Branches & deploy

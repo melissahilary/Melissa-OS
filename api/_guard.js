@@ -21,11 +21,6 @@ function allow(userId) {
   return true
 }
 
-export function modelName() {
-  const name = process.env.ANTHROPIC_MODEL
-  return typeof name === 'string' && name.trim() ? name.trim() : ''
-}
-
 export async function requireUser(req, res) {
   const header = req.headers.authorization || req.headers.Authorization || ''
   const token = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7).trim() : ''

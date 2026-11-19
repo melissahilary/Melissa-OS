@@ -19,7 +19,7 @@ import { useActivities } from '../hooks/useActivities'
 import { activityOccursOn, isDoneOn, toMealShape, blankActivity, SECTION_CATS, partsOfActivity, daySectionsOf, eventPartsOf } from '../lib/activities'
 import { isRepeating, projectActivity } from '../lib/series'
 import ScopePrompt from './shared/ScopePrompt'
-import { APP_NAME } from '../lib/brand'
+import Logo from './shared/Logo'
 import { moonInfo } from '../lib/moon'
 import LocationField, { resolveCoords, locKey } from './shared/LocationField'
 import { ShelfGlance } from './Shelf'
@@ -240,12 +240,6 @@ const byTime = (a, b) => {
   if (!tb) return 1
   return ta.localeCompare(tb)
 }
-
-const Cursive = ({ children, className = '' }) => (
-  <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>
-    {children}
-  </span>
-)
 
 // A live, ticking clock (seconds) in the location's time zone, with a breathing
 // dot. Always shows the real current time — locked, even when a past/future day
@@ -825,7 +819,7 @@ export default function Today({ cycleConfig, location, setLocation, pendingDay, 
     <div>
       {/* Page title — centered at the very top of the main content */}
       <div className="mb-6 text-center">
-        <Cursive className="text-5xl md:text-6xl text-stone-900 leading-tight">{APP_NAME}</Cursive>
+        <Logo size="home" />
         <Clock location={location} />
       </div>
 

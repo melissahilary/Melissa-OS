@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  /* Light only. The book is paper; a dark ground would be a different object. */
   color-scheme: light;
 }
 
@@ -155,4 +156,10 @@ input[type='number'] {
 .mos-settle { animation: mos-settle 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) {
   .mos-settle { animation: none; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

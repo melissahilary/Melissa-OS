@@ -1,26 +1,38 @@
 import React from 'react'
 import { Sun, LayoutList, Library, ScanLine } from 'lucide-react'
+import { tap } from '../lib/haptics'
+
+const TABS = [
+  { id: 'today', label: 'Today', icon: Sun },
+  { id: 'index', label: 'Index', icon: LayoutList },
+  { id: 'shelf', label: 'Shelf', icon: Library },
+  { id: 'scan', label: 'Scan', icon: ScanLine },
+]
 
 export default function PhoneTabBar({ active, onToday, onIndex, onShelf, onScan }) {
-  const tabs = [
-    { id: 'today', label: 'Today', icon: Sun, onClick: onToday },
-    { id: 'index', label: 'Index', icon: LayoutList, onClick: onIndex },
-    { id: 'shelf', label: 'Shelf', icon: Library, onClick: onShelf },
-    { id: 'scan', label: 'Scan', icon: ScanLine, onClick: onScan },
-  ]
+  const go = {
+    today: onToday,
+    index: onIndex,
+    shelf: onShelf,
+    scan: onScan,
+  }
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C4A46A] bg-cream md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-cream md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      aria-label="Phone"
+      aria-label="Sections"
     >
-      <div className="grid grid-cols-4">
-        {tabs.map((t) => {
+      <div className="grid h-[3.25rem] grid-cols-4">
+        {TABS.map((t) => {
           const on = active === t.id
           const Icon = t.icon
           return (
-            <button key={t.id} onClick={t.onClick} className={`flex flex-col items-center gap-1 py-2.5 ${on ? 'text-stone-900' : 'text-stone-400'}`}>
-              <Icon size={18} strokeWidth={1.5} />
+            <button
+              key={t.id}
+              onClick={() => { tap(); go[t.id]() }}
+              className={`flex min-h-11 flex-col items-center justify-center gap-1 ${on ? 'text-stone-900' : 'text-stone-400'}`}
+            >
+              <Icon size={20} strokeWidth={1.5} />
               <span className="text-[10px] tracking-wide">{t.label}</span>
             </button>
           )

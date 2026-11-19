@@ -1,16 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Mail, Check } from 'lucide-react'
 import * as store from '../lib/dataStore'
-import { APP_NAME } from '../lib/brand'
+import Logo from './shared/Logo'
 import { needsSetup } from '../lib/profile'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import FirstRun from './FirstRun'
-
-const Cursive = ({ children, className = '' }) => (
-  <span className={className} style={{ fontFamily: "'Pinyon Script', cursive" }}>
-    {children}
-  </span>
-)
 
 // Gates the whole app on a Supabase session. Shows a splash while resolving the
 // session, a magic-link login when signed out, and the app once signed in.
@@ -60,7 +54,7 @@ function Splash() {
   }, [])
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-cream px-6 text-center">
-      <Cursive className="text-4xl text-stone-400">{APP_NAME}</Cursive>
+      <Logo size="splash" />
       {slow && (
         <div>
           <p className="text-sm text-stone-500">Taking longer than usual to load.</p>
@@ -116,7 +110,7 @@ function Login() {
     <div className="flex min-h-screen items-center justify-center px-6" style={linenBg}>
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
-          <Cursive className="text-5xl text-stone-900 leading-tight">{APP_NAME}</Cursive>
+          <Logo size="signin" />
         </div>
 
         {sent ? (
@@ -166,7 +160,7 @@ function Login() {
 function ReadError() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-cream px-6 text-center">
-      <Cursive className="text-4xl text-stone-800">{APP_NAME}</Cursive>
+      <Logo size="splash" />
       <p className="max-w-sm font-serif text-lg italic text-stone-600">The book did not open. Nothing was changed. Try again when the line is clear.</p>
       <button onClick={() => window.location.reload()} className="bg-[#6B2B2B] px-5 py-2.5 text-sm text-cream">Try again</button>
     </div>

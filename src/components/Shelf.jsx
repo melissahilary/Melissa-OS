@@ -3,9 +3,10 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import * as store from '../lib/dataStore'
 import { SHELF_CATEGORIES, categoryLabel, money, nudges, spendReport, costPerUse, normalizeProducts } from '../lib/shelf'
 import { authHeaders } from '../lib/apiAuth'
+import { tap } from '../lib/haptics'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
-const line = 'w-full border-0 border-b border-[#C4A46A] bg-transparent pb-1.5 text-sm outline-none'
+const line = 'w-full bg-transparent border-b border-stone-300 pb-1.5 text-sm outline-none focus:border-stone-900'
 const STATUSES = [
   { id: 'sealed', label: 'Sealed' },
   { id: 'opened', label: 'Opened' },
@@ -82,13 +83,13 @@ export default function Shelf({ view, setView }) {
     <div>
       <p className="kicker text-center text-stone-400">The cabinet</p>
       <h1 className="mt-2 text-center font-serif text-4xl text-stone-900 md:text-5xl">Shelf</h1>
-      <div className="mx-auto mt-6 flex max-w-xl justify-center gap-6 border-b border-[#C4A46A]">
+      <div className="mx-auto mt-6 flex max-w-xl justify-center gap-2">
         {[
           ['cabinet', 'Shelf'],
           ['scan', 'Scan'],
           ['spend', 'Spend'],
         ].map(([id, label]) => (
-          <button key={id} onClick={() => show(id)} className={`-mb-px border-b pb-2 font-serif text-lg ${view === id || (id === 'cabinet' && view === 'ledger') ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400'}`}>{label}</button>
+          <button key={id} onClick={() => show(id)} className={`min-h-11 rounded-full px-4 font-serif text-[15px] ${view === id || (id === 'cabinet' && view === 'ledger') ? 'bg-stone-900 text-cream' : 'text-stone-400'}`}>{label}</button>
         ))}
       </div>
 
@@ -131,19 +132,21 @@ function Cabinet({ products, routines, setRoutines, cat, setCat, onOpen, onScan 
   }
   return (
     <div className="mx-auto mt-8 max-w-3xl">
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex gap-2 overflow-x-auto">
-          {SHELF_CATEGORIES.map((c) => (
-            <button key={c.id} onClick={() => setCat(c.id)} className={`whitespace-nowrap border px-3 py-1.5 text-xs tracking-wide ${cat === c.id ? 'border-stone-900 text-stone-900' : 'border-[#C4A46A] text-stone-400'}`}>{c.label}</button>
-          ))}
-        </div>
-        <button onClick={onScan} className="bg-[#1D4E89] px-4 py-2 text-xs text-cream">Scan</button>
+      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
+        {SHELF_CATEGORIES.map((c) => (
+          <button key={c.id} onClick={() => setCat(c.id)} className={`min-h-11 shrink-0 whitespace-nowrap rounded-full border px-4 text-xs ${cat === c.id ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-500'}`}>{c.label}</button>
+        ))}
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {mine.length === 0 && <p className="col-span-full border border-dashed border-[#C4A46A] py-10 text-center font-serif italic text-stone-400">This shelf is empty.</p>}
+        {mine.length === 0 && (
+          <div className="col-span-full rounded-2xl border border-dashed border-stone-200 px-6 py-10 text-center">
+            <p className="font-serif italic text-stone-400">This shelf is empty.</p>
+            <button onClick={onScan} className="mt-4 min-h-11 rounded-full bg-stone-900 px-5 text-sm text-cream">Scan a product</button>
+          </div>
+        )}
         {mine.map((p) => (
-          <button key={p.id} onClick={() => onOpen(p.id)} className="border border-[#C4A46A] bg-cream p-4 text-left">
+          <button key={p.id} onClick={() => onOpen(p.id)} className="min-h-11 rounded-2xl border border-stone-200 bg-white/40 p-4 text-left">
             <p className="kicker text-stone-400">{p.brand || categoryLabel(p.category)}</p>
             <p className="mt-2 font-serif text-xl text-stone-900">{p.name}</p>
             <p className="mt-3 font-mono text-xs text-stone-500">{p.status}{p.size ? ` · ${p.size}` : ''}</p>
@@ -154,12 +157,12 @@ function Cabinet({ products, routines, setRoutines, cat, setCat, onOpen, onScan 
       {due.length > 0 && (
         <div className="mt-10">
           <p className="kicker text-stone-400">Restock</p>
-          <ul className="mt-3 divide-y divide-[#C4A46A] border-y border-[#C4A46A]">
+          <ul className="mt-3 divide-y divide-stone-200 border-y border-stone-200">
             {due.map((p) => (
               <li key={p.id}>
                 <button onClick={() => onOpen(p.id)} className="flex w-full items-baseline justify-between py-3 text-left">
                   <span className="font-serif text-lg">{p.name}</span>
-                  <span className="font-mono text-xs text-[#6B2B2B]">{p.status === 'sealed' ? 'marked' : p.status}</span>
+                  <span className="font-mono text-xs text-stone-900">{p.status === 'sealed' ? 'marked' : p.status}</span>
                 </button>
               </li>
             ))}
@@ -172,18 +175,18 @@ function Cabinet({ products, routines, setRoutines, cat, setCat, onOpen, onScan 
           <p className="kicker text-stone-400">Routines</p>
           <div className="mt-3 flex gap-2">
             <input value={routineName} onChange={(e) => setRoutineName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addRoutine()} placeholder="Morning vanity" className={line} />
-            <button onClick={addRoutine} className="bg-[#6B2B2B] px-3 text-xs text-cream">Add</button>
+            <button onClick={addRoutine} className="min-h-11 shrink-0 rounded-full bg-stone-900 px-4 text-sm text-cream">Add</button>
           </div>
           <ul className="mt-4 space-y-3">
             {routines.map((r) => (
-              <li key={r.id} className="border border-[#C4A46A] p-3">
+              <li key={r.id} className="rounded-2xl border border-stone-200 p-4">
                 <p className="font-serif text-lg">{r.name}</p>
                 <p className="mt-1 text-xs text-stone-500">{(r.productIds || []).length} on the shelf</p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {products.filter((p) => !p.wishlist).map((p) => {
                     const on = (r.productIds || []).includes(p.id)
                     return (
-                      <button key={p.id} onClick={() => setRoutines((prev) => (Array.isArray(prev) ? prev : []).map((x) => x.id === r.id ? { ...x, productIds: on ? x.productIds.filter((id) => id !== p.id) : [...(x.productIds || []), p.id] } : x))} className={`border px-2 py-1 text-[11px] ${on ? 'border-stone-900' : 'border-stone-200 text-stone-400'}`}>{p.name}</button>
+                      <button key={p.id} onClick={() => setRoutines((prev) => (Array.isArray(prev) ? prev : []).map((x) => x.id === r.id ? { ...x, productIds: on ? x.productIds.filter((id) => id !== p.id) : [...(x.productIds || []), p.id] } : x))} className={`min-h-11 rounded-full border px-3 text-[11px] ${on ? 'border-stone-900 bg-stone-900 text-cream' : 'border-stone-200 text-stone-400'}`}>{p.name}</button>
                     )
                   })}
                 </div>
@@ -194,7 +197,7 @@ function Cabinet({ products, routines, setRoutines, cat, setCat, onOpen, onScan 
         <section>
           <p className="kicker text-stone-400">Wishlist</p>
           {wishes.length === 0 && <p className="mt-3 font-serif italic text-stone-400">Nothing waiting.</p>}
-          <ul className="mt-3 divide-y divide-[#C4A46A] border-y border-[#C4A46A]">
+          <ul className="mt-3 divide-y divide-stone-200 border-y border-stone-200">
             {wishes.map((p) => (
               <li key={p.id}><button onClick={() => onOpen(p.id)} className="w-full py-3 text-left font-serif text-lg">{p.name}</button></li>
             ))}
@@ -276,6 +279,7 @@ function Scan({ onAdd }) {
 
   const save = (wishlist) => {
     if (!draft.name.trim()) return
+    tap()
     onAdd({
       id: uid(),
       ...draft,
@@ -287,10 +291,10 @@ function Scan({ onAdd }) {
 
   return (
     <div className="mx-auto mt-8 max-w-xl">
-      <video ref={videoRef} className={`mb-4 w-full border border-[#C4A46A] ${cameraOn ? 'block' : 'hidden'}`} muted playsInline />
-      <div className="flex gap-2">
-        <button onClick={startCamera} className="bg-[#1D4E89] px-4 py-3 text-sm text-cream">Scan a barcode</button>
-        <input value={draft.barcode} onChange={(e) => set('barcode', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search(draft.barcode)} placeholder="Barcode" className={`${line} font-mono`} />
+      <video ref={videoRef} className={`mb-4 w-full border border-stone-200 ${cameraOn ? 'block' : 'hidden'}`} muted playsInline />
+      <div className="flex flex-col gap-3">
+        <button onClick={startCamera} className="min-h-11 rounded-full bg-stone-900 px-5 text-sm text-cream">Scan a barcode</button>
+        <input value={draft.barcode} onChange={(e) => set('barcode', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search(draft.barcode)} placeholder="Barcode" className={`${line} min-h-11 font-mono`} />
       </div>
       <p className="mt-3 min-h-5 text-xs text-stone-500">{looking ? 'Looking it up.' : note}</p>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -311,8 +315,8 @@ function Scan({ onAdd }) {
       </div>
       <Field label="Ingredients"><textarea value={draft.ingredients} onChange={(e) => set('ingredients', e.target.value)} className={`${line} mt-4 min-h-16`} /></Field>
       <div className="mt-6 flex gap-3">
-        <button onClick={() => save(false)} className="bg-[#6B2B2B] px-5 py-3 text-sm text-cream">Put it on the shelf</button>
-        <button onClick={() => save(true)} className="border border-[#C4A46A] px-5 py-3 text-sm">Wishlist</button>
+        <button onClick={() => save(false)} className="min-h-11 rounded-full bg-stone-900 px-5 text-sm text-cream">Put it on the shelf</button>
+        <button onClick={() => save(true)} className="min-h-11 rounded-full border border-stone-300 px-5 text-sm">Wishlist</button>
       </div>
     </div>
   )
@@ -369,21 +373,21 @@ function Ledger({ product, journal, onChange, onRemove, onJournal, onBack }) {
       </div>
       <p className="mt-6 text-sm leading-relaxed text-stone-600">{product.size}{product.ingredients ? ` · ${product.ingredients}` : ''}</p>
       <div className="mt-4 flex gap-4 text-sm">
-        <button onClick={() => onChange({ restock: !product.restock })} className={product.restock ? 'text-[#6B2B2B]' : 'text-stone-400'}>Restock</button>
+        <button onClick={() => onChange({ restock: !product.restock })} className={product.restock ? 'text-stone-900' : 'text-stone-400'}>Restock</button>
         <button onClick={() => onChange({ wishlist: !product.wishlist })} className={product.wishlist ? 'text-stone-900' : 'text-stone-400'}>Wishlist</button>
         <button onClick={onRemove} className="text-stone-400">Remove</button>
       </div>
-      <div className="mt-8 border-t border-[#C4A46A] pt-6">
+      <div className="mt-8 border-t border-stone-200 pt-6">
         <p className="kicker text-stone-400">Results</p>
         <textarea value={entry.note} onChange={(e) => setEntry({ ...entry, note: e.target.value })} placeholder="What changed" className={`${line} mt-3 min-h-16`} />
         <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
           <button onClick={() => setEntry({ ...entry, repurchase: !entry.repurchase })} className={entry.repurchase ? 'text-stone-900' : 'text-stone-400'}>Buy again</button>
-          <button onClick={() => setEntry({ ...entry, dropped: !entry.dropped })} className={entry.dropped ? 'text-[#6B2B2B]' : 'text-stone-400'}>Drop it</button>
+          <button onClick={() => setEntry({ ...entry, dropped: !entry.dropped })} className={entry.dropped ? 'text-stone-900' : 'text-stone-400'}>Drop it</button>
           <button onClick={() => fileRef.current && fileRef.current.click()} className="text-stone-500">Photo</button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) addNote(f); e.target.value = '' }} />
-          <button onClick={() => addNote(null)} className="bg-[#6B2B2B] px-4 py-2 text-xs text-cream">Save note</button>
+          <button onClick={() => addNote(null)} className="min-h-11 rounded-full bg-stone-900 px-5 text-sm text-cream">Save note</button>
         </div>
-        <ul className="mt-4 divide-y divide-[#C4A46A]">
+        <ul className="mt-4 divide-y divide-stone-200">
           {journal.map((j) => (
             <li key={j.id} className="py-3 text-sm">
               <p className="font-mono text-[11px] text-stone-400">{j.date}{j.photoPath ? ' · photo filed' : ''}</p>
@@ -404,7 +408,7 @@ function Spend({ products, journal, onOpen }) {
     <div className="mx-auto mt-8 grid max-w-4xl gap-10 md:grid-cols-2">
       <section>
         <p className="kicker text-stone-400">This month</p>
-        <p className="mt-2 font-mono text-4xl text-stone-900">{money(report.total)}</p>
+        <p className="mt-2 font-serif text-5xl text-stone-900">{money(report.total)}</p>
         <ul className="mt-6 space-y-3">
           {report.byCategory.map((c) => (
             <li key={c.id}>
@@ -413,7 +417,7 @@ function Spend({ products, journal, onOpen }) {
             </li>
           ))}
         </ul>
-        <ul className="mt-6 divide-y divide-[#C4A46A] border-y border-[#C4A46A]">
+        <ul className="mt-6 divide-y divide-stone-200 border-y border-stone-200">
           {report.perProduct.map((p) => (
             <li key={p.id}>
               <button onClick={() => onOpen(p.id)} className="flex w-full items-baseline justify-between py-3 text-left">
@@ -427,7 +431,7 @@ function Spend({ products, journal, onOpen }) {
       <section>
         <p className="kicker text-stone-400">Results</p>
         {journal.length === 0 && <p className="mt-3 font-serif italic text-stone-400">Notes and photos gather here.</p>}
-        <ul className="mt-3 divide-y divide-[#C4A46A] border-y border-[#C4A46A]">
+        <ul className="mt-3 divide-y divide-stone-200 border-y border-stone-200">
           {journal.map((j) => {
             const product = products.find((p) => p.id === j.productId)
             return (
@@ -453,14 +457,14 @@ export function ShelfGlance({ onOpen }) {
   const due = nudges(raw)
   const held = normalizeProducts(raw).filter((p) => !p.wishlist).length
   return (
-    <button onClick={onOpen} className="mb-8 grid w-full grid-cols-3 border border-[#C4A46A] text-left">
+    <button onClick={onOpen} className="mb-8 grid w-full grid-cols-3 overflow-hidden rounded-2xl border border-stone-200 text-left">
       {[
         [String(held), 'On the shelf'],
         [money(report.total), 'This month'],
         [String(due.length), 'To restock'],
       ].map(([n, label]) => (
-        <span key={label} className="border-r border-[#C4A46A] px-4 py-4 last:border-r-0">
-          <span className="block font-mono text-xl text-stone-900">{n}</span>
+        <span key={label} className="border-r border-stone-200 px-4 py-4 last:border-r-0">
+          <span className="block font-serif text-3xl text-stone-900">{n}</span>
           <span className="kicker mt-1 block text-stone-400">{label}</span>
         </span>
       ))}

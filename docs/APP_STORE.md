@@ -33,8 +33,9 @@ The iOS project in `ios/` is a Capacitor shell around this web app. The bundle i
    - No data is sold, and no data is used for advertising or third-party tracking.
 8. Screenshots: 6.7-inch and 6.1-inch iPhone, of Today, the shelf, a product, and sign-in. No placeholder copy.
 9. A privacy policy URL. The draft below can be hosted as a page once a URL is chosen.
-10. `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` in the hosting project's environment, if the written horoscope, concierge, and goal plans should call out. The app works without them and falls back to its own text.
-11. The optional storage migration in `supabase/migrations/` if result photos should live in their own bucket. Until it is approved and applied, photos go in the existing private `board` bucket under `{account}/results/`.
+10. The optional storage migration in `supabase/migrations/` if result photos should live in their own bucket. Until it is approved and applied, photos go in the existing private `board` bucket under `{account}/results/`.
+
+The app is light only, matching the planner. A light haptic marks a committed tap in the installed app.
 
 ## Privacy policy draft
 
@@ -48,7 +49,7 @@ The book is visible to the account that wrote it. Row-level security on the data
 
 Weather and UV for a city you type are requested from a public forecast. A product barcode may be looked up in a public product database (brand, size, ingredients, and a price when one is listed). Those lookups send the barcode, not your name.
 
-If a written reading or a concierge answer is turned on for the hosted app, the question and the relevant part of your book are sent to the language service configured for the project, in order to write the reply. They are not used to train a public model by us.
+The daily reading is calculated on your device from the chart you enter. It is not sent anywhere.
 
 You can stop using the book at any time. Signing out leaves the book where it is. Deleting the account, from the privacy room in settings, removes the rows that belong to it.
 
